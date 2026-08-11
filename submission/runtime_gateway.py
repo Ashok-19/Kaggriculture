@@ -79,6 +79,9 @@ ROOT = Path(__file__).resolve().parent
 _ROUTE_PAYLOAD = json.loads((ROOT / "routes.json").read_text())
 ROUTES = {k: v["actions"] for k, v in _ROUTE_PAYLOAD["routes"].items()}
 ROUTE_NAMES = ("v27", "lev", "jince", "breaking")
+# Promoted production backbone: Lev's stronger opening is structurally compatible
+# with v27 at step 174. The suffix keeps v27's robust late production schedule.
+PRIMARY_ROUTE = ROUTES["lev"][:174] + ROUTES["v27"][174:]
 
 
 def _fertilizer_pickups(action):
@@ -153,6 +156,8 @@ def _fresh_state():
         "rc2_due_step": -1,
         "rc2_due": 0,
         "fert_excess_debt": 0,
+        "livestock_extra": {},
+        "livestock_lag": {},
     }
 
 
@@ -205,6 +210,94 @@ def _weed_repair(obs, action, route, step, state):
         if isinstance(tile, dict) and tile.get("kind") == "WEED":
             active[actor] = {"start": step, "intended": list(intended)}
             unit_actions[idx] = ["DIG"]
+    action["farmer"] = unit_actions[0] if unit_actions else ["PASS"]
+    action["hands"] = unit_actions[1:]
+    return _align(action, obs)
+
+
+def _cow_count(farm):
+    total = 0
+    for row in (_get(farm, "tiles", []) or []):
+        for tile in row:
+            if isinstance(tile, dict) and tile.get("animal") == "COW":
+                total += 1
+    return total
+
+
+def _apply_stranded_cow_recovery(action, obs, step, state, route):
+    """Recover a publicly visible missing cow without changing route movement."""
+    action = _align(_copy_action(action), obs)
+    seat = int(_get(obs, "player", 0) or 0)
+    farms = list(_get(obs, "farms", []) or [])
+    if len(farms) < 2:
+        return action
+    own, opp = farms[seat], farms[1 - seat]
+    extra = state["livestock_extra"]
+    lag = state["livestock_lag"]
+
+    # Farm hands are dismissed/re-hired at day boundaries; actor indices must
+    # never leak across that identity reset.
+    if step % 24 == 0:
+        extra.clear()
+        lag.clear()
+
+    positions = [_get(own, "farmer"), *list(_get(own, "hands", []) or [])]
+    unit_actions = [action.get("farmer", ["PASS"]), *list(action.get("hands") or [])]
+
+    # Replay the displaced action one turn behind. A scheduled PASS is explicit
+    # slack: execute the delayed previous action there and rejoin the route.
+    for actor in list(lag):
+        idx = 0 if actor == "farmer" else int(actor) + 1
+        if idx >= len(unit_actions):
+            lag.pop(actor, None)
+            extra.pop(actor, None)
+            continue
+        unit_actions[idx] = _trace_actor_action(route, step - 1, actor)
+        if _trace_actor_action(route, step, actor)[0] == "PASS":
+            lag.pop(actor, None)
+
+    shops = tuple(_get(_get(obs, "town", {}) or {}, "unlocked_shops", []) or [])
+    if "YARN_STORE" not in shops:
+        own_cows, opp_cows = _cow_count(own), _cow_count(opp)
+        shed = _get(_get(obs, "private", {}) or {}, "shed", {}) or {}
+        available = max(0, int(_get(shed, "COW", 0) or 0))
+
+        # Piggy-back on an already scheduled COW pickup, so movement is unchanged.
+        for idx, raw in enumerate(unit_actions):
+            actor = "farmer" if idx == 0 else idx - 1
+            order = list(raw or ["PASS"])
+            if actor in lag or actor in state["weed"] or actor in extra:
+                continue
+            if len(order) >= 2 and order[0] == "PICKUP" and order[1] == "COW":
+                requested = max(1, int(order[2]) if len(order) >= 3 else 1)
+                if own_cows < opp_cows and available > requested:
+                    if len(order) < 3:
+                        order.append(requested + 1)
+                    else:
+                        order[2] = requested + 1
+                    unit_actions[idx] = order
+                    extra[actor] = "COW"
+                    break
+
+        # Insert placement only when that carrying actor naturally traverses an
+        # empty pasture. One later PASS absorbs the displaced route action.
+        for idx, (position, raw) in enumerate(zip(positions, unit_actions)):
+            actor = "farmer" if idx == 0 else idx - 1
+            if extra.get(actor) != "COW" or actor in lag:
+                continue
+            tile = _tile_at(own, position)
+            order = list(raw or ["PASS"])
+            if (
+                isinstance(tile, dict)
+                and tile.get("kind") == "PASTURE"
+                and not tile.get("animal")
+                and order[0] != "PLACE"
+            ):
+                unit_actions[idx] = ["PLACE", "COW"]
+                extra.pop(actor, None)
+                lag[actor] = 1
+                break
+
     action["farmer"] = unit_actions[0] if unit_actions else ["PASS"]
     action["hands"] = unit_actions[1:]
     return _align(action, obs)
@@ -561,8 +654,9 @@ def agent(obs, configuration=None):
         if step == 0 or step < st["last"]:
             st.clear(); st.update(_fresh_state())
             if _NATIVE is not None: _NATIVE.kag_agent_reset(seat)
-        st["last"] = step; route = ROUTES[st["route"]]
+        st["last"] = step; route = PRIMARY_ROUTE
         action = _weed_repair(obs, _copy_action(route[step]), route, step, st)
+        action = _apply_stranded_cow_recovery(action, obs, step, st, route)
         action = _apply_yarn_livestock(action, obs, step, st)
         action = _apply_wool_release(action, obs, step, st)
         action = _rank_sell_slots(obs, action, configuration)
