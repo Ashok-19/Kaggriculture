@@ -49,6 +49,9 @@ SHED_ACCESS = ((4, 4), (5, 4), (4, 5), (5, 5))
 WHEAT_SHIFT_QTY = 3
 WHEAT_SHIFT_LEAD = 1
 WHEAT_SHIFT_CASH_RESERVE = 2000
+WHEAT_SELL_SHIFT_LEAD = 1
+WHEAT_SELL_SHIFT_CAP = 24
+MOVE_DELTA = {"NORTH": (0, -1), "SOUTH": (0, 1), "WEST": (-1, 0), "EAST": (1, 0)}
 MARKET_PARAMS = {
     "WHEAT": (25,10000,400,"sqrt",0.8,"log",0.2),
     "CARROT": (35,10000,450,"log",0.2,"sqrt",0.7),
@@ -168,6 +171,8 @@ def _fresh_state():
         "livestock_lag": {},
         "evac_plan": None,
         "wheat_buy_debt": {},
+        "cross_borrow": {},
+        "wheat_sell_debt": {},
     }
 
 
@@ -761,6 +766,111 @@ def _apply_pass_weed_dig(action, obs):
     return _align(action, obs)
 
 
+def _movement_destination(position, command):
+    if not position or not isinstance(command, list) or not command or command[0] not in MOVE_DELTA:
+        return None
+    dx, dy = MOVE_DELTA[command[0]]
+    return (int(position[0]) + dx, int(position[1]) + dy)
+
+
+def _apply_cross_worker_preclear(action, obs, step, state, route):
+    action = _align(_copy_action(action), obs)
+    seat = int(_get(obs, "player", 0) or 0); farm = _farm(obs, seat)
+    positions = _unit_positions(farm)
+    unit_actions = [action.get("farmer", ["PASS"]), *list(action.get("hands") or [])]
+    borrowed = state["cross_borrow"]
+
+    # A cleaner may borrow exactly its immediately-following canonical PASS.
+    # Repay that single displaced movement before considering a new preclear.
+    for idx, command in list(borrowed.items()):
+        if idx < len(unit_actions) and unit_actions[idx] == ["PASS"]:
+            unit_actions[idx] = list(command)
+        borrowed.pop(idx, None)
+
+    incoming = {}
+    for idx, (position, command) in enumerate(zip(positions, unit_actions)):
+        destination = _movement_destination(position, command)
+        if destination is not None:
+            incoming.setdefault(destination, []).append(idx)
+
+    if step + 1 < len(route):
+        for cleaner, (position, command) in enumerate(zip(positions, unit_actions)):
+            if cleaner in borrowed or not position or not isinstance(command, list) or not command or command[0] not in MOVE_DELTA:
+                continue
+            tile = _tile_at(farm, position)
+            if not isinstance(tile, dict) or tile.get("kind") != "WEED":
+                continue
+            if _actor_action(route, step + 1, cleaner) != ["PASS"]:
+                continue
+            here = (int(position[0]), int(position[1])); route_critical = False
+            for incoming_actor in incoming.get(here, []):
+                next_command = _actor_action(route, step + 1, incoming_actor)
+                if next_command and next_command[0] in ("PLANT", "BUILD_PASTURE"):
+                    route_critical = True
+                    break
+            if not route_critical:
+                continue
+            borrowed[cleaner] = list(command)
+            unit_actions[cleaner] = ["DIG"]
+
+    action["farmer"] = unit_actions[0] if unit_actions else ["PASS"]
+    action["hands"] = unit_actions[1:]
+    return _align(action, obs)
+
+
+def _wheat_pickups(action):
+    total = 0
+    for command in [action.get("farmer", ["PASS"]), *(action.get("hands", []) or [])]:
+        if isinstance(command, list) and len(command) >= 3 and command[0] == "PICKUP" and command[1] == "WHEAT":
+            total += max(0, int(command[2]))
+    return total
+
+
+def _future_wheat_sell(route, step):
+    future = step + WHEAT_SELL_SHIFT_LEAD
+    if future >= len(route):
+        return 0
+    return sum(max(0, int(o[2])) for o in (route[future].get("market") or []) if len(o) >= 3 and o[0] == "SELL" and o[1] == "WHEAT")
+
+
+def _reduce_wheat_sell(action, quantity):
+    action = _copy_action(action); out = []; remaining = max(0, int(quantity))
+    for raw in action.get("market", []):
+        order = list(raw)
+        if remaining > 0 and len(order) >= 3 and order[0] == "SELL" and order[1] == "WHEAT":
+            reduction = min(remaining, max(0, int(order[2])))
+            order[2] = int(order[2]) - reduction; remaining -= reduction
+            if order[2] <= 0:
+                continue
+        out.append(order)
+    action["market"] = out
+    return action
+
+
+def _apply_wheat_sell_shift(action, obs, step, state, route):
+    action = _copy_action(action); debt = state["wheat_sell_debt"]
+    due = max(0, int(debt.pop(step, 0)))
+    if due:
+        action = _reduce_wheat_sell(action, due)
+    future_sale = _future_wheat_sell(route, step)
+    if future_sale <= 0 or len(action.get("market") or []) >= 10:
+        return action
+    private = _get(obs, "private", {}) or {}; shed = _get(private, "shed", {}) or {}
+    stock = max(0, int(_get(shed, "WHEAT", 0) or 0))
+    # Unit actions execute before market orders. Reserve every WHEAT unit needed
+    # by current and next-turn pickups before moving any planned sale forward.
+    reserve = _wheat_pickups(action)
+    future = step + WHEAT_SELL_SHIFT_LEAD
+    if future < len(route):
+        reserve += _wheat_pickups(route[future])
+    quantity = min(WHEAT_SELL_SHIFT_CAP, future_sale, max(0, stock - reserve))
+    if quantity <= 0:
+        return action
+    action["market"] = list(action.get("market") or []) + [["SELL", "WHEAT", quantity]]
+    debt[future] = int(debt.get(future, 0)) + quantity
+    return action
+
+
 def _make_frame(obs, cfg, route):
     f = KagFrameC(); seat = int(_get(obs, "player", 0) or 0); opp = 1 - seat
     farms = list(_get(obs, "farms", []) or []); own, other = farms[seat], farms[opp]
@@ -863,6 +973,8 @@ def agent(obs, configuration=None):
         action = _apply_dayend_evacuation(action, obs, step, st, route)
         action = _apply_wheat_purchase_shift(action, obs, step, st, route)
         action = _apply_pass_weed_dig(action, obs)
+        action = _apply_cross_worker_preclear(action, obs, step, st, route)
+        action = _apply_wheat_sell_shift(action, obs, step, st, route)
         return _align(action, obs)
     except Exception:
         seat = int(_get(obs, "player", 0) or 0); farm = _farm(obs, seat)
