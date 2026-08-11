@@ -174,6 +174,7 @@ def _fresh_state():
         "wheat_buy_debt": {},
         "cross_borrow": {},
         "wheat_sell_debt": {},
+        "deadline_preclear": None,
     }
 
 
@@ -649,6 +650,101 @@ def _step_toward(a, b):
     return ["PASS"]
 
 
+def _deadline_get_unit(action, idx):
+    if idx == 0:
+        return list(action.get("farmer") or ["PASS"])
+    hands = action.get("hands") or []
+    return list(hands[idx - 1] if idx - 1 < len(hands) else ["PASS"])
+
+
+def _deadline_move_pos(position, command):
+    destination = _movement_destination(position, command)
+    if destination is not None:
+        return destination
+    return (int(position[0]), int(position[1]))
+
+
+def _deadline_paths(start, target, farm):
+    sx, sy = int(start[0]), int(start[1]); tx, ty = int(target[0]), int(target[1])
+    x_commands = ["EAST"] * (tx - sx) if tx >= sx else ["WEST"] * (sx - tx)
+    y_commands = ["SOUTH"] * (ty - sy) if ty >= sy else ["NORTH"] * (sy - ty)
+    inverse = {"NORTH": "SOUTH", "SOUTH": "NORTH", "WEST": "EAST", "EAST": "WEST"}
+    paths = []
+    for sequence in (x_commands + y_commands, y_commands + x_commands):
+        position = (sx, sy); valid = True
+        for command in sequence:
+            position = _deadline_move_pos(position, [command])
+            if _tile_at(farm, position) == "LOCKED":
+                valid = False
+                break
+        if valid:
+            back = [inverse[command] for command in reversed(sequence)]
+            paths.append([[command] for command in sequence] + [["DIG"]] + [[command] for command in back])
+    return paths
+
+
+def _deadline_forecast_position(route, positions, idx, start_step, target_step):
+    position = (int(positions[idx][0]), int(positions[idx][1]))
+    for future_step in range(start_step, target_step):
+        position = _deadline_move_pos(position, _actor_action(route, future_step, idx))
+    return position
+
+
+def _find_deadline_preclear(obs, action, step, route):
+    seat = int(_get(obs, "player", 0) or 0); farm = _farm(obs, seat)
+    positions = _unit_positions(farm); unit_count = len(positions)
+    max_target = min(len(route) - 2, step + 9)
+    for target_step in range(step + 2, max_target + 1):
+        # A one-turn weed delay at turn 22 pushes PLANT to turn 23 and WATER
+        # past the overnight survival check. Prevent only this proven deadline loss.
+        if target_step % 24 != 22:
+            continue
+        for target_actor in range(unit_count):
+            intended = _actor_action(route, target_step, target_actor)
+            next_action = _actor_action(route, target_step + 1, target_actor)
+            if not intended or intended[0] != "PLANT" or not next_action or next_action[0] != "WATER":
+                continue
+            if _deadline_get_unit(action, target_actor) != _actor_action(route, step, target_actor):
+                continue
+            target = _deadline_forecast_position(route, positions, target_actor, step, target_step)
+            tile = _tile_at(farm, target)
+            if not isinstance(tile, dict) or tile.get("kind") != "WEED":
+                continue
+            for helper in range(unit_count):
+                if helper == target_actor or _deadline_get_unit(action, helper) != ["PASS"]:
+                    continue
+                for commands in _deadline_paths(positions[helper], target, farm):
+                    length = len(commands); dig_offset = (length - 1) // 2
+                    if step + dig_offset > target_step - 2 or step + length > len(route):
+                        continue
+                    if any(_actor_action(route, t, helper) != ["PASS"] for t in range(step, step + length)):
+                        continue
+                    return {
+                        "helper": helper,
+                        "commands": commands,
+                        "start": step,
+                        "target_step": target_step,
+                        "target": target,
+                    }
+    return None
+
+
+def _apply_deadline_preclear(action, obs, step, state, route):
+    action = _copy_action(action); plan = state.get("deadline_preclear")
+    if plan is None:
+        plan = _find_deadline_preclear(obs, action, step, route)
+        if plan is not None:
+            state["deadline_preclear"] = plan
+    if plan is None:
+        return action
+    offset = step - int(plan["start"]); commands = plan["commands"]
+    if 0 <= offset < len(commands):
+        _set_actor_action(action, int(plan["helper"]), commands[offset])
+    if offset >= len(commands) - 1:
+        state["deadline_preclear"] = None
+    return _align(action, obs)
+
+
 def _choose_dayend_evacuation(obs, action, step, route):
     mod = int(step) % 24; remaining = 24 - mod
     if remaining > EVAC_PASS_HORIZON:
@@ -975,6 +1071,7 @@ def agent(obs, configuration=None):
             # research-only until their own hard promotion gate clears.
             if ENABLE_NATIVE_MARKET:
                 action = _rank_sell_slots(obs, _apply_native_market(obs, action, decision, st), configuration)
+        action = _apply_deadline_preclear(action, obs, step, st, route)
         action = _apply_dayend_evacuation(action, obs, step, st, route)
         action = _apply_wheat_purchase_shift(action, obs, step, st, route)
         action = _apply_pass_weed_dig(action, obs)
