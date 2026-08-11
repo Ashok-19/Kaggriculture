@@ -67,11 +67,33 @@ def main() -> None:
     wins = sum(r["margin"] > 0 for r in rows)
     losses = sum(r["margin"] < 0 for r in rows)
     ties = len(rows) - wins - losses
+    by_seed = {}
+    for row in rows:
+        by_seed.setdefault(row["seed"], {})[row["seat"]] = row["margin"]
+    pairs = []
+    for seed in sorted(by_seed):
+        seats = by_seed[seed]
+        if set(seats) != {0, 1}:
+            raise RuntimeError(f"missing paired seat for seed {seed}: {seats}")
+        pair_sum = seats[0] + seats[1]
+        pairs.append({
+            "seed": seed,
+            "seat0_margin": seats[0],
+            "seat1_margin": seats[1],
+            "paired_sum": pair_sum,
+            "intrinsic_edge": pair_sum / 2.0,
+            "worst_seat_margin": min(seats[0], seats[1]),
+        })
     result = {
         "games": len(rows), "wins": wins, "losses": losses, "ties": ties,
         "win_rate": wins / len(rows),
         "mean_margin": sum(r["margin"] for r in rows) / len(rows),
         "min_margin": min(r["margin"] for r in rows),
+        "paired_seeds": len(pairs),
+        "mean_intrinsic_edge": sum(p["intrinsic_edge"] for p in pairs) / len(pairs),
+        "min_intrinsic_edge": min(p["intrinsic_edge"] for p in pairs),
+        "min_worst_seat_margin": min(p["worst_seat_margin"] for p in pairs),
+        "pairs": pairs,
         "rows": rows,
     }
     print(json.dumps(result, indent=2 if ns.json else None))
