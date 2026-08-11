@@ -23,6 +23,22 @@ SEED_TRIM = {619: 1, 620: 1, 633: 2, 641: 1}
 # exact arena. Shipping infrastructure must not silently promote an unverified
 # controller merely because libkag_agent.so is present.
 ENABLE_NATIVE_MARKET = False
+# Promoted adaptive-controller parameters. These are implemented locally from
+# publicly observable mechanisms and independently revalidated in our exact arena.
+YARN_SWITCH_STEP = 161
+YARN_PURCHASE_STEP = 192
+YARN_HAND_INDEX = 4
+YARN_HAND_START = 193
+YARN_HAND_END = 212
+WOOL_GATES = ((480, 170), (600, 120), (672, 80), (719, 1))
+WOOL_PRESSURE = 78
+WOOL_BATCH = 16
+WOOL_GAP = 6
+RC2_CHECKPOINTS = (216, 240, 264)
+RC2_DISTANCE_MAX = 8
+RC2_RELAY_LEAD = 3
+RC2_RELAY_FIRST = 278
+RC2_RELAY_LAST = 662
 PRICE_FLOOR = 1
 DEMAND_ALPHA = 0.25
 MARKET_PARAMS = {
@@ -63,6 +79,24 @@ ROOT = Path(__file__).resolve().parent
 _ROUTE_PAYLOAD = json.loads((ROOT / "routes.json").read_text())
 ROUTES = {k: v["actions"] for k, v in _ROUTE_PAYLOAD["routes"].items()}
 ROUTE_NAMES = ("v27", "lev", "jince", "breaking")
+
+
+def _fertilizer_pickups(action):
+    total = 0
+    for unit_action in [action.get("farmer", ["PASS"]), *(action.get("hands", []) or [])]:
+        if (
+            isinstance(unit_action, (list, tuple))
+            and len(unit_action) >= 3
+            and unit_action[0] == "PICKUP"
+            and unit_action[1] == "FERTILIZER"
+        ):
+            total += max(0, int(unit_action[2]))
+    return total
+
+
+_FERT_PICKUP_SUFFIX = [0] * 720
+for _step in range(718, -1, -1):
+    _FERT_PICKUP_SUFFIX[_step] = _FERT_PICKUP_SUFFIX[_step + 1] + _fertilizer_pickups(ROUTES["v27"][_step])
 
 
 class KagFrameC(ctypes.Structure):
@@ -106,10 +140,23 @@ def _load_native():
 
 
 _NATIVE = _load_native()
-_STATE = {
-    0: {"last": -1, "route": "v27", "debt": {}, "weed": {}},
-    1: {"last": -1, "route": "v27", "debt": {}, "weed": {}},
-}
+def _fresh_state():
+    return {
+        "last": -1,
+        "route": "v27",
+        "debt": {},
+        "weed": {},
+        "yarn": None,
+        "wool_last_sale": -1000,
+        "rc2_checks": {},
+        "rc2_locked": False,
+        "rc2_due_step": -1,
+        "rc2_due": 0,
+        "fert_excess_debt": 0,
+    }
+
+
+_STATE = {0: _fresh_state(), 1: _fresh_state()}
 
 
 def _farm(obs, seat):
@@ -218,6 +265,200 @@ def _rank_sell_slots(obs, action, cfg):
     return action
 
 
+def _yarn_route(obs, step, state):
+    if step < YARN_SWITCH_STEP:
+        return False
+    if state.get("yarn") is None:
+        shops = tuple(_get(_get(obs, "town", {}) or {}, "unlocked_shops", []) or [])
+        blocked = {"SMOOTHIE_SHOP", "PIZZA_SHOP"}
+        state["yarn"] = "YARN_STORE" in shops and not any(shop in blocked for shop in shops)
+    return bool(state["yarn"])
+
+
+def _swap_cow_for_sheep(order):
+    order = list(order or ["PASS"])
+    if len(order) >= 2 and order[1] == "COW":
+        order[1] = "SHEEP"
+    return order
+
+
+def _apply_yarn_livestock(action, obs, step, state):
+    action = _copy_action(action)
+    if not _yarn_route(obs, step, state):
+        return action
+    if step == YARN_PURCHASE_STEP:
+        action["market"] = [_swap_cow_for_sheep(o) for o in action.get("market", [])]
+    hands = [list(o or ["PASS"]) for o in action.get("hands", [])]
+    if YARN_HAND_START <= step <= YARN_HAND_END and YARN_HAND_INDEX < len(hands):
+        hands[YARN_HAND_INDEX] = _swap_cow_for_sheep(hands[YARN_HAND_INDEX])
+    action["hands"] = hands
+    return action
+
+
+def _wool_gate(step):
+    for end_step, gate in WOOL_GATES:
+        if step < end_step:
+            return gate
+    return 1
+
+
+def _apply_wool_release(action, obs, step, state):
+    action = _copy_action(action)
+    if not _yarn_route(obs, step, state):
+        return action
+    market_orders = [list(o) for o in action.get("market", [])]
+    if any(len(o) >= 2 and o[0] == "SELL" and o[1] == "WOOL" for o in market_orders):
+        return action
+    shed = _get(_get(obs, "private", {}) or {}, "shed", {}) or {}
+    wool = max(0, int(_get(shed, "WOOL", 0) or 0))
+    if wool <= 0 or len(market_orders) >= 10:
+        return action
+    total = sum(max(0, int(value or 0)) for value in shed.values())
+    prices = _get(_get(obs, "market", {}) or {}, "prices", {}) or {}
+    price = max(0, int(_get(prices, "WOOL", 0) or 0))
+    terminal = step >= 713
+    pressure = total >= WOOL_PRESSURE
+    price_ok = price >= _wool_gate(step)
+    gap_ok = step - int(state.get("wool_last_sale", -1000)) >= WOOL_GAP
+    if not terminal and not pressure and (not price_ok or not gap_ok):
+        return action
+    quantity = wool if terminal else min(wool, WOOL_BATCH)
+    if pressure:
+        quantity = min(wool, max(quantity, total - (WOOL_PRESSURE - 12)))
+    market_orders.append(["SELL", "WOOL", max(1, int(quantity))])
+    action["market"] = market_orders[:10]
+    state["wool_last_sale"] = step
+    return action
+
+
+def _public_signature(farm):
+    keys = ("WHEAT","CARROT","TOMATO","STRAWBERRY","MELON","COW","SHEEP","GOOSE","PASTURE","COOP","WEED")
+    counts = {key: 0 for key in keys}
+    for row in (_get(farm, "tiles", []) or []):
+        for tile in row if isinstance(row, list) else [row]:
+            if not isinstance(tile, dict):
+                continue
+            for field in ("crop", "animal", "kind"):
+                value = str(tile.get(field, "")).upper()
+                if value in counts:
+                    counts[value] += 1
+                    break
+    return (
+        len(_get(farm, "hands", []) or []),
+        len(_get(farm, "unlocked_quadrants", []) or []),
+        tuple(counts[key] for key in sorted(counts)),
+    )
+
+
+def _route_distance(obs):
+    farms = list(_get(obs, "farms", []) or [])
+    if len(farms) < 2:
+        return 10**9
+    left, right = _public_signature(farms[0]), _public_signature(farms[1])
+    return abs(left[0] - right[0]) + 3 * abs(left[1] - right[1]) + sum(abs(a - b) for a, b in zip(left[2], right[2]))
+
+
+def _update_rc2_lock(obs, step, state):
+    checks = state["rc2_checks"]
+    if step in RC2_CHECKPOINTS and step not in checks:
+        checks[step] = _route_distance(obs) <= RC2_DISTANCE_MAX
+        if all(checkpoint in checks for checkpoint in RC2_CHECKPOINTS):
+            state["rc2_locked"] = all(checks.values())
+
+
+def _repay_rc2(action, state, step):
+    due_step = int(state.get("rc2_due_step", -1))
+    if due_step != step:
+        if 0 <= due_step < step:
+            state["rc2_due_step"], state["rc2_due"] = -1, 0
+        return action
+    remaining = max(0, int(state.get("rc2_due", 0)))
+    market = []
+    for raw in action.get("market", []):
+        order = list(raw)
+        if remaining > 0 and len(order) >= 3 and order[0] == "SELL" and order[1] == "FERTILIZER":
+            requested = max(0, int(order[2])); reduction = min(requested, remaining)
+            requested -= reduction; remaining -= reduction
+            if requested <= 0:
+                continue
+            order[2] = requested
+        market.append(order)
+    action["market"] = market
+    state["rc2_due_step"], state["rc2_due"] = -1, 0
+    return action
+
+
+def _future_relay_fertilizer(step):
+    future_step = step + RC2_RELAY_LEAD
+    if not (RC2_RELAY_FIRST <= step <= RC2_RELAY_LAST and 281 <= future_step <= 665 and future_step % 24 == 17 and future_step < 719):
+        return 0
+    return sum(
+        max(0, int(order[2]))
+        for order in ROUTES["v27"][future_step].get("market", [])
+        if len(order) >= 3 and order[0] == "SELL" and order[1] == "FERTILIZER"
+    )
+
+
+def _apply_rc2_relay(action, obs, step, state, cfg):
+    action = _copy_action(action)
+    _update_rc2_lock(obs, step, state)
+    action = _repay_rc2(action, state, step)
+    if not state.get("rc2_locked") or state.get("rc2_due", 0):
+        return action
+    target = _future_relay_fertilizer(step)
+    if target <= 0 or len(action.get("market", [])) >= 10:
+        return action
+    shed = _get(_get(obs, "private", {}) or {}, "shed", {}) or {}
+    available = max(0, int(_get(shed, "FERTILIZER", 0) or 0))
+    for order in action.get("market", []):
+        if len(order) >= 3 and order[0] == "SELL" and order[1] == "FERTILIZER":
+            available = max(0, available - max(0, int(order[2])))
+    quantity = min(target, available)
+    if quantity <= 0:
+        return action
+    action["market"].append(["SELL", "FERTILIZER", quantity])
+    state["rc2_due_step"] = step + RC2_RELAY_LEAD
+    state["rc2_due"] = quantity
+    return _rank_sell_slots(obs, action, cfg)
+
+
+def _repay_fertilizer_excess(action, state):
+    debt = max(0, int(state.get("fert_excess_debt", 0)))
+    market = []
+    for raw in action.get("market", []):
+        order = list(raw)
+        if debt > 0 and len(order) >= 3 and order[0] == "SELL" and order[1] == "FERTILIZER":
+            requested = max(0, int(order[2])); reduction = min(requested, debt)
+            requested -= reduction; debt -= reduction
+            if requested <= 0:
+                continue
+            order[2] = requested
+        market.append(order)
+    action["market"] = market
+    state["fert_excess_debt"] = debt
+    return action
+
+
+def _apply_fertilizer_excess(action, obs, step, state, cfg):
+    action = _repay_fertilizer_excess(_copy_action(action), state)
+    if len(action.get("market", [])) >= 10:
+        return action
+    shed = _get(_get(obs, "private", {}) or {}, "shed", {}) or {}
+    stock = max(0, int(_get(shed, "FERTILIZER", 0) or 0))
+    planned_now = sum(
+        max(0, int(order[2]))
+        for order in action.get("market", [])
+        if len(order) >= 3 and order[0] == "SELL" and order[1] == "FERTILIZER"
+    )
+    reserve = _FERT_PICKUP_SUFFIX[min(719, step + 1)]
+    excess = max(0, stock - planned_now - reserve)
+    if excess <= 0:
+        return action
+    action["market"].append(["SELL", "FERTILIZER", excess])
+    state["fert_excess_debt"] = int(state.get("fert_excess_debt", 0)) + excess
+    return _rank_sell_slots(obs, action, cfg)
+
+
 def _count_farm(farm):
     crops = {k: 0 for k in CROPS}; animals = {k: 0 for k in ANIMALS}
     for row in (_get(farm, "tiles", []) or []):
@@ -318,12 +559,16 @@ def agent(obs, configuration=None):
     try:
         seat = int(_get(obs, "player", 0) or 0); step = min(718, max(0, int(_get(obs, "step", 0) or 0))); st = _STATE[seat]
         if step == 0 or step < st["last"]:
-            st.clear(); st.update({"last": -1, "route": "v27", "debt": {}, "weed": {}})
+            st.clear(); st.update(_fresh_state())
             if _NATIVE is not None: _NATIVE.kag_agent_reset(seat)
         st["last"] = step; route = ROUTES[st["route"]]
         action = _weed_repair(obs, _copy_action(route[step]), route, step, st)
-        action = _apply_seed_trim(action, step)
+        action = _apply_yarn_livestock(action, obs, step, st)
+        action = _apply_wool_release(action, obs, step, st)
         action = _rank_sell_slots(obs, action, configuration)
+        action = _apply_rc2_relay(action, obs, step, st, configuration)
+        action = _apply_fertilizer_excess(action, obs, step, st, configuration)
+        action = _apply_seed_trim(action, step)
         if _NATIVE is not None:
             decision = _NATIVE.kag_agent_decide(ctypes.byref(_make_frame(obs, configuration, route)))
             # Coherent route switching stays disabled until a continuation passes
