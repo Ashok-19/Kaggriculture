@@ -197,11 +197,29 @@ def _weed_repair(obs, action, route, step, state):
     active = state["weed"]
     for actor, tx in list(active.items()):
         idx = 0 if actor == "farmer" else int(actor) + 1
-        if idx >= len(unit_actions): active.pop(actor, None); continue
+        if idx >= len(unit_actions):
+            active.pop(actor, None)
+            continue
         age = step - tx["start"]
-        if age == 1: unit_actions[idx] = list(tx["intended"])
-        elif 2 <= age <= 1 + WEED_REPLAY_STEPS: unit_actions[idx] = _trace_actor_action(route, step - 1, actor)
-        else: active.pop(actor, None)
+        intended = tx["intended"]
+        strawberry = (
+            len(intended) >= 2
+            and intended[0] == "PLANT"
+            and intended[1] == "STRAWBERRY"
+        )
+        if age == 1:
+            unit_actions[idx] = list(intended)
+        elif strawberry and age >= 2:
+            # STRAWBERRY is valuable enough that dropping the tail after a fixed
+            # replay window creates persistent production deficits. Keep the
+            # exact actor one turn behind until a scheduled PASS absorbs the lag.
+            unit_actions[idx] = _trace_actor_action(route, step - 1, actor)
+            if _trace_actor_action(route, step, actor)[0] == "PASS" or age > 24:
+                active.pop(actor, None)
+        elif 2 <= age <= 1 + WEED_REPLAY_STEPS:
+            unit_actions[idx] = _trace_actor_action(route, step - 1, actor)
+        else:
+            active.pop(actor, None)
     for idx, (position, intended) in enumerate(zip(positions, unit_actions)):
         actor = "farmer" if idx == 0 else idx - 1
         if actor in active or not isinstance(intended, list) or not intended: continue
