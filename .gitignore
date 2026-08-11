@@ -1,0 +1,16 @@
+.research/
+data/research/*.sqlite3
+data/research/*.sqlite3-*
+data/research/*.sqlite3.*
+data/research/cache/
+data/research/inbox/
+data/research/replays/
+__pycache__/
+*.py[cod]
+scratch/
+agent_system/build/
+agent_system/.cache/
+submission/build/
+submission/*.so
+submission/*.tar.gz
+.chatgpt/operations/
