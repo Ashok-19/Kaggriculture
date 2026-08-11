@@ -7,17 +7,35 @@ import importlib.util
 import inspect
 import json
 import multiprocessing as mp
+import sys
 from pathlib import Path
 
 from official_oracle import run
 
 
 def load_agent(path: str, name: str):
-    spec = importlib.util.spec_from_file_location(name, path)
-    if spec is None or spec.loader is None:
-        raise RuntimeError(f"cannot load {path}")
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
+    agent_path = Path(path).resolve()
+    agent_dir = agent_path.parent
+    # Multi-file submissions often use absolute sibling imports such as
+    # `from runtime_gateway import agent`. Candidate and baseline archives can
+    # therefore share module names inside one arena worker. Purge sibling module
+    # names and temporarily prioritize the archive directory so each loaded
+    # entrypoint receives its own dependency module instead of a cached peer.
+    sibling_names = {p.stem for p in agent_dir.glob("*.py") if p.stem != agent_path.stem}
+    for module_name in sibling_names:
+        sys.modules.pop(module_name, None)
+    sys.path.insert(0, str(agent_dir))
+    try:
+        spec = importlib.util.spec_from_file_location(name, agent_path)
+        if spec is None or spec.loader is None:
+            raise RuntimeError(f"cannot load {path}")
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+    finally:
+        try:
+            sys.path.remove(str(agent_dir))
+        except ValueError:
+            pass
     fn = mod.agent
     sig = inspect.signature(fn)
     positional = [

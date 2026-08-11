@@ -41,6 +41,14 @@ RC2_RELAY_FIRST = 278
 RC2_RELAY_LAST = 662
 PRICE_FLOOR = 1
 DEMAND_ALPHA = 0.25
+EVAC_HORIZON = 3
+EVAC_PRODUCTS = ("WOOL", "MILK", "STRAWBERRY")
+EVAC_BASE_VALUE = {"EGG": 50, "MILK": 160, "WOOL": 200, "CARROT": 30, "TOMATO": 40, "STRAWBERRY": 200, "MELON": 250}
+EVAC_SAFE_ACTIONS = ("PASS", "COLLECT_FERTILIZER")
+SHED_ACCESS = ((4, 4), (5, 4), (4, 5), (5, 5))
+WHEAT_SHIFT_QTY = 3
+WHEAT_SHIFT_LEAD = 1
+WHEAT_SHIFT_CASH_RESERVE = 2000
 MARKET_PARAMS = {
     "WHEAT": (25,10000,400,"sqrt",0.8,"log",0.2),
     "CARROT": (35,10000,450,"log",0.2,"sqrt",0.7),
@@ -158,6 +166,8 @@ def _fresh_state():
         "fert_excess_debt": 0,
         "livestock_extra": {},
         "livestock_lag": {},
+        "evac_plan": None,
+        "wheat_buy_debt": {},
     }
 
 
@@ -207,9 +217,14 @@ def _weed_repair(obs, action, route, step, state):
             and intended[0] == "PLANT"
             and intended[1] == "STRAWBERRY"
         )
+        dependency_chain = (
+            strawberry
+            or bool(intended and intended[0] == "BUILD_PASTURE")
+            or bool(len(intended) >= 2 and intended[0] == "PLANT" and intended[1] == "WHEAT")
+        )
         if age == 1:
             unit_actions[idx] = list(intended)
-        elif strawberry and age >= 2:
+        elif dependency_chain and age >= 2:
             # STRAWBERRY is valuable enough that dropping the tail after a fixed
             # replay window creates persistent production deficits. Keep the
             # exact actor one turn behind until a scheduled PASS absorbs the lag.
@@ -589,6 +604,163 @@ def _planned_sells(route, step):
     return out, slots
 
 
+def _actor_action(route, step, idx):
+    trace = route[min(max(int(step), 0), len(route) - 1)] or {}
+    if idx == 0:
+        return list(trace.get("farmer") or ["PASS"])
+    hands = trace.get("hands", []) or []
+    return list(hands[idx - 1] if idx - 1 < len(hands) else ["PASS"])
+
+
+def _set_actor_action(action, idx, command):
+    if idx == 0:
+        action["farmer"] = list(command)
+        return
+    hands = list(action.get("hands") or [])
+    if idx - 1 < len(hands):
+        hands[idx - 1] = list(command)
+    action["hands"] = hands
+
+
+def _unit_positions(farm):
+    return [_get(farm, "farmer"), *list(_get(farm, "hands", []) or [])]
+
+
+def _private_inventories(obs):
+    return list(_get(_get(obs, "private", {}) or {}, "inventories", []) or [])
+
+
+def _distance(a, b):
+    return abs(int(a[0]) - int(b[0])) + abs(int(a[1]) - int(b[1]))
+
+
+def _step_toward(a, b):
+    x, y = int(a[0]), int(a[1]); tx, ty = int(b[0]), int(b[1])
+    if x < tx: return ["EAST"]
+    if x > tx: return ["WEST"]
+    if y < ty: return ["SOUTH"]
+    if y > ty: return ["NORTH"]
+    return ["PASS"]
+
+
+def _choose_dayend_evacuation(obs, action, step, route):
+    mod = int(step) % 24
+    if mod < 24 - EVAC_HORIZON:
+        return None
+    seat = int(_get(obs, "player", 0) or 0); farm = _farm(obs, seat)
+    positions = _unit_positions(farm); inventories = _private_inventories(obs)
+    remaining = 24 - mod; best = None
+    for idx, (position, inventory) in enumerate(zip(positions, inventories)):
+        if not position or not isinstance(inventory, dict):
+            continue
+        live = action.get("farmer") if idx == 0 else ((action.get("hands") or [])[idx - 1] if idx - 1 < len(action.get("hands") or []) else ["PASS"])
+        canonical = _actor_action(route, step, idx)
+        if list(live or ["PASS"]) != canonical:
+            continue
+        end = min(len(route), step + remaining)
+        future = [_actor_action(route, t, idx) for t in range(step, end)]
+        if any(not a or a[0] not in EVAC_SAFE_ACTIONS for a in future):
+            continue
+        target = min(SHED_ACCESS, key=lambda q: _distance(position, q)); dist = _distance(position, target)
+        if dist + 1 > remaining:
+            continue
+        lost_fertilizer = sum(1 for a in future if a[0] == "COLLECT_FERTILIZER")
+        for product in EVAC_PRODUCTS:
+            quantity = max(0, int(inventory.get(product, 0) or 0))
+            if quantity <= 0:
+                continue
+            score = quantity * EVAC_BASE_VALUE.get(product, 1) - 100 * lost_fertilizer
+            if best is None or score > best["score"]:
+                best = {"actor": idx, "product": product, "qty": quantity, "target": target, "score": score}
+    return best
+
+
+def _apply_dayend_evacuation(action, obs, step, state, route):
+    action = _copy_action(action)
+    if step % 24 == 0:
+        state["evac_plan"] = None
+    plan = state.get("evac_plan")
+    if plan is None:
+        plan = _choose_dayend_evacuation(obs, action, step, route)
+        state["evac_plan"] = plan
+    if plan is None:
+        return action
+    seat = int(_get(obs, "player", 0) or 0); farm = _farm(obs, seat); positions = _unit_positions(farm)
+    idx = int(plan["actor"])
+    if idx >= len(positions):
+        state["evac_plan"] = None
+        return action
+    position, target = positions[idx], plan["target"]
+    if tuple(position) != tuple(target):
+        _set_actor_action(action, idx, _step_toward(position, target))
+        return _align(action, obs)
+    if len(action.get("market") or []) >= 10:
+        return action
+    private = _get(obs, "private", {}) or {}; shed = _get(private, "shed", {}) or {}
+    free = max(0, 100 - sum(max(0, int(v or 0)) for v in shed.values()))
+    inventories = _private_inventories(obs); inventory = inventories[idx] if idx < len(inventories) and isinstance(inventories[idx], dict) else {}
+    quantity = min(int(plan["qty"]), max(0, int(inventory.get(plan["product"], 0) or 0)), free)
+    if quantity <= 0:
+        state["evac_plan"] = None
+        return action
+    _set_actor_action(action, idx, ["PLACE", plan["product"], quantity])
+    action["market"] = list(action.get("market") or []) + [["SELL", plan["product"], quantity]]
+    state["evac_plan"] = None
+    return _align(action, obs)
+
+
+def _future_wheat_buy(route, step):
+    future = step + WHEAT_SHIFT_LEAD
+    if future >= len(route):
+        return 0
+    return sum(max(0, int(o[2])) for o in (route[future].get("market") or []) if len(o) >= 3 and o[0] == "BUY_PRODUCT" and o[1] == "WHEAT")
+
+
+def _reduce_wheat_buy(action, quantity):
+    action = _copy_action(action); out = []; remaining = max(0, int(quantity))
+    for raw in action.get("market", []):
+        order = list(raw)
+        if remaining > 0 and len(order) >= 3 and order[0] == "BUY_PRODUCT" and order[1] == "WHEAT":
+            reduction = min(remaining, max(0, int(order[2]))); order[2] = int(order[2]) - reduction; remaining -= reduction
+            if order[2] <= 0:
+                continue
+        out.append(order)
+    action["market"] = out
+    return action
+
+
+def _apply_wheat_purchase_shift(action, obs, step, state, route):
+    action = _copy_action(action); debt = state["wheat_buy_debt"]
+    due = max(0, int(debt.pop(step, 0)))
+    if due:
+        action = _reduce_wheat_buy(action, due)
+    future = _future_wheat_buy(route, step)
+    if future <= 0 or len(action.get("market") or []) >= 10:
+        return action
+    seat = int(_get(obs, "player", 0) or 0); money = int(_get(_farm(obs, seat), "money", 0) or 0)
+    quantity = min(WHEAT_SHIFT_QTY, future)
+    if quantity <= 0 or money < WHEAT_SHIFT_CASH_RESERVE:
+        return action
+    action["market"] = list(action.get("market") or []) + [["BUY_PRODUCT", "WHEAT", quantity]]
+    due_step = step + WHEAT_SHIFT_LEAD; debt[due_step] = int(debt.get(due_step, 0)) + quantity
+    return action
+
+
+def _apply_pass_weed_dig(action, obs):
+    action = _align(_copy_action(action), obs)
+    seat = int(_get(obs, "player", 0) or 0); farm = _farm(obs, seat)
+    positions = _unit_positions(farm)
+    unit_actions = [action.get("farmer", ["PASS"]), *list(action.get("hands") or [])]
+    for idx, (position, command) in enumerate(zip(positions, unit_actions)):
+        if not isinstance(command, list) or not command or command[0] != "PASS":
+            continue
+        tile = _tile_at(farm, position)
+        if isinstance(tile, dict) and tile.get("kind") == "WEED":
+            unit_actions[idx] = ["DIG"]
+    action["farmer"] = unit_actions[0] if unit_actions else ["PASS"]; action["hands"] = unit_actions[1:]
+    return _align(action, obs)
+
+
 def _make_frame(obs, cfg, route):
     f = KagFrameC(); seat = int(_get(obs, "player", 0) or 0); opp = 1 - seat
     farms = list(_get(obs, "farms", []) or []); own, other = farms[seat], farms[opp]
@@ -688,6 +860,9 @@ def agent(obs, configuration=None):
             # research-only until their own hard promotion gate clears.
             if ENABLE_NATIVE_MARKET:
                 action = _rank_sell_slots(obs, _apply_native_market(obs, action, decision, st), configuration)
+        action = _apply_dayend_evacuation(action, obs, step, st, route)
+        action = _apply_wheat_purchase_shift(action, obs, step, st, route)
+        action = _apply_pass_weed_dig(action, obs)
         return _align(action, obs)
     except Exception:
         seat = int(_get(obs, "player", 0) or 0); farm = _farm(obs, seat)
