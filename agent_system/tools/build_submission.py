@@ -18,6 +18,7 @@ def main() -> None:
     build = Path(ns.build_dir); out = Path(ns.out_dir)
     subprocess.run(["cmake", "-S", "agent_system", "-B", str(build), "-DCMAKE_BUILD_TYPE=Release"], check=True)
     subprocess.run(["cmake", "--build", str(build), "-j", "4"], check=True)
+    if out.exists(): shutil.rmtree(out)
     out.mkdir(parents=True, exist_ok=True)
     for name in ("main.py", "runtime_gateway.py"):
         shutil.copy2(Path("submission") / name, out / name)
