@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import importlib.util
+import inspect
 import json
 import multiprocessing as mp
 from pathlib import Path
@@ -17,7 +18,20 @@ def load_agent(path: str, name: str):
         raise RuntimeError(f"cannot load {path}")
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
-    return mod.agent
+    fn = mod.agent
+    sig = inspect.signature(fn)
+    positional = [
+        p for p in sig.parameters.values()
+        if p.kind in (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
+    ]
+    has_varargs = any(p.kind == inspect.Parameter.VAR_POSITIONAL for p in sig.parameters.values())
+    if has_varargs or len(positional) >= 2:
+        return fn
+    if len(positional) == 1:
+        def adapted(obs, configuration=None):
+            return fn(obs)
+        return adapted
+    raise RuntimeError(f"unsupported agent signature for {path}: {sig}")
 
 
 def one_game(args):
