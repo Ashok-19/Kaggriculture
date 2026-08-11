@@ -42,6 +42,7 @@ RC2_RELAY_LAST = 662
 PRICE_FLOOR = 1
 DEMAND_ALPHA = 0.25
 EVAC_HORIZON = 3
+EVAC_PASS_HORIZON = 5
 EVAC_PRODUCTS = ("WOOL", "MILK", "STRAWBERRY")
 EVAC_BASE_VALUE = {"EGG": 50, "MILK": 160, "WOOL": 200, "CARROT": 30, "TOMATO": 40, "STRAWBERRY": 200, "MELON": 250}
 EVAC_SAFE_ACTIONS = ("PASS", "COLLECT_FERTILIZER")
@@ -649,12 +650,13 @@ def _step_toward(a, b):
 
 
 def _choose_dayend_evacuation(obs, action, step, route):
-    mod = int(step) % 24
-    if mod < 24 - EVAC_HORIZON:
+    mod = int(step) % 24; remaining = 24 - mod
+    if remaining > EVAC_PASS_HORIZON:
         return None
+    pass_only = remaining > EVAC_HORIZON
     seat = int(_get(obs, "player", 0) or 0); farm = _farm(obs, seat)
     positions = _unit_positions(farm); inventories = _private_inventories(obs)
-    remaining = 24 - mod; best = None
+    best = None
     for idx, (position, inventory) in enumerate(zip(positions, inventories)):
         if not position or not isinstance(inventory, dict):
             continue
@@ -664,7 +666,10 @@ def _choose_dayend_evacuation(obs, action, step, route):
             continue
         end = min(len(route), step + remaining)
         future = [_actor_action(route, t, idx) for t in range(step, end)]
-        if any(not a or a[0] not in EVAC_SAFE_ACTIONS for a in future):
+        if pass_only:
+            if any(a != ["PASS"] for a in future):
+                continue
+        elif any(not a or a[0] not in EVAC_SAFE_ACTIONS for a in future):
             continue
         target = min(SHED_ACCESS, key=lambda q: _distance(position, q)); dist = _distance(position, target)
         if dist + 1 > remaining:
