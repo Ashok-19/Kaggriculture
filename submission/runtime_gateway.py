@@ -18,6 +18,11 @@ ANIMALS = ("GOOSE","COW","SHEEP")
 SHOPS = ("BAKERY","PIZZA_SHOP","BRUNCH_SPOT","YARN_STORE","ICE_CREAM_SHOP","PET_CAFE","SMOOTHIE_SHOP","FARMERS_MARKET")
 LOOKAHEAD = 4
 WEED_REPLAY_STEPS = 8
+SEED_TRIM = {619: 1, 620: 1, 633: 2, 641: 1}
+# Native market MPC remains a development/search feature until it clears the
+# exact arena. Shipping infrastructure must not silently promote an unverified
+# controller merely because libkag_agent.so is present.
+ENABLE_NATIVE_MARKET = False
 PRICE_FLOOR = 1
 DEMAND_ALPHA = 0.25
 MARKET_PARAMS = {
@@ -261,6 +266,32 @@ def _make_frame(obs, cfg, route):
     return f
 
 
+def _apply_seed_trim(action, step):
+    cut = int(SEED_TRIM.get(int(step), 0))
+    if cut <= 0:
+        return action
+    action = _copy_action(action)
+    market = []
+    for order in action.get("market", []):
+        order = list(order)
+        if (
+            cut > 0
+            and len(order) >= 3
+            and order[0] == "BUY_SEED"
+            and order[1] == "WHEAT"
+        ):
+            quantity = max(0, int(order[2]))
+            removed = min(quantity, cut)
+            quantity -= removed
+            cut -= removed
+            if quantity <= 0:
+                continue
+            order[2] = quantity
+        market.append(order)
+    action["market"] = market
+    return action
+
+
 def _apply_debt(market, debt):
     out = []
     for o in market:
@@ -291,13 +322,15 @@ def agent(obs, configuration=None):
             if _NATIVE is not None: _NATIVE.kag_agent_reset(seat)
         st["last"] = step; route = ROUTES[st["route"]]
         action = _weed_repair(obs, _copy_action(route[step]), route, step, st)
+        action = _apply_seed_trim(action, step)
         action = _rank_sell_slots(obs, action, configuration)
         if _NATIVE is not None:
             decision = _NATIVE.kag_agent_decide(ctypes.byref(_make_frame(obs, configuration, route)))
             # Coherent route switching stays disabled until a continuation passes
-            # exact paired-seat promotion. Native market interventions are then
-            # re-ranked through the proven v27 nonlinear SELL ordering.
-            action = _rank_sell_slots(obs, _apply_native_market(obs, action, decision, st), configuration)
+            # exact paired-seat promotion. Native market interventions are kept
+            # research-only until their own hard promotion gate clears.
+            if ENABLE_NATIVE_MARKET:
+                action = _rank_sell_slots(obs, _apply_native_market(obs, action, decision, st), configuration)
         return _align(action, obs)
     except Exception:
         seat = int(_get(obs, "player", 0) or 0); farm = _farm(obs, seat)
