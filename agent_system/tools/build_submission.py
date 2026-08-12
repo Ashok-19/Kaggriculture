@@ -20,7 +20,13 @@ def main() -> None:
     subprocess.run(["cmake", "--build", str(build), "-j", "4"], check=True)
     if out.exists(): shutil.rmtree(out)
     out.mkdir(parents=True, exist_ok=True)
-    for name in ("main.py", "runtime_gateway.py"):
+    submission_files = (
+        "main.py", "runtime_gateway.py",
+        "meta_gold_v1.py", "meta_gold_v8.py", "meta_gold_v10.py",
+        "meta_gold_v23_latestart.py", "meta_gold_candidate.py", "meta_gold_v29_minimax.py",
+        "kaito44_majority_route.json", "kaito_yarn5_route.json",
+    )
+    for name in submission_files:
         shutil.copy2(Path("submission") / name, out / name)
     shutil.copy2("agent_system/routes/public_routes.json", out / "routes.json")
     shutil.copy2(build / "libkag_agent.so", out / "libkag_agent.so")
