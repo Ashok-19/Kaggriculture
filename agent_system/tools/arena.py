@@ -22,6 +22,14 @@ def load_agent(path: str, name: str):
     # names and temporarily prioritize the archive directory so each loaded
     # entrypoint receives its own dependency module instead of a cached peer.
     sibling_names = {p.stem for p in agent_dir.glob("*.py") if p.stem != agent_path.stem}
+    # Scratch/meta agents commonly import the generated submission gateway from
+    # submission/build, which is outside their own directory.  Purging only
+    # sibling modules lets candidate and baseline wrappers share one cached
+    # runtime_gateway object; monkeypatches in either agent then contaminate the
+    # opponent.  Remove the gateway explicitly before each agent load.  Existing
+    # agent functions retain their own module object through their globals, while
+    # the next agent receives a fresh independent import.
+    sys.modules.pop("runtime_gateway", None)
     for module_name in sibling_names:
         sys.modules.pop(module_name, None)
     sys.path.insert(0, str(agent_dir))
