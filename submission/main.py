@@ -1,5 +1,15 @@
 import importlib.util, pathlib, sys
-HERE=pathlib.Path(__file__).resolve().parent
+
+def _find_here():
+    for raw in [str(pathlib.Path.cwd()), *sys.path]:
+        if not raw:
+            continue
+        base=pathlib.Path(raw).resolve()
+        if (base/"q8_shadow"/"main.py").is_file() and (base/"meta_gold_v29_minimax.py").is_file():
+            return base
+    raise RuntimeError("submission package root not found")
+
+HERE=_find_here()
 
 def _load_shadow():
     d=HERE/"q8_shadow"
