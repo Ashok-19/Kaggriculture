@@ -8,7 +8,7 @@ YARN=copy.deepcopy(json.load(open(HERE/'kaito_yarn5_route.json')))
 # q11 universal opening
 m=[list(o) for o in CURRENT[0].get('market',[])]
 for o in m:
-    if len(o)>=3 and o[0]=='BUY_PRODUCT' and o[1]=='WHEAT': o[2]=11
+    if len(o)>=3 and o[0]=='BUY_PRODUCT' and o[1]=='WHEAT': o[2]=8
 w=next(o for o in m if len(o)>=3 and o[0]=='BUY_PRODUCT' and o[1]=='WHEAT')
 others=[o for o in m if o is not w]
 hi=[o for o in others if o[0]=='HIRE']; an=[o for o in others if o[0]=='BUY_ANIMAL']; mel=[o for o in others if len(o)>=2 and o[0]=='BUY_SEED' and o[1]=='MELON']; ws=[o for o in others if len(o)>=2 and o[0]=='BUY_SEED' and o[1]=='WHEAT']; rest=[o for o in others if o not in hi+an+mel+ws]
@@ -63,6 +63,12 @@ def _counts(f):
 def _kaito_like(obs):
     seat=int(obs.get('player',0)); f=obs.get('farms',[])[1-seat]; c=_counts(f)
     return len(f.get('hands',[]))==4 and tuple(f.get('farmer',[]))==(3,4) and float(f.get('money',0))==10.0 and (c['WHEAT'],c['MELON'],c['PASTURE'],c['COW'],c['SHEEP'])==(3,2,3,1,2)
+
+def _core_opening_like(obs):
+    # Coarse public production-architecture family, not identity: this structure
+    # is shared by multiple v27/Lev descendants and historical opponents.
+    seat=int(obs.get('player',0)); f=obs.get('farms',[])[1-seat]; c=_counts(f)
+    return (c['WHEAT'],c['MELON'],c['PASTURE'],c['COW'],c['SHEEP'])==(3,2,3,1,2)
 
 def _route(obs,branch):
     step=int(obs.get('step',0))
@@ -196,7 +202,11 @@ def agent(obs,configuration=None):
     finally: rg.PRIMARY_ROUTE=old
     if step==13:
         a=rg._copy_action(a); market=list(a.get('market') or [])
-        bridge=[['SELL','WHEAT',6],['BUY_SEED','WHEAT',1],['BUY_SEED','MELON',2]] if branch=='kaito' else [['SELL','WHEAT',3],['BUY_SEED','MELON',1]]
+        if branch=='kaito':
+            bridge=[['SELL','WHEAT',6],['BUY_SEED','WHEAT',1],['BUY_SEED','MELON',2]]
+        else:
+            q=3 if _core_opening_like(obs) else 1
+            bridge=[['SELL','WHEAT',q],['BUY_SEED','MELON',1]]
         a['market']=(market+bridge)[:10]
     if branch=='kaito':
         a=_preempt(obs,a,route,step,seat)
@@ -204,11 +214,14 @@ def agent(obs,configuration=None):
         market=[list(o) for o in (a.get('market') or [])]; sells=[o for o in market if len(o)>=3 and o[0]=='SELL']
         if sells:
             rest=[o for o in market if not (len(o)>=3 and o[0]=='SELL')]; a=rg._copy_action(a); a['market']=sells+rest
-        if step%24==0:_RESCUE[seat]=None
-        plan=_RESCUE.get(seat)
-        if plan is None: plan=_find_rescue(obs,a,route,step,seat); _RESCUE[seat]=plan
-        if plan is not None:
-            off=step-int(plan['start'])
-            if 0<=off<len(plan['commands']):a=_set(a,int(plan['helper']),plan['commands'][off])
-            if off>=len(plan['commands'])-1:_RESCUE[seat]=None
+    # The rescue planner is route/state based, not Kaito-specific.  Apply it to
+    # every branch so a weed-delayed STRAWBERRY replay can borrow an otherwise
+    # low-value helper and finish the dependency before the day boundary.
+    if step%24==0:_RESCUE[seat]=None
+    plan=_RESCUE.get(seat)
+    if plan is None: plan=_find_rescue(obs,a,route,step,seat); _RESCUE[seat]=plan
+    if plan is not None:
+        off=step-int(plan['start'])
+        if 0<=off<len(plan['commands']):a=_set(a,int(plan['helper']),plan['commands'][off])
+        if off>=len(plan['commands'])-1:_RESCUE[seat]=None
     return a
