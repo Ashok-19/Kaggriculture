@@ -9,6 +9,14 @@ import tarfile
 from pathlib import Path
 
 
+SHADOW_MAIN = """from meta_gold_v29_minimax import agent as _meta_agent
+
+
+def agent(observation):
+    return _meta_agent(observation)
+"""
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--build-dir", default="agent_system/build")
@@ -21,7 +29,7 @@ def main() -> None:
     if out.exists(): shutil.rmtree(out)
     out.mkdir(parents=True, exist_ok=True)
     submission_files = (
-        "main.py", "runtime_gateway.py",
+        "main.py", "runtime_gateway.py", "donor.json",
         "meta_gold_v1.py", "meta_gold_v8.py", "meta_gold_v10.py",
         "meta_gold_v23_latestart.py", "meta_gold_candidate.py", "meta_gold_v29_minimax.py",
         "kaito44_majority_route.json", "kaito_yarn5_route.json",
@@ -30,12 +38,28 @@ def main() -> None:
         shutil.copy2(Path("submission") / name, out / name)
     shutil.copy2("agent_system/routes/public_routes.json", out / "routes.json")
     shutil.copy2(build / "libkag_agent.so", out / "libkag_agent.so")
+
+    # Preserve the exact q8-v601 fallback in an isolated sibling module graph.
+    shadow = out / "q8_shadow"
+    shadow.mkdir()
+    for name in (
+        "runtime_gateway.py", "meta_gold_v1.py", "meta_gold_v8.py", "meta_gold_v10.py",
+        "meta_gold_v23_latestart.py", "meta_gold_candidate.py",
+        "kaito44_majority_route.json", "kaito_yarn5_route.json",
+    ):
+        shutil.copy2(Path("submission") / name, shadow / name)
+    shutil.copy2("submission/q8_fert_v601.py", shadow / "meta_gold_v29_minimax.py")
+    (shadow / "main.py").write_text(SHADOW_MAIN)
+    shutil.copy2("agent_system/routes/public_routes.json", shadow / "routes.json")
+    shutil.copy2(build / "libkag_agent.so", shadow / "libkag_agent.so")
+
     lib = ctypes.CDLL(str((out / "libkag_agent.so").resolve()))
     lib.kag_agent_abi_version.restype = ctypes.c_int
     if lib.kag_agent_abi_version() != 1: raise RuntimeError("native ABI smoke failed")
     archive = Path(ns.archive); archive.parent.mkdir(parents=True, exist_ok=True)
     with tarfile.open(archive, "w:gz") as tf:
-        for p in sorted(out.iterdir()): tf.add(p, arcname=p.name)
+        for p in sorted(x for x in out.rglob("*") if x.is_file()):
+            tf.add(p, arcname=p.relative_to(out))
     print(f"built {archive} ({archive.stat().st_size} bytes)")
 
 

@@ -1,4 +1,4 @@
-import copy, importlib.util, pathlib
+import copy, importlib.util, pathlib, json
 HERE=pathlib.Path(__file__).resolve().parent
 # Start from the proven v23 candidate (blocked YARN rule, H7, global late-start 528).
 spec=importlib.util.spec_from_file_location('meta_gold_v29_base', HERE/'meta_gold_candidate.py')
@@ -19,6 +19,8 @@ _COREHIGH={0:False,1:False}
 _FERT241={0:0,1:0}
 _FERT_ELITE={0:False,1:False}
 _R2H10={0:False,1:False}
+_W14={0:False,1:False}
+_CRIT_CLEAN={0:None,1:None}
 
 _MELON_FAST=copy.deepcopy(v1.CURRENT)
 for _s,_cmd in {249:['EAST'],250:['SOUTH'],251:['SOUTH'],252:['SOUTH'],253:['DROP'],254:['WEST'],255:['CARE'],256:['COLLECT_FERTILIZER'],257:['NORTH'],258:['NORTH'],259:['NORTH'],260:['NORTH'],261:['WEST'],262:['WATER'],263:['PASS']}.items():
@@ -80,7 +82,10 @@ _orig=base.agent
 def agent(obs,configuration=None):
     step=int(obs.get('step',0) or 0);seat=int(obs.get('player',0) or 0)
     if step==0:
-        _PILK[seat]=False; _NONCORE[seat]=False; _COREHIGH[seat]=False; _R2H10[seat]=False; _FERT241[seat]=0; _FERT_ELITE[seat]=False
+        _PILK[seat]=False; _NONCORE[seat]=False; _COREHIGH[seat]=False; _R2H10[seat]=False; _FERT241[seat]=0; _FERT_ELITE[seat]=False; _W14[seat]=False; _CRIT_CLEAN[seat]=None
+    if step==1:
+        f=(obs.get('farms') or [])[1-seat]
+        _W14[seat]=(len(f.get('hands',[]) or [])==5 and float(f.get('money',0) or 0)==0.0)
     if step==13:
         _PILK[seat]=_pilk_like(obs)
         _NONCORE[seat]=not v1._core_opening_like(obs)
@@ -90,6 +95,70 @@ def agent(obs,configuration=None):
     if step==240:
         _R2H10[seat]=True
     a=_orig(obs,configuration)
+    # Generic route-critical weed cleaner.  At step 169 the normal seven day-7
+    # hands already exist and market capacity is available.  Compare our public
+    # weed set with the opponent's; if an extra weed lies on a tile where the
+    # canonical route will PLANT or BUILD_PASTURE before midnight, hire one
+    # temporary cleaner.  At step 170 route that actual spawned hand to the
+    # target with BFS, DIG, then leave it idle.  No seed/seat/opponent identity.
+    if step==169 and _CRIT_CLEAN.get(seat) is None:
+        farms=list(obs.get('farms') or []); own=farms[seat] if seat<len(farms) else {}; opp=farms[1-seat] if 1-seat<len(farms) else {}
+        def _weeds(f):
+            out=set()
+            for yy,row in enumerate(f.get('tiles',[]) or []):
+                for xx,t in enumerate(row):
+                    if isinstance(t,dict) and t.get('kind')=='WEED':out.add((xx,yy))
+            return out
+        extras=sorted(_weeds(own)-_weeds(opp))
+        if extras and len(a.get('market') or [])<10:
+            route=v1._route(obs,v1._BRANCH.get(seat,'global')); positions=[own.get('farmer'),*list(own.get('hands',[]) or [])]
+            hits=[]
+            for target in extras:
+                for ai,start in enumerate(positions):
+                    if not start:continue
+                    pos=tuple(start)
+                    for kk in range(step,192):
+                        cmd=v1._out_actor(a,ai) if kk==step else v1._actor(route,kk,ai)
+                        if pos==target and isinstance(cmd,list) and cmd and cmd[0] in ('PLANT','BUILD_PASTURE'):
+                            hits.append((kk,target,ai)); break
+                        pos=v1._move(pos,cmd)
+            if hits:
+                hits.sort(); critical,target,_=hits[0]
+                a=copy.deepcopy(a); a['market']=list(a.get('market') or [])+[['HIRE']]
+                _CRIT_CLEAN[seat]={'target':tuple(target),'critical':int(critical),'start':170,'commands':None}
+    plan=_CRIT_CLEAN.get(seat)
+    if plan is not None and step>=int(plan['start']):
+        if plan.get('commands') is None:
+            farm=(obs.get('farms') or [])[seat]; ps=[farm.get('farmer'),*list(farm.get('hands',[]) or [])]
+            if len(ps)>8:
+                path=v1._bfs(farm,tuple(ps[8]),tuple(plan['target']))
+                if path is not None and len(path)+1 <= int(plan['critical'])-step:
+                    plan['commands']=list(path)+[['DIG']]
+                else:
+                    plan['commands']=[]
+            else:
+                plan['commands']=[]
+        off=step-int(plan['start']); cmds=plan.get('commands') or []
+        if 0<=off<len(cmds):a=v1._set(a,8,cmds[off])
+        if step>=191:_CRIT_CLEAN[seat]=None
+    # Universal RC2 one-turn pre-relay.  The incumbent normally advances the
+    # canonical step-281 fertilizer sale to step 278 (lead=3).  Once the public
+    # route-similarity lock is already established, move that same planned sale
+    # one additional turn earlier to step 277 and reuse RC2's own due-state so
+    # the normal 278 relay is suppressed and repayment still occurs at 281.
+    if step in (277,301,325):
+        rg=v1.rg; st=rg._STATE.get(seat,{}) or {}; due={277:281,301:305,325:329}[step]
+        if st.get('rc2_locked') and not int(st.get('rc2_due',0) or 0) and len(a.get('market') or [])<10:
+            target=sum(max(0,int(o[2])) for o in (rg.ROUTES['v27'][due].get('market') or []) if len(o)>=3 and o[0]=='SELL' and o[1]=='FERTILIZER')
+            shed=((obs.get('private',{}) or {}).get('shed',{}) or {})
+            stock=max(0,int(shed.get('FERTILIZER',0) or 0))
+            pickups=rg._fertilizer_pickups(a)
+            planned=sum(max(0,int(o[2])) for o in (a.get('market') or []) if len(o)>=3 and o[0]=='SELL' and o[1]=='FERTILIZER')
+            q=min(target,max(0,stock-pickups-planned))
+            if q>0:
+                a=copy.deepcopy(a); a['market']=list(a.get('market') or [])+[['SELL','FERTILIZER',q]]
+                st['rc2_due_step']=due; st['rc2_due']=q
+                a=rg._rank_sell_slots(obs,a,configuration)
     if _FERT_ELITE.get(seat,False) and v1._BRANCH.get(seat,'global')!='kaito':
         # Rolling debt: any fertilizer sold early is repaid by suppressing the
         # next scheduled fertilizer sales in chronological order.
@@ -104,6 +173,11 @@ def agent(obs,configuration=None):
             a=copy.deepcopy(a); a['market']=out
         _FERT241[seat]=rem
         _windows={241:(12,281),278:(9,305),302:(12,329),326:(8,353),350:(7,377),406:(7,425),521:(13,545),601:(2,617)}
+        if _W14.get(seat,False):
+            _windows.pop(302,None)
+            _windows[290]=(12,329)
+            _windows.pop(326,None)
+            _windows[312]=(8,353)
         if step in _windows:
             cap,horizon=_windows[step]
             shed=((obs.get('private',{}) or {}).get('shed',{}) or {})
@@ -120,3 +194,22 @@ def agent(obs,configuration=None):
             if q>0 and len(a.get('market') or [])<10:
                 a=copy.deepcopy(a); a['market']=list(a.get('market') or [])+[['SELL','FERTILIZER',q]]; _FERT241[seat]+=q
     return a
+
+_RA_BASE=agent
+_RA_DON=json.load(open(HERE/'donor.json'))['actions']
+_RA_CLEAN_USED={0:False,1:False}
+def agent(obs,configuration=None):
+    step=int(obs.get('step',0) or 0); seat=int(obs.get('player',0) or 0)
+    if step==0: _RA_CLEAN_USED[seat]=False
+    a=_RA_BASE(obs,configuration)
+    if _CRIT_CLEAN.get(seat) is not None: _RA_CLEAN_USED[seat]=True
+    if step<576 or step>=len(_RA_DON): return a
+    if _W14.get(seat,False): return a
+    shops=list((obs.get('town',{}) or {}).get('unlocked_shops',[]) or [])
+    if _RA_CLEAN_USED.get(seat,False) and 'YARN_STORE' not in shops:
+        a=copy.deepcopy(a); a['market']=copy.deepcopy(_RA_DON[step].get('market',[])); return a
+    q=[list(o) for o in (a.get('market') or [])]; dm=[list(o) for o in (_RA_DON[step].get('market') or [])]
+    nm=[o for o in q if not (len(o)>=2 and o[0]=='SELL' and o[1]=='STRAWBERRY')]
+    nm += [o for o in dm if len(o)>=2 and o[0]=='SELL' and o[1]=='STRAWBERRY']
+    if len(nm)>10: return a
+    a=copy.deepcopy(a); a['market']=nm; return a
