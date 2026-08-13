@@ -46,14 +46,16 @@ git branch -vv
 git remote -v
 ```
 
-At the handoff snapshot:
+Immediately before the continuation-prompt commit, the verified baseline was:
 
 ```text
 branch: main
 HEAD: 6b53de3284dfa218a6217045d8034833f5c6c11d
-origin/main: same
-status before handoff writes: clean
+origin/main: 6b53de3284dfa218a6217045d8034833f5c6c11d
+status: clean
 ```
+
+`continue_prompt.md` itself was then committed locally, so the final handoff HEAD is necessarily newer than `6b53de3`. **Do not infer that final SHA from this file; run `repo_git_status` / `git log` at startup.** No push was requested, so also verify whether local `main` is ahead of `origin/main`.
 
 Recent important commits:
 
