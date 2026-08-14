@@ -234,7 +234,43 @@ For every meaningful experiment, record:
 
 Negative results are valuable. Preserve them in handoffs so future sessions do not repeat failed branches.
 
-## 15. Final Rule
+## 15. Local Compute Safety — Hard Two-Worker Limit
+
+This repository is developed on the user's local PC. Arena/replay research must never destabilize the machine.
+
+1. **At most 2 multiprocessing simulation workers may run at once.** Use `Pool(2)` explicitly or run sequentially.
+2. Never use bare `multiprocessing.Pool()` / all-core parallelism, `-j` without an explicit small bound for heavy simulation, or broad sweeps that implicitly consume every CPU core.
+3. Large validation leagues must be split into small auditable batches rather than launched as one all-core sweep.
+4. Replay downloads should normally be sequential unless there is explicit evidence that a small bounded concurrency is safe.
+5. After a timeout, interrupted arena, or failed worker batch, use `workspace_reap_processes` (or equivalent repo-local inspection) to ensure no orphaned workers remain before continuing.
+6. A run that crashes the machine, times out without complete auditable output, or is killed before materializing results provides **no promotion evidence**.
+
+This is a hard project constraint, not a performance preference.
+
+## 16. Gold-Tier Lane Technique — Shared Prefix, Legal Divergence, Coherent Continuation
+
+The highest-value development technique is **lane-based causal restructuring**, not cosmetic per-opponent patches.
+
+A lane is a population of trajectories that share an observable public-state/economic regime and therefore admit the same coherent policy principle. The objective is to drive hard-league conversion toward 100% by improving whole lanes while retaining broad robustness.
+
+Use this procedure:
+
+1. **Find the common observable prefix.** Identify where failing/winning trajectories are genuinely state-compatible. Do not classify before public information exists.
+2. **Preserve option value while futures are indistinguishable.** If complete observations are identical at the commitment point, keep a common minimax/option-value policy. Never use seed, opponent identity, replay identity, future shops, or a proxy for hidden RNG.
+3. **Branch only at the first legal public divergence.** Examples include a newly unlocked shop, public opponent capital/farm state, market quote/inventory, or another state feature visible before the changed action.
+4. **Prefer coherent continuation resets over isolated action patches.** Production geometry, hires, animals, market schedule, crop mix and logistics are strongly state-coupled. If a donor continuation works only when actor+market move together, treat that as evidence for an economic/route basin, not as a reason to transplant individual commands blindly.
+5. **Mine replay donors for mechanisms, then validate the lane.** A replay is a realized tape, not a policy. Use multiple current-best streams (especially current top agents and jasonstillchasin when informative) to discover route/economic principles. Require coin-for-coin source parity before trusting a tape.
+6. **Prove the lane on both seats and disjoint populations.** A lane expert must beat all available members of the public-state cohort, not just the opponent that motivated it. Add new live agents with the same prefix to the cohort instead of routing around them by identity.
+7. **Keep a hierarchical MoE only when every routing boundary is causal.** Shared prefix -> first legal public regime -> coherent expert -> later legal sub-branch is acceptable. Identity/seed/future conditioned expert selection is not.
+8. **Use 128/128-style hard-league targets as an adversarial research objective, not as a memorization target.** A perfect panel is meaningful only if obtained causally and retained on fresh seeds, both seats, historical/current populations and blind replay holdouts.
+9. **When a lane cannot be patched safely, restructure the meta.** Re-open opening economy, crop/livestock allocation, worker geometry, market controller or full continuation architecture rather than stacking wrappers forever.
+10. Preserve rejected lane experiments and exact failure evidence so future sessions do not re-run dead ends without a materially new premise.
+
+The practical gold-tier pattern is:
+
+> **shared causal prefix + option-value/minimax under uncertainty + branch at observed divergence + coherent lane-specific continuation + adversarial population gates.**
+
+## 17. Final Rule
 
 **Never optimize for the appearance of progress. Optimize for robust tournament strength.**
 
