@@ -1,6 +1,6 @@
-# Continue Kaggriculture — use this as the entry prompt in the new ChatGPT session
+# Continue Kaggriculture — v33 hierarchical lane continuation
 
-Continue the Kaggriculture Kaggle competition project from the **repository-grounded canonical handoff**. Do not reconstruct the project from memory, assumptions, stale leaderboard data, previous assistant summaries, or unverified public claims.
+Continue the Kaggriculture Kaggle competition project from the **repository-grounded canonical handoff**. Do not reconstruct the project from memory, assumptions, stale leaderboard values, previous assistant summaries, or unverified public claims.
 
 Use `Local_mcp` with repository id:
 
@@ -20,93 +20,17 @@ Read these **fully and in order** before proposing or implementing the next expe
 
 1. `.chatgpt/handoffs/current.local.md`
 2. `.chatgpt/handoffs/KAGGRICULTURE_MASTER_PROMPT.local.md`
-3. `.chatgpt/handoffs/2026-08-14-0103-kaggriculture-q8-live-meta-market-restructuring-continuation.local.md`
-4. `.chatgpt/handoffs/2026-08-12-2204-kaggriculture-evidence-first-gold-meta-continuation.local.md`
-5. `RULES.md`
-6. `AGENTS.md`
-7. `README.md`
-8. `agent_system/README.md`
-9. this `continue_prompt.md`
+3. `.chatgpt/handoffs/2026-08-15-0147-kaggriculture-v33-hierarchical-lane-continuation.local.md`
+4. `.chatgpt/handoffs/2026-08-14-1710-kaggriculture-v29-expanded-current-best-continuation.local.md`
+5. `.chatgpt/handoffs/2026-08-14-0103-kaggriculture-q8-live-meta-market-restructuring-continuation.local.md`
+6. `.chatgpt/handoffs/2026-08-12-2204-kaggriculture-evidence-first-gold-meta-continuation.local.md`
+7. `RULES.md`
+8. `AGENTS.md`
+9. `README.md`
+10. `agent_system/README.md`
+11. this `continue_prompt.md`
 
-The master prompt intentionally contains an older historical body below a new 2026-08-14 authoritative update. Preserve both: the new top section is current operational state; the older body contains important mechanics, rejected experiments, hidden-future results and provenance that must not be forgotten.
-
-## Verify current state before any research
-
-Use read-only Git/Kaggle checks first:
-
-```text
-repo_git_status(repo_id="kaggriculture")
-```
-
-and:
-
-```bash
-git log --oneline --decorate -12
-git branch -vv
-git remote -v
-```
-
-Immediately before the continuation-prompt commit, the verified baseline was:
-
-```text
-branch: main
-HEAD: 6b53de3284dfa218a6217045d8034833f5c6c11d
-origin/main: 6b53de3284dfa218a6217045d8034833f5c6c11d
-status: clean
-```
-
-`continue_prompt.md` itself was then committed locally, so the final handoff HEAD is necessarily newer than `6b53de3`. **Do not infer that final SHA from this file; run `repo_git_status` / `git log` at startup.** No push was requested, so also verify whether local `main` is ahead of `origin/main`.
-
-Recent important commits:
-
-```text
-6b53de3 Ignore local Kaggriculture research artifacts
-595fbc6 Promote q8 fertilizer minimax successor
-4f99359 Add evidence-first gold medal rules
-7934ce7 Promote minimax meta successor
-11b5245 Fix arena module isolation
-```
-
-Do not trust these blindly if the repository changed. Verify.
-
-Then refresh current Kaggle truth:
-
-- all ReCurSiON submissions and current scores;
-- leaderboard top 20;
-- current public-safe submission ids for Jason, Kawashigi, researchstudio, Mohamed, Furious Monk, JALKARNA, Yusuke, Arda and other top agents;
-- current episode counts/replay availability;
-- whether a newer top-agent submission has appeared since this handoff.
-
-At the handoff snapshot, the latest submitted ReCurSiON agent was:
-
-```text
-submission id: 55480892
-lineage: q8_fert_v601
-production commit: 595fbc677db3a377885fe7ef6e2983b49d3d0c33
-archive SHA-256: 08c176d10fe077710860dc3d48155cddf1765d6b8563f41801ff10f72bd269bb
-archive size: 77,222 bytes
-status: COMPLETE
-public score at snapshot: 2213.3
-```
-
-Older `55462815` was 2982.8 at the same snapshot. These values are mutable.
-
-Leaderboard snapshot at handoff, historical only:
-
-```text
-1  Kawashigi              3235.4
-2  researchstudio.site    3146.2
-3  jasonstillchasin       3145.3
-4  JALKARNA GAUTAM        3141.2
-5  Mohamed abdelrazik     3118.2
-6  Furious Monk           3116.0
-7  Yusuke Hayashi         3103.9
-8  MD. Nazmus Sakib Anik  3097.0
-9  Arda Ceylan            3091.3
-10 Suda                   3082.0
-```
-
-Refresh before using.
+The master prompt intentionally preserves older historical bodies. The **2026-08-15 authoritative section at the top** supersedes stale operational state while the older sections remain valuable negative-result/mechanics/provenance memory.
 
 ## Mission
 
@@ -114,546 +38,430 @@ The objective is explicit:
 
 > **Finish top 10, earn Kaggle gold, and maximize prize-money probability.**
 
-The user does not want another cosmetic successor that wins self-play by +50 or produces only a modest live improvement. The current hard-meta target is to push the dominant current-top league toward **128/128 wins**, while remaining generalized and causal.
+The user does not want cosmetic gains or a narrow best response. The research objective is to create a causal current-meta architecture that drives the hardest public population toward 100%/128-of-128-style win conversion while surviving fresh seeds, both seats, historical leagues and blind replay holdouts.
 
-Do **not** fake that target by overfitting. A real winner must be strong across multiple current public agents, both seats, fresh seeds, historical opponents and held-out replays.
+## Hard local-PC compute constraint
 
-## Required four-lane research style
+This is non-negotiable:
 
-Continue the Kaito-Fukami-inspired four-lane approach in `RULES.md`:
+> **Never run more than 2 simulation workers.**
 
-### Lane 1 — mechanics / invariants / seat asymmetry
+Use `Pool(2)` explicitly or run sequentially. Never use bare `multiprocessing.Pool()`, all cores, or an unbounded heavy `-j`. Split large leagues into small batches. After a timeout/interruption, use `workspace_reap_processes` to verify no orphaned workers remain.
 
-Use exact failure replays and official-engine state to repair genuine mechanics/logistics problems. Weed, worker, shed, capacity, debt, market-order and day-boundary invariants belong here.
+The user's local PC previously crashed from all-core arena jobs. Do not repeat this.
 
-### Lane 2 — elite current-top adversaries
+## Most important gold-tier technique: lane-based causal restructuring
 
-Jason, Mohamed, Kawashigi, researchstudio, JALKARNA, Furious, Yusuke, Arda and any newly emerging top agents are first-class adversaries/rule sources.
+The project is no longer trying to recognize individual opponents. The key method is:
 
-Download replays whenever useful. Build populations, not one-tape mythology. Keep newest distinct streams as holdouts where practical.
+> **shared causal prefix + option-value/minimax while futures are indistinguishable + branch at the first legal public divergence + coherent lane-specific continuation + adversarial population gates**
 
-### Lane 3 — historical / worst-of-population robustness
+A lane is a population sharing an observable public-state/economic regime. It is not a team name or submission id.
 
-Keep current submitted q8, previous ReCurSiON packages, WHEAT14 families, rank1/rank7 families, Kaito/core, Aug-11 exact-current tapes and the historical league in promotion gates.
+Rules:
 
-Evaluate worst opponent per fixture, both seats.
+- If complete public observations are identical, the policy must remain common.
+- Never use seed, team/opponent/submission/episode id, future shops, hidden RNG, or a prefix that merely predicts future RNG.
+- Branch only after a public state difference is actually visible before the changed action.
+- Prefer coherent actor+market continuation resets when geometry/economy is state-coupled.
+- A lane expert must be tested against every available member of the same public-state cohort, both seats and disjoint seeds.
+- Add new live agents with the same prefix to the cohort; do not route around them by identity.
+- If micro-patches cannot solve a lane robustly, restructure opening economy, production geometry, livestock mix, market controller or full continuation architecture.
 
-### Lane 4 — live meta / architecture discovery
+Read the new sections in `RULES.md` before research.
 
-Do not remain trapped in q8 micro-patches. Maintain a structural lane: market controller, production portfolio, causal selector, bounded search, alternative economic architecture, or other coherent meta change.
+## Verify current repository state immediately
 
-The user explicitly said that **50/128 hard-league wins are not enough** and expects a meta restructuring if necessary.
-
-## Strict evidence rules
-
-Treat these as non-negotiable:
-
-- repository + pinned official engine + exact local simulations + verified Kaggle replay output are source of truth;
-- no opponent/team/submission id in policy;
-- no episode id or seed logic;
-- no future shops or hidden RNG;
-- no fake classifier when observations are identical at the decision point;
-- replay tape = realized trajectory, not hidden executable policy;
-- both seats always;
-- fresh disjoint seed blocks;
-- failed/timed-out/safety-blocked wrapper = **no policy conclusion**;
-- geometry changes can change future weed/shop RNG;
-- market cash changes can change affordability and route;
-- accepted tracked source/tool/test changes get small incremental commits;
-- rejected scratch stays scratch;
-- keep repo clean and delete obsolete tmp files/wrappers when no longer useful;
-- preserve exact replays, tapes, useful baselines and negative-result evidence;
-- no push unless explicitly requested.
-
-The arena isolation fix at commit `11b5245` is mandatory for monkeypatch/wrapper comparisons.
-
-## Current submitted q8 anchor
-
-The strict future successor gate is against **submission 55480892 / q8_fert_v601**, not the older v29 submission.
-
-q8 opening market basket:
+Run:
 
 ```text
-BUY_PRODUCT WHEAT 8
-HIRE x4
-BUY_ANIMAL COW 1
-BUY_ANIMAL SHEEP 4
-BUY_SEED MELON 5 requested; 4 execute
-BUY_SEED WHEAT 5
+repo_git_status(repo_id="kaggriculture")
 ```
 
-Turn1 q8-vs-q8 reference:
+and verify:
+
+```bash
+git log --oneline --decorate -12
+git branch -vv
+git remote -v
+```
+
+At this handoff the final local HEAD is expected to be newer than production v32 because durable rules/continuation docs were committed. Verify the exact SHA; do not trust this prompt blindly.
+
+Production v32 itself was promoted at:
 
 ```text
-money 1
-hands 4
-shed WHEAT8 COW1 SHEEP4
-seeds WHEAT5 MELON4
+d52526d8122a1848ab364f0f072b5ba650adff18  Promote v32 four-lane agent
 ```
 
-Future promotion still requires 100% wins against this exact incumbent on a large paired-seat disjoint range, but that is only the first gate.
-
-## Important validated successor history
-
-The current scratch research is far beyond the submitted q8.
-
-### v5/v6/v7/v8 meta lineage
-
-A q8 farm/worker backbone plus adaptive market meta achieved:
+Durable lane/compute rules were then committed as:
 
 ```text
-v5 direct q8 gate: 128/128 fresh wins
-mean ~+1259
-worst game ~+200
+1cbc881f9221b3ff63fd94b944ed5d4bd786f8f5  Document lane method and local compute cap
 ```
 
-Historical/core v6:
+No push was requested during the handoff. `origin/main` was `6b53de3` at verification time. Refresh remote state before saying anything about push status.
+
+The only remaining worktree noise after releasing the v33 task claim was the unrelated untracked notebook:
 
 ```text
-96/96 nonnegative fixture deltas
+public-notebooks/read-the-market-choose-the-farm.ipynb
 ```
 
-Aug-11 exact-current population:
+Do not stage or modify it unless the user explicitly asks.
+
+## Refresh Kaggle state before strategy conclusions
+
+At the handoff snapshot around 2026-08-15 01:41 IST:
 
 ```text
-52 fixtures
-0 negative deltas
+55507122  v32 / commit d52526d  COMPLETE  2706.6
+55491717  f120 d4 fix          COMPLETE  2897.3
+55462815  old meta minimax     COMPLETE  2975.5
 ```
 
-Exact q8 shadow branches are used for public early families that were not yet safely improved:
+Latest v32 archive metadata:
 
 ```text
-5 hands / $17 -> rank1/rank7-style elite
-5 hands / $20 -> Arda-like
->=6 hands / >=$600 -> high-capital conservative family
+submission: 55507122
+size: 212,630 bytes
+SHA-256: cd25d9457a3ab3551931d807543e2e526ae2a021f5bf53c90084171cd2f9e2ce
 ```
 
-Dominant WHEAT14 branch is 5 hands / $0.
-
-### Safe WHEAT14 FERT bundle
-
-Older three-shift bundle was:
+Leaderboard snapshot at handoff, historical only:
 
 ```text
-302->290
-326->312
-350->340
+1  Kawashigi              3265.2
+2  researchstudio.site    3134.4
+3  Ueddy                  3101.7
+4  somewhere after        3093.4
+5  Mohamed abdelrazik     3085.0
+6  Utkarsh #2             3080.1
+7  Ignat                  3066.5
+8  Aaweg                  3061.9
+9  uri_kkyhr              3059.6
+10 One-For-All            3055.3
+13 jasonstillchasin       3033.6
 ```
 
-Later live testing proved `350->340` causes exact -2 against Furious/Mohamed. Current safe bundle keeps only:
+These values are mutable. Refresh current leaderboard, ReCurSiON submissions, current public-safe top-agent submission ids and replay availability before using them.
+
+## Current promoted/submitted v32 source
+
+Exact research/promoted source lineage:
 
 ```text
-302->290
-326->312
+scratch/live_top10/current_best_aug14/fourlane_router_v32/main.py
 ```
 
-Current live panel: zero negative deltas; beneficial families gain about +84.
+Do not reimplement v32 from prose. Open the exact source/assets.
 
-### v9 STRAWBERRY terminal controller
-
-Candidate:
+Important corpus:
 
 ```text
-scratch/live_top10/meta_routeclean_adaptive576_v9_w14straw/
+scratch/live_top10/current_best_aug14/manifest_tapes.json
+scratch/live_top10/current_best_aug14/manifest_multi_tapes.json
+scratch/live_top10/current_best_aug14/tapes/
+scratch/live_top10/current_best_aug14/tapes_multi/
+scratch/live_top10/current_best_aug14/one_for_all_public/main.py
 ```
 
-WHEAT14-only bounded sales:
+## Current v33 frontier
+
+Primary research directory:
 
 ```text
-576 @ $1 -> 586
-600 @ $1 -> 604
-624 @ <=$25 -> 640
-648 @ <=$10 -> 668
+scratch/live_top10/v33_moe/
 ```
 
-Two fresh 64-fixture WHEAT14 blocks:
+Naive integrated wrapper:
 
 ```text
-128/128 non-regressing vs v8
-max activated gain ~+1153
-wins 38 -> 50
+scratch/live_top10/v33_moe/hier_v33/main.py
 ```
 
-This is useful but **50/128 wins is not the endpoint**.
+**Do not promote this file as-is.** It fails the exact five-live-loss gate 8/10 because its mirror routing begins too early.
 
-### v11/v12/v13 restructuring
+### BAKERY option-value prefix
 
-Broad season-long strawberry debt was rejected due shed capacity. Bounded late strawberry tranches were strong.
+A cap3-like WHEAT-retention/light-farm prefix is strong for old BAKERY families. The relevant BAKERY futures cannot legally be distinguished before the second shop.
 
-v11 consolidated terminal portfolio:
+The first useful legal divergence is at **step144** when the second shop becomes public.
+
+Do not restore the lighter state to cap4/cap5 before the reveal; that destroys the old-family advantage.
+
+### BAKERY -> PIZZA expert
+
+Strong component:
 
 ```text
-24/24 diagnostic fixture improvements
-+801..+2054
+scratch/live_top10/v33_moe/bakery_pizza_itmo/r0/main.py
 ```
 
-v12 delays ninth cow purchase from step361 to about505 and buys only if observable MILK quote >$50:
+Full ITMO-r0 continuation after the legal step144 BAKERY->PIZZA reveal:
 
 ```text
-24/24 non-regressing
-max +529
-wins 8/24 -> 13/24
+gogogo cap3 baseline  -5449 / -5449
+ITMO-r0               +9244 / +9244
 ```
 
-v13 widens bounded step624 STRAWBERRY hold to <=$40:
+Market-only ITMO is catastrophic. The full actor+market continuation is the mechanism.
+
+Before mirror integration this architecture passed:
 
 ```text
-scratch/live_top10/meta_w14_terminal_v13_straw40/
-24/24 non-regressing
-mean +428
-max +700
-wins 13/24 -> 19/24
-worst margin -1938 -> -1238
+five exact v32 live losses: 10/10
+mean ~+7939.8
+floor +204
+
+representative old BAKERY family: 18/18
+floor +9749
 ```
 
-v13 is a key robust baseline.
+Preserve this mechanism.
 
-## Mohamed population — do not tune to one tape
+### BAKERY -> ICE_CREAM high-cash expert
 
-Current Mohamed submission used:
+At step144, public opponent capital separates a high-cash ICE regime from low-cash Malelizarazo.
+
+ITMO-r1 continuation gives:
 
 ```text
-55476469
+Erfan +2219 / +2219
+eason +1355 / +1355
 ```
 
-Exact replay population:
+Integrate only through a public-state lane, not names.
+
+### Low-cash ICE / Malelizarazo unresolved
+
+Best current coherent continuation:
 
 ```text
-92699406 vs Furious
-92659241 vs researchstudio
-92634088 vs Malel
-92607971 vs JALKARNA
-92616295 vs Filip
+One-For-All-r0 from step144/168
 ```
 
-Files:
+Approximate result:
 
 ```text
-scratch/live_top10/mohamed_aug13_expand/
-scratch/live_top10/mohamed_aug13_expand/tapes/
+cap3 -8414
+OFA full -2894
+OFA actors-only -3121
+OFA market-only -7970
 ```
 
-All exact source rewards reproduce locally.
-
-Fresh paired population result for v13:
+The remaining gap is structural. Around step648:
 
 ```text
-9 wins / 31 losses
-mean -100.4
-floor -4225
-v13-v12 delta min0 mean+68.9 max+697
-0 negative deltas
+ours ~31 WHEAT / 22 STRAWBERRY
+Mal  ~56 WHEAT / 5 STRAWBERRY
+late WHEAT harvest ours ~160 vs Mal ~298
 ```
 
-This is a major current weakness.
+Mass STRAWBERRY->WHEAT conversion inside OFA geometry is catastrophic. Late donor/tape transplants are incompatible. Search a new coherent production basin; do not keep applying crop micro-patches.
 
-Exact market accounting on Mohamed hard seed48420 found the decisive product gap:
+### Mirror/Kawashigi current-meta expert
+
+Strong component:
 
 ```text
-WOOL opponent revenue 21202
-WOOL candidate revenue 17900
-candidate deficit -3302
+scratch/live_top10/v33_moe/kaw_clone_sellrank/main.py
 ```
 
-Candidate WHEAT and STRAWBERRY revenue were actually better, so do not misdiagnose the whole problem as farm production.
+A reconstructed Kawashigi continuation gives 0-margin ties; generic SELL-slot ranking turns it positive.
 
-## Jason is now first-class elite data
-
-Jason submission used:
+Kawashigi results:
 
 ```text
-55470275
+60200 +1344/+1344
+60201 +1267/+513
+60202 +644/+644
+60203 +801/+801
 ```
 
-High-value exact replays already downloaded:
+Against the seven original Pasture/HIRE5 mirror opponents — Kawashigi, Anik, One-For-All, Mohan, Ddere, OnlyFarms, Patrick — over four seeds/both seats:
 
 ```text
-92692927 vs Kawashigi -> Jason wins 91716-86690
-92708754 vs researchstudio -> Jason wins 79807-76792
-92725401 vs JALKARNA -> Jason wins 69564-68618
-92547299 older Jason-vs-Malel tape
+56/56
+mean +2721.7
+floor +513
 ```
 
-Files:
+This is a proven cohort expert, not an identity counter.
+
+### Critical mirror collision / exact next task
+
+The seven original mirror opponents, live Hax and live Wang are **public-state identical through step71**.
+
+First public divergence occurs only at **step72**, when the first shop unlocks.
+
+Examples:
 
 ```text
-scratch/live_top10/jason_aug13_expand/
-scratch/live_top10/jason_aug13_expand/tapes/
+Hax: PET_CAFE first
+Wang: ICE_CREAM_SHOP first
+Kaw examples vary: BRUNCH / ICE / PIZZA across seeds
 ```
 
-The Kawashigi and research wins share Jason action hash prefix `c3b5b90418606d18`; JALK win uses a second stream `856d6cf4cb5248e5`.
+Therefore the step1 Pasture/HIRE5 selector in the naive `hier_v33` is too early. No legal policy can route Hax/Wang away from the mirror cohort before step72.
 
-Jason's step240 mature farm matches our backbone closely:
+Naive integrated exact live gate:
 
 ```text
-4 sheep
-8 cows
-13 WHEAT
-20 STRAWBERRY
-5 MELON
+excluding +5743 / +642
+gogogo    +9244 / +9244
+Hax       -2973 / +33531
+Muhammed  +13165 / +3338
+Wang      +14932 / -108
+TOTAL 8/10
 ```
 
-Use Jason for **rule mining**, not exact schedule transplant.
+Do **not** patch those failures by opponent identity.
 
-Fresh three-stream Jason screen seeds48440..48443 both seats:
+A screen of 15 state-compatible current-best continuations found no single common route that dominates the combined old mirror cohort + Hax + Wang.
 
-```text
-v13 18/24 wins
-mean +6449
-floor -2042
-submitted q8 18/24 mean +5053.8 floor -3435
-v13-q8 positive on 24/24 by +638..+2745
-```
+## Exact next research task
 
-All six v13 losses are the same town seed `48440`, both seats across all three Jason streams.
+Resume here:
 
-Hard48440 exact accounting candidate minus Jason:
+### 1. PET-first mirror lane
 
-```text
-extra buy cost: +1663
-WOOL sell revenue: -1063
-WHEAT sell revenue: +861
-STRAWBERRY: -318
-FERT: -328
-MILK: +392
-MELON: +69
-```
+At step72 after `PET_CAFE` becomes public, collect **all** Pasture/HIRE5 mirror-opening trajectories that are PET-first, including Hax. Search a coherent full continuation/expert for the whole cohort.
 
-The hard Jason deficit is mostly **late WHEAT overtrading and WOOL opportunity cost**.
+Do not tune to Hax alone.
 
-Do not copy Jason's WHEAT/WOOL market schedule wholesale: direct transplantation produced catastrophic losses (roughly -20k WHEAT-only, -5k WOOL-only, ~-101k both) because market paths are state-coupled.
+Success condition:
 
-## v14 safe WHEAT gate
+- Hax positive both seats;
+- every PET-first mirror-cohort fixture positive on development and disjoint seeds;
+- no changed action before the step72 public divergence.
 
-Candidate:
+### 2. ICE-first mirror lane
 
-```text
-scratch/live_top10/meta_w14_terminal_v14_wheat46/
-```
+At step72 after `ICE_CREAM_SHOP` becomes public, collect all ICE-first mirror trajectories, including Wang. Search a coherent continuation for the whole cohort.
 
-Rule:
+Success condition:
 
-> after step576, suppress `BUY_PRODUCT WHEAT` only while observed WHEAT quote <=$46.
+- Wang positive both seats;
+- every ICE-first mirror-cohort fixture positive;
+- old mirror 56/56 strength retained across integrated routing.
 
-Jason diagnostic result:
+### 3. Revalidate other first-shop mirror regimes
 
-```text
-24/24 non-regressing
-+40..+101 where active
-exact tie in high-WHEAT-demand seed48442
-```
+Keep Kaw clone+SELL-rank where it is strongest for BRUNCH/PIZZA/other first-shop regimes, or replace only with a cohort-validated alternative.
 
-Safe but small.
+### 4. Integrate high-cash BAKERY->ICE
 
-## CURRENT FRONTIER — v15 WOOL market-impact controller
+Add ITMO-r1 using only public step144 state; validate all high-cash ICE cohort members.
 
-This is where the new session must resume.
+### 5. Continue structural low-cash ICE search
 
-Official WOOL market curve:
+Malelizarazo requires a coherent WHEAT-heavy production architecture, not terminal market surgery.
 
-```text
-base 200
-I0 10000
-T 105
-below log / target .2
-above sq / target 3.2
-```
+### 6. Rebuild hierarchical v33
 
-The quadratic glut side makes large WOOL sells highly destructive.
+Replace the naive early mirror branch with legal step72 routing. First gate is to recover the exact five-live-loss **10/10** result.
 
-Experimental candidate:
+### 7. Broad gates
 
-```text
-scratch/live_top10/meta_w14_terminal_v15_wool40/
-```
+Run, in bounded <=2-worker batches:
 
-Concept:
+- original 28-opponent × 4-seed × both-seat 224-game gate;
+- expanded `manifest_multi_tapes.json` current-best population;
+- fresh/disjoint seed blocks;
+- newest replay holdouts;
+- exact current incumbent comparisons.
 
-- inspect planned WHEAT14 WOOL sales;
-- calculate predicted marginal WOOL quote from official public market inventory;
-- cap units whose marginal quote would fall below ~$40;
-- carry unsold WOOL as debt and try to release later.
+The goal remains hard-league conversion toward 100%, not merely non-regression.
 
-Jason diagnostic result:
+## Key negative results from current v33 work
 
-```text
-seed48440: +1774..+2010 delta
-all three Jason continuations flip positive
-final margins roughly +48 / +245 / +1211
+Do not repeat without a materially new premise:
 
-seed48441: +5..+9
-seed48443: +5
+- post144 WHEAT dump to repair cap3;
+- cap4/cap5 uncertainty financing;
+- fourth-STRAWBERRY seed reconstruction;
+- fertilizer-funded missing crop geometry;
+- simple WHEAT crop substitution;
+- empty-tile TOMATO insertion;
+- broad TOMATO/MELON substitution;
+- extended PIZZA WHEAT hold;
+- early terminal liquidation;
+- isolated or mass STRAWBERRY->WHEAT edits inside wrong geometry;
+- extra terminal scavenger workers;
+- surplus WHEAT watering worker;
+- same-turn WHEAT sell/buy netting;
+- suppressing structural late WHEAT buys;
+- simple extra-cow deletion;
+- late current-best actor transplants;
+- Mal's own late tape transplant;
+- any step1 mirror selector that tries to distinguish Hax/Wang from the old mirror cohort.
 
-seed48442: catastrophic -21699..-22259 delta
-resulting margins roughly -12k..-20k
-```
-
-**v15 is unsafe and must not be promoted.**
-
-Its importance is mechanistic: a correct WOOL controller has enough value to flip the hard Jason town by roughly +2k.
-
-### Critical hidden-future caution
-
-At step309:
-
-```text
-48440 WOOL price18 inventory10056
-shops: PET, ICE, FARMERS, BAKERY
-future step360 later reveals YARN
-
-48442 WOOL price18 inventory10056
-shops: BAKERY, PIZZA, PIZZA, SMOOTHIE
-future step360 reveals ICE, no YARN yet
-```
-
-At 311/312 both can be WOOL price1/inventory10059.
-
-The full observations differ, but **future YARN is not known at step309**. Never build a rule that effectively uses future YARN or memorizes a shop prefix as a proxy for random future RNG.
-
-### Immediate research question
-
-Can the +2k WOOL gain be made safe using only current observable economics:
-
-- current marginal WOOL price curve;
-- current unlocked demand;
-- shed occupancy/capacity;
-- carried/physical WOOL;
-- next known canonical wool availability;
-- bounded debt/tranche size;
-- current cash/opportunity cost;
-- later observed recovery?
-
-Or is early holding itself a hidden-future minimax conflict and the correct commitment point must be later, after demand actually reveals?
-
-### First actions for the new session
-
-1. Diagnose **why 48442 goes toxic** in v15:
-   - record `_WOOL_DEBT` over time;
-   - shed occupancy and peak capacity;
-   - carried WOOL and sheep `yield_units`;
-   - suppressed canonical WOOL sales;
-   - actual quote path;
-   - release attempts;
-   - cash/affordability divergence;
-   - first farm/market structural divergence vs v14.
-2. Compare 48440 and 48442 at the exact first v15 divergence using full legal observations.
-3. Test bounded WOOL tranches / later commitment before any classifier.
-4. Run broad fresh activation sampling across Jason + Mohamed + 16-continuation WHEAT14 before choosing thresholds.
-5. If two futures are observationally equivalent at commitment, stop classification and solve minimax.
-
-Do **not** simply lower the v15 floor until 48442 stops failing. That would be cosmetic tuning without understanding the mechanism.
+The full negative ledger and causal details are in the 2026-08-15 master update and structured handoff.
 
 ## Replay workflow
 
-The system Kaggle CLI is old and lacks simulation commands. Use isolated modern CLI:
+Use the modern CLI:
 
 ```bash
-uvx --python 3.11 --from kaggle==2.2.2 kaggle competitions episodes <SUBMISSION_ID>
+uvx --python 3.11 --from kaggle==2.2.2 kaggle competitions episodes <SUBMISSION_ID> -v
 uvx --python 3.11 --from kaggle==2.2.2 kaggle competitions replay <EPISODE_ID> -p <DIR>
+uvx --python 3.11 --from kaggle==2.2.2 kaggle competitions logs <EPISODE_ID> <AGENT_INDEX> -p <DIR>
 ```
 
 Replay mapping:
 
 ```text
-observation t -> steps[t+1].action
+observation step t -> replay steps[t+1].action
 719 real actions
 ```
 
-Require exact coin-for-coin source parity with `agent_system/tools/official_oracle.py` before accepting a tape.
+Require coin-for-coin official-oracle parity before accepting a tape as evidence.
 
-For Jason specifically, keep downloading high-value replays against current #1/#2/top agents whenever a new distinct action stream appears. The user explicitly authorized this and wants Jason used for both rule mining and promotion gates.
+## Arena / mechanics workflow
 
-## C++ guidance
+Use:
 
-C++ has **not** produced a validated policy improvement. Current runtime is already roughly 0.4ms/turn.
-
-Do not rewrite Python merely for speed.
-
-C++ is only justified for a new exact search backend, such as:
-
-- bounded market-order search;
-- marginal liquidation optimizer;
-- exact reserve/debt solver;
-- offline lookup-table generation;
-- bounded route-repair search.
-
-Any C++ search must first match official market mechanics exactly, then beat the current policy in paired arena tests. Otherwise it gets no credit.
-
-## Promotion target
-
-Do not submit the current scratch research yet.
-
-A real successor should pass, in order:
-
-1. **Exact latest incumbent gate:** 100% vs `55480892` / q8_fert_v601 on large fresh paired-seat seeds.
-2. All accumulated hard mechanics/seat seeds.
-3. WHEAT14 16-continuation worst-of population on at least two disjoint blocks.
-4. Expanded Jason distinct-stream population.
-5. Expanded Mohamed distinct-stream population.
-6. rank1/rank7 elite families.
-7. Aug-11 exact-current 26-tape population.
-8. historical 12-opponent league.
-9. Kaito/core and other current-live families.
-10. blind replay holdout.
-11. exact packaged `submission/build/main.py` parity/gates.
-
-The user wants the hard current-meta league pushed toward **128/128 wins**, not merely 128/128 non-regressing deltas.
-
-If the candidate only ties q8 on a difficult elite family through a shadow branch, treat that as safe but incomplete. Continue looking for a positive causal edge.
-
-## Repo hygiene and commit discipline
-
-Local handoffs and `research/` tooling are intentionally ignored by commit `6b53de3`.
-
-Keep the repo clean:
-
-- remove temporary failed wrappers and obsolete generated files after diagnosis;
-- use `workspace_reap_processes` after timed-out arena batches if needed;
-- preserve active scratch candidates and verified replays/tapes;
-- do not mass-delete scratch evidence;
-- do not mass-stage;
-- accepted tracked source/tool/test changes get small exact-path commits;
-- rejected scratch research does not get committed;
-- no Git push unless explicitly requested.
-
-Before a production commit use `repo_git_review`, then commit only intended paths.
-
-Before a Kaggle submission:
-
-```bash
-python3 agent_system/tools/build_submission.py
+```text
+agent_system/tools/arena.py
+agent_system/tools/official_oracle.py
+agent_system/.cache/official/kaggriculture.py
 ```
 
-Then test the exact `submission/build/main.py`, inspect tar contents, record size + SHA-256, and submit that exact archive.
+Arena isolation commit `11b5245` is mandatory for wrappers/monkeypatches.
 
-## Do not repeat these known failures without a materially new premise
+Every meaningful simulation result must include both seats and exact seed/opponent provenance. Failed wrappers or incomplete timed-out batches yield no conclusion.
 
-- WHEAT14 no-13th-cow simple patch;
-- rank7/W14 extra opening MELON;
-- `dailyclean` universal cleaner;
-- naive full WHEAT14 worker splice;
-- full replay market transplant;
-- global WHEAT buy suppression;
-- generic WHEAT timing/preemption;
-- season-long strawberry debt bucket;
-- naive 8-cow deletion;
-- exact Jason WHEAT/WOOL schedule transplant;
-- v15 rolling WOOL debt as currently implemented;
-- future-YARN classifier at step309;
-- identity/seed selectors;
-- C++ rewrite without search/parity evidence.
+## Submission workflow
 
-## Final operating principle
+Do not submit current scratch v33 yet.
+
+Before future promotion/submission:
+
+1. acquire the official/promotion lock;
+2. make minimal evidence-backed tracked changes;
+3. build with `agent_system/tools/build_submission.py`;
+4. test exact `submission/build/main.py`;
+5. raw Kaggle loader smoke: execute exact packaged main with `env={}`, no `__file__`, build directory on `sys.path`, retrieve `agent`, call initial observation;
+6. verify exact research/package parity on both-seat canaries;
+7. inspect tar contents;
+8. record archive size + SHA-256;
+9. `repo_git_review` and commit explicit intended paths only;
+10. submit the exact archive;
+11. verify Kaggle submission id/status/description;
+12. re-query live score;
+13. do not push unless explicitly requested.
+
+The raw-loader smoke is mandatory because submission `55491619` failed validation from undefined `__file__`.
+
+## Final operating rule
 
 Do not optimize for the appearance of progress.
 
-The strongest current evidence says:
+The strongest current evidence is that **legal lane decomposition and coherent continuation resets** produce order-of-magnitude larger gains than cosmetic thresholds:
 
-- the submitted q8 is not enough for the live target;
-- v13/v14 are robustly stronger but still lose too many current hard fixtures;
-- the dominant remaining matched-architecture weakness is **premium WOOL opportunity-cost control**;
-- v15 proves that fixing WOOL can add ~+$2k and flip Jason hard48440;
-- v15 also proves that naive holding can be catastrophically wrong in another legal future;
-- Jason is now one of the most valuable public rule sources and must stay in the elite lane.
+- BAKERY->PIZZA coherent reset moved gogogo from roughly -5.4k to +9.2k;
+- reconstructing the current Kawashigi basin and improving only SELL-slot execution beats the original mirror cohort 56/56;
+- the naive integration failed because a selector was placed before legal public divergence.
 
-Continue through diagnosis, structural market redesign, broad live-population testing and the full four-lane gate. Do not stop because one local panel looks good. Do not submit until the evidence supports a genuinely stronger meta.
+Continue by building legal step72 PET/ICE mirror lanes, then integrate and attack the remaining low-cash ICE structural basin. Do not stop at a locally good panel; continue until the current adversarial population is genuinely dominated.
