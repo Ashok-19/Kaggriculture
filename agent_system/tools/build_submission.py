@@ -25,7 +25,7 @@ def main() -> None:
     ns = ap.parse_args()
     build = Path(ns.build_dir); out = Path(ns.out_dir)
     subprocess.run(["cmake", "-S", "agent_system", "-B", str(build), "-DCMAKE_BUILD_TYPE=Release"], check=True)
-    subprocess.run(["cmake", "--build", str(build), "-j", "4"], check=True)
+    subprocess.run(["cmake", "--build", str(build), "-j", "2"], check=True)
     if out.exists(): shutil.rmtree(out)
     out.mkdir(parents=True, exist_ok=True)
     submission_files = (
@@ -33,6 +33,8 @@ def main() -> None:
         "meta_gold_v1.py", "meta_gold_v8.py", "meta_gold_v10.py",
         "meta_gold_v23_latestart.py", "meta_gold_candidate.py", "meta_gold_v29_minimax.py",
         "kaito44_majority_route.json", "kaito_yarn5_route.json",
+        "h4_pre.json", "shadow_market_david.json", "arda_donor.json",
+        "h4_donor.json", "w14_donor.json",
     )
     for name in submission_files:
         shutil.copy2(Path("submission") / name, out / name)
@@ -56,6 +58,25 @@ def main() -> None:
     lib = ctypes.CDLL(str((out / "libkag_agent.so").resolve()))
     lib.kag_agent_abi_version.restype = ctypes.c_int
     if lib.kag_agent_abi_version() != 1: raise RuntimeError("native ABI smoke failed")
+
+    # Kaggle validates raw Python with exec(code, env={}) and does not define
+    # __file__. Mirror those loader semantics so packaging-path bugs fail here.
+    raw_main = out / "main.py"
+    import sys
+    old_path = list(sys.path)
+    try:
+        sys.path.insert(0, str(out.resolve()))
+        raw_env = {}
+        exec(compile(raw_main.read_text(), str(raw_main), "exec"), raw_env)
+        if not callable(raw_env.get("agent")):
+            raise RuntimeError("raw-loader smoke failed: agent callable missing")
+    finally:
+        sys.path[:] = old_path
+
+    # The raw-loader smoke imports sibling modules and may create bytecode caches.
+    # Keep the submission archive source-only apart from the intentional native library.
+    for pycache in out.rglob("__pycache__"):
+        shutil.rmtree(pycache)
     archive = Path(ns.archive); archive.parent.mkdir(parents=True, exist_ok=True)
     with tarfile.open(archive, "w:gz") as tf:
         for p in sorted(x for x in out.rglob("*") if x.is_file()):

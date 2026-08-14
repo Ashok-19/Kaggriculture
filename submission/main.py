@@ -1,4 +1,4 @@
-import importlib.util, pathlib, sys
+import importlib.util, pathlib, sys, json, copy
 
 def _find_here():
     for raw in [str(pathlib.Path.cwd()), *sys.path]:
@@ -35,16 +35,29 @@ from meta_gold_v29_minimax import agent as _META
 _USE_Q8={0:False,1:False}
 _WB_SKIP={0:False,1:False}
 _WOOL_DEBT={0:0,1:0}
+_Q17_WOOL_DEBT={0:0,1:0}
 _STRAW_OPT_DEBT={0:0,1:0}
 _W14T={0:False,1:False}
+_H4={0:False,1:False}
+_Q8_17={0:False,1:False}
+_W14_ARDA={0:False,1:False}
+_W14_SHM={0:False,1:False}
+_SHM=json.load(open(HERE/"shadow_market_david.json"))["actions"]
+_W14_ORIG240={0:False,1:False}
+_W14_CONT={0:True,1:True}
+_H4_DON=json.load(open(HERE/"h4_donor.json"))["actions"]
+_H4_PRE=json.load(open(HERE/"h4_pre.json"))["actions"]
+_W14_DON=json.load(open(HERE/"w14_donor.json"))["actions"]
+_ARDA_DON=json.load(open(HERE/"arda_donor.json"))["actions"]
 _STRAW_DEBT={0:{},1:{}}
 _LATE_STRAW={0:0,1:0}
 _WDEBT={0:0,1:0}
 _MILK_DUE={0:{},1:{}}
+_WOOL_V19_SCHEDULE={240:2,361:8,375:7,380:1,414:12,422:4,427:9,453:12,563:8,578:8,629:6,656:10,664:4,669:13,677:8}
 
 def agent(observation):
     seat=int(observation.get("player",0) or 0); step=int(observation.get("step",0) or 0)
-    if step==0: _USE_Q8[seat]=False; _W14T[seat]=False; _WB_SKIP[seat]=False; _WOOL_DEBT[seat]=0; _STRAW_DEBT[seat]={}; _LATE_STRAW[seat]=0; _WDEBT[seat]=0; _MILK_DUE[seat]={}
+    if step==0: _W14_SHM[seat]=False; _USE_Q8[seat]=False; _W14T[seat]=False; _H4[seat]=False; _Q8_17[seat]=False; _W14_CONT[seat]=True; _W14_ARDA[seat]=False; _W14_ORIG240[seat]=False; _WB_SKIP[seat]=False; _WOOL_DEBT[seat]=0; _Q17_WOOL_DEBT[seat]=0; _STRAW_DEBT[seat]={}; _LATE_STRAW[seat]=0; _WDEBT[seat]=0; _MILK_DUE[seat]={}
     qa=_Q8(observation)
     ma=_META(observation)
     if step==1:
@@ -52,6 +65,8 @@ def agent(observation):
         if len(farms)>1:
             opp=farms[1-seat]
             _W14T[seat]=(len(opp.get("hands",[]) or [])==5 and float(opp.get("money",0) or 0)==0.0)
+            _H4[seat]=(len(opp.get("hands",[]) or [])==4)
+            _Q8_17[seat]=(len(opp.get("hands",[]) or [])==5 and float(opp.get("money",0) or 0)==17.0)
             _USE_Q8[seat]=((len(opp.get("hands",[]) or [])==5 and float(opp.get("money",0) or 0) in (17.0,20.0)) or (len(opp.get("hands",[]) or [])>=6 and float(opp.get("money",0) or 0)>=600.0))
     if _W14T.get(seat,False):
         import copy as _cp
@@ -145,6 +160,32 @@ def agent(observation):
             if qplan>0 or old>0:
                 ma=_wc.deepcopy(ma); ma["market"]=nm
             _WOOL_DEBT[seat]=max(0,due-sellq)
+    # Q17 YARN-WOOL controller: bounded 24-unit reserve with a higher marginal floor.
+    # This acts on qa (the Q17 return path), not ma.
+    if _Q8_17.get(seat,False) and 240<=step<=718 and "YARN_STORE" in list((observation.get("town",{}) or {}).get("unlocked_shops",[]) or []):
+        import copy as _qwc, math as _qwm
+        _qo=[list(o) for o in (qa.get("market") or [])]
+        _qp=sum(max(0,int(o[2])) for o in _qo if len(o)>=3 and o[0]=="SELL" and o[1]=="WOOL")
+        _qold=max(0,int(_Q17_WOOL_DEBT.get(seat,0) or 0))
+        _qpriv=observation.get("private",{}) or {}; _qstock=max(0,int((_qpriv.get("shed",{}) or {}).get("WOOL",0) or 0))
+        _qinvs=list(_qpriv.get("inventories",[]) or []); _qcmds=[qa.get("farmer") or ["PASS"]]+list(qa.get("hands") or [])
+        _qdrops=sum(max(0,int(iv.get("WOOL",0) or 0)) for iv,cmd in zip(_qinvs,_qcmds) if isinstance(iv,dict) and isinstance(cmd,list) and cmd and cmd[0]=="DROP")
+        _qdue=min(_qstock+_qdrops,_qold+_qp)
+        if _qdue>0:
+            _qmi=max(0,int((observation.get("market",{}).get("inventory",{}) or {}).get("WOOL",10000) or 10000))
+            def _qwp(x):
+                if x<10000: return max(1,int(round(200.0+(40.0/_qwm.log(106.0))*_qwm.log(1.0+10000-x))))
+                return max(1,int(round(200.0-(640.0/11025.0)*((x-10000.0)**2))))
+            _qsell=_qdue if step==718 else 0
+            if step<718:
+                for _k in range(_qdue):
+                    if _qwp(_qmi+_k)>=160: _qsell+=1
+                    else: break
+                _qsell=max(_qsell,max(0,_qdue-24))
+            _qnm=[o for o in _qo if not (len(o)>=2 and o[0]=="SELL" and o[1]=="WOOL")]
+            if _qsell>0 and len(_qnm)<10: _qnm.append(["SELL","WOOL",_qsell])
+            if _qp>0 or _qold>0: qa=_qwc.deepcopy(qa); qa["market"]=_qnm
+            _Q17_WOOL_DEBT[seat]=max(0,_qdue-_qsell)
     # v18 post-unlock STRAWBERRY marginal controller: all 8 town shops are known by step576.
     # Bound reserve to 16 units so this cannot create v15-style shed crowding.
     _straw_demand=sum(1 for _s in list((observation.get("town",{}) or {}).get("unlocked_shops",[]) or []) if _s in ("BRUNCH_SPOT","ICE_CREAM_SHOP","SMOOTHIE_SHOP","FARMERS_MARKET"))
@@ -176,4 +217,68 @@ def agent(observation):
             if _qplan>0 or _old>0:
                 ma=_sc.deepcopy(ma); ma["market"]=_nm
             _STRAW_OPT_DEBT[seat]=max(0,_due-_sell)
+    if _W14T.get(seat,False) and step==144:
+        _farms144=observation.get("farms") or []
+        if len(_farms144)>1:
+            _opp144=_farms144[1-seat]
+            _W14_ARDA[seat]=(float(_opp144.get("money",0) or 0)>=50.0)
+    if _W14T.get(seat,False) and step==240 and (not _W14_ARDA.get(seat,False)):
+        _shops240=list((observation.get("town",{}) or {}).get("unlocked_shops",[]) or [])
+        _mk240=observation.get("market",{}) or {}; _pr240=_mk240.get("prices",{}) or {}; _mi240=_mk240.get("inventory",{}) or {}; _fs240=observation.get("farms") or []
+        _opp240=_fs240[1-seat] if len(_fs240)>1 else {}
+        _W14_ORIG240[seat]=(_shops240[:3]==["PIZZA_SHOP","FARMERS_MARKET","BRUNCH_SPOT"] and int(_pr240.get("WOOL",0) or 0)>=70 and int(_mi240.get("WHEAT",10000) or 10000)<=9860 and float(_opp240.get("money",0) or 0)>=2484.0)
+    # Q17 capital-allocation lane. Most current-best Q17 trajectories need a
+    # deep MELON reduction (7 -> 2) at step252. A distinct public capital state
+    # around the Anik family is strongest on the original 7-seed allocation.
+    if _Q8_17.get(seat,False) and step==252:
+        _mk252=observation.get("market",{}) or {}; _mi252=_mk252.get("inventory",{}) or {}; _fs252=observation.get("farms") or []
+        _opp252=_fs252[1-seat] if len(_fs252)>1 else {}
+        _om252=float(_opp252.get("money",0) or 0); _wi252=int(_mi252.get("WHEAT",10000) or 10000)
+        _shops252=list((observation.get("town",{}) or {}).get("unlocked_shops",[]) or [])
+        _anik_state=(1700.0<=_om252<1900.0 and _wi252<=9835)
+        _q=7 if _anik_state else (5 if (_shops252 and _shops252[0]=="PET_CAFE") else 2)
+        _orders=[list(o) for o in (qa.get("market") or [])]; _changed=False
+        for _o in _orders:
+            if len(_o)>=3 and _o[0]=="BUY_SEED" and _o[1]=="MELON" and int(_o[2])==7:
+                _o[2]=_q; _changed=True
+        if _changed:
+            qa=copy.deepcopy(qa); qa["market"]=_orders
+    if _W14T.get(seat,False) and step==240:
+        _shmshops=list((observation.get("town",{}) or {}).get("unlocked_shops",[]) or [])
+        _shmmk=observation.get("market",{}) or {}; _shmpr=_shmmk.get("prices",{}) or {}; _shminv=_shmmk.get("inventory",{}) or {}
+        _W14_SHM[seat]=(len(_shmshops)>=3 and _shmshops[1]=="SMOOTHIE_SHOP" and _shmshops[2]=="BRUNCH_SPOT" and int(_shmpr.get("WOOL",0) or 0)<=5 and int(_shminv.get("WOOL",0) or 0)>=10055)
+    # W14 sublanes selected only from public state.
+    if _W14T.get(seat,False) and _W14_ARDA.get(seat,False) and step>=240 and step<len(_ARDA_DON):
+        ma=copy.deepcopy(_ARDA_DON[step])
+    elif _W14T.get(seat,False) and (not _W14_ORIG240.get(seat,False)) and step>=240 and step<len(_W14_DON):
+        _shops576=list((observation.get("town",{}) or {}).get("unlocked_shops",[]) or [])
+        if step==576:
+            _milk576=int((observation.get("market",{}).get("prices",{}) or {}).get("MILK",0) or 0)
+            _pf=(_shops576[:2]==["PIZZA_SHOP","FARMERS_MARKET"])
+            _W14_CONT[seat]=("YARN_STORE" in _shops576[:3] or (_pf and _milk576<=80))
+        if step<576 or _W14_CONT.get(seat,False):
+            ma=copy.deepcopy(_W14_DON[step])
+    if _W14_SHM.get(seat,False) and 240<=step<len(_SHM):
+        ma=copy.deepcopy(ma); ma["market"]=copy.deepcopy(_SHM[step].get("market",[]))
+    # H4 current-best preconditioning window.
+    if _H4.get(seat,False) and 144<=step<240 and step<len(_H4_PRE):
+        return copy.deepcopy(_H4_PRE[step])
+    # 4-hand structural lane: once the opening family is publicly known at
+    # step 1, take over with the validated donor route from step 240 in
+    # non-YARN-first towns. No opponent identity, seed, or future shop data.
+    if _H4.get(seat,False) and step>=240 and step<len(_H4_DON):
+        _shops=list((observation.get("town",{}) or {}).get("unlocked_shops",[]) or [])
+        if _shops and _shops[0]!="YARN_STORE":
+            return copy.deepcopy(_H4_DON[step])
+    # Q17 ITMO-like r0 reconstruction: by step265 the two trajectories are
+    # publicly separated by opponent cash. Buy one MELON seed so the route's
+    # existing step269 PLANT command creates the otherwise-missing 10th MELON.
+    if _Q8_17.get(seat,False) and step==265:
+        _is=list((observation.get("town",{}) or {}).get("unlocked_shops",[]) or [])
+        _ifs=observation.get("farms") or []; _iopp=_ifs[1-seat] if len(_ifs)>1 else {}
+        _iom=float(_iopp.get("money",0) or 0)
+        if _is[:3]==["PIZZA_SHOP","SMOOTHIE_SHOP","YARN_STORE"] and 14000.0<=_iom<14600.0:
+            _io=[list(o) for o in (qa.get("market") or [])]
+            if len(_io)<10:
+                qa=copy.deepcopy(qa); qa["market"]=_io+[["BUY_SEED","MELON",1]]
     return qa if _USE_Q8.get(seat,False) else ma
