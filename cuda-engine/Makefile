@@ -8,7 +8,7 @@ NVCCFLAGS ?= -O3 -std=c++17 -arch=$(ARCH) -lineinfo --compiler-options=-O3,-Wall
 PTXAS ?= -Xptxas=-v
 BINS := $(BUILD_DIR)/validate $(BUILD_DIR)/bench $(BUILD_DIR)/price_probe
 
-.PHONY: all check validate-parity state-parity snapshot-parity price-parity policy-smoke bench branch-bench tape-bench tape-branch clean
+.PHONY: all check validate-parity state-parity snapshot-parity price-parity policy-smoke bench branch-bench tape-bench tape-branch bonsai-search bonsai-eval-one hybrid-grid clean
 all: $(BINS)
 
 check: price-parity validate-parity state-parity snapshot-parity policy-smoke
@@ -38,6 +38,15 @@ $(BUILD_DIR)/tape_branch: src/tape_branch.cu include/tape_io.hpp include/sim.cuh
 	$(NVCC) $(NVCCFLAGS) $(PTXAS) $(INCLUDES) -o $@ $<
 
 $(BUILD_DIR)/policy_smoke: src/policy_smoke.cu include/policy_runner.cuh include/observation.cuh include/sim.cuh include/pyrandom.cuh include/runtime.cuh | $(BUILD_DIR)
+	$(NVCC) $(NVCCFLAGS) $(PTXAS) $(INCLUDES) -o $@ $<
+
+$(BUILD_DIR)/bonsai_search: src/bonsai_search.cu include/bonsai_gp.cuh include/observation.cuh include/tape_io.hpp include/sim.cuh include/pyrandom.cuh include/runtime.cuh | $(BUILD_DIR)
+	$(NVCC) $(NVCCFLAGS) $(PTXAS) $(INCLUDES) -o $@ $<
+
+$(BUILD_DIR)/hybrid_grid: src/hybrid_grid.cu include/tape_io.hpp include/sim.cuh include/pyrandom.cuh include/runtime.cuh | $(BUILD_DIR)
+	$(NVCC) $(NVCCFLAGS) $(PTXAS) $(INCLUDES) -o $@ $<
+
+$(BUILD_DIR)/bonsai_eval_one: src/bonsai_eval_one.cu include/bonsai_gp.cuh include/observation.cuh include/tape_io.hpp include/sim.cuh include/pyrandom.cuh include/runtime.cuh | $(BUILD_DIR)
 	$(NVCC) $(NVCCFLAGS) $(PTXAS) $(INCLUDES) -o $@ $<
 
 $(BUILD_DIR)/cuda_state_hash: src/state_parity.cu include/sim.cuh include/pyrandom.cuh include/runtime.cuh include/logical_hash.hpp | $(BUILD_DIR)
@@ -72,6 +81,15 @@ tape-bench: $(BUILD_DIR)/tape_bench
 
 tape-branch: $(BUILD_DIR)/tape_branch
 	$(BUILD_DIR)/tape_branch ../scratch/live_top10/current_best_aug14/tapes/kawashigi_s0_sub55425101_ep92923168.json ../scratch/live_top10/v32_live_losses/tapes/hax2456_93023456.json 0 168 62000 1 ../scratch/live_top10/current_best_aug14/tapes/kawashigi_s0_sub55425101_ep92923168.json
+
+bonsai-search: $(BUILD_DIR)/bonsai_search
+	@echo "usage: $(BUILD_DIR)/bonsai_search --routes ROUTE_LIST [search options]"
+
+hybrid-grid: $(BUILD_DIR)/hybrid_grid
+	@echo "usage: $(BUILD_DIR)/hybrid_grid --routes ROUTE_LIST [grid options]"
+
+bonsai-eval-one: $(BUILD_DIR)/bonsai_eval_one
+	@echo "usage: $(BUILD_DIR)/bonsai_eval_one --routes LIST --program FILE.bin --opponent I --seat S --seed N"
 
 clean:
 	rm -rf $(BUILD_DIR)
