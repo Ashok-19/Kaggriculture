@@ -59,16 +59,35 @@ struct Fitness {
     double worst_seed = -DBL_MAX;       // weakest seed mean across all opponent-seat cases
 };
 
-static bool GP_ROBUST_FITNESS = true;
+enum GPFitnessMode { GPF_WINS = 0, GPF_ROBUST = 1, GPF_BALANCED = 2 };
+static int GP_FITNESS_MODE = GPF_ROBUST;
 
 static double mean(const Fitness& f) { return f.cases ? f.sum / f.cases : 0.0; }
+static double win_rate(const Fitness& f) { return f.cases ? static_cast<double>(f.wins) / f.cases : 0.0; }
+static double balanced_score(const Fitness& f) {
+    // Near-competitive stage objective. Money margins and both lower-tail axes
+    // stay on their natural simulator scale, while a full 100% win-rate swing
+    // is worth 5000 margin units. This prevents ~1k tail noise from discarding
+    // dozens of converted games, without allowing catastrophic tails to hide.
+    return mean(f) + 0.5*(f.tail_mean + f.seed_tail) + 5000.0*win_rate(f);
+}
 
 static bool fitter(const Fitness& a, const Fitness& b) {
-    if (!GP_ROBUST_FITNESS) {
+    if (GP_FITNESS_MODE == GPF_WINS) {
         if (a.wins != b.wins) return a.wins > b.wins;
         if (a.ties != b.ties) return a.ties < b.ties;
         if (a.floor != b.floor) return a.floor > b.floor;
         return a.sum > b.sum;
+    }
+    if (GP_FITNESS_MODE == GPF_BALANCED) {
+        const double as=balanced_score(a), bs=balanced_score(b);
+        if(as!=bs)return as>bs;
+        if(a.wins!=b.wins)return a.wins>b.wins;
+        const double aguard=a.tail_mean<a.seed_tail?a.tail_mean:a.seed_tail;
+        const double bguard=b.tail_mean<b.seed_tail?b.tail_mean:b.seed_tail;
+        if(aguard!=bguard)return aguard>bguard;
+        if(a.floor!=b.floor)return a.floor>b.floor;
+        return a.ties<b.ties;
     }
     // Before the policy is competitive, improve the weakest population slice
     // rather than buying a few wins with catastrophic regressions elsewhere.
@@ -147,6 +166,7 @@ static GPCond random_cond(HostRng& r) {
 static bool GP_MANAGER_ONLY = false;
 static bool GP_ROUTER_ONLY = false;
 static int GP_ROUTER_EXPERTS = 0;
+static std::vector<int> GP_ROUTER_UNIT_ROUTES;
 static int GP_BOOTSTRAP_ROUTE = -1;
 static int GP_BOOTSTRAP_STEP = 0;
 static int GP_MANAGER_UNIT_ROUTE = -1;
@@ -182,7 +202,8 @@ static GPLeaf random_leaf(HostRng& r, int n_routes) {
 }
 
 static GPLeaf router_leaf(int expert) {
-    const int ur=GP_MANAGER_UNIT_ROUTE>=0?GP_MANAGER_UNIT_ROUTE:0;
+    int ur=GP_MANAGER_UNIT_ROUTE>=0?GP_MANAGER_UNIT_ROUTE:0;
+    if(expert>=0 && expert<(int)GP_ROUTER_UNIT_ROUTES.size())ur=GP_ROUTER_UNIT_ROUTES[expert];
     return GPLeaf{GPL_ROUTE_UNITS_PLANNED_MARKET,(uint8_t)ur,(uint8_t)ur,(uint8_t)expert};
 }
 
@@ -438,7 +459,8 @@ static void dump_program(std::ostream& os, const GPProgram& p) {
 int main(int argc,char** argv){
     std::string routes_list, out_path, load_path, seed_program_path, seed_list_arg, fitness_mode="robust";
     std::vector<std::string> router_manager_paths;
-    bool manager_only=false,planned_market=false,router_only=false;
+    std::vector<int> router_unit_routes;
+    bool manager_only=false,planned_market=false,router_only=false,unit_route_sweep=false,report_seeds=false;
     int bootstrap_route=-1,bootstrap_step=0,manager_unit_route=-1;
     int pickup_horizon_override=-1;
     int population=256,generations=20,seeds=8,opponents=8,elite=12,tpb=64;
@@ -448,6 +470,8 @@ int main(int argc,char** argv){
         if(a=="--manager-only"){manager_only=true;continue;}
         if(a=="--planned-market"){planned_market=true;continue;}
         if(a=="--router-only"){router_only=true;continue;}
+        if(a=="--unit-route-sweep"){unit_route_sweep=true;continue;}
+        if(a=="--report-seeds"){report_seeds=true;continue;}
         auto need=[&](){if(i+1>=argc)throw std::runtime_error("missing value for "+a);return std::string(argv[++i]);};
         if(a=="--routes")routes_list=need(); else if(a=="--population")population=std::stoi(need());
         else if(a=="--generations")generations=std::stoi(need()); else if(a=="--seeds")seeds=std::stoi(need());
@@ -457,23 +481,29 @@ int main(int argc,char** argv){
         else if(a=="--load")load_path=need();
         else if(a=="--seed-program")seed_program_path=need();
         else if(a=="--router-manager")router_manager_paths.push_back(need());
+        else if(a=="--router-unit-route")router_unit_routes.push_back(std::stoi(need()));
         else if(a=="--bootstrap-route")bootstrap_route=std::stoi(need());
         else if(a=="--bootstrap-step")bootstrap_step=std::stoi(need());
         else if(a=="--manager-unit-route")manager_unit_route=std::stoi(need());
         else if(a=="--pickup-horizon")pickup_horizon_override=std::stoi(need());
         else if(a=="--fitness")fitness_mode=need();
-        else if(a=="--help"){std::cout<<"bonsai_search --routes LIST [--population N --generations N --seeds N --seed-start S --seed-list S1,S2,... --opponents N --elite N --seed-program FILE.bin --router-only --router-manager FILE.bin (repeat) --pickup-horizon N --fitness robust|wins --out PATH]\n";return 0;}
+        else if(a=="--help"){std::cout<<"bonsai_search --routes LIST [--population N --generations N --seeds N --seed-start S --seed-list S1,S2,... --opponents N --elite N --seed-program FILE.bin --router-only --router-manager FILE.bin (repeat) --router-unit-route N (repeat) --unit-route-sweep --report-seeds --pickup-horizon N --fitness robust|balanced|wins --out PATH]\n";return 0;}
         else throw std::runtime_error("unknown argument: "+a);
     }
     if(routes_list.empty())throw std::runtime_error("--routes LIST is required");
-    if(fitness_mode=="robust")GP_ROBUST_FITNESS=true;
-    else if(fitness_mode=="wins")GP_ROBUST_FITNESS=false;
-    else throw std::runtime_error("--fitness must be robust or wins");
+    if(fitness_mode=="robust")GP_FITNESS_MODE=GPF_ROBUST;
+    else if(fitness_mode=="wins")GP_FITNESS_MODE=GPF_WINS;
+    else if(fitness_mode=="balanced")GP_FITNESS_MODE=GPF_BALANCED;
+    else throw std::runtime_error("--fitness must be robust, balanced, or wins");
     if(router_only && manager_only)throw std::runtime_error("--router-only and --manager-only are mutually exclusive");
+    if(unit_route_sweep && (router_only||manager_only))throw std::runtime_error("--unit-route-sweep cannot be combined with --router-only or --manager-only");
+    if(unit_route_sweep && seed_program_path.empty())throw std::runtime_error("--unit-route-sweep requires --seed-program FILE.bin");
     if(router_only && router_manager_paths.size()<2)throw std::runtime_error("--router-only requires at least two --router-manager FILE.bin arguments");
     if(router_manager_paths.size()>255)throw std::runtime_error("router manager count exceeds uint8 encoding");
+    if(!router_unit_routes.empty() && router_unit_routes.size()!=router_manager_paths.size())throw std::runtime_error("repeat --router-unit-route once per --router-manager, or omit all for a shared route");
     if(router_only && manager_unit_route<0)manager_unit_route=0;
-    GP_MANAGER_ONLY=manager_only;GP_ROUTER_ONLY=router_only;GP_ROUTER_EXPERTS=(int)router_manager_paths.size();
+    if(router_unit_routes.empty())router_unit_routes.assign(router_manager_paths.size(),manager_unit_route>=0?manager_unit_route:0);
+    GP_MANAGER_ONLY=manager_only;GP_ROUTER_ONLY=router_only;GP_ROUTER_EXPERTS=(int)router_manager_paths.size();GP_ROUTER_UNIT_ROUTES=router_unit_routes;
     GP_BOOTSTRAP_ROUTE=bootstrap_route;GP_BOOTSTRAP_STEP=bootstrap_step;GP_MANAGER_UNIT_ROUTE=manager_unit_route;GP_PLANNED_MARKET=planned_market||router_only;
     std::vector<uint64_t> h_seed_values;
     if(!seed_list_arg.empty()){
@@ -485,6 +515,8 @@ int main(int argc,char** argv){
     if(!load_path.empty()){population=1;elite=1;generations=1;}
     auto paths=read_list(routes_list); if(paths.empty())throw std::runtime_error("route list is empty");
     if(paths.size()>255)throw std::runtime_error("route count exceeds uint8 program encoding");
+    for(int ur:GP_ROUTER_UNIT_ROUTES)if(ur<0||ur>=(int)paths.size())throw std::runtime_error("router unit route out of range for route list");
+    if(unit_route_sweep){population=(int)paths.size();elite=population;generations=1;GP_PLANNED_MARKET=true;}
     if(opponents>static_cast<int>(paths.size()))opponents=static_cast<int>(paths.size());
     if(elite<1)elite=1;if(elite>population)elite=population;
 
@@ -519,12 +551,23 @@ int main(int argc,char** argv){
 
     HostRng rng(search_seed);
     std::vector<GPProgram> pop(population);
-    if(!load_path.empty()){
+    if(unit_route_sweep){
+        GPProgram seedp{};std::ifstream in(seed_program_path,std::ios::binary);if(!in)throw std::runtime_error("cannot open sweep seed program: "+seed_program_path);
+        in.read(reinterpret_cast<char*>(&seedp),sizeof(seedp));if(in.gcount()!=static_cast<std::streamsize>(sizeof(seedp)))throw std::runtime_error("invalid sweep seed program binary size: "+seed_program_path);
+        for(int r=0;r<population;++r){pop[r]=GPProgram{};pop[r].manager=seedp.manager;pop[r].n_rules=1;pop[r].rules[0].leaf={GPL_ROUTE_UNITS_PLANNED_MARKET,(uint8_t)r,(uint8_t)r,0};}
+    } else if(!load_path.empty()){
         std::ifstream in(load_path,std::ios::binary);if(!in)throw std::runtime_error("cannot open program: "+load_path);
         in.read(reinterpret_cast<char*>(&pop[0]),sizeof(GPProgram));if(in.gcount()!=static_cast<std::streamsize>(sizeof(GPProgram)))throw std::runtime_error("invalid program binary size: "+load_path);
         if(router_only)normalize_router(pop[0],rng);
     } else if(router_only) {
         int z=0;
+        if(!seed_program_path.empty()){
+            GPProgram seedp{};std::ifstream in(seed_program_path,std::ios::binary);if(!in)throw std::runtime_error("cannot open router seed program: "+seed_program_path);
+            in.read(reinterpret_cast<char*>(&seedp),sizeof(seedp));if(in.gcount()!=static_cast<std::streamsize>(sizeof(seedp)))throw std::runtime_error("invalid router seed program binary size: "+seed_program_path);
+            normalize_router(seedp,rng);pop[z++]=seedp;
+            const int near=population/2;
+            for(;z<near;++z){GPProgram q=seedp;for(int e=0;e<ri(rng,1,6);++e)q=mutate_router(q,rng);pop[z]=q;}
+        }
         for(int x=0;x<GP_ROUTER_EXPERTS&&z<population;++x,++z)pop[z]=router_constant(x,rng);
         for(;z<population;++z)pop[z]=random_router_program(rng);
     } else if(manager_only) {
@@ -541,7 +584,7 @@ int main(int argc,char** argv){
         for(int r=0;r<static_cast<int>(paths.size()) && z<population;++r,++z){pop[z]=GPProgram{};pop[z].n_rules=1;pop[z].rules[0].leaf={GPL_ROUTE_UNITS_MANAGER_MARKET,(uint8_t)r,(uint8_t)r,0};pop[z].manager=random_manager(rng);}
         while(z<population)pop[z++]=random_program(rng,paths.size());
     }
-    if(!seed_program_path.empty() && load_path.empty() && !router_only){
+    if(!seed_program_path.empty() && load_path.empty() && !router_only && !unit_route_sweep){
         GPProgram seedp{};
         std::ifstream in(seed_program_path,std::ios::binary);
         if(!in)throw std::runtime_error("cannot open seed program: "+seed_program_path);
@@ -568,10 +611,12 @@ int main(int argc,char** argv){
     std::vector<Fitness> fit(population); std::vector<double> host(static_cast<size_t>(jobs)*2);
     std::vector<double> cohort_sum(static_cast<size_t>(population)*opponents*2);
     std::vector<double> seed_sum(static_cast<size_t>(population)*seeds);
+    std::vector<int> seed_wins(static_cast<size_t>(population)*seeds);
     auto evaluate=[&](){
         for (int i=0;i<population;++i) fit[i]=Fitness{};
         for(double& x:cohort_sum)x=0.0;
         for(double& x:seed_sum)x=0.0;
+        for(int& x:seed_wins)x=0;
         KAGCUDA_CHECK(cudaMemcpy(d_prog,pop.data(),population*sizeof(GPProgram),cudaMemcpyHostToDevice));
         for(int oi=0;oi<opponents;++oi){
             for(int seat=0;seat<2;++seat){
@@ -583,6 +628,7 @@ int main(int argc,char** argv){
                     Fitness& f=fit[pi];++f.cases;if(m>0)++f.wins;else if(m==0)++f.ties;f.sum+=m;if(m<f.floor)f.floor=m;
                     cohort_sum[(static_cast<size_t>(pi)*opponents+oi)*2+seat]+=m;
                     seed_sum[static_cast<size_t>(pi)*seeds+si]+=m;
+                    if(m>0)++seed_wins[static_cast<size_t>(pi)*seeds+si];
                 }
             }
         }
@@ -609,6 +655,13 @@ int main(int argc,char** argv){
     GPProgram global_best{}; Fitness global_fit{}; bool have_best=false;
     for(int gen=0;gen<generations;++gen){
         evaluate();
+        if(report_seeds){
+            const int seed_cases=opponents*2;
+            for(int pi=0;pi<population;++pi)for(int si=0;si<seeds;++si){
+                const uint64_t sv=h_seed_values.empty()?seed_start+(uint64_t)si:h_seed_values[si];
+                std::cout<<"SEED_REPORT pi="<<pi<<" si="<<si<<" seed="<<sv<<" wins="<<seed_wins[(size_t)pi*seeds+si]<<"/"<<seed_cases<<" mean="<<(seed_sum[(size_t)pi*seeds+si]/seed_cases)<<"\n";
+            }
+        }
         std::vector<int> order(population);for(int i=0;i<population;++i)order[i]=i;
         for(int i=0;i<population;++i){
             int best=i;
@@ -618,8 +671,8 @@ int main(int argc,char** argv){
         const int bi=order[0];
         if(!have_best||fitter(fit[bi],global_fit)){have_best=true;global_best=pop[bi];global_fit=fit[bi];}
         std::cout<<"GEN "<<gen<<" best="<<fit[bi].wins<<"/"<<fit[bi].cases<<" ties="<<fit[bi].ties<<" floor="<<fit[bi].floor<<" mean="<<mean(fit[bi])
-                 <<" tail="<<fit[bi].tail_mean<<" worst_cohort="<<fit[bi].worst_cohort<<" seed_tail="<<fit[bi].seed_tail<<" worst_seed="<<fit[bi].worst_seed
-                 <<" global="<<global_fit.wins<<"/"<<global_fit.cases<<" gfloor="<<global_fit.floor<<" gmean="<<mean(global_fit)<<" gtail="<<global_fit.tail_mean<<" gworst="<<global_fit.worst_cohort<<" gseed_tail="<<global_fit.seed_tail<<" gworst_seed="<<global_fit.worst_seed<<"\n";
+                 <<" tail="<<fit[bi].tail_mean<<" worst_cohort="<<fit[bi].worst_cohort<<" seed_tail="<<fit[bi].seed_tail<<" worst_seed="<<fit[bi].worst_seed<<" balanced="<<balanced_score(fit[bi])
+                 <<" global="<<global_fit.wins<<"/"<<global_fit.cases<<" gfloor="<<global_fit.floor<<" gmean="<<mean(global_fit)<<" gtail="<<global_fit.tail_mean<<" gworst="<<global_fit.worst_cohort<<" gseed_tail="<<global_fit.seed_tail<<" gworst_seed="<<global_fit.worst_seed<<" gbalanced="<<balanced_score(global_fit)<<"\n";
         dump_program(std::cout,pop[bi]); std::cout.flush();
         if(gen+1==generations)break;
         std::vector<GPProgram> next(population);
@@ -633,7 +686,7 @@ int main(int argc,char** argv){
         pop.swap(next);
     }
 
-    std::cout<<"FINAL_BEST wins="<<global_fit.wins<<"/"<<global_fit.cases<<" ties="<<global_fit.ties<<" floor="<<global_fit.floor<<" mean="<<mean(global_fit)<<" tail="<<global_fit.tail_mean<<" worst_cohort="<<global_fit.worst_cohort<<" seed_tail="<<global_fit.seed_tail<<" worst_seed="<<global_fit.worst_seed<<"\n";
+    std::cout<<"FINAL_BEST wins="<<global_fit.wins<<"/"<<global_fit.cases<<" ties="<<global_fit.ties<<" floor="<<global_fit.floor<<" mean="<<mean(global_fit)<<" tail="<<global_fit.tail_mean<<" worst_cohort="<<global_fit.worst_cohort<<" seed_tail="<<global_fit.seed_tail<<" worst_seed="<<global_fit.worst_seed<<" balanced="<<balanced_score(global_fit)<<"\n";
     dump_program(std::cout,global_best);
     if(!out_path.empty()){
         std::ofstream out(out_path);out<<"wins="<<global_fit.wins<<" cases="<<global_fit.cases<<" ties="<<global_fit.ties<<" floor="<<global_fit.floor<<" mean="<<mean(global_fit)<<" tail="<<global_fit.tail_mean<<" worst_cohort="<<global_fit.worst_cohort<<" seed_tail="<<global_fit.seed_tail<<" worst_seed="<<global_fit.worst_seed<<" fitness="<<fitness_mode<<"\n";dump_program(out,global_best);
