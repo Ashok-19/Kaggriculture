@@ -4,6 +4,8 @@
 #include <array>
 #include <stdexcept>
 #include <string>
+#include <thread>
+#include <vector>
 
 namespace py = pybind11;
 using namespace kag;
@@ -203,6 +205,9 @@ py::dict private_to_py(const Farm& f) {
     return priv;
 }
 
+class CompiledTape;
+class Snapshot;
+
 class Game {
 public:
     explicit Game(uint64_t seed, py::dict config = py::dict()) : sim(make_config(seed, config)) {}
@@ -237,6 +242,58 @@ public:
         return obs;
     }
 
+    Snapshot snapshot() const;
+
+    py::list observations_shared() const {
+        // Fast-path for read-only agents: public state is identical for both
+        // players, so materialize it once and share those nested objects. Each
+        // player still receives a distinct top-level dict and private state.
+        py::dict obs0 = observation(0);
+        py::dict obs1;
+        obs1["step"] = sim.st.step;
+        obs1["player"] = 1;
+        obs1["farms"] = obs0["farms"];
+        obs1["market"] = obs0["market"];
+        obs1["town"] = obs0["town"];
+        obs1["day"] = sim.st.day;
+        obs1["hour"] = sim.st.hour;
+        obs1["private"] = private_to_py(sim.st.farms[1]);
+        py::list out;
+        out.append(std::move(obs0));
+        out.append(std::move(obs1));
+        return out;
+    }
+
+    void load_compiled_tape(const CompiledTape& tape, int tape_player);
+
+    void load_tape(py::list tape_actions, int tape_player) {
+        if (tape_player < 0 || tape_player > 1)
+            throw std::runtime_error("tape_player must be 0 or 1");
+        if (tape_actions.empty())
+            throw std::runtime_error("tape_actions must not be empty");
+        tape_.clear();
+        tape_.reserve(tape_actions.size());
+        for (py::handle action : tape_actions) tape_.push_back(parse_action(action));
+        tape_player_ = tape_player;
+    }
+
+    void step_with_tape(py::object candidate_action) {
+        if (tape_player_ < 0 || tape_.empty())
+            throw std::runtime_error("load_tape() must be called before step_with_tape()");
+        const int idx = std::min<int>(sim.st.step, static_cast<int>(tape_.size()) - 1);
+        const Action& route = tape_[idx];
+
+        // The project replay wrappers dynamically pad/truncate recorded hand
+        // actions to the current counterfactual farm-hand count. The unused
+        // Action slots are already PASS, so pass the effective count directly.
+        const int current_units = sim.st.farms[tape_player_].n_units;
+        Action candidate = parse_action(candidate_action);
+        if (tape_player_ == 0)
+            sim.step_with_unit_counts(route, current_units, candidate, candidate.n_units);
+        else
+            sim.step_with_unit_counts(candidate, candidate.n_units, route, current_units);
+    }
+
     void step(py::object a0, py::object a1) {
         sim.step(parse_action(a0), parse_action(a1));
     }
@@ -251,6 +308,9 @@ public:
     }
 
 private:
+    std::vector<Action> tape_;
+    int tape_player_ = -1;
+
     Sim sim;
 
     static Config make_config(uint64_t seed, const py::dict& config) {
@@ -261,14 +321,216 @@ private:
     }
 };
 
+class Snapshot {
+public:
+    explicit Snapshot(const Sim& sim) : sim_(sim) {}
+    const Sim& sim() const { return sim_; }
+    int step() const { return sim_.st.step; }
+
+private:
+    Sim sim_;
+};
+
+Snapshot Game::snapshot() const { return Snapshot(sim); }
+
+std::vector<Action> parse_tape_actions(const py::list& actions) {
+    if (actions.empty()) throw std::runtime_error("tape actions must not be empty");
+    std::vector<Action> tape;
+    tape.reserve(actions.size());
+    for (py::handle action : actions) tape.push_back(parse_action(action));
+    return tape;
+}
+
+class CompiledTape {
+public:
+    explicit CompiledTape(py::list actions) : actions_(parse_tape_actions(actions)) {}
+    const std::vector<Action>& actions() const { return actions_; }
+    size_t size() const { return actions_.size(); }
+
+private:
+    std::vector<Action> actions_;
+};
+
+void Game::load_compiled_tape(const CompiledTape& tape, int tape_player) {
+    if (tape_player < 0 || tape_player > 1)
+        throw std::runtime_error("tape_player must be 0 or 1");
+    tape_ = tape.actions();
+    tape_player_ = tape_player;
+}
+
+py::list run_tapes_batch(py::iterable seeds, py::list tape0_actions, py::list tape1_actions,
+                         py::dict config = py::dict()) {
+    std::vector<uint64_t> seed_values;
+    for (py::handle seed : seeds) seed_values.push_back(py::cast<uint64_t>(seed));
+    const std::vector<Action> tape0 = parse_tape_actions(tape0_actions);
+    const std::vector<Action> tape1 = parse_tape_actions(tape1_actions);
+    Config base;
+    apply_config(base, config);
+
+    std::vector<std::array<double, 2>> results(seed_values.size());
+    {
+        // Once Python tapes/seeds/config are decoded, the entire batch is pure
+        // C++. Releasing the GIL also avoids blocking unrelated Python threads;
+        // project tooling still enforces the two-worker local compute cap.
+        py::gil_scoped_release release;
+        for (size_t i = 0; i < seed_values.size(); ++i) {
+            Config cfg = base;
+            cfg.seed = seed_values[i];
+            Sim sim(cfg);
+            while (!sim.st.done) {
+                const int idx0 = std::min<int>(sim.st.step, static_cast<int>(tape0.size()) - 1);
+                const int idx1 = std::min<int>(sim.st.step, static_cast<int>(tape1.size()) - 1);
+                const int units0 = sim.st.farms[0].n_units;
+                const int units1 = sim.st.farms[1].n_units;
+                sim.step_with_unit_counts(tape0[idx0], units0, tape1[idx1], units1);
+            }
+            results[i] = {sim.st.farms[0].money, sim.st.farms[1].money};
+        }
+    }
+
+    py::list out;
+    for (const auto& reward : results) {
+        py::list row;
+        row.append(reward[0]);
+        row.append(reward[1]);
+        out.append(std::move(row));
+    }
+    return out;
+}
+
+py::list run_snapshot_candidates(const Snapshot& snapshot, py::list candidate_tapes,
+                                 const CompiledTape& opponent_tape, int candidate_player,
+                                 int workers = 1) {
+    if (candidate_player < 0 || candidate_player > 1)
+        throw std::runtime_error("candidate_player must be 0 or 1");
+    if (workers < 1 || workers > 2)
+        throw std::runtime_error("workers must be 1 or 2 on this local workstation");
+
+    std::vector<const CompiledTape*> candidates;
+    candidates.reserve(candidate_tapes.size());
+    for (py::handle obj : candidate_tapes)
+        candidates.push_back(&py::cast<const CompiledTape&>(obj));
+    const auto& opponent = opponent_tape.actions();
+    std::vector<std::array<double, 2>> results(candidates.size());
+
+    {
+        py::gil_scoped_release release;
+        auto run_range = [&](size_t begin, size_t end) {
+            for (size_t i = begin; i < end; ++i) {
+                Sim sim = snapshot.sim();
+                sim.cfg.cache_daily_rng_seed_state = true;
+                const auto& candidate = candidates[i]->actions();
+                while (!sim.st.done) {
+                    const int cidx = std::min<int>(sim.st.step, static_cast<int>(candidate.size()) - 1);
+                    const int oidx = std::min<int>(sim.st.step, static_cast<int>(opponent.size()) - 1);
+                    const int c_units = sim.st.farms[candidate_player].n_units;
+                    const int o_player = 1 - candidate_player;
+                    const int o_units = sim.st.farms[o_player].n_units;
+                    if (candidate_player == 0)
+                        sim.step_with_unit_counts(candidate[cidx], c_units, opponent[oidx], o_units);
+                    else
+                        sim.step_with_unit_counts(opponent[oidx], o_units, candidate[cidx], c_units);
+                }
+                results[i] = {sim.st.farms[0].money, sim.st.farms[1].money};
+            }
+        };
+        if (workers == 2 && candidates.size() > 1) {
+            const size_t mid = (candidates.size() + 1) / 2;
+            std::thread other(run_range, mid, candidates.size());
+            run_range(0, mid);
+            other.join();
+        } else {
+            run_range(0, candidates.size());
+        }
+    }
+
+    py::list out;
+    for (const auto& reward : results) {
+        py::list row;
+        row.append(reward[0]);
+        row.append(reward[1]);
+        out.append(std::move(row));
+    }
+    return out;
+}
+
+py::list run_compiled_tapes_batch(py::iterable seeds, const CompiledTape& tape0,
+                                  const CompiledTape& tape1,
+                                  py::dict config = py::dict(), int workers = 1) {
+    if (workers < 1 || workers > 2)
+        throw std::runtime_error("workers must be 1 or 2 on this local workstation");
+    std::vector<uint64_t> seed_values;
+    for (py::handle seed : seeds) seed_values.push_back(py::cast<uint64_t>(seed));
+    Config base;
+    apply_config(base, config);
+    const auto& a0 = tape0.actions();
+    const auto& a1 = tape1.actions();
+
+    std::vector<std::array<double, 2>> results(seed_values.size());
+    {
+        py::gil_scoped_release release;
+        auto run_range = [&](size_t begin, size_t end) {
+            for (size_t i = begin; i < end; ++i) {
+                Config cfg = base;
+                cfg.seed = seed_values[i];
+                Sim sim(cfg);
+                while (!sim.st.done) {
+                    const int idx0 = std::min<int>(sim.st.step, static_cast<int>(a0.size()) - 1);
+                    const int idx1 = std::min<int>(sim.st.step, static_cast<int>(a1.size()) - 1);
+                    const int units0 = sim.st.farms[0].n_units;
+                    const int units1 = sim.st.farms[1].n_units;
+                    sim.step_with_unit_counts(a0[idx0], units0, a1[idx1], units1);
+                }
+                results[i] = {sim.st.farms[0].money, sim.st.farms[1].money};
+            }
+        };
+        if (workers == 2 && seed_values.size() > 1) {
+            const size_t mid = (seed_values.size() + 1) / 2;
+            std::thread other(run_range, mid, seed_values.size());
+            run_range(0, mid);
+            other.join();
+        } else {
+            run_range(0, seed_values.size());
+        }
+    }
+
+    py::list out;
+    for (const auto& reward : results) {
+        py::list row;
+        row.append(reward[0]);
+        row.append(reward[1]);
+        out.append(std::move(row));
+    }
+    return out;
+}
+
 }  // namespace
 
 PYBIND11_MODULE(kaggriculture_cpp, m) {
     m.doc() = "Parity-validated Kaggriculture 1.32.7 C++ simulator bridge";
+    py::class_<CompiledTape>(m, "CompiledTape")
+        .def(py::init<py::list>(), py::arg("actions"))
+        .def_property_readonly("steps", &CompiledTape::size);
+    py::class_<Snapshot>(m, "Snapshot")
+        .def_property_readonly("step", &Snapshot::step);
+    m.def("run_snapshot_candidates", &run_snapshot_candidates, py::arg("snapshot"),
+          py::arg("candidate_tapes"), py::arg("opponent_tape"),
+          py::arg("candidate_player"), py::arg("workers") = 1);
+    m.def("run_compiled_tapes_batch", &run_compiled_tapes_batch, py::arg("seeds"),
+          py::arg("tape0"), py::arg("tape1"), py::arg("config") = py::dict(),
+          py::arg("workers") = 1);
+    m.def("run_tapes_batch", &run_tapes_batch, py::arg("seeds"), py::arg("tape0_actions"),
+          py::arg("tape1_actions"), py::arg("config") = py::dict());
     py::class_<Game>(m, "Game")
         .def(py::init<uint64_t, py::dict>(), py::arg("seed"), py::arg("config") = py::dict())
         .def("observation", &Game::observation)
+        .def("observations_shared", &Game::observations_shared)
+        .def("snapshot", &Game::snapshot)
         .def("step", &Game::step)
+        .def("load_tape", &Game::load_tape, py::arg("tape_actions"), py::arg("tape_player"))
+        .def("load_compiled_tape", &Game::load_compiled_tape,
+             py::arg("tape"), py::arg("tape_player"))
+        .def("step_with_tape", &Game::step_with_tape)
         .def_property_readonly("done", &Game::done)
         .def("rewards", &Game::rewards);
 }

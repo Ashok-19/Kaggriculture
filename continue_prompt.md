@@ -432,8 +432,16 @@ agent_system/.cache/official/kaggriculture.py
 
 The competition host's 2026-08-15 balance patch is `kaggle-environments>=1.32.7` / Kaggle merge commit `28b6d8af3ce73926b3d0fda1410c1ddd8384ab8c`. It adds the hinge scarcity curve for CARROT/TOMATO/EGG. The old 1.32.6 notebook port and the old official-oracle pin are stale and must not be used.
 
-The maintained C++ engine has passed exhaustive market-price parity, 15 full 719-action official traces, complete observation/action parity canaries, and current v32/v33 matchup checks. `arena.py` therefore defaults to C++, while `--backend official` remains the correctness canary. Never use more than two arena workers; the tool now rejects `--workers > 2`.
-For current agents explicitly verified to reset all episode state at step 0, `--reuse-agents` keeps loaded modules alive inside each worker and avoids repeated import cost. On v32 vs One-For-All, seeds 60200-60209, both seats, 2 workers, this reproduced the exact 20-game result table and reduced wall time from 26.12 s official Python to 10.14 s C++ (~2.58x end-to-end). Do not use `--reuse-agents` on an unverified stateful agent.
+The maintained C++ engine has passed exhaustive market-price parity, 15 full 719-action official traces, complete observation/action parity canaries, and current v32/v33 matchup checks. Also run `make -C cpp-engine fastpath-parity`: it verifies compiled tapes, workers 1==2, shared-public 1438/1438 action parity, and snapshot-branch exactness. `arena.py` defaults to C++, while `--backend official` remains the correctness canary. Never use more than two arena/native workers; the tools reject values above 2.
+
+Current CPU fast paths:
+- `--reuse-agents`: only for agents verified to reset all episode state at step 0.
+- `--shared-public-observation` (alias `--shared-public`): only for agents verified not to mutate nested public observation objects. v32/OFA passed 1438/1438 action parity.
+- `cpp_oracle.run_tapes_batch(...)`: fully native compiled-tape seed batches.
+- `cpp_oracle.snapshot_vs_tape(...)` + `branch_tape_candidates(...)`: run one causal prefix, clone exact C++ state, evaluate donor continuations natively.
+- Optional local PGO via `KAG_CPP_PGO=generate` / `KAG_CPP_PGO=use`; profile data stays under `scratch/cpp-engine-build/pgo/`, must be retrained after source changes, and is never committed.
+
+Final measured CPU performance on this workstation: raw standalone C++ ~8,775 full 719-step episodes/s on one thread (~6.31M env transitions/s); market-heavy compiled replay batch ~6.5k eps/s with the allowed two workers on the local PGO build; real 28-donor step-168 snapshot branch ~5.3k continuations/s median. For arbitrary Python v32-vs-OFA, the same 20-game table was exact and official+agent-reuse took 19.40 s versus C+++reuse+shared-public 8.73 s (~2.22x fair backend speedup). Python policies are now the dominant cost, so prefer native tape/snapshot search whenever the experiment permits it.
 
 Arena isolation commit `11b5245` is mandatory for wrappers/monkeypatches.
 

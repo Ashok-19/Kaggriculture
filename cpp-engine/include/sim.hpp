@@ -11,6 +11,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstring>
+#include <vector>
 #include "pyrandom.hpp"
 
 namespace kag {
@@ -112,7 +113,7 @@ inline const std::array<MarketAmp, N_PRODUCTS>& market_amps() {
 
 // Python: max(PRICE_FLOOR, int(round(price))). Python's round() on a float is
 // round-half-to-even, which is exactly nearbyint's default mode.
-inline int market_price(int item, int inv) {
+inline int market_price_formula(int item, int inv) {
     const MarketDef& p = MARKET[item];
     const MarketAmp& a = market_amps()[item];
     double price;
@@ -123,6 +124,59 @@ inline int market_price(int item, int inv) {
     }
     int v = static_cast<int>(std::nearbyint(price));
     return v < 1 ? 1 : v;
+}
+
+// Market orders price one unit at a time, making the same inventory states hot
+// across large simulation batches. Cache a broad practical range exactly once;
+// unusual states fall back to the identical formula above. The cache changes no
+// numerical semantics and allocates nothing per step.
+constexpr int PRICE_CACHE_MIN = -20000;
+constexpr int PRICE_CACHE_MAX = 50000;
+constexpr int PRICE_CACHE_SPAN = PRICE_CACHE_MAX - PRICE_CACHE_MIN + 1;
+inline const std::vector<int>& market_price_cache() {
+    static const std::vector<int> cache = [] {
+        std::vector<int> out(static_cast<size_t>(N_PRODUCTS) * PRICE_CACHE_SPAN);
+        for (int item = 0; item < N_PRODUCTS; ++item)
+            for (int inv = PRICE_CACHE_MIN; inv <= PRICE_CACHE_MAX; ++inv)
+                out[static_cast<size_t>(item) * PRICE_CACHE_SPAN + (inv - PRICE_CACHE_MIN)] =
+                    market_price_formula(item, inv);
+        return out;
+    }();
+    return cache;
+}
+
+inline const std::vector<int64_t>& market_price_prefix() {
+    static const std::vector<int64_t> prefix = [] {
+        std::vector<int64_t> out(static_cast<size_t>(N_PRODUCTS) * (PRICE_CACHE_SPAN + 1), 0);
+        const auto& prices = market_price_cache();
+        for (int item = 0; item < N_PRODUCTS; ++item) {
+            const size_t pbase = static_cast<size_t>(item) * PRICE_CACHE_SPAN;
+            const size_t sbase = static_cast<size_t>(item) * (PRICE_CACHE_SPAN + 1);
+            for (int k = 0; k < PRICE_CACHE_SPAN; ++k)
+                out[sbase + k + 1] = out[sbase + k] + prices[pbase + k];
+        }
+        return out;
+    }();
+    return prefix;
+}
+
+inline bool cached_market_price_sum(int item, int lo_inv, int hi_inv, int64_t& out) {
+    if (lo_inv > hi_inv) { out = 0; return true; }
+    if (item < 0 || item >= N_PRODUCTS || lo_inv < PRICE_CACHE_MIN || hi_inv > PRICE_CACHE_MAX)
+        return false;
+    const auto& prefix = market_price_prefix();
+    const size_t base = static_cast<size_t>(item) * (PRICE_CACHE_SPAN + 1);
+    const int lo = lo_inv - PRICE_CACHE_MIN;
+    const int hi = hi_inv - PRICE_CACHE_MIN;
+    out = prefix[base + hi + 1] - prefix[base + lo];
+    return true;
+}
+
+inline int market_price(int item, int inv) {
+    if (inv >= PRICE_CACHE_MIN && inv <= PRICE_CACHE_MAX)
+        return market_price_cache()[static_cast<size_t>(item) * PRICE_CACHE_SPAN +
+                                    (inv - PRICE_CACHE_MIN)];
+    return market_price_formula(item, inv);
 }
 
 // ---------------------------------------------------------------- shops / town
@@ -159,6 +213,7 @@ struct Config {
     int center_sell_interval = 24;
     int hire_mult = 1;
     uint64_t seed = 0;
+    bool cache_daily_rng_seed_state = false;  // internal snapshot-search acceleration
 };
 
 // ---------------------------------------------------------------- state
@@ -182,6 +237,7 @@ struct Tile {
 
 constexpr int MAX_UNITS = 40;
 constexpr int BOARD = 10;
+constexpr int NO_DECAY_STEP = 1 << 30;
 
 struct Farm {
     double money = 0;
@@ -190,6 +246,7 @@ struct Farm {
     int n_units = 1;
     int n_quadrants = 1;
     int hires_today = 0;
+    int next_decay_step = NO_DECAY_STEP;
 
     int16_t shed[N_ITEMS] = {0};
     int shed_total = 0;
@@ -312,14 +369,27 @@ public:
     double reward(int p) const { return st.farms[p].money; }
 
     void step(const Action& a0, const Action& a1) {
+        step_with_unit_counts(a0, a0.n_units, a1, a1.n_units);
+    }
+
+    // Replay wrappers pad/truncate hand actions to each farm's current unit
+    // count. This overload supplies those effective counts without copying and
+    // rewriting the large Action structs every turn.
+    void step_with_unit_counts(const Action& a0, int n_units0,
+                               const Action& a1, int n_units1) {
         if (st.done) return;
         const Action* acts[2] = { &a0, &a1 };
+        const int action_units[2] = {
+            std::max(0, std::min(n_units0, MAX_UNITS)),
+            std::max(0, std::min(n_units1, MAX_UNITS)),
+        };
         int step_i = st.step;
         int day = step_i / cfg.turns_per_day;
 
-        for (int p = 0; p < 2; ++p) apply_unit_actions(p, *acts[p], day);
-        process_market(*acts[0], *acts[1]);
-        town_consume(step_i);
+        for (int p = 0; p < 2; ++p) apply_unit_actions(p, *acts[p], day, action_units[p]);
+        uint16_t market_dirty = process_market(*acts[0], *acts[1]);
+        market_dirty |= town_consume(step_i);
+        refresh_prices(market_dirty);
         for (int p = 0; p < 2; ++p) decay_plants(st.farms[p], step_i);
         if ((step_i + 1) % cfg.turns_per_day == 0) end_of_day(day);
 
@@ -330,12 +400,12 @@ public:
     }
 
 private:
-    void apply_unit_actions(int p, const Action& a, int day) {
+    void apply_unit_actions(int p, const Action& a, int day, int action_units) {
         Farm& f = st.farms[p];
         int demand[N_CROPS] = {0};
-        for (int i = 0; i < a.n_units; ++i)
+        for (int i = 0; i < action_units; ++i)
             if (a.units[i].op == OP_PLANT && a.units[i].arg < N_CROPS) demand[a.units[i].arg]++;
-        int n = std::min(a.n_units, f.n_units);
+        int n = std::min(action_units, f.n_units);
         bool blocked[N_CROPS];
         for (int c = 0; c < N_CROPS; ++c) blocked[c] = demand[c] > f.seeds[c];
 
@@ -368,18 +438,18 @@ private:
 
         if (u.op == OP_DROP) {
             if (!is_shed_adjacent(fx, fy, bs)) return;
-            uint8_t keys[N_ITEMS];
-            int nk = f.inv_nkeys[idx];
-            for (int k = 0; k < nk; ++k) keys[k] = f.inv_keys[idx][k];
+            const int nk = f.inv_nkeys[idx];
             for (int k = 0; k < nk; ++k) {
-                int it = keys[k];
-                if (inv[it] <= 0) { f.inv_erase(idx, it); continue; }
-                int room = std::max(0, cfg.shed_capacity - f.shed_total);
-                int take = std::min<int>(inv[it], room);
+                const int it = f.inv_keys[idx][k];
+                const int amount = inv[it];
+                if (amount <= 0) continue;
+                const int room = std::max(0, cfg.shed_capacity - f.shed_total);
+                const int take = std::min(amount, room);
                 if (take > 0) { f.shed[it] += take; f.shed_total += take; }
-                f.discarded[it] += inv[it] - take;
-                f.inv_erase(idx, it);
+                f.discarded[it] += amount - take;
+                inv[it] = 0;
             }
+            f.inv_nkeys[idx] = 0;
             return;
         }
         if (u.op == OP_PICKUP) {
@@ -432,6 +502,8 @@ private:
                 t.max_lifespan_step = cd.ongoing ? -1
                     : (day + cd.max_yield_day + 1) * cfg.turns_per_day;
                 tile = t;
+                if (t.max_lifespan_step >= 0)
+                    f.next_decay_step = std::min(f.next_decay_step, t.max_lifespan_step);
                 return;
             }
             case OP_WATER: {
@@ -507,14 +579,201 @@ private:
 
     struct OState { uint8_t type; uint8_t item; int32_t remaining; bool live; };
 
-    void process_market(const Action& a0, const Action& a1) {
+    int market_affect_item(const OState& os) const {
+        if (!os.live || os.remaining <= 0) return -1;
+        if (os.type == M_SELL && is_product(os.item)) return os.item;
+        if (os.type == M_BUY_PRODUCT && (os.item == WHEAT || os.item == FERTILIZER)) return os.item;
+        return -1;
+    }
+
+    uint16_t batch_independent_order(const OState& os, Farm& f) {
+        if (!os.live || os.remaining <= 0) return 0;
+        const int item = os.item;
+        const int requested = os.remaining;
+
+        if (os.type == M_BUY_SEED) {
+            if (!is_crop(item)) return 0;
+            const int price = CROPS[item].seed;
+            const int affordable = price > 0 ? static_cast<int>(f.money / price) : requested;
+            const int n = std::max(0, std::min(requested, affordable));
+            if (n <= 0) return 0;
+            const int64_t cost = static_cast<int64_t>(n) * price;
+            f.money -= static_cast<double>(cost);
+            f.total_spend += static_cast<double>(cost);
+            f.seeds[item] += static_cast<int16_t>(n);
+            return 0;
+        }
+
+        if (os.type == M_BUY_ANIMAL) {
+            if (!is_animal(item)) return 0;
+            const int price = ANIMALS[item - GOOSE].cost;
+            const int room = std::max(0, cfg.shed_capacity - f.shed_total);
+            const int affordable = price > 0 ? static_cast<int>(f.money / price) : requested;
+            const int n = std::max(0, std::min({requested, room, affordable}));
+            if (n <= 0) return 0;
+            const int64_t cost = static_cast<int64_t>(n) * price;
+            f.money -= static_cast<double>(cost);
+            f.total_spend += static_cast<double>(cost);
+            f.shed[item] += static_cast<int16_t>(n);
+            f.shed_total += n;
+            return 0;
+        }
+
+        if (os.type == M_SELL) {
+            if (!is_product(item)) return 0;
+            const int n = std::max(0, std::min<int>(requested, f.shed[item]));
+            if (n <= 0) return 0;
+            const int inv0 = st.market.inventory[item];
+            int moving = 0;
+            if (market_price(item, inv0) > 1) {
+                if (market_price(item, inv0 + n - 1) > 1) {
+                    moving = n;
+                } else {
+                    int lo = 0, hi = n;
+                    while (lo < hi) {
+                        const int mid = lo + (hi - lo + 1) / 2;
+                        if (market_price(item, inv0 + mid - 1) > 1) lo = mid;
+                        else hi = mid - 1;
+                    }
+                    moving = lo;
+                }
+            }
+            int64_t revenue = 0;
+            if (moving > 0 && !cached_market_price_sum(item, inv0, inv0 + moving - 1, revenue)) {
+                // Rare range outside the cache: preserve exact unit semantics.
+                revenue = 0;
+                moving = 0;
+                int inv = inv0;
+                for (int k = 0; k < n; ++k) {
+                    const int price = market_price(item, inv);
+                    revenue += price;
+                    if (price > 1) { ++inv; ++moving; }
+                }
+            } else {
+                revenue += static_cast<int64_t>(n - moving);  // floor-price sales stay at inventory 1.
+            }
+            f.shed[item] -= static_cast<int16_t>(n);
+            f.shed_total -= n;
+            f.money += static_cast<double>(revenue);
+            f.sold_units[item] += n;
+            f.sell_revenue += static_cast<double>(revenue);
+            st.market.inventory[item] += moving;
+            return moving > 0 ? static_cast<uint16_t>(1u << item) : 0;
+        }
+
+        if (os.type == M_BUY_PRODUCT) {
+            if (!(item == WHEAT || item == FERTILIZER)) return 0;
+            const int room = std::max(0, cfg.shed_capacity - f.shed_total);
+            const int limit = std::max(0, std::min(requested, room));
+            if (limit <= 0) return 0;
+            const int inv0 = st.market.inventory[item];
+            auto cost_for = [&](int n, int64_t& cost) {
+                if (n <= 0) { cost = 0; return true; }
+                return cached_market_price_sum(item, inv0 - n, inv0 - 1, cost);
+            };
+            int n = 0;
+            int64_t cost = 0;
+            int64_t full_cost = 0;
+            if (cost_for(limit, full_cost)) {
+                if (static_cast<double>(full_cost) <= f.money) {
+                    n = limit;
+                    cost = full_cost;
+                } else {
+                    int lo = 0, hi = limit;
+                    while (lo < hi) {
+                        const int mid = lo + (hi - lo + 1) / 2;
+                        int64_t mid_cost = 0;
+                        cost_for(mid, mid_cost);
+                        if (static_cast<double>(mid_cost) <= f.money) lo = mid;
+                        else hi = mid - 1;
+                    }
+                    n = lo;
+                    cost_for(n, cost);
+                }
+            } else {
+                // Rare range outside the cache: exact specialized unit loop.
+                int inv = inv0;
+                double money = f.money;
+                for (int k = 0; k < limit; ++k) {
+                    const int price = market_price(item, inv - 1);
+                    if (money < price) break;
+                    money -= price;
+                    cost += price;
+                    --inv;
+                    ++n;
+                }
+            }
+            if (n <= 0) return 0;
+            f.money -= static_cast<double>(cost);
+            f.total_spend += static_cast<double>(cost);
+            f.shed[item] += static_cast<int16_t>(n);
+            f.shed_total += n;
+            st.market.inventory[item] -= n;
+            return static_cast<uint16_t>(1u << item);
+        }
+
+        return 0;
+    }
+
+    uint16_t batch_same_product_sells(const OState& a, const OState& b) {
+        const int item = a.item;
+        Farm& f0 = st.farms[0];
+        Farm& f1 = st.farms[1];
+        const int n0 = std::max(0, std::min<int>(a.remaining, f0.shed[item]));
+        const int n1 = std::max(0, std::min<int>(b.remaining, f1.shed[item]));
+        const int paired = std::min(n0, n1);
+        uint16_t dirty = 0;
+
+        if (paired > 0) {
+            int inv = st.market.inventory[item];
+            int64_t revenue_each = 0;
+            int moving_sales = 0;
+            for (int k = 0; k < paired; ++k) {
+                const int price = market_price(item, inv);
+                revenue_each += price;
+                if (price > 1) {
+                    inv += 2;
+                    moving_sales += 2;
+                }
+            }
+            f0.shed[item] -= static_cast<int16_t>(paired);
+            f1.shed[item] -= static_cast<int16_t>(paired);
+            f0.shed_total -= paired;
+            f1.shed_total -= paired;
+            f0.money += static_cast<double>(revenue_each);
+            f1.money += static_cast<double>(revenue_each);
+            f0.sold_units[item] += paired;
+            f1.sold_units[item] += paired;
+            f0.sell_revenue += static_cast<double>(revenue_each);
+            f1.sell_revenue += static_cast<double>(revenue_each);
+            st.market.inventory[item] = inv;
+            if (moving_sales > 0) dirty |= static_cast<uint16_t>(1u << item);
+        }
+
+        if (n0 > paired) {
+            OState rem = a;
+            rem.remaining = n0 - paired;
+            rem.live = true;
+            dirty |= batch_independent_order(rem, f0);
+        }
+        if (n1 > paired) {
+            OState rem = b;
+            rem.remaining = n1 - paired;
+            rem.live = true;
+            dirty |= batch_independent_order(rem, f1);
+        }
+        return dirty;
+    }
+
+    uint16_t process_market(const Action& a0, const Action& a1) {
+        uint16_t dirty = 0;
         const Action* acts[2] = { &a0, &a1 };
         int nq[2];
         for (int p = 0; p < 2; ++p) nq[p] = std::min(acts[p]->n_orders, cfg.max_orders);
         int max_len = std::max(nq[0], nq[1]);
 
         for (int i = 0; i < max_len; ++i) {
-            OState os[2];
+            OState os[2]{};
             for (int p = 0; p < 2; ++p) {
                 os[p].live = false;
                 if (i < nq[p]) {
@@ -530,6 +789,20 @@ private:
                 if (!os[p].live) continue;
                 if (os[p].type == M_HIRE) { do_hire(st.farms[p]); os[p].live = false; }
                 else if (os[p].type == M_BUY_LAND) { do_buy_land(st.farms[p]); os[p].live = false; }
+            }
+
+            if (os[0].live && os[1].live && os[0].type == M_SELL && os[1].type == M_SELL &&
+                os[0].item == os[1].item && is_product(os[0].item)) {
+                dirty |= batch_same_product_sells(os[0], os[1]);
+                continue;
+            }
+
+            const int affect0 = market_affect_item(os[0]);
+            const int affect1 = market_affect_item(os[1]);
+            if (affect0 < 0 || affect1 < 0 || affect0 != affect1) {
+                for (int p = 0; p < 2; ++p)
+                    if (os[p].live) dirty |= batch_independent_order(os[p], st.farms[p]);
+                continue;
             }
 
             for (;;) {
@@ -555,6 +828,9 @@ private:
                 for (int p = 0; p < 2; ++p) {
                     if (!q[p].ok) continue;
                     if (commit_unit(q[p].type, q[p].item, q[p].price, st.farms[p])) {
+                        if (q[p].type == M_BUY_PRODUCT ||
+                            (q[p].type == M_SELL && q[p].price > 1))
+                            dirty |= static_cast<uint16_t>(1u << q[p].item);
                         os[p].remaining -= 1; committed = true;
                     } else {
                         os[p].live = false;
@@ -562,8 +838,8 @@ private:
                 }
                 if (!committed) break;
             }
-            refresh_prices();
         }
+        return dirty;
     }
 
     bool commit_unit(uint8_t op, uint8_t item, int price, Farm& f) {
@@ -597,9 +873,10 @@ private:
         return false;
     }
 
-    void refresh_prices() {
+    void refresh_prices(uint16_t mask = static_cast<uint16_t>((1u << N_PRODUCTS) - 1u)) {
         for (int i = 0; i < N_PRODUCTS; ++i)
-            st.market.prices[i] = market_price(i, st.market.inventory[i]);
+            if (mask & (1u << i))
+                st.market.prices[i] = market_price(i, st.market.inventory[i]);
     }
 
     void do_hire(Farm& f) {
@@ -634,124 +911,150 @@ private:
                     f.tiles[y][x].kind = T_EMPTY;
     }
 
-    void town_consume(int step_i) {
+    uint16_t town_consume(int step_i) {
+        uint16_t dirty = 0;
         if (step_i % cfg.shop_sell_interval == 0) {
             for (int s = 0; s < st.n_shops; ++s) {
                 uint16_t mask = SHOP_MASK[st.shops[s]];
                 int mult = SHOP_MULT[st.shops[s]];
                 for (int it = 0; it < N_PRODUCTS; ++it)
-                    if (mask & (1u << it)) st.market.inventory[it] -= mult;
+                    if (mask & (1u << it)) {
+                        st.market.inventory[it] -= mult;
+                        dirty |= static_cast<uint16_t>(1u << it);
+                    }
             }
         }
         if (step_i % cfg.center_sell_interval == 0) {
             for (int it = 0; it < N_PRODUCTS; ++it)
-                if (it != FERTILIZER) st.market.inventory[it] -= 1;
+                if (it != FERTILIZER) {
+                    st.market.inventory[it] -= 1;
+                    dirty |= static_cast<uint16_t>(1u << it);
+                }
         }
-        refresh_prices();
+        return dirty;
     }
 
     void decay_plants(Farm& f, int step_i) {
+        if (step_i < f.next_decay_step) return;
+        int next = NO_DECAY_STEP;
         for (int y = 0; y < cfg.board_size; ++y)
             for (int x = 0; x < cfg.board_size; ++x) {
                 Tile& t = f.tiles[y][x];
-                if (t.kind != T_PLANT) continue;
-                if (t.max_lifespan_step < 0 || step_i < t.max_lifespan_step) continue;
-                if ((step_i - t.max_lifespan_step) % 2 != 0) continue;
+                if (t.kind != T_PLANT || t.max_lifespan_step < 0) continue;
+                if (step_i < t.max_lifespan_step) {
+                    next = std::min(next, static_cast<int>(t.max_lifespan_step));
+                    continue;
+                }
+                if ((step_i - t.max_lifespan_step) % 2 != 0) {
+                    next = std::min(next, step_i + 1);
+                    continue;
+                }
                 t.yield_units -= 1;
-                if (t.yield_units <= 0) { Tile w{}; w.kind = T_WEED; t = w; }
+                if (t.yield_units <= 0) {
+                    Tile w{}; w.kind = T_WEED; t = w;
+                } else {
+                    next = std::min(next, step_i + 2);
+                }
             }
+        f.next_decay_step = next;
     }
 
     void end_of_day(int day) {
-        PyRandom rng((cfg.seed * 1000003ull) ^ static_cast<uint64_t>(day));
+        PyRandom rng((cfg.seed * 1000003ull) ^ static_cast<uint64_t>(day),
+                     cfg.cache_daily_rng_seed_state);
         for (int p = 0; p < 2; ++p) {
             Farm& f = st.farms[p];
-            daily_refresh_plants(f, day);
-            daily_refresh_animals(f, day);
-            spawn_weeds(f, rng);
+            daily_refresh_and_spawn(f, day, rng);
             drop_inventories(f);
             int h = cfg.board_size / 2;
             f.n_units = 1;
             f.pos_x[0] = static_cast<int8_t>(h - 1);
             f.pos_y[0] = static_cast<int8_t>(h - 1);
             f.hires_today = 0;
-            for (int u = 0; u < MAX_UNITS; ++u) f.inv_clear(u);
         }
         int next_day = day + 1;
         if (next_day > 0 && next_day % cfg.shop_unlock_interval == 0 && st.n_shops < MAX_SHOP_INSTANCES)
             st.shops[st.n_shops++] = static_cast<uint8_t>(rng.choice_index(N_SHOPS));
     }
 
-    void daily_refresh_plants(Farm& f, int day) {
-        int next_day = day + 1;
-        for (int y = 0; y < cfg.board_size; ++y)
-            for (int x = 0; x < cfg.board_size; ++x) {
-                Tile& t = f.tiles[y][x];
-                if (t.kind != T_PLANT) continue;
-                bool was_watered = t.watered_today;
-                t.consecutive_dry = was_watered ? 0 : static_cast<int8_t>(t.consecutive_dry + 1);
-                t.watered_today = false;
-                if (t.consecutive_dry >= 2) { Tile w{}; w.kind = T_WEED; t = w; continue; }
-                const CropDef& cd = CROPS[t.what];
-                if (!cd.ongoing) continue;
-                int since = next_day - t.planted_day - cd.first_yield_day;
-                if (since < 0) continue;
-                if (since % cd.interval != 0) continue;
-                int count = since / cd.interval + 1;
-                if (count > cd.max_yield) continue;
-                bool fert = was_watered && t.fertilized_until_day >= day;
-                t.yield_units = static_cast<int8_t>(std::min(cd.max_yield, t.yield_units + (fert ? 2 : 1)));
-                if (count == cd.max_yield) t.max_lifespan_step = (next_day + 1) * cfg.turns_per_day;
+    void daily_refresh_and_spawn(Farm& f, int day, PyRandom& rng) {
+        const int next_day = day + 1;
+        const int h = cfg.board_size / 2;
+        for (int y = 0; y < cfg.board_size; ++y) {
+            int xmax;
+            if (y < h) {
+                xmax = f.n_quadrants >= 2 ? cfg.board_size : h;
+            } else {
+                if (f.n_quadrants < 3) continue;
+                xmax = f.n_quadrants >= 4 ? cfg.board_size : h;
             }
-    }
-
-    void daily_refresh_animals(Farm& f, int day) {
-        int next_day = day + 1;
-        for (int y = 0; y < cfg.board_size; ++y)
-            for (int x = 0; x < cfg.board_size; ++x) {
+            for (int x = 0; x < xmax; ++x) {
                 Tile& t = f.tiles[y][x];
-                if (!t.has_animal) continue;
-                t.consecutive_dry = t.fed_today ? 0 : static_cast<int8_t>(t.consecutive_dry + 1);
-                if (t.consecutive_dry >= 2) {
-                    TileKind k = t.kind;
-                    Tile s{}; s.kind = k; t = s;
-                    continue;
+                if (t.kind == T_PLANT) {
+                    const bool was_watered = t.watered_today;
+                    t.consecutive_dry = was_watered ? 0 : static_cast<int8_t>(t.consecutive_dry + 1);
+                    t.watered_today = false;
+                    if (t.consecutive_dry >= 2) {
+                        Tile w{}; w.kind = T_WEED; t = w;
+                    } else {
+                        const CropDef& cd = CROPS[t.what];
+                        if (cd.ongoing) {
+                            const int since = next_day - t.planted_day - cd.first_yield_day;
+                            if (since >= 0 && since % cd.interval == 0) {
+                                const int count = since / cd.interval + 1;
+                                if (count <= cd.max_yield) {
+                                    const bool fert = was_watered && t.fertilized_until_day >= day;
+                                    t.yield_units = static_cast<int8_t>(
+                                        std::min(cd.max_yield, t.yield_units + (fert ? 2 : 1)));
+                                    if (count == cd.max_yield) {
+                                        t.max_lifespan_step = (next_day + 1) * cfg.turns_per_day;
+                                        f.next_decay_step = std::min(
+                                            f.next_decay_step, static_cast<int>(t.max_lifespan_step));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } else if (t.has_animal) {
+                    t.consecutive_dry = t.fed_today ? 0 : static_cast<int8_t>(t.consecutive_dry + 1);
+                    if (t.consecutive_dry >= 2) {
+                        const TileKind k = t.kind;
+                        Tile s{}; s.kind = k; t = s;
+                    } else {
+                        const AnimalDef& ad = ANIMALS[t.what - GOOSE];
+                        const int since = next_day - t.planted_day - ad.first_yield_day;
+                        if (since >= 0 && since % ad.interval == 0) {
+                            const int bonus = t.fed_today ? t.pending_care_bonus : 0;
+                            t.yield_units = static_cast<int8_t>(
+                                std::min(ad.max_held, t.yield_units + 1 + bonus));
+                            t.pending_care_bonus = 0;
+                        }
+                        if (t.cared_today && t.fed_today) t.pending_care_bonus += 1;
+                        t.fertilizer_available = true;
+                        t.fed_today = false;
+                        t.cared_today = false;
+                    }
                 }
-                const AnimalDef& ad = ANIMALS[t.what - GOOSE];
-                int since = next_day - t.planted_day - ad.first_yield_day;
-                if (since >= 0 && since % ad.interval == 0) {
-                    int bonus = t.fed_today ? t.pending_care_bonus : 0;
-                    t.yield_units = static_cast<int8_t>(std::min(ad.max_held, t.yield_units + 1 + bonus));
-                    t.pending_care_bonus = 0;
-                }
-                if (t.cared_today && t.fed_today) t.pending_care_bonus += 1;
-                t.fertilizer_available = true;
-                t.fed_today = false;
-                t.cared_today = false;
+                if (t.kind == T_EMPTY && rng.random() < cfg.weed_chance)
+                    t.kind = T_WEED;
             }
-    }
-
-    void spawn_weeds(Farm& f, PyRandom& rng) {
-        for (int y = 0; y < cfg.board_size; ++y)
-            for (int x = 0; x < cfg.board_size; ++x)
-                if (f.tiles[y][x].kind == T_EMPTY && rng.random() < cfg.weed_chance)
-                    f.tiles[y][x].kind = T_WEED;
+        }
     }
 
     void drop_inventories(Farm& f) {
         for (int u = 0; u < f.n_units; ++u) {
-            uint8_t keys[N_ITEMS];
-            int nk = f.inv_nkeys[u];
-            for (int k = 0; k < nk; ++k) keys[k] = f.inv_keys[u][k];
+            const int nk = f.inv_nkeys[u];
             for (int k = 0; k < nk; ++k) {
-                int it = keys[k];
-                if (f.inv[u][it] <= 0) { f.inv_erase(u, it); continue; }
-                int room = std::max(0, cfg.shed_capacity - f.shed_total);
-                int take = std::min<int>(f.inv[u][it], room);
+                const int it = f.inv_keys[u][k];
+                const int amount = f.inv[u][it];
+                if (amount <= 0) continue;
+                const int room = std::max(0, cfg.shed_capacity - f.shed_total);
+                const int take = std::min(amount, room);
                 if (take > 0) { f.shed[it] += take; f.shed_total += take; }
-                f.discarded[it] += f.inv[u][it] - take;
-                f.inv_erase(u, it);
+                f.discarded[it] += amount - take;
+                f.inv[u][it] = 0;
             }
+            f.inv_nkeys[u] = 0;
         }
     }
 };

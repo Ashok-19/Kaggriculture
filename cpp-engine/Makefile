@@ -5,7 +5,7 @@ INCLUDES := -Iinclude
 
 BINS := $(BUILD_DIR)/validate $(BUILD_DIR)/bench $(BUILD_DIR)/price_probe
 
-.PHONY: all price-parity full-parity clean clean-help
+.PHONY: all price-parity full-parity fastpath-parity clean clean-help
 
 all: $(BINS)
 
@@ -26,6 +26,9 @@ price-parity: all
 
 full-parity: all
 	uv run --with kaggle-environments==1.32.7 python tools/run_full_parity.py $(BUILD_DIR)/validate $(BUILD_DIR)/traces
+
+fastpath-parity:
+	python3 tools/check_fastpaths.py
 
 clean:
 	rm -rf $(BUILD_DIR)

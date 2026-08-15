@@ -79,7 +79,7 @@ def _get_agents(candidate_path: str, baseline_path: str, reuse_agents: bool):
 
 
 def one_game(args):
-    candidate_path, baseline_path, seed, candidate_seat, backend, reuse_agents = args
+    candidate_path, baseline_path, seed, candidate_seat, backend, reuse_agents, shared_public = args
     run = cpp_run if backend == "cpp" else official_run
     cached = _get_agents(candidate_path, baseline_path, reuse_agents)
     if cached is None:
@@ -87,11 +87,12 @@ def one_game(args):
         baseline = load_agent(baseline_path, f"baseline_{seed}_{candidate_seat}")
     else:
         candidate, baseline = cached
+    run_kwargs = {"shared_public": True} if backend == "cpp" and shared_public else {}
     if candidate_seat == 0:
-        reward, _, _ = run(candidate, baseline, seed)
+        reward, _, _ = run(candidate, baseline, seed, **run_kwargs)
         margin = reward[0] - reward[1]
     else:
-        reward, _, _ = run(baseline, candidate, seed)
+        reward, _, _ = run(baseline, candidate, seed, **run_kwargs)
         margin = reward[1] - reward[0]
     return {"seed": seed, "seat": candidate_seat, "margin": margin}
 
@@ -110,17 +111,26 @@ def main() -> None:
         help=("reuse loaded agent modules inside each worker; faster, but only use for agents "
               "verified to reset all episode state at step 0")
     )
+    ap.add_argument(
+        "--shared-public-observation", "--shared-public", dest="shared_public_observation",
+        action="store_true",
+        help=("C++ only: share the identical public observation tree between players; faster, "
+              "but only use for agents verified not to mutate/retain public observation objects")
+    )
     ap.add_argument("--require-100", action="store_true", help="fail on any tie or loss")
     ap.add_argument("--json", action="store_true")
     ns = ap.parse_args()
     if ns.workers < 1 or ns.workers > 2:
         ap.error("--workers must be 1 or 2 on this local workstation")
+    if ns.shared_public_observation and ns.backend != "cpp":
+        ap.error("--shared-public-observation requires --backend cpp")
     if ns.backend == "cpp":
         # Build/validate the extension once in the parent. Without this, a clean
         # two-worker spawn can race two compilers writing the same .so.
         ensure_cpp_bridge()
     jobs = [
-        (ns.candidate, ns.baseline, seed, seat, ns.backend, ns.reuse_agents)
+        (ns.candidate, ns.baseline, seed, seat, ns.backend, ns.reuse_agents,
+         ns.shared_public_observation)
         for seed in range(ns.seed_start, ns.seed_start + ns.seeds)
         for seat in (0, 1)
     ]
