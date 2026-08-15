@@ -3,17 +3,23 @@
 
 This deliberately uses the official Python interpreter as the correctness oracle
 instead of re-implementing stochastic town/weed semantics in the search core.
+The pin below is the PR #1399 merge shipped by kaggle-environments 1.32.7.
 """
 from __future__ import annotations
 
 import copy
+import hashlib
 import types
 import urllib.request
 from pathlib import Path
 
-PIN = "bded87b0d7879078c726a93a4884d044f79c4eed"
+PIN = "28b6d8af3ce73926b3d0fda1410c1ddd8384ab8c"
 BASE = f"https://raw.githubusercontent.com/Kaggle/kaggle-environments/{PIN}/kaggle_environments/envs/kaggriculture"
 CACHE = Path("agent_system/.cache/official")
+SOURCE_SHA256 = {
+    "kaggriculture.py": "bc8a54879ef02c7ea64b8b333d6a976f0ea65c4949149d01f463f23bccee653e",
+    "kaggriculture.json": "a82c89c1a2315b93f39775d8e025471a01b738647c9772658368ee6b1b6f4867",
+}
 
 
 class Attr(dict):
@@ -44,14 +50,25 @@ DEFAULT_CONFIG = Attr({
 })
 
 
+def _ensure_pinned_file(path: Path) -> None:
+    expected = SOURCE_SHA256[path.name]
+    if path.exists() and hashlib.sha256(path.read_bytes()).hexdigest() == expected:
+        return
+    data = urllib.request.urlopen(f"{BASE}/{path.name}", timeout=30).read()
+    actual = hashlib.sha256(data).hexdigest()
+    if actual != expected:
+        raise RuntimeError(
+            f"official source hash mismatch for {path.name}: {actual} != {expected}"
+        )
+    path.write_bytes(data)
+
+
 def ensure_official_source() -> tuple[Path, Path]:
     CACHE.mkdir(parents=True, exist_ok=True)
     py = CACHE / "kaggriculture.py"
     js = CACHE / "kaggriculture.json"
-    if not py.exists():
-        py.write_bytes(urllib.request.urlopen(f"{BASE}/kaggriculture.py", timeout=30).read())
-    if not js.exists():
-        js.write_bytes(urllib.request.urlopen(f"{BASE}/kaggriculture.json", timeout=30).read())
+    _ensure_pinned_file(py)
+    _ensure_pinned_file(js)
     return py, js
 
 

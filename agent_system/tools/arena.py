@@ -10,7 +10,8 @@ import multiprocessing as mp
 import sys
 from pathlib import Path
 
-from official_oracle import run
+from cpp_oracle import ensure_bridge as ensure_cpp_bridge, run as cpp_run
+from official_oracle import run as official_run
 
 
 def load_agent(path: str, name: str):
@@ -61,7 +62,8 @@ def load_agent(path: str, name: str):
 
 
 def one_game(args):
-    candidate_path, baseline_path, seed, candidate_seat = args
+    candidate_path, baseline_path, seed, candidate_seat, backend = args
+    run = cpp_run if backend == "cpp" else official_run
     candidate = load_agent(candidate_path, f"candidate_{seed}_{candidate_seat}")
     baseline = load_agent(baseline_path, f"baseline_{seed}_{candidate_seat}")
     if candidate_seat == 0:
@@ -79,12 +81,20 @@ def main() -> None:
     ap.add_argument("--baseline", required=True)
     ap.add_argument("--seed-start", type=int, default=2000)
     ap.add_argument("--seeds", type=int, default=16)
-    ap.add_argument("--workers", type=int, default=max(1, min(8, mp.cpu_count())))
+    ap.add_argument("--workers", type=int, default=min(2, max(1, mp.cpu_count())))
+    ap.add_argument("--backend", choices=("cpp", "official"), default="cpp",
+                    help="simulation backend; cpp is the parity-validated fast default")
     ap.add_argument("--require-100", action="store_true", help="fail on any tie or loss")
     ap.add_argument("--json", action="store_true")
     ns = ap.parse_args()
+    if ns.workers < 1 or ns.workers > 2:
+        ap.error("--workers must be 1 or 2 on this local workstation")
+    if ns.backend == "cpp":
+        # Build/validate the extension once in the parent. Without this, a clean
+        # two-worker spawn can race two compilers writing the same .so.
+        ensure_cpp_bridge()
     jobs = [
-        (ns.candidate, ns.baseline, seed, seat)
+        (ns.candidate, ns.baseline, seed, seat, ns.backend)
         for seed in range(ns.seed_start, ns.seed_start + ns.seeds)
         for seat in (0, 1)
     ]

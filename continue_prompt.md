@@ -423,10 +423,16 @@ Require coin-for-coin official-oracle parity before accepting a tape as evidence
 Use:
 
 ```text
-agent_system/tools/arena.py
-agent_system/tools/official_oracle.py
+agent_system/tools/arena.py                  # C++ backend by default
+agent_system/tools/cpp_oracle.py             # Python-agent bridge to maintained C++ engine
+cpp-engine/                                  # 1.32.7 parity-validated C++ engine
+agent_system/tools/official_oracle.py        # final Python correctness oracle / --backend official
 agent_system/.cache/official/kaggriculture.py
 ```
+
+The competition host's 2026-08-15 balance patch is `kaggle-environments>=1.32.7` / Kaggle merge commit `28b6d8af3ce73926b3d0fda1410c1ddd8384ab8c`. It adds the hinge scarcity curve for CARROT/TOMATO/EGG. The old 1.32.6 notebook port and the old official-oracle pin are stale and must not be used.
+
+The maintained C++ engine has passed exhaustive market-price parity, 15 full 719-action official traces, complete observation/action parity canaries, and current v32/v33 matchup checks. `arena.py` therefore defaults to C++, while `--backend official` remains the correctness canary. Never use more than two arena workers; the tool now rejects `--workers > 2`.
 
 Arena isolation commit `11b5245` is mandatory for wrappers/monkeypatches.
 
