@@ -72,13 +72,18 @@ Validation completed against the refreshed 1.32.7 official oracle:
 
 On this workstation the raw environment runs at about **3,600 eps/s** versus
 **0.811 eps/s** for `kaggle-environments==1.32.7`. With full current Python agent
-logic (v32 vs One-For-All), the optimized bridge runs about **0.637 eps/s** versus
-**0.398 eps/s** for the official Python oracle, about **1.60x faster end-to-end**.
-Python policy execution is therefore now the dominant cost.
+logic, Python policy execution is now the dominant cost: in a direct v32 vs
+One-For-All timing, C++ observation construction plus action parsing/physics was
+about 17% of game time and the two Python policies about 83%.
 
 `agent_system/tools/arena.py` uses the C++ backend by default. Use
-`--backend official` for correctness canaries. The arena itself rejects more
-than two workers to enforce the local compute cap.
+`--backend official` for correctness canaries. For agents explicitly verified to
+reset all episode state at step 0, `--reuse-agents` keeps the loaded modules alive
+inside each worker. On v32 vs One-For-All, seeds 60200-60209, both seats and two
+workers, it reproduced the exact 20-game result table while reducing wall time
+from 26.12 s official Python to 10.14 s C++ (about **2.58x end-to-end**). Do not
+use this mode for an unverified stateful agent. The arena rejects more than two
+workers to enforce the local compute cap.
 
 `agent_system/tools/official_oracle.py` remains the final correctness oracle and
 is pinned, content-hash verified, to the same 1.32.7 source.

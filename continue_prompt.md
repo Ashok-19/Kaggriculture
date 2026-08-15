@@ -433,6 +433,7 @@ agent_system/.cache/official/kaggriculture.py
 The competition host's 2026-08-15 balance patch is `kaggle-environments>=1.32.7` / Kaggle merge commit `28b6d8af3ce73926b3d0fda1410c1ddd8384ab8c`. It adds the hinge scarcity curve for CARROT/TOMATO/EGG. The old 1.32.6 notebook port and the old official-oracle pin are stale and must not be used.
 
 The maintained C++ engine has passed exhaustive market-price parity, 15 full 719-action official traces, complete observation/action parity canaries, and current v32/v33 matchup checks. `arena.py` therefore defaults to C++, while `--backend official` remains the correctness canary. Never use more than two arena workers; the tool now rejects `--workers > 2`.
+For current agents explicitly verified to reset all episode state at step 0, `--reuse-agents` keeps loaded modules alive inside each worker and avoids repeated import cost. On v32 vs One-For-All, seeds 60200-60209, both seats, 2 workers, this reproduced the exact 20-game result table and reduced wall time from 26.12 s official Python to 10.14 s C++ (~2.58x end-to-end). Do not use `--reuse-agents` on an unverified stateful agent.
 
 Arena isolation commit `11b5245` is mandatory for wrappers/monkeypatches.
 

@@ -61,11 +61,32 @@ def load_agent(path: str, name: str):
     raise RuntimeError(f"unsupported agent signature for {path}: {sig}")
 
 
+_AGENT_CACHE = {}
+
+
+def _get_agents(candidate_path: str, baseline_path: str, reuse_agents: bool):
+    if not reuse_agents:
+        return None
+    key = (str(Path(candidate_path).resolve()), str(Path(baseline_path).resolve()))
+    pair = _AGENT_CACHE.get(key)
+    if pair is None:
+        pair = (
+            load_agent(candidate_path, f"candidate_cached_{len(_AGENT_CACHE)}"),
+            load_agent(baseline_path, f"baseline_cached_{len(_AGENT_CACHE)}"),
+        )
+        _AGENT_CACHE[key] = pair
+    return pair
+
+
 def one_game(args):
-    candidate_path, baseline_path, seed, candidate_seat, backend = args
+    candidate_path, baseline_path, seed, candidate_seat, backend, reuse_agents = args
     run = cpp_run if backend == "cpp" else official_run
-    candidate = load_agent(candidate_path, f"candidate_{seed}_{candidate_seat}")
-    baseline = load_agent(baseline_path, f"baseline_{seed}_{candidate_seat}")
+    cached = _get_agents(candidate_path, baseline_path, reuse_agents)
+    if cached is None:
+        candidate = load_agent(candidate_path, f"candidate_{seed}_{candidate_seat}")
+        baseline = load_agent(baseline_path, f"baseline_{seed}_{candidate_seat}")
+    else:
+        candidate, baseline = cached
     if candidate_seat == 0:
         reward, _, _ = run(candidate, baseline, seed)
         margin = reward[0] - reward[1]
@@ -84,6 +105,11 @@ def main() -> None:
     ap.add_argument("--workers", type=int, default=min(2, max(1, mp.cpu_count())))
     ap.add_argument("--backend", choices=("cpp", "official"), default="cpp",
                     help="simulation backend; cpp is the parity-validated fast default")
+    ap.add_argument(
+        "--reuse-agents", action="store_true",
+        help=("reuse loaded agent modules inside each worker; faster, but only use for agents "
+              "verified to reset all episode state at step 0")
+    )
     ap.add_argument("--require-100", action="store_true", help="fail on any tie or loss")
     ap.add_argument("--json", action="store_true")
     ns = ap.parse_args()
@@ -94,7 +120,7 @@ def main() -> None:
         # two-worker spawn can race two compilers writing the same .so.
         ensure_cpp_bridge()
     jobs = [
-        (ns.candidate, ns.baseline, seed, seat, ns.backend)
+        (ns.candidate, ns.baseline, seed, seat, ns.backend, ns.reuse_agents)
         for seed in range(ns.seed_start, ns.seed_start + ns.seeds)
         for seat in (0, 1)
     ]
