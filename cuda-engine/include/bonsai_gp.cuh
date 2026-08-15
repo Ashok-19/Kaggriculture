@@ -52,6 +52,8 @@ struct GPLeaf {
     uint8_t kind = GPL_ROUTE;
     uint8_t unit_route = 0;
     uint8_t market_route = 0;
+    // For manager-backed leaves, selects an optional external frozen manager
+    // expert. Zero preserves legacy single-manager binaries and behavior.
     uint8_t pad = 0;
 };
 
@@ -762,14 +764,21 @@ __device__ __forceinline__ GPLeaf gp_select_leaf(const GPProgram& prog, const Ob
     return prog.rules[prog.n_rules ? prog.n_rules-1 : 0].leaf;
 }
 
-__device__ __forceinline__ Action gp_act(const GPProgram& prog, const ObservationView& obs,
-                                         const Action* route_actions, const GPRouteDesc* route_descs,
-                                         int n_routes) {
+__device__ __forceinline__ const GPManager& gp_leaf_manager(const GPProgram& prog, const GPLeaf& leaf,
+                                                               const GPManager* manager_bank, int n_managers) {
+    if (manager_bank && n_managers > 0 && static_cast<int>(leaf.pad) < n_managers) return manager_bank[leaf.pad];
+    return prog.manager;
+}
+
+__device__ __forceinline__ Action gp_act_with_managers(const GPProgram& prog, const ObservationView& obs,
+                                                       const Action* route_actions, const GPRouteDesc* route_descs,
+                                                       int n_routes, const GPManager* manager_bank, int n_managers) {
     const GPLeaf leaf = gp_select_leaf(prog,obs);
     int ur = leaf.unit_route < n_routes ? leaf.unit_route : 0;
     int mr = leaf.market_route < n_routes ? leaf.market_route : ur;
     const Action& ua = gp_route_at(route_actions,route_descs[ur],obs.step());
     const Action& ma = gp_route_at(route_actions,route_descs[mr],obs.step());
+    const GPManager& manager = gp_leaf_manager(prog,leaf,manager_bank,n_managers);
     Action out{};
     out.n_units = obs.farm(obs.player()).n_units();
     switch (leaf.kind) {
@@ -783,18 +792,18 @@ __device__ __forceinline__ Action gp_act(const GPProgram& prog, const Observatio
             break;
         case GPL_ROUTE_UNITS_MANAGER_MARKET:
             out = gp_copy_action(ua,out.n_units);
-            gp_manager_market(prog.manager,obs,out);
+            gp_manager_market(manager,obs,out);
             break;
         case GPL_MANAGER:
-            gp_manager_units(prog.manager,obs,out);
-            gp_manager_market(prog.manager,obs,out);
+            gp_manager_units(manager,obs,out);
+            gp_manager_market(manager,obs,out);
             break;
         case GPL_ROUTE_UNITS_PLANNED_MARKET:
             out = gp_copy_planned_action(ua,out.n_units,route_actions,route_descs[ur],obs.step());
-            gp_planned_market(prog.manager,obs,route_actions,route_descs[ur],out);
+            gp_planned_market(manager,obs,route_actions,route_descs[ur],out);
             break;
         case GPL_MANAGER_UNITS_ROUTE_MARKET:
-            gp_manager_units(prog.manager,obs,out);
+            gp_manager_units(manager,obs,out);
             out.n_orders = ma.n_orders;
             for (int i=0;i<ma.n_orders && i<MAX_ORDERS;++i) out.orders[i]=ma.orders[i];
             break;
@@ -803,6 +812,12 @@ __device__ __forceinline__ Action gp_act(const GPProgram& prog, const Observatio
             break;
     }
     return out;
+}
+
+__device__ __forceinline__ Action gp_act(const GPProgram& prog, const ObservationView& obs,
+                                         const Action* route_actions, const GPRouteDesc* route_descs,
+                                         int n_routes) {
+    return gp_act_with_managers(prog,obs,route_actions,route_descs,n_routes,nullptr,0);
 }
 
 } // namespace kagcuda

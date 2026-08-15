@@ -15,8 +15,9 @@ using namespace kagcuda;
 __global__ void gp_eval_kernel(Config base, DeviceTables tables,
                                const GPProgram* programs, int n_programs,
                                const Action* routes, const GPRouteDesc* descs, int n_routes,
+                               const GPManager* manager_bank, int n_managers,
                                int opponent_route, int candidate_seat,
-                               uint64_t seed_start, int n_seeds,
+                               uint64_t seed_start, const uint64_t* seed_values, int n_seeds,
                                Sim* sims, double* rewards) {
     const int id = blockIdx.x * blockDim.x + threadIdx.x;
     const int total = n_programs * n_seeds;
@@ -24,7 +25,7 @@ __global__ void gp_eval_kernel(Config base, DeviceTables tables,
     const int pi = id / n_seeds;
     const int si = id - pi * n_seeds;
     Config cfg = base;
-    cfg.seed = seed_start + static_cast<uint64_t>(si);
+    cfg.seed = seed_values ? seed_values[si] : seed_start + static_cast<uint64_t>(si);
     Sim& sim = sims[id];
     sim.init(cfg,&tables);
     const GPProgram& prog = programs[pi];
@@ -33,7 +34,7 @@ __global__ void gp_eval_kernel(Config base, DeviceTables tables,
         const int step = sim.st.step;
         const int opp_seat = 1-candidate_seat;
         const ObservationView obs = make_observation(sim,candidate_seat);
-        Action cand = gp_act(prog,obs,routes,descs,n_routes);
+        Action cand = gp_act_with_managers(prog,obs,routes,descs,n_routes,manager_bank,n_managers);
         Action opp = gp_copy_action(gp_route_at(routes,od,step),sim.st.farms[opp_seat].n_units);
         if (candidate_seat == 0)
             sim.step_with_unit_counts(cand,sim.st.farms[0].n_units,opp,sim.st.farms[1].n_units);
@@ -144,6 +145,8 @@ static GPCond random_cond(HostRng& r) {
 }
 
 static bool GP_MANAGER_ONLY = false;
+static bool GP_ROUTER_ONLY = false;
+static int GP_ROUTER_EXPERTS = 0;
 static int GP_BOOTSTRAP_ROUTE = -1;
 static int GP_BOOTSTRAP_STEP = 0;
 static int GP_MANAGER_UNIT_ROUTE = -1;
@@ -176,6 +179,70 @@ static GPLeaf random_leaf(HostRng& r, int n_routes) {
     l.unit_route=static_cast<uint8_t>(ri(r,0,n_routes-1));
     l.market_route=static_cast<uint8_t>(ri(r,0,n_routes-1));
     return l;
+}
+
+static GPLeaf router_leaf(int expert) {
+    const int ur=GP_MANAGER_UNIT_ROUTE>=0?GP_MANAGER_UNIT_ROUTE:0;
+    return GPLeaf{GPL_ROUTE_UNITS_PLANNED_MARKET,(uint8_t)ur,(uint8_t)ur,(uint8_t)expert};
+}
+
+static void normalize_router(GPProgram& p, HostRng& r) {
+    if(p.n_rules<1)p.n_rules=1;
+    if(p.n_rules>GP_MAX_RULES)p.n_rules=GP_MAX_RULES;
+    for(int i=0;i<p.n_rules;++i){
+        p.rules[i].leaf=router_leaf(GP_ROUTER_EXPERTS>0?(p.rules[i].leaf.pad%GP_ROUTER_EXPERTS):0);
+        if(i+1<p.n_rules){
+            if(p.rules[i].n_conds<1){p.rules[i].n_conds=1;p.rules[i].conds[0]=random_cond(r);}
+            if(p.rules[i].n_conds>GP_MAX_CONDS)p.rules[i].n_conds=GP_MAX_CONDS;
+        }else p.rules[i].n_conds=0;
+    }
+}
+
+static GPProgram router_constant(int expert, HostRng& r) {
+    GPProgram p{};p.n_rules=1;p.rules[0]=GPRule{};p.rules[0].leaf=router_leaf(expert);normalize_router(p,r);return p;
+}
+
+static GPProgram random_router_program(HostRng& r) {
+    GPProgram p{};p.n_rules=(uint8_t)ri(r,2,5);
+    for(int i=0;i<p.n_rules;++i){
+        GPRule& q=p.rules[i];
+        q.n_conds=(uint8_t)(i+1==p.n_rules?0:ri(r,1,2));
+        for(int c=0;c<q.n_conds;++c)q.conds[c]=random_cond(r);
+        q.leaf=router_leaf(ri(r,0,GP_ROUTER_EXPERTS-1));
+    }
+    normalize_router(p,r);return p;
+}
+
+static GPProgram mutate_router(GPProgram p, HostRng& r) {
+    const int edits=ri(r,1,3);
+    for(int e=0;e<edits;++e){
+        const int k=ri(r,0,6);
+        if(k==0){
+            const int rr=ri(r,0,p.n_rules-1);p.rules[rr].leaf.pad=(uint8_t)ri(r,0,GP_ROUTER_EXPERTS-1);
+        }else if(k==1 && p.n_rules>1){
+            const int rr=ri(r,0,p.n_rules-2);
+            if(p.rules[rr].n_conds<1){p.rules[rr].n_conds=1;p.rules[rr].conds[0]=random_cond(r);}
+            else p.rules[rr].conds[ri(r,0,p.rules[rr].n_conds-1)]=random_cond(r);
+        }else if(k==2 && p.n_rules<GP_MAX_RULES){
+            const int pos=ri(r,0,p.n_rules-1);
+            for(int j=p.n_rules;j>pos;--j)p.rules[j]=p.rules[j-1];
+            p.rules[pos]=GPRule{};p.rules[pos].n_conds=(uint8_t)ri(r,1,2);
+            for(int c=0;c<p.rules[pos].n_conds;++c)p.rules[pos].conds[c]=random_cond(r);
+            p.rules[pos].leaf=router_leaf(ri(r,0,GP_ROUTER_EXPERTS-1));++p.n_rules;
+        }else if(k==3 && p.n_rules>1){
+            const int pos=ri(r,0,p.n_rules-2);for(int j=pos;j+1<p.n_rules;++j)p.rules[j]=p.rules[j+1];--p.n_rules;
+        }else if(k==4 && p.n_rules>1){
+            const int rr=ri(r,0,p.n_rules-2);
+            if(p.rules[rr].n_conds<GP_MAX_CONDS && ri(r,0,1)){p.rules[rr].conds[p.rules[rr].n_conds++]=random_cond(r);}
+            else if(p.rules[rr].n_conds>1)--p.rules[rr].n_conds;
+            else p.rules[rr].conds[0]=random_cond(r);
+        }else if(k==5 && p.n_rules>2){
+            const int a=ri(r,0,p.n_rules-2),b=ri(r,0,p.n_rules-2);GPRule q=p.rules[a];p.rules[a]=p.rules[b];p.rules[b]=q;
+        }else if(p.n_rules>1){
+            const int rr=ri(r,0,p.n_rules-2);p.rules[rr].conds[0]=random_cond(r);
+        }
+    }
+    normalize_router(p,r);return p;
 }
 
 static uint32_t host_mix32(uint32_t x) {
@@ -301,6 +368,7 @@ static void mutate_manager(GPManager& g, HostRng& r) {
 }
 
 static GPProgram mutate(GPProgram p, HostRng& r, int n_routes) {
+    if (GP_ROUTER_ONLY) return mutate_router(p,r);
     const int edits=ri(r,1,4);
     if (GP_MANAGER_ONLY) {
         GPManager m=p.manager;for(int e=0;e<edits;++e)mutate_manager(m,r);set_manager_program(p,m);return p;
@@ -341,6 +409,7 @@ static GPProgram crossover(const GPProgram& a, const GPProgram& b, HostRng& r) {
     const int common = a.n_rules < b.n_rules ? a.n_rules : b.n_rules;
     const int cut=ri(r,0,common-1);
     for(int i=cut;i<c.n_rules && i<b.n_rules;++i)c.rules[i]=b.rules[i];
+    if(GP_ROUTER_ONLY){normalize_router(c,r);return c;}
     for(int i=0;i+1<c.n_rules;++i) if(c.rules[i].n_conds==0){c.rules[i].n_conds=1;c.rules[i].conds[0]=random_cond(r);}
     c.rules[c.n_rules-1].n_conds=0;
     return c;
@@ -349,10 +418,11 @@ static GPProgram crossover(const GPProgram& a, const GPProgram& b, HostRng& r) {
 static void dump_program(std::ostream& os, const GPProgram& p) {
     os << "rules=" << int(p.n_rules) << "\n";
     for(int r=0;r<p.n_rules;++r){
-        const auto& q=p.rules[r]; os << " rule "<<r<<" conds="<<int(q.n_conds)<<" leaf(kind="<<int(q.leaf.kind)<<",u="<<int(q.leaf.unit_route)<<",m="<<int(q.leaf.market_route)<<")";
+        const auto& q=p.rules[r]; os << " rule "<<r<<" conds="<<int(q.n_conds)<<" leaf(kind="<<int(q.leaf.kind)<<",u="<<int(q.leaf.unit_route)<<",m="<<int(q.leaf.market_route)<<",x="<<int(q.leaf.pad)<<")";
         for(int c=0;c<q.n_conds;++c)os<<" [f="<<int(q.conds[c].feature)<<" cmp="<<int(q.conds[c].cmp)<<" item="<<int(q.conds[c].item)<<" v="<<q.conds[c].value<<"]";
         os << "\n";
     }
+    if(GP_ROUTER_ONLY){os<<" router_experts="<<GP_ROUTER_EXPERTS<<"\n";return;}
     const auto& g=p.manager;
     os<<" manager phases";
     for(int ph=0;ph<GP_PHASES;++ph){os<<"\n  p"<<ph<<" step="<<(ph?g.phase_step[ph-1]:0)<<" seed="<<int(g.phase_layout_seed[ph])<<" land="<<int(g.phase_target_quadrants[ph])<<" hires="<<int(g.phase_hires_per_day[ph])<<" animals="<<int(g.phase_cow_target[ph])<<'/'<<int(g.phase_sheep_target[ph])<<'/'<<int(g.phase_goose_target[ph])<<" cash="<<g.phase_cash_reserve[ph]<<" weights=";for(int k=0;k<8;++k)os<<int(g.phase_layout_weight[ph][k])<<(k==7?' ':',');}
@@ -366,8 +436,9 @@ static void dump_program(std::ostream& os, const GPProgram& p) {
 }
 
 int main(int argc,char** argv){
-    std::string routes_list, out_path, load_path, seed_program_path, fitness_mode="robust";
-    bool manager_only=false,planned_market=false;
+    std::string routes_list, out_path, load_path, seed_program_path, seed_list_arg, fitness_mode="robust";
+    std::vector<std::string> router_manager_paths;
+    bool manager_only=false,planned_market=false,router_only=false;
     int bootstrap_route=-1,bootstrap_step=0,manager_unit_route=-1;
     int pickup_horizon_override=-1;
     int population=256,generations=20,seeds=8,opponents=8,elite=12,tpb=64;
@@ -376,28 +447,41 @@ int main(int argc,char** argv){
         std::string a=argv[i];
         if(a=="--manager-only"){manager_only=true;continue;}
         if(a=="--planned-market"){planned_market=true;continue;}
+        if(a=="--router-only"){router_only=true;continue;}
         auto need=[&](){if(i+1>=argc)throw std::runtime_error("missing value for "+a);return std::string(argv[++i]);};
         if(a=="--routes")routes_list=need(); else if(a=="--population")population=std::stoi(need());
         else if(a=="--generations")generations=std::stoi(need()); else if(a=="--seeds")seeds=std::stoi(need());
-        else if(a=="--seed-start")seed_start=std::stoull(need()); else if(a=="--opponents")opponents=std::stoi(need());
+        else if(a=="--seed-start")seed_start=std::stoull(need()); else if(a=="--seed-list")seed_list_arg=need(); else if(a=="--opponents")opponents=std::stoi(need());
         else if(a=="--elite")elite=std::stoi(need()); else if(a=="--tpb")tpb=std::stoi(need());
         else if(a=="--search-seed")search_seed=std::stoull(need()); else if(a=="--out")out_path=need();
         else if(a=="--load")load_path=need();
         else if(a=="--seed-program")seed_program_path=need();
+        else if(a=="--router-manager")router_manager_paths.push_back(need());
         else if(a=="--bootstrap-route")bootstrap_route=std::stoi(need());
         else if(a=="--bootstrap-step")bootstrap_step=std::stoi(need());
         else if(a=="--manager-unit-route")manager_unit_route=std::stoi(need());
         else if(a=="--pickup-horizon")pickup_horizon_override=std::stoi(need());
         else if(a=="--fitness")fitness_mode=need();
-        else if(a=="--help"){std::cout<<"bonsai_search --routes LIST [--population N --generations N --seeds N --seed-start S --opponents N --elite N --seed-program FILE.bin --pickup-horizon N --fitness robust|wins --out PATH]\n";return 0;}
+        else if(a=="--help"){std::cout<<"bonsai_search --routes LIST [--population N --generations N --seeds N --seed-start S --seed-list S1,S2,... --opponents N --elite N --seed-program FILE.bin --router-only --router-manager FILE.bin (repeat) --pickup-horizon N --fitness robust|wins --out PATH]\n";return 0;}
         else throw std::runtime_error("unknown argument: "+a);
     }
     if(routes_list.empty())throw std::runtime_error("--routes LIST is required");
     if(fitness_mode=="robust")GP_ROBUST_FITNESS=true;
     else if(fitness_mode=="wins")GP_ROBUST_FITNESS=false;
     else throw std::runtime_error("--fitness must be robust or wins");
-    GP_MANAGER_ONLY=manager_only;
-    GP_BOOTSTRAP_ROUTE=bootstrap_route;GP_BOOTSTRAP_STEP=bootstrap_step;GP_MANAGER_UNIT_ROUTE=manager_unit_route;GP_PLANNED_MARKET=planned_market;
+    if(router_only && manager_only)throw std::runtime_error("--router-only and --manager-only are mutually exclusive");
+    if(router_only && router_manager_paths.size()<2)throw std::runtime_error("--router-only requires at least two --router-manager FILE.bin arguments");
+    if(router_manager_paths.size()>255)throw std::runtime_error("router manager count exceeds uint8 encoding");
+    if(router_only && manager_unit_route<0)manager_unit_route=0;
+    GP_MANAGER_ONLY=manager_only;GP_ROUTER_ONLY=router_only;GP_ROUTER_EXPERTS=(int)router_manager_paths.size();
+    GP_BOOTSTRAP_ROUTE=bootstrap_route;GP_BOOTSTRAP_STEP=bootstrap_step;GP_MANAGER_UNIT_ROUTE=manager_unit_route;GP_PLANNED_MARKET=planned_market||router_only;
+    std::vector<uint64_t> h_seed_values;
+    if(!seed_list_arg.empty()){
+        std::stringstream ss(seed_list_arg);std::string tok;
+        while(std::getline(ss,tok,',')){if(tok.empty())continue;h_seed_values.push_back(std::stoull(tok));}
+        if(h_seed_values.empty())throw std::runtime_error("--seed-list is empty");
+        seeds=(int)h_seed_values.size();
+    }
     if(!load_path.empty()){population=1;elite=1;generations=1;}
     auto paths=read_list(routes_list); if(paths.empty())throw std::runtime_error("route list is empty");
     if(paths.size()>255)throw std::runtime_error("route count exceeds uint8 program encoding");
@@ -409,8 +493,19 @@ int main(int argc,char** argv){
     std::vector<Action> h_routes; std::vector<GPRouteDesc> h_desc;
     for(const auto& t:nt){int off=h_routes.size();h_routes.insert(h_routes.end(),t.actions.begin(),t.actions.end());h_desc.push_back({off,static_cast<int>(t.actions.size())});}
 
+    std::vector<GPManager> h_manager_bank;
+    for(const auto& mp:router_manager_paths){
+        GPProgram q{};std::ifstream in(mp,std::ios::binary);if(!in)throw std::runtime_error("cannot open router manager program: "+mp);
+        in.read(reinterpret_cast<char*>(&q),sizeof(q));if(in.gcount()!=static_cast<std::streamsize>(sizeof(q)))throw std::runtime_error("invalid router manager program size: "+mp);
+        h_manager_bank.push_back(q.manager);
+    }
+    if(pickup_horizon_override>=0){
+        if(pickup_horizon_override>255)throw std::runtime_error("--pickup-horizon must be 0..255");
+        for(auto& g:h_manager_bank)g.planned_pickup_horizon=(uint8_t)pickup_horizon_override;
+    }
+
     configure_device(); TablesOwner tables; Config cfg;
-    Action* d_routes=nullptr; GPRouteDesc* d_desc=nullptr; GPProgram* d_prog=nullptr; Sim* d_sims=nullptr; double* d_rewards=nullptr;
+    Action* d_routes=nullptr; GPRouteDesc* d_desc=nullptr; GPProgram* d_prog=nullptr; GPManager* d_manager_bank=nullptr; uint64_t* d_seed_values=nullptr; Sim* d_sims=nullptr; double* d_rewards=nullptr;
     const int jobs=population*seeds;
     KAGCUDA_CHECK(cudaMalloc((void**)&d_routes,h_routes.size()*sizeof(Action)));
     KAGCUDA_CHECK(cudaMalloc((void**)&d_desc,h_desc.size()*sizeof(GPRouteDesc)));
@@ -419,12 +514,19 @@ int main(int argc,char** argv){
     KAGCUDA_CHECK(cudaMalloc((void**)&d_rewards,static_cast<size_t>(jobs)*2*sizeof(double)));
     KAGCUDA_CHECK(cudaMemcpy(d_routes,h_routes.data(),h_routes.size()*sizeof(Action),cudaMemcpyHostToDevice));
     KAGCUDA_CHECK(cudaMemcpy(d_desc,h_desc.data(),h_desc.size()*sizeof(GPRouteDesc),cudaMemcpyHostToDevice));
+    if(!h_manager_bank.empty()){KAGCUDA_CHECK(cudaMalloc((void**)&d_manager_bank,h_manager_bank.size()*sizeof(GPManager)));KAGCUDA_CHECK(cudaMemcpy(d_manager_bank,h_manager_bank.data(),h_manager_bank.size()*sizeof(GPManager),cudaMemcpyHostToDevice));}
+    if(!h_seed_values.empty()){KAGCUDA_CHECK(cudaMalloc((void**)&d_seed_values,h_seed_values.size()*sizeof(uint64_t)));KAGCUDA_CHECK(cudaMemcpy(d_seed_values,h_seed_values.data(),h_seed_values.size()*sizeof(uint64_t),cudaMemcpyHostToDevice));}
 
     HostRng rng(search_seed);
     std::vector<GPProgram> pop(population);
     if(!load_path.empty()){
         std::ifstream in(load_path,std::ios::binary);if(!in)throw std::runtime_error("cannot open program: "+load_path);
         in.read(reinterpret_cast<char*>(&pop[0]),sizeof(GPProgram));if(in.gcount()!=static_cast<std::streamsize>(sizeof(GPProgram)))throw std::runtime_error("invalid program binary size: "+load_path);
+        if(router_only)normalize_router(pop[0],rng);
+    } else if(router_only) {
+        int z=0;
+        for(int x=0;x<GP_ROUTER_EXPERTS&&z<population;++x,++z)pop[z]=router_constant(x,rng);
+        for(;z<population;++z)pop[z]=random_router_program(rng);
     } else if(manager_only) {
         // Preserve three known-good macro families as priors, then populate a
         // broad evolutionary island around them. They are only starting genes.
@@ -439,7 +541,7 @@ int main(int argc,char** argv){
         for(int r=0;r<static_cast<int>(paths.size()) && z<population;++r,++z){pop[z]=GPProgram{};pop[z].n_rules=1;pop[z].rules[0].leaf={GPL_ROUTE_UNITS_MANAGER_MARKET,(uint8_t)r,(uint8_t)r,0};pop[z].manager=random_manager(rng);}
         while(z<population)pop[z++]=random_program(rng,paths.size());
     }
-    if(!seed_program_path.empty() && load_path.empty()){
+    if(!seed_program_path.empty() && load_path.empty() && !router_only){
         GPProgram seedp{};
         std::ifstream in(seed_program_path,std::ios::binary);
         if(!in)throw std::runtime_error("cannot open seed program: "+seed_program_path);
@@ -459,8 +561,7 @@ int main(int argc,char** argv){
             }
         } else pop[0]=seedp;
     }
-    if(pickup_horizon_override>=0){
-        if(pickup_horizon_override>255)throw std::runtime_error("--pickup-horizon must be 0..255");
+    if(pickup_horizon_override>=0 && !router_only){
         for(auto& p:pop)p.manager.planned_pickup_horizon=(uint8_t)pickup_horizon_override;
     }
 
@@ -474,7 +575,7 @@ int main(int argc,char** argv){
         KAGCUDA_CHECK(cudaMemcpy(d_prog,pop.data(),population*sizeof(GPProgram),cudaMemcpyHostToDevice));
         for(int oi=0;oi<opponents;++oi){
             for(int seat=0;seat<2;++seat){
-                gp_eval_kernel<<<(jobs+tpb-1)/tpb,tpb>>>(cfg,tables.dev,d_prog,population,d_routes,d_desc,paths.size(),oi,seat,seed_start,seeds,d_sims,d_rewards);
+                gp_eval_kernel<<<(jobs+tpb-1)/tpb,tpb>>>(cfg,tables.dev,d_prog,population,d_routes,d_desc,paths.size(),d_manager_bank,(int)h_manager_bank.size(),oi,seat,seed_start,d_seed_values,seeds,d_sims,d_rewards);
                 KAGCUDA_CHECK(cudaGetLastError());KAGCUDA_CHECK(cudaDeviceSynchronize());
                 KAGCUDA_CHECK(cudaMemcpy(host.data(),d_rewards,host.size()*sizeof(double),cudaMemcpyDeviceToHost));
                 for(int pi=0;pi<population;++pi)for(int si=0;si<seeds;++si){
@@ -538,6 +639,6 @@ int main(int argc,char** argv){
         std::ofstream out(out_path);out<<"wins="<<global_fit.wins<<" cases="<<global_fit.cases<<" ties="<<global_fit.ties<<" floor="<<global_fit.floor<<" mean="<<mean(global_fit)<<" tail="<<global_fit.tail_mean<<" worst_cohort="<<global_fit.worst_cohort<<" seed_tail="<<global_fit.seed_tail<<" worst_seed="<<global_fit.worst_seed<<" fitness="<<fitness_mode<<"\n";dump_program(out,global_best);
         std::ofstream bout(out_path+".bin",std::ios::binary);bout.write(reinterpret_cast<const char*>(&global_best),sizeof(GPProgram));
     }
-    cudaFree(d_routes);cudaFree(d_desc);cudaFree(d_prog);cudaFree(d_sims);cudaFree(d_rewards);
+    cudaFree(d_routes);cudaFree(d_desc);cudaFree(d_prog);if(d_manager_bank)cudaFree(d_manager_bank);if(d_seed_values)cudaFree(d_seed_values);cudaFree(d_sims);cudaFree(d_rewards);
     return 0;
 }
