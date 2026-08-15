@@ -8,7 +8,7 @@ NVCCFLAGS ?= -O3 -std=c++17 -arch=$(ARCH) -lineinfo --compiler-options=-O3,-Wall
 PTXAS ?= -Xptxas=-v
 BINS := $(BUILD_DIR)/validate $(BUILD_DIR)/bench $(BUILD_DIR)/price_probe
 
-.PHONY: all check validate-parity state-parity snapshot-parity price-parity policy-smoke bench branch-bench tape-bench tape-branch bonsai-search bonsai-eval-one hybrid-grid clean
+.PHONY: all check validate-parity state-parity snapshot-parity price-parity policy-smoke bench branch-bench tape-bench tape-branch bonsai-search bonsai-eval-one bonsai-branch-cases hybrid-grid clean
 all: $(BINS)
 
 check: price-parity validate-parity state-parity snapshot-parity policy-smoke
@@ -47,6 +47,9 @@ $(BUILD_DIR)/hybrid_grid: src/hybrid_grid.cu include/tape_io.hpp include/sim.cuh
 	$(NVCC) $(NVCCFLAGS) $(PTXAS) $(INCLUDES) -o $@ $<
 
 $(BUILD_DIR)/bonsai_eval_one: src/bonsai_eval_one.cu include/bonsai_gp.cuh include/observation.cuh include/tape_io.hpp include/sim.cuh include/pyrandom.cuh include/runtime.cuh | $(BUILD_DIR)
+	$(NVCC) $(NVCCFLAGS) $(PTXAS) $(INCLUDES) -o $@ $<
+
+$(BUILD_DIR)/bonsai_branch_cases: src/bonsai_branch_cases.cu include/bonsai_gp.cuh include/observation.cuh include/tape_io.hpp include/sim.cuh include/pyrandom.cuh include/runtime.cuh | $(BUILD_DIR)
 	$(NVCC) $(NVCCFLAGS) $(PTXAS) $(INCLUDES) -o $@ $<
 
 $(BUILD_DIR)/cuda_state_hash: src/state_parity.cu include/sim.cuh include/pyrandom.cuh include/runtime.cuh include/logical_hash.hpp | $(BUILD_DIR)
@@ -90,6 +93,9 @@ hybrid-grid: $(BUILD_DIR)/hybrid_grid
 
 bonsai-eval-one: $(BUILD_DIR)/bonsai_eval_one
 	@echo "usage: $(BUILD_DIR)/bonsai_eval_one --routes LIST --program FILE.bin --opponent I --seat S --seed N"
+
+bonsai-branch-cases: $(BUILD_DIR)/bonsai_branch_cases
+	@echo "usage: $(BUILD_DIR)/bonsai_branch_cases --routes LIST --prefix FILE.bin --expert FILE.bin --branch-step N --out CSV"
 
 clean:
 	rm -rf $(BUILD_DIR)
