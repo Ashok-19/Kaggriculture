@@ -16,3 +16,6 @@ submission/*.tar.gz
 .chatgpt/operations/
 .chatgpt/handoffs/*.local.md
 research/
+continue_prompt.md
+public-notebooks
+.chatgpt/

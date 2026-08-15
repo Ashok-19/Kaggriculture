@@ -231,6 +231,13 @@ int main(int argc, char** argv) {
 
     std::vector<double> rewards(static_cast<size_t>(total_branches) * 2);
     KAGCUDA_CHECK(cudaMemcpy(rewards.data(), d_rewards, rewards.size() * sizeof(double), cudaMemcpyDeviceToHost));
+    const bool raw_branch = std::getenv("KAGCUDA_RAW_BRANCH") != nullptr;
+    std::vector<Snapshot> host_snapshots;
+    if (raw_branch) {
+        host_snapshots.resize(static_cast<size_t>(n_snapshots));
+        KAGCUDA_CHECK(cudaMemcpy(host_snapshots.data(), d_snapshots,
+                                host_snapshots.size() * sizeof(Snapshot), cudaMemcpyDeviceToHost));
+    }
     std::printf("CUDA tape branches: player=%d prefix=%d seeds=%llu..%llu snapshots=%d candidates=%d total=%d tpb=%d\n",
                 candidate_player, prefix, static_cast<unsigned long long>(seed_start),
                 static_cast<unsigned long long>(seed_start + n_snapshots - 1), n_snapshots, n_candidates, total_branches, tpb);
@@ -259,6 +266,47 @@ int main(int argc, char** argv) {
             std::printf(" rewards=(%.0f,%.0f)", rewards[id*2], rewards[id*2+1]);
         }
         std::printf("\n");
+    }
+
+    if (raw_branch) {
+        for (int s = 0; s < n_snapshots; ++s) {
+            const Snapshot& snap = host_snapshots[static_cast<size_t>(s)];
+            const int first_shop = snap.st.n_shops > 0 ? static_cast<int>(snap.st.shops[0]) : -1;
+            const int second_shop = snap.st.n_shops > 1 ? static_cast<int>(snap.st.shops[1]) : -1;
+            const int third_shop = snap.st.n_shops > 2 ? static_cast<int>(snap.st.shops[2]) : -1;
+            int wheat_plants[2] = {0, 0}, strawberry_plants[2] = {0, 0}, melon_plants[2] = {0, 0};
+            int cows[2] = {0, 0}, sheep[2] = {0, 0};
+            for (int p = 0; p < 2; ++p) {
+                for (int y = 0; y < BOARD; ++y) for (int x = 0; x < BOARD; ++x) {
+                    const Tile& tile = snap.st.farms[p].tiles[y][x];
+                    if (tile.kind == T_PLANT) {
+                        if (tile.what == WHEAT) ++wheat_plants[p];
+                        else if (tile.what == STRAWBERRY) ++strawberry_plants[p];
+                        else if (tile.what == MELON) ++melon_plants[p];
+                    } else if ((tile.kind == T_PASTURE || tile.kind == T_COOP) && tile.has_animal) {
+                        if (tile.what == COW) ++cows[p];
+                        else if (tile.what == SHEEP) ++sheep[p];
+                    }
+                }
+            }
+            for (int c = 0; c < n_candidates; ++c) {
+                const int id = s * n_candidates + c;
+                const double r0 = rewards[id * 2], r1 = rewards[id * 2 + 1];
+                const double margin = candidate_player == 0 ? r0 - r1 : r1 - r0;
+                std::printf("raw snapshot=%d seed=%llu first_shop=%d second_shop=%d third_shop=%d candidate=%d margin=%.0f r0=%.0f r1=%.0f money0=%.0f money1=%.0f units0=%d units1=%d land0=%d land1=%d wheatp0=%d wheatp1=%d strawp0=%d strawp1=%d melonp0=%d melonp1=%d cows0=%d cows1=%d sheep0=%d sheep1=%d mi_wheat=%d mp_wheat=%d mi_straw=%d mp_straw=%d mi_milk=%d mp_milk=%d mi_wool=%d mp_wool=%d\n",
+                            s, static_cast<unsigned long long>(seed_start + static_cast<uint64_t>(s)),
+                            first_shop, second_shop, third_shop, c, margin, r0, r1,
+                            snap.st.farms[0].money, snap.st.farms[1].money,
+                            snap.st.farms[0].n_units, snap.st.farms[1].n_units,
+                            snap.st.farms[0].n_quadrants, snap.st.farms[1].n_quadrants,
+                            wheat_plants[0], wheat_plants[1], strawberry_plants[0], strawberry_plants[1],
+                            melon_plants[0], melon_plants[1], cows[0], cows[1], sheep[0], sheep[1],
+                            snap.st.market.inventory[WHEAT], snap.st.market.prices[WHEAT],
+                            snap.st.market.inventory[STRAWBERRY], snap.st.market.prices[STRAWBERRY],
+                            snap.st.market.inventory[MILK], snap.st.market.prices[MILK],
+                            snap.st.market.inventory[WOOL], snap.st.market.prices[WOOL]);
+            }
+        }
     }
 
     cudaEventDestroy(start); cudaEventDestroy(prefix_done); cudaEventDestroy(cache_done); cudaEventDestroy(stop);
