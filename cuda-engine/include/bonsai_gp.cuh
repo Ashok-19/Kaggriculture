@@ -11,7 +11,7 @@ namespace kagcuda {
 // This is intentionally compact enough to evaluate thousands of programs in
 // parallel while retaining the semantics we care about: priority, reactivity,
 // causal public-state branching, and coherent executable leaves.
-constexpr int GP_MAX_RULES = 6;
+constexpr int GP_MAX_RULES = 96;
 constexpr int GP_MAX_CONDS = 4;
 
 enum GPFeature : uint8_t {
@@ -27,6 +27,33 @@ enum GPFeature : uint8_t {
     GPF_SHED,
     GPF_UNITS,
     GPF_LAND,
+    // Generic stable/public routing features. These expose only information
+    // already visible in the observation and let a reactive tree self-latch
+    // onto the farm state created by an earlier expert decision.
+    GPF_SHOP_SEEN,
+    GPF_OWN_PASTURES,
+    GPF_OWN_ANIMAL,
+    GPF_OWN_CROP,
+    GPF_SEED,
+    // Public worker geometry. item is the stable unit index exposed by the
+    // observation; these features let a staged policy latch onto its own
+    // previously-created worker path without hidden memory.
+    GPF_WORKER_X,
+    GPF_WORKER_Y,
+    // Coarse public temporal phase. Useful for coherent multi-turn subtrees
+    // without spending two conditions on explicit lower/upper step bounds.
+    GPF_STEP_BUCKET8,
+    // Opponent-public farm state. These are legal observation features and
+    // let a policy distinguish strategic archetypes without opponent identity.
+    GPF_OWN_WEEDS,
+    GPF_OPP_UNITS,
+    GPF_OPP_LAND,
+    GPF_OPP_PASTURES,
+    GPF_OPP_ANIMAL,
+    GPF_OPP_CROP,
+    GPF_OPP_WEEDS,
+    GPF_OPP_WORKER_X,
+    GPF_OPP_WORKER_Y,
 };
 
 enum GPCmp : uint8_t { GPC_EQ = 0, GPC_NE, GPC_GE, GPC_LE };
@@ -172,6 +199,43 @@ __device__ __forceinline__ int gp_shop(const ObservationView& obs, int i) {
     return i >= 0 && i < town.n_shops() ? town.shop(i) : -1;
 }
 
+__device__ __forceinline__ int gp_shop_seen_count(const ObservationView& obs, int shop) {
+    const TownView town = obs.town();
+    int n=0;
+    for(int i=0;i<town.n_shops();++i) if(town.shop(i)==shop) ++n;
+    return n;
+}
+
+__device__ __forceinline__ int gp_public_pastures(const PublicFarmView& farm) {
+    int n=0;
+    for(int y=0;y<BOARD;++y) for(int x=0;x<BOARD;++x) if(farm.tile(x,y).kind==T_PASTURE) ++n;
+    return n;
+}
+
+__device__ __forceinline__ int gp_public_animals(const PublicFarmView& farm, int animal) {
+    int n=0;
+    for(int y=0;y<BOARD;++y) for(int x=0;x<BOARD;++x){
+        const Tile& t=farm.tile(x,y);
+        if((t.kind==T_PASTURE||t.kind==T_COOP) && t.has_animal && t.what==animal) ++n;
+    }
+    return n;
+}
+
+__device__ __forceinline__ int gp_public_crops(const PublicFarmView& farm, int crop) {
+    int n=0;
+    for(int y=0;y<BOARD;++y) for(int x=0;x<BOARD;++x){
+        const Tile& t=farm.tile(x,y);
+        if(t.kind==T_PLANT && t.what==crop) ++n;
+    }
+    return n;
+}
+
+__device__ __forceinline__ int gp_public_weeds(const PublicFarmView& farm) {
+    int n=0;
+    for(int y=0;y<BOARD;++y) for(int x=0;x<BOARD;++x) if(farm.tile(x,y).kind==T_WEED) ++n;
+    return n;
+}
+
 __device__ __forceinline__ bool gp_eval_cond(const GPCond& c, const ObservationView& obs) {
     const int p = obs.player();
     int lhs = 0;
@@ -188,6 +252,23 @@ __device__ __forceinline__ bool gp_eval_cond(const GPCond& c, const ObservationV
         case GPF_SHED: lhs = c.item < N_ITEMS ? obs.private_farm().shed(c.item) : 0; break;
         case GPF_UNITS: lhs = obs.farm(p).n_units(); break;
         case GPF_LAND: lhs = obs.farm(p).n_quadrants(); break;
+        case GPF_SHOP_SEEN: lhs = c.item < MAX_SHOP_INSTANCES ? gp_shop_seen_count(obs,c.item) : 0; break;
+        case GPF_OWN_PASTURES: lhs = gp_public_pastures(obs.farm(p)); break;
+        case GPF_OWN_ANIMAL: lhs = c.item < N_ANIMALS ? gp_public_animals(obs.farm(p),GOOSE+c.item) : 0; break;
+        case GPF_OWN_CROP: lhs = c.item < N_CROPS ? gp_public_crops(obs.farm(p),c.item) : 0; break;
+        case GPF_SEED: lhs = c.item < N_CROPS ? obs.private_farm().seed(c.item) : 0; break;
+        case GPF_WORKER_X: lhs = c.item < obs.farm(p).n_units() ? obs.farm(p).worker_x(c.item) : -1; break;
+        case GPF_WORKER_Y: lhs = c.item < obs.farm(p).n_units() ? obs.farm(p).worker_y(c.item) : -1; break;
+        case GPF_STEP_BUCKET8: lhs = obs.step() / 8; break;
+        case GPF_OWN_WEEDS: lhs = gp_public_weeds(obs.farm(p)); break;
+        case GPF_OPP_UNITS: lhs = obs.farm(1-p).n_units(); break;
+        case GPF_OPP_LAND: lhs = obs.farm(1-p).n_quadrants(); break;
+        case GPF_OPP_PASTURES: lhs = gp_public_pastures(obs.farm(1-p)); break;
+        case GPF_OPP_ANIMAL: lhs = c.item < N_ANIMALS ? gp_public_animals(obs.farm(1-p),GOOSE+c.item) : 0; break;
+        case GPF_OPP_CROP: lhs = c.item < N_CROPS ? gp_public_crops(obs.farm(1-p),c.item) : 0; break;
+        case GPF_OPP_WEEDS: lhs = gp_public_weeds(obs.farm(1-p)); break;
+        case GPF_OPP_WORKER_X: lhs = c.item < obs.farm(1-p).n_units() ? obs.farm(1-p).worker_x(c.item) : -1; break;
+        case GPF_OPP_WORKER_Y: lhs = c.item < obs.farm(1-p).n_units() ? obs.farm(1-p).worker_y(c.item) : -1; break;
         default: return false;
     }
     return gp_cmp(lhs, c.value, c.cmp);

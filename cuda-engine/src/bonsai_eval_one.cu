@@ -1,5 +1,6 @@
 #include "runtime.cuh"
 #include "bonsai_gp.cuh"
+#include "bonsai_io.hpp"
 #include <fstream>
 #include <iostream>
 #include <stdexcept>
@@ -40,6 +41,31 @@ static void farm_summary(const Farm&f,const char*name){
     std::cout<<" workers="<<f.n_units<<" hires_today="<<f.hires_today<<" positions=";for(int u=0;u<f.n_units;++u)std::cout<<'('<<int(f.pos_x[u])<<','<<int(f.pos_y[u])<<')'<<(u+1==f.n_units?'\n':' ');
 }
 
+static void farm_grid(const Farm& f,const char* name,bool detail=false){
+    std::cout<<name<<" grid\n";
+    static const char cropch[N_CROPS]={'W','C','T','S','M'};
+    for(int y=0;y<BOARD;++y){
+        for(int x=0;x<BOARD;++x){
+            const Tile&t=f.tiles[y][x];
+            char a='.',b='.';
+            if(t.kind==T_PLANT&&t.what<N_CROPS){a='c';b=cropch[t.what];}
+            else if(t.kind==T_PASTURE){a='P';b=t.has_animal?(t.what==COW?'C':(t.what==SHEEP?'S':'G')):'.';}
+            else if(t.kind==T_COOP){a='O';b=t.has_animal?(t.what==COW?'C':(t.what==SHEEP?'S':'G')):'.';}
+            else if(t.kind==T_WEED){a='X';b='X';}
+            else if(t.kind==T_LOCKED){a='#';b='#';}
+            std::cout<<a<<b<<(x+1==BOARD?'\n':' ');
+        }
+    }
+    if(detail){
+        std::cout<<name<<" crop_detail x,y,crop,yield,watered,planted_day,dry\n";
+        for(int y=0;y<BOARD;++y)for(int x=0;x<BOARD;++x){
+            const Tile&t=f.tiles[y][x];
+            if(t.kind==T_PLANT&&t.what<N_CROPS)
+                std::cout<<x<<','<<y<<','<<cropch[t.what]<<','<<int(t.yield_units)<<','<<int(t.watered_today)<<','<<t.planted_day<<','<<int(t.consecutive_dry)<<'\n';
+        }
+    }
+}
+
 static const char* op_name(uint8_t op){
     static const char* names[]={"PASS","NORTH","SOUTH","WEST","EAST","PICKUP","DROP","PLACE","PLANT","WATER","HARVEST","FERTILIZE","DIG","BUILD_COOP","BUILD_PASTURE","FEED","COLLECT_FERTILIZER","CARE","INVALID"};
     return op<sizeof(names)/sizeof(names[0])?names[op]:"?";
@@ -47,15 +73,16 @@ static const char* op_name(uint8_t op){
 static const char* mop_name(uint8_t op){static const char* names[]={"NONE","HIRE","BUY_LAND","BUY_SEED","BUY_PRODUCT","BUY_ANIMAL","SELL"};return op<sizeof(names)/sizeof(names[0])?names[op]:"?";}
 
 int main(int argc,char**argv){
-    std::string list,program;int opponent=0,seat=0,stop_step=719;uint64_t seed=63400;
-    for(int i=1;i<argc;++i){std::string a=argv[i];if(i+1>=argc)throw std::runtime_error("missing value");if(a=="--routes")list=argv[++i];else if(a=="--program")program=argv[++i];else if(a=="--opponent")opponent=std::stoi(argv[++i]);else if(a=="--seat")seat=std::stoi(argv[++i]);else if(a=="--seed")seed=std::stoull(argv[++i]);else if(a=="--stop-step")stop_step=std::stoi(argv[++i]);else throw std::runtime_error("unknown arg "+a);}
+    std::string list,program;int opponent=0,seat=0,stop_step=719;uint64_t seed=63400;bool grid=false,grid_detail=false;
+    for(int i=1;i<argc;++i){std::string a=argv[i];if(a=="--grid"){grid=true;continue;}if(a=="--grid-detail"){grid=true;grid_detail=true;continue;}if(i+1>=argc)throw std::runtime_error("missing value");if(a=="--routes")list=argv[++i];else if(a=="--program")program=argv[++i];else if(a=="--opponent")opponent=std::stoi(argv[++i]);else if(a=="--seat")seat=std::stoi(argv[++i]);else if(a=="--seed")seed=std::stoull(argv[++i]);else if(a=="--stop-step")stop_step=std::stoi(argv[++i]);else throw std::runtime_error("unknown arg "+a);}
     if(list.empty()||program.empty())throw std::runtime_error("--routes and --program required");auto paths=read_list(list);if(opponent<0||opponent>=(int)paths.size())throw std::runtime_error("bad opponent");
-    GPProgram hp{};{std::ifstream in(program,std::ios::binary);if(!in)throw std::runtime_error("cannot open program");in.read((char*)&hp,sizeof(hp));if(in.gcount()!=(std::streamsize)sizeof(hp))throw std::runtime_error("bad program size");}
+    GPProgram hp=load_gp_program_binary(program);
     std::vector<NativeTape>t;for(auto&p:paths)t.push_back(load_native_tape_json(p));std::vector<Action>ha;std::vector<GPRouteDesc>hd;for(auto&x:t){int o=ha.size();ha.insert(ha.end(),x.actions.begin(),x.actions.end());hd.push_back({o,(int)x.actions.size()});}
     configure_device();TablesOwner tables;Config cfg;cfg.seed=seed;GPProgram*dp=nullptr;Action*da=nullptr;GPRouteDesc*dd=nullptr;Sim*ds=nullptr;Action*dnext=nullptr;KAGCUDA_CHECK(cudaMalloc((void**)&dp,sizeof(hp)));KAGCUDA_CHECK(cudaMalloc((void**)&da,ha.size()*sizeof(Action)));KAGCUDA_CHECK(cudaMalloc((void**)&dd,hd.size()*sizeof(GPRouteDesc)));KAGCUDA_CHECK(cudaMalloc((void**)&ds,sizeof(Sim)));KAGCUDA_CHECK(cudaMalloc((void**)&dnext,sizeof(Action)));KAGCUDA_CHECK(cudaMemset(dnext,0,sizeof(Action)));KAGCUDA_CHECK(cudaMemcpy(dp,&hp,sizeof(hp),cudaMemcpyHostToDevice));KAGCUDA_CHECK(cudaMemcpy(da,ha.data(),ha.size()*sizeof(Action),cudaMemcpyHostToDevice));KAGCUDA_CHECK(cudaMemcpy(dd,hd.data(),hd.size()*sizeof(GPRouteDesc),cudaMemcpyHostToDevice));
     eval_one_kernel<<<1,1>>>(cfg,tables.dev,dp,da,dd,paths.size(),opponent,seat,stop_step,ds,dnext);KAGCUDA_CHECK(cudaGetLastError());KAGCUDA_CHECK(cudaDeviceSynchronize());Sim hs{};KAGCUDA_CHECK(cudaMemcpy(&hs,ds,sizeof(Sim),cudaMemcpyDeviceToHost));
     Action hn{};KAGCUDA_CHECK(cudaMemcpy(&hn,dnext,sizeof(Action),cudaMemcpyDeviceToHost));
     std::cout<<"seed="<<seed<<" candidate_seat="<<seat<<" opponent="<<opponent<<":"<<paths[opponent]<<" final_step="<<hs.st.step<<"\n";farm_summary(hs.st.farms[seat],"candidate");farm_summary(hs.st.farms[1-seat],"opponent");
+    if(grid)farm_grid(hs.st.farms[seat],"candidate",grid_detail);
     if(!hs.st.done){std::cout<<"next_action units="<<int(hn.n_units)<<" ";for(int u=0;u<hn.n_units;++u){std::cout<<u<<':'<<op_name(hn.units[u].op);if(hn.units[u].op==OP_PICKUP||hn.units[u].op==OP_PLACE||hn.units[u].op==OP_PLANT)std::cout<<'('<<int(hn.units[u].arg)<<','<<hn.units[u].n<<')';std::cout<<' ';}std::cout<<" market=";for(int i=0;i<hn.n_orders;++i)std::cout<<mop_name(hn.orders[i].op)<<'('<<int(hn.orders[i].item)<<','<<hn.orders[i].n<<") ";std::cout<<'\n';}
     cudaFree(dp);cudaFree(da);cudaFree(dd);cudaFree(ds);cudaFree(dnext);return 0;
 }

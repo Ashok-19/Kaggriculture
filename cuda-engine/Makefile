@@ -49,6 +49,18 @@ $(BUILD_DIR)/hybrid_grid: src/hybrid_grid.cu include/tape_io.hpp include/sim.cuh
 $(BUILD_DIR)/bonsai_eval_one: src/bonsai_eval_one.cu include/bonsai_gp.cuh include/observation.cuh include/tape_io.hpp include/sim.cuh include/pyrandom.cuh include/runtime.cuh | $(BUILD_DIR)
 	$(NVCC) $(NVCCFLAGS) $(PTXAS) $(INCLUDES) -o $@ $<
 
+$(BUILD_DIR)/opening_crossover: src/opening_crossover.cu include/bonsai_gp.cuh include/observation.cuh include/tape_io.hpp include/sim.cuh include/pyrandom.cuh include/runtime.cuh | $(BUILD_DIR)
+	$(NVCC) $(NVCCFLAGS) $(PTXAS) $(INCLUDES) -o $@ $<
+
+$(BUILD_DIR)/opening_geometry_oracle: src/opening_geometry_oracle.cu include/bonsai_gp.cuh include/observation.cuh include/tape_io.hpp include/sim.cuh include/pyrandom.cuh include/runtime.cuh | $(BUILD_DIR)
+	$(NVCC) $(NVCCFLAGS) $(PTXAS) $(INCLUDES) -o $@ $<
+
+$(BUILD_DIR)/wheat_timing_search: src/wheat_timing_search.cu include/tape_io.hpp include/sim.cuh include/pyrandom.cuh include/runtime.cuh | $(BUILD_DIR)
+	$(NVCC) $(NVCCFLAGS) $(PTXAS) $(INCLUDES) -o $@ $<
+
+$(BUILD_DIR)/turn0_option_search: src/turn0_option_search.cu include/bonsai_gp.cuh include/bonsai_io.hpp include/observation.cuh include/tape_io.hpp include/sim.cuh include/pyrandom.cuh include/runtime.cuh | $(BUILD_DIR)
+	$(NVCC) $(NVCCFLAGS) $(PTXAS) $(INCLUDES) -o $@ $<
+
 $(BUILD_DIR)/bonsai_branch_cases: src/bonsai_branch_cases.cu include/bonsai_gp.cuh include/observation.cuh include/tape_io.hpp include/sim.cuh include/pyrandom.cuh include/runtime.cuh | $(BUILD_DIR)
 	$(NVCC) $(NVCCFLAGS) $(PTXAS) $(INCLUDES) -o $@ $<
 
@@ -93,6 +105,18 @@ hybrid-grid: $(BUILD_DIR)/hybrid_grid
 
 bonsai-eval-one: $(BUILD_DIR)/bonsai_eval_one
 	@echo "usage: $(BUILD_DIR)/bonsai_eval_one --routes LIST --program FILE.bin --opponent I --seat S --seed N"
+
+bonsai-opening-crossover: $(BUILD_DIR)/opening_crossover
+	@echo "usage: $(BUILD_DIR)/opening_crossover --routes LIST [--route-a I --route-b J --branch-step N --out FILE]"
+
+bonsai-opening-geometry: $(BUILD_DIR)/opening_geometry_oracle
+	@echo "usage: $(BUILD_DIR)/opening_geometry_oracle --routes LIST [--route-a I --route-b J --branch-step N --out FILE]"
+
+wheat-timing-search: $(BUILD_DIR)/wheat_timing_search
+	@echo "usage: $(BUILD_DIR)/wheat_timing_search --routes LIST [--unit-route I --total-wheat N --out CSV]"
+
+turn0-option-search: $(BUILD_DIR)/turn0_option_search
+	@echo "usage: $(BUILD_DIR)/turn0_option_search --routes LIST --router FILE.bin --program FILE.bin ... --main-opponents csv --anti-opponents csv"
 
 bonsai-branch-cases: $(BUILD_DIR)/bonsai_branch_cases
 	@echo "usage: $(BUILD_DIR)/bonsai_branch_cases --routes LIST --prefix FILE.bin --expert FILE.bin --branch-step N --out CSV"
