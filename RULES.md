@@ -1,277 +1,256 @@
-# Kaggriculture Gold-Medal Rules
+# Kaggriculture Gold Research Rules
 
-This file contains durable operating rules for every future ChatGPT/Codex/agent session working on this repository.
+This file contains the durable operating rules for every future ChatGPT/Codex/agent session in this repository. Current experiment state belongs in `.chatgpt/handoffs/`; do not bloat this file with mutable leaderboard snapshots.
 
 ## 1. Objective
 
-The objective is not merely to improve local score. The objective is to finish **top 10**, earn **gold**, and maximize prize-money probability in the Kaggriculture Kaggle competition.
+The objective is to finish **top 10**, earn **Kaggle gold**, and maximize prize-money probability. Optimize for robust tournament strength, not local score, code volume, dashboard polish, or the appearance of progress.
 
-Every research, engineering, validation, and submission decision must be evaluated against that objective.
+The aspirational promotion gate is **100% wins, zero ties/losses** on a broad current+historical league, both seats, followed by disjoint fresh seeds and blind newest-replay holdouts. Treat this as a measured gate, never a promise.
 
-## 2. Evidence First — Never Work From Assumptions
+## 2. Evidence first — no assumptions
 
-1. Treat repository state, pinned official engine behavior, exact local simulations, verified Kaggle tool output, and downloaded replay evidence as primary sources of truth.
-2. Do not infer a game mechanic from intuition, a forum comment, a notebook headline, leaderboard folklore, or a previous assistant message when it can be checked directly.
-3. Mutable facts must be re-verified before use: leaderboard rank/score, active submissions, current top-10 teams, episode counts, Kaggle submission status, public replay availability, and opponent strategy fingerprints.
-4. When a wrapper/script fails before producing a result, record **no policy conclusion** from that run.
-5. When a batch times out before returning complete auditable output, do not use guessed/partial results unless the partial results were explicitly materialized and independently verified.
-6. Distinguish clearly between:
-   - official-engine fact;
-   - exact empirical result;
-   - causal inference supported by evidence;
-   - hypothesis awaiting validation.
-7. Never fabricate a replay path, submission status, score, artifact hash, or successful push/upload.
+Use this evidence order:
 
-## 3. Four-Lane Research Program
+1. repository source/state;
+2. official Kaggriculture 1.32.7 semantics;
+3. exact CUDA/C++ engine output;
+4. parity-verified public replay evidence;
+5. freshly queried Kaggle leaderboard/submission/episode state;
+6. causal inference supported by the above.
 
-All major successor development must proceed through four complementary lanes. Do not collapse the project into one best-response loop.
-
-### Lane 1 — Mechanics, Invariants, and Failure Repair
-
-Purpose: eliminate genuine execution/recovery defects and discover engine-level edges.
-
-Work includes:
-- exact failure replay and first-divergence diagnosis;
-- weed/dependency recovery;
-- day-boundary and roster-reset invariants;
-- worker synchronization;
-- shed/logistics invariants;
-- atomic market/order semantics;
-- price-function and scarcity mechanics;
-- safe preemption/debt accounting;
-- official-engine fact checking of public notebooks/discussions.
+Never treat memory, an old assistant message, stale leaderboard value, filename, intuition, or an incomplete run as truth when it can be checked.
 
 Rules:
-- prefer a general invariant over a seed/opponent patch;
-- prove the original action is impossible/no-op or that stolen route slack is genuinely free before replacing it;
-- after a repair, rerun every accumulated historical hard seed plus fresh disjoint seeds.
 
-### Lane 2 — Elite Adversary / Kaito / Current-Top Specialist Lane
+- Mutable facts must be refreshed before important decisions: leaderboard, active submissions, episode streams, replay availability, current top population, live score.
+- A timed-out/crashed/parser-failed run gives **no policy conclusion** unless a complete persisted artifact is independently verified.
+- Distinguish exact result, causal inference, and hypothesis.
+- Do not fabricate success, commits, uploads, scores, replays, or tool output.
+- If observations are identical, deterministic production behavior must be identical.
 
-Purpose: learn from and counter the strongest publicly observable agents without overfitting to identity.
+## 3. CUDA-first research
 
-Work includes:
-- download public replays from current elite submissions;
-- reconstruct coherent route/action families from cross-replay consensus;
-- build fixed-tape fixtures only as one layer, never confuse replay tape with executable policy;
-- reconstruct/surrogate conditional branches where possible;
-- derive selectors only from public information observable **before** the relevant commitment;
-- explicitly test hidden-future/minimax cases where observations are identical but future RNG differs.
+For serious policy research, **default to the exact CUDA engine**.
 
-Rules:
-- never key production logic to team name, submission id, seed, or episode id;
-- opponent-family recognition must use causal public state signatures;
-- if complete observations are identical at a decision point, do not invent a classifier for different futures; solve the minimax/option-value problem instead;
-- hold out newest elite replays until a candidate is frozen.
+Use CUDA for:
 
-### Lane 3 — Population Robustness / Historical League
+- evolutionary/genetic program search;
+- beam search;
+- MCTS/tree-search teachers;
+- minimax/option-value search;
+- population search over many seeds/opponents/candidates;
+- exact same-state counterfactual continuation oracles;
+- Bonsai program/feature/leaf search;
+- opening/economic architecture search.
 
-Purpose: prevent a successor from being a narrow best response.
+Do not use slow Python/CPU brute force when the same experiment can be expressed in CUDA.
 
-The league should include, whenever locally available:
-- current submitted ReCurSiON agent;
-- previous ReCurSiON agents;
-- v27 family;
-- Lev/current-control variants;
-- Boatlee;
-- Rayk/Lev descendants;
-- Oleg/THUNDER;
-- Pilkwang;
-- Breaking;
-- Tetsu;
-- Junaid;
-- Jince/Lev/v27 coherent route experts;
-- reconstructed elite surrogates;
-- any newly discovered coherent meta families.
+CPU/C++/official execution is allowed for correctness canaries, unsupported policy interfaces, tiny diagnostic cases, packaging parity, or independent verification. It is not the default search engine.
 
-Promotion should be evaluated on the **worst opponent per seed/seat**, not only average win rate. The league is allowed to adversarially choose the hardest local opponent for each fixture.
+**Hard local CPU limit: at most 2 simulation workers.** Never use bare `Pool()`, all-core sweeps, or an unbounded heavy `-j`. After an interrupted worker batch, inspect/reap stale repo-local processes.
 
-### Lane 4 — Meta Discovery / Live Top-10 Evolution
+Never use CUDA fast-math. Any simulator-semantic change requires the full parity gate.
 
-Purpose: avoid getting trapped in one route family or local optimum while the leaderboard meta changes.
+## 4. Search must expand Bonsai, not replace it
 
-Work includes:
-- refresh the actual current top-10 leaderboard and active submission ids;
-- mine their public episodes/replays;
-- fingerprint routes, opening economics, livestock mix, market timing, worker/land counts, shop branches, and recovery behavior;
-- search coherent alternative production/economic architectures, not only patches to the current route;
-- maintain at least one research thread that asks whether the current backbone itself is obsolete;
-- periodically reopen route splice/production architecture search against the **current population**, not only against an old baseline;
-- consider deterministic search, evolutionary optimization, macro-policy search, learned selectors/value functions, or RL/hybrid methods where they add real evidence-backed value.
+The intended architecture is:
 
-The goal is continual creation of a **new better meta**, not merely exploitation of the previous agent.
+> exact CUDA search/evolution/MCTS/beam teacher -> distilled deterministic Bonsai-style policy -> final deterministic Python runtime.
 
-## 4. Anti-Local-Optimum Rules
+Bonsai is the policy/control backbone, not the search algorithm. If search finds a strong action/continuation, convert the result into legal observation-derived rules/features/leaves or a coherent executable expert.
 
-1. A challenger beating the current agent 100% is **necessary evidence but never sufficient evidence**.
-2. Do not repeat the mistake where a locally dominant best response moved live Elo only marginally.
-3. Large improvement versus one controller can be an exploit of that controller rather than a general strength gain.
-4. Maintain an expanding population of historical and external opponents.
-5. Test both seats. Seat asymmetry is a first-class failure mode.
-6. Use disjoint seed blocks for development, validation, and final holdout.
-7. Preserve a blind holdout whenever possible, especially for Kaito/current-top replay data.
-8. Prefer large intrinsic margins. A 100% panel of +5 coin wins is much weaker evidence than a 100% panel with thousands of margin.
-9. Investigate deterministic/symmetric losses differently from one-seat stochastic tails.
-10. Do not keep stacking wrappers around a flawed mechanism. Periodically decompose and simplify the policy.
-11. If two experts are complementary, first search for a coherent minimax policy or causal late selector before adding brittle classification.
-12. Never use future shop information, hidden RNG, seed ids, or opponent ids to make an earlier decision.
+Do not ship a runtime MCTS merely because MCTS was useful offline. Runtime should remain deterministic unless strong evidence proves otherwise.
 
-## 5. Promotion Gates
+Bonsai capacity is not a current practical bottleneck. Expand/factor the rule language when evidence requires it. The limiting factors are usually search quality, feature language, action/expert expressiveness, and economic basin coverage.
 
-No scratch experiment becomes official production merely because it looks promising.
+## 5. Causal lane architecture
 
-Before promotion, aim for all of the following when feasible:
+The mandatory pattern is:
 
-1. **Current-baseline gate** — strict paired-seat wins over the current submitted/frozen baseline on a fresh disjoint seed range.
-2. **Historical hard-set gate** — all accumulated known failure seeds re-pass.
-3. **Worst-of-league gate** — zero losses/ties against the available local opponent league, evaluated per seed and seat.
-4. **Fresh disjoint league gate** — repeat on a seed block not used to design the candidate.
-5. **Elite-surrogate gate** — zero observed losses against reconstructed Kaito/current-top strategy families on development and disjoint panels.
-6. **Blind holdout gate** — only after candidate freeze, expose reserved newest replay/episode data.
-7. **Packaging gate** — run the exact built `submission/build/main.py`, not only a scratch wrapper.
-8. **Native/parity gate** — all relevant C++/official-oracle tests pass.
-9. **Archive integrity** — verify top-level contents, size, and SHA-256 before submission.
+> shared public prefix -> preserve option value while futures are indistinguishable -> branch at first legal public divergence -> coherent lane-specific continuation -> later legal subbranches -> adversarial population validation.
 
-If the user explicitly instructs submission before every aspirational gate is perfect, freeze the **best broadly validated candidate**, exclude speculative probes, document known residual risk, and submit exactly the tested package.
+A lane is a public-state/economic cohort, **not a player name**.
 
-## 6. Opponent Replay Rules
+Never use in production:
 
-1. A public replay contains realized actions on one trajectory, not the opponent's executable policy.
-2. Fixed-tape wins are useful but must not be represented as guaranteed wins against the real adaptive opponent.
-3. Verify replay alignment and observation reconstruction before using replay fixtures.
-4. Seat-1 replay frames may be deltas/private overlays; reconstruct shared fields correctly.
-5. Whenever possible, verify our own archived submission reproduces all recorded actions before trusting the replay bench.
-6. Cross-replay consensus is preferred over copying one trajectory.
-7. Surrogates must be validated on held-out replays.
+- team/opponent name;
+- submission id;
+- episode id;
+- seed;
+- hidden state;
+- future shop/RNG;
+- replay fingerprints or proxies whose only purpose is hidden identity recognition.
 
-## 7. Arena Isolation Rule
+If two trajectories have identical legal observations, the policy must remain common. When they diverge publicly, branch only on features visible before the changed action.
 
-Scratch wrappers frequently monkeypatch `runtime_gateway`. Candidate and opponent must never share the same cached Python gateway module.
+Own private shed/seeds/inventories are legal because they are part of the agent observation. Opponent private state is not.
 
-`agent_system/tools/arena.py` contains an isolation fix. Preserve it and verify isolation when evaluating monkeypatch-based wrappers. If candidate/opponent module contamination is possible, controller-ablation results are invalid until rerun under isolation.
+## 6. Structural changes over cosmetic patches
 
-## 8. Official Engine / Mechanics Rules Already Established
+Do not spend the project on tiny thresholds, comments, naming, formatting, or wrappers.
 
-Unless repository/official engine verification proves otherwise:
-- season = 720 steps, 24 turns/day;
-- act timeout = 1 second;
-- market order cap = 10;
-- shed cap = 100;
-- starting money = 3000;
-- unit actions execute before market;
-- hires happen during market; a newly hired hand acts starting next turn;
-- HIRE/BUY_LAND are atomic in player order;
-- SELL/BUY_PRODUCT resolve per order slot across players;
-- same product in same slot shares the same precommit quote;
-- market prices refresh after each slot;
-- SELL at $1 removes the item and pays $1 but does not increase market inventory;
-- only WHEAT and FERTILIZER are BUY_PRODUCT items;
-- plants/animals die/escape after two consecutive unwatered/unfed day refreshes;
-- planting day counts as the first unwatered day, so a newly planted crop must be watered the same day;
-- midnight resets farmer position and dismisses hands; stale route-recovery transactions must not blindly survive roster reset;
-- DROP at shed access deposits the worker's entire carried inventory before market, subject to shed capacity;
-- DIG cannot remove a pasture/coop that currently contains an animal.
+Prioritize interventions that can move whole failure lanes:
 
-Always inspect README.md/AGENTS.md/official interpreter before changing a mechanics assumption.
+- opening economy;
+- worker/land geometry;
+- crop/livestock mix;
+- shared-market timing/order structure;
+- coherent actor+market continuation;
+- reactive recovery/execution;
+- reusable economic experts;
+- new legal features;
+- new Bonsai hierarchy;
+- new meta basins.
 
-## 9. Market Research Rules
+If repeated micro-patches only move margin slightly, stop and restructure. If an exact oracle shows no winning continuation from the current state, intervene earlier or create a new expert/opening instead of tuning the selector.
 
-1. The market is adversarial and path-dependent. Maximizing our own immediate sale value is not always maximizing match margin.
-2. Shared-market timing, order-slot alignment, scarcity denial, and opponent quote impact matter.
-3. Public notebook claims must be independently reproduced against the official interpreter.
-4. The `strawberry pays 24x` notebook's scarcity arithmetic was independently verified as mathematically real in the appropriate scarcity-hole scenario, but naive scarcity-hole sale capping regressed our agent and was rejected.
-5. Do not import a public notebook executor wholesale merely because its arithmetic insight is correct.
-6. When advancing a sale, reserve future farm consumption/pickups and account for debt correctly.
+Do not overengineer trivial infrastructure. Add a tool only when it directly unlocks a high-value experiment or materially reduces repeated research cost.
 
-## 10. RNG / Geometry Rule
+## 7. Code quality
 
-Farm geometry can change how many weed RNG draws are consumed, which can alter later town/shop RNG. Therefore a seemingly harmless extra crop/pasture can change future shop sequences.
+Prefer **small, clear, direct code** over framework-building or bloated abstractions.
 
-Any geometry-changing experiment must be evaluated as a whole-policy intervention. Do not assume it only changes production on that tile.
+- Keep experimental CUDA kernels and host drivers explicit and auditable.
+- Avoid duplicate generic layers unless they eliminate real repeated complexity.
+- Do not rewrite working engines for style.
+- Do not perform cosmetic refactors during active search unless they remove a concrete blocker.
+- Preserve exact semantics before performance or elegance.
 
-## 11. Version-Control Rules
+New research source files must be tracked/staged promptly; do not leave unexplained untracked repo files/folders. Large generated experiments belong under ignored `scratch/`.
 
-1. Commit every meaningful tracked source/test/tool change, however small.
-2. Scratch experiments remain scratch/research-only unless promoted deliberately.
-3. Do not commit unrelated pre-existing files.
-4. The untracked `research/` package may exist in the worktree; leave it untouched unless the user explicitly asks to promote it.
-5. Before commit, use `repo_git_review` and stage explicit intended paths only.
-6. Never claim a commit/push/upload without tool evidence.
-7. Do not push unless explicitly requested or project policy says to do so.
-8. Keep generated `submission/build/` and tarballs out of source commits unless intentionally tracked.
+## 8. Evolutionary / beam / MCTS discipline
 
-## 12. Submission Rules
+Use large-scale search aggressively when the action/program space is too coupled for manual reasoning.
 
-1. Build with `agent_system/tools/build_submission.py`.
-2. Test the exact packaged `submission/build/main.py`.
-3. Verify `tar -tzf submission/submission.tar.gz` and SHA-256.
-4. Record production commit and archive hash in the submission description whenever practical.
-5. Use Kaggle connector/CLI evidence to verify the submission id and status.
-6. After submission, treat live score as mutable and re-query before drawing conclusions.
+Recommended sequence:
 
-## 13. Current Strategic Principle
+1. exact small oracle to measure available capacity;
+2. broad CUDA beam/evolution/MCTS search to discover structure;
+3. freeze candidates;
+4. test on disjoint seeds/opponents;
+5. inspect causal features/first divergence;
+6. distill into deterministic Bonsai/expert logic;
+7. rerun broad regressions and holdouts.
 
-The likely strongest architecture is hybrid:
+Use multiple discovery seeds/islands. A candidate that is perfect on one seed block is not trusted until it survives out-of-sample aggregate testing.
 
-**deterministic execution/recovery + coherent production routes + exact market logic + causal opponent/town regime selection + population/meta search**, with learned components added only where they outperform evidence-backed deterministic alternatives.
+Balanced fitness should protect floor/tail/mean as well as win count. Pure win-count specialists with catastrophic margins are normally rejected.
 
-Do not assume the final top 10 will be pure RL, and do not reject RL/search either. Evaluate methods empirically.
+## 9. Replay and live-meta discipline
 
-## 14. Communication / Research Logging
+Public replays are realized trajectories, not executable opponent policies.
 
-For every meaningful experiment, record:
-- candidate file;
-- baseline/opponent file;
-- exact seed range;
-- both-seat count;
-- wins/losses/ties;
-- mean margin;
-- minimum margin;
-- intrinsic/worst-seat margin where available;
-- whether the run used corrected arena isolation;
-- causal interpretation;
-- promote/reject/hold decision.
+- Verify action alignment and exact source parity before trusting a tape.
+- Replay mapping is `observation step t -> replay steps[t+1].action`; 719 real actions.
+- Use multiple streams/replays to mine mechanisms.
+- Keep the newest distinct elite episodes frozen as holdouts whenever possible.
+- Refresh current top replays frequently; the meta changes quickly.
+- Current #1/top agents are mandatory research sources when public data exists.
+- Preserve historically informative agents such as `jasonstillchasin` when they expose distinct mechanisms.
 
-Negative results are valuable. Preserve them in handoffs so future sessions do not repeat failed branches.
+Do not inspect a frozen holdout before the candidate/policy decision it is intended to test.
 
-## 15. Local Compute Safety — Hard Two-Worker Limit
+## 10. Regression and overfit gates
 
-This repository is developed on the user's local PC. Arena/replay research must never destabilize the machine.
+Every meaningful candidate must be challenged for overfit.
 
-1. **At most 2 multiprocessing simulation workers may run at once.** Use `Pool(2)` explicitly or run sequentially.
-2. Never use bare `multiprocessing.Pool()` / all-core parallelism, `-j` without an explicit small bound for heavy simulation, or broad sweeps that implicitly consume every CPU core.
-3. Large validation leagues must be split into small auditable batches rather than launched as one all-core sweep.
-4. Replay downloads should normally be sequential unless there is explicit evidence that a small bounded concurrency is safe.
-5. After a timeout, interrupted arena, or failed worker batch, use `workspace_reap_processes` (or equivalent repo-local inspection) to ensure no orphaned workers remain before continuing.
-6. A run that crashes the machine, times out without complete auditable output, or is killed before materializing results provides **no promotion evidence**.
+At minimum, when applicable:
 
-This is a hard project constraint, not a performance preference.
+- both seats;
+- multiple opponents from the same causal cohort;
+- broad current league;
+- historical/diverse league;
+- multiple discovery seeds;
+- disjoint validation seeds;
+- newest-replay holdout after freeze;
+- per-opponent/per-seed breakdown;
+- wins/ties/losses, mean margin, floor/tail;
+- first-trigger/routing audit for false entries;
+- exact policy coherence where a latch is intended to persist.
 
-## 16. Gold-Tier Lane Technique — Shared Prefix, Legal Divergence, Coherent Continuation
+A 128/128-style hard panel is a research target, not enough by itself. It must remain causal and survive fresh populations.
 
-The highest-value development technique is **lane-based causal restructuring**, not cosmetic per-opponent patches.
+Do not promote a candidate merely because it beats the incumbent or one top player 100%.
 
-A lane is a population of trajectories that share an observable public-state/economic regime and therefore admit the same coherent policy principle. The objective is to drive hard-league conversion toward 100% by improving whole lanes while retaining broad robustness.
+## 11. Market/state coupling
 
-Use this procedure:
+The market is adversarial and path-dependent. Order-slot alignment, inventory, price, future farm consumption, and opponent quote impact matter.
 
-1. **Find the common observable prefix.** Identify where failing/winning trajectories are genuinely state-compatible. Do not classify before public information exists.
-2. **Preserve option value while futures are indistinguishable.** If complete observations are identical at the commitment point, keep a common minimax/option-value policy. Never use seed, opponent identity, replay identity, future shops, or a proxy for hidden RNG.
-3. **Branch only at the first legal public divergence.** Examples include a newly unlocked shop, public opponent capital/farm state, market quote/inventory, or another state feature visible before the changed action.
-4. **Prefer coherent continuation resets over isolated action patches.** Production geometry, hires, animals, market schedule, crop mix and logistics are strongly state-coupled. If a donor continuation works only when actor+market move together, treat that as evidence for an economic/route basin, not as a reason to transplant individual commands blindly.
-5. **Mine replay donors for mechanisms, then validate the lane.** A replay is a realized tape, not a policy. Use multiple current-best streams (especially current top agents and jasonstillchasin when informative) to discover route/economic principles. Require coin-for-coin source parity before trusting a tape.
-6. **Prove the lane on both seats and disjoint populations.** A lane expert must beat all available members of the public-state cohort, not just the opponent that motivated it. Add new live agents with the same prefix to the cohort instead of routing around them by identity.
-7. **Keep a hierarchical MoE only when every routing boundary is causal.** Shared prefix -> first legal public regime -> coherent expert -> later legal sub-branch is acceptable. Identity/seed/future conditioned expert selection is not.
-8. **Use 128/128-style hard-league targets as an adversarial research objective, not as a memorization target.** A perfect panel is meaningful only if obtained causally and retained on fresh seeds, both seats, historical/current populations and blind replay holdouts.
-9. **When a lane cannot be patched safely, restructure the meta.** Re-open opening economy, crop/livestock allocation, worker geometry, market controller or full continuation architecture rather than stacking wrappers forever.
-10. Preserve rejected lane experiments and exact failure evidence so future sessions do not re-run dead ends without a materially new premise.
+Actor geometry and market/economy are often co-adapted. Prefer whole coherent continuations over isolated market-only or unit-only transplants when experiments show coupling.
 
-The practical gold-tier pattern is:
+Farm geometry can change weed RNG consumption and later public town/shop RNG, so geometry-changing edits are whole-policy interventions.
 
-> **shared causal prefix + option-value/minimax under uncertainty + branch at observed divergence + coherent lane-specific continuation + adversarial population gates.**
+## 12. Established engine workflow
 
-## 17. Final Rule
+Pinned official semantics: Kaggriculture / `kaggle-environments==1.32.7`.
 
-**Never optimize for the appearance of progress. Optimize for robust tournament strength.**
+Exact engines:
 
-A top-10/gold candidate must survive adversarial evidence from multiple metas, not merely dominate yesterday's agent.
+- `cuda-engine/` — default serious research/search engine;
+- `cpp-engine/` — exact CPU engine for small/unsupported/canary work;
+- official Python interpreter — final correctness canary, not the research workhorse.
+
+For CUDA semantic/source changes, run:
+
+```bash
+make -C cuda-engine check
+```
+
+This must retain exact market, trajectory, logical-state, snapshot/resume, cached/uncached RNG, and device-policy parity.
+
+## 13. Version control / workspace
+
+- Use `Local_mcp` with repo id `kaggriculture`.
+- Claim a fresh task before focused work; do not reuse expired lock files.
+- Do not delete lock files manually just because they are old; use the workspace task APIs when needed.
+- Commit meaningful tracked research-engine/source changes after review and validation.
+- Stage explicit intended paths only.
+- Do not accidentally stage nested reference repos, notebooks, generated scratch, or unrelated user edits.
+- Do not push unless the user explicitly asks.
+- Do not clean/reset/restore unrelated dirty files blindly.
+
+## 14. No routine SHA/hash work
+
+**Do not spend research time on SHA checks, artifact hashing, hash ledgers, or hash-based handoff ceremony.** The user explicitly does not want this overhead.
+
+Use ordinary file/path/version/tool evidence. Only perform a hash/integrity check if the user explicitly asks or an external submission/tool workflow strictly requires it for a concrete reason.
+
+Do not include hash computation as a default handoff, validation, or research step.
+
+## 15. Submission/promotion
+
+Do not submit scratch research automatically.
+
+Before promotion:
+
+1. refresh/freeze the current promotion league;
+2. pass broad current + historical regression gates;
+3. pass disjoint fresh seeds;
+4. freeze the candidate;
+5. expose blind newest-replay holdouts;
+6. verify exact packaged runtime behavior;
+7. review exact intended source changes;
+8. submit only when the evidence justifies it and the user wants submission.
+
+No identity leakage, seed leakage, future information, or non-deterministic hidden lookup is acceptable.
+
+## 16. Research logging
+
+For important experiments record enough to reproduce the conclusion:
+
+- exact candidate/program path;
+- route/opponent list path;
+- seed start/count;
+- both-seat status;
+- wins/ties/losses;
+- mean/floor/tail when relevant;
+- first legal branch point / features;
+- promote/reject/hold decision;
+- failure reason for rejected branches.
+
+Preserve negative results so future sessions do not rerun dead ends without a materially new premise.
+
+## 17. Final rule
+
+**Do not optimize for the appearance of progress. Search for the strongest causal meta the exact engine can support, then prove it on adversarial unseen evidence.**
