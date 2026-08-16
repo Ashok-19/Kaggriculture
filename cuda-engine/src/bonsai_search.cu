@@ -21,14 +21,6 @@ __device__ __noinline__ Action gp_act_program_index(int e,
     return gp_act(program_bank[be],obs,routes,descs,n_routes);
 }
 
-__device__ __noinline__ Action gp_dispatch_program_router(const GPProgram& router,
-                                                           const ObservationView& obs,
-                                                           const GPProgram* program_bank, int n_program_bank,
-                                                           const Action* routes, const GPRouteDesc* descs, int n_routes) {
-    const GPLeaf top = gp_select_leaf(router,obs);
-    return gp_act_program_index(static_cast<int>(top.pad),obs,program_bank,n_program_bank,routes,descs,n_routes);
-}
-
 struct GPStateReport {
     int captured = 0;
     int step = 0;
@@ -115,7 +107,7 @@ __global__ void gp_eval_kernel(Config base, DeviceTables tables,
                 const int marker = obs.private_farm().seed(TOMATO);
                 if (marker >= 1 && marker <= n_marker_programs) {
                     const int be = marker_program_map[marker-1];
-                    cand = (be>=0 && be<n_program_bank) ? gp_act_program_index(be,obs,program_bank,n_program_bank,routes,descs,n_routes) : gp_dispatch_program_router(*staged_router_prefix,obs,program_bank,n_program_bank,routes,descs,n_routes);
+                    cand = (be>=0 && be<n_program_bank) ? gp_act_program_index(be,obs,program_bank,n_program_bank,routes,descs,n_routes) : gp_act(*staged_router_prefix,obs,routes,descs,n_routes);
                 } else {
                     const GPProgram* decision_router = nullptr;
                     if (early_marker_router && step == early_marker_step) decision_router = early_marker_router;
@@ -125,27 +117,33 @@ __global__ void gp_eval_kernel(Config base, DeviceTables tables,
                         const int local = static_cast<int>(top.pad);
                         if (local >= 0 && local < n_marker_programs) {
                             const int be = marker_program_map[local];
-                            cand = (be>=0 && be<n_program_bank) ? gp_act_program_index(be,obs,program_bank,n_program_bank,routes,descs,n_routes) : gp_dispatch_program_router(*staged_router_prefix,obs,program_bank,n_program_bank,routes,descs,n_routes);
+                            cand = (be>=0 && be<n_program_bank) ? gp_act_program_index(be,obs,program_bank,n_program_bank,routes,descs,n_routes) : gp_act(*staged_router_prefix,obs,routes,descs,n_routes);
                             // Externalized commitment memory. Appending the marker order
                             // preserves all existing market-order indices.
                             if (cand.n_orders < MAX_ORDERS) cand.orders[cand.n_orders++] = Order{M_BUY_SEED,TOMATO,local+1};
                         } else {
-                            cand = gp_dispatch_program_router(*staged_router_prefix,obs,program_bank,n_program_bank,routes,descs,n_routes);
+                            cand = gp_act(*staged_router_prefix,obs,routes,descs,n_routes);
                         }
                     } else {
                         // Before/between decision stages, or missing/ambiguous marker:
-                        // continue the validated base router exactly.
-                        cand = gp_dispatch_program_router(*staged_router_prefix,obs,program_bank,n_program_bank,routes,descs,n_routes);
+                        // continue the validated executable prefix exactly.
+                        cand = gp_act(*staged_router_prefix,obs,routes,descs,n_routes);
                     }
                 }
+            } else if (staged_router_prefix && step < staged_router_step) {
+                // The staged prefix is an executable GP program, not a router-bank
+                // index table. Preserve its trajectory exactly until the causal
+                // decision point instead of reinterpreting leaf.pad as an expert id.
+                cand = gp_act(*staged_router_prefix,obs,routes,descs,n_routes);
             } else {
-                const GPProgram& router = (staged_router_prefix && step < staged_router_step) ? *staged_router_prefix : prog;
-                const GPLeaf top = gp_select_leaf(router,obs);
+                const GPLeaf top = gp_select_leaf(prog,obs);
                 const int e = static_cast<int>(top.pad);
                 if (e < n_program_bank) {
                     cand = gp_act_program_index(e,obs,program_bank,n_program_bank,routes,descs,n_routes);
                 } else if (staged_router_prefix && e == n_program_bank) {
-                    cand = gp_dispatch_program_router(*staged_router_prefix,obs,program_bank,n_program_bank,routes,descs,n_routes);
+                    // The extra staged-router expert is an explicit fallback to
+                    // the validated executable prefix program.
+                    cand = gp_act(*staged_router_prefix,obs,routes,descs,n_routes);
                 } else {
                     cand = gp_act_program_index(0,obs,program_bank,n_program_bank,routes,descs,n_routes);
                 }
