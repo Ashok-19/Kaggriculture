@@ -1,6 +1,7 @@
 #include "runtime.cuh"
 #include "bonsai_gp.cuh"
 #include "bonsai_io.hpp"
+#include <array>
 #include <cfloat>
 #include <fstream>
 #include <iostream>
@@ -10,27 +11,47 @@
 using namespace kagcuda;
 
 struct CandidateDesc {
-    uint8_t farmer_build=0, hires=4, cows=1, sheep=2, wheat_seed=5, melon_seed=5, wheat_buy=6, order_template=0;
+    uint8_t farmer_build=0, hires=4, cows=1, sheep=2, wheat_seed=5, melon_seed=5, wheat_buy=6, order_template=0, permuted=0;
+    std::array<uint8_t,6> groups{{0,1,2,3,4,5}};
 };
 struct Score { int wins=0,cases=0; double sum=0.0,floor=DBL_MAX; };
 
 static std::vector<std::string> read_list(const std::string&p){std::ifstream in(p);if(!in)throw std::runtime_error("cannot open list: "+p);std::vector<std::string>o;std::string l;while(std::getline(in,l)){auto h=l.find('#');if(h!=std::string::npos)l.resize(h);auto a=l.find_first_not_of(" \t\r\n");if(a==std::string::npos)continue;auto b=l.find_last_not_of(" \t\r\n");o.push_back(l.substr(a,b-a+1));}return o;}
 static std::vector<int> parse_ints(const std::string&s){std::vector<int>o;std::stringstream ss(s);std::string x;while(std::getline(ss,x,','))if(!x.empty())o.push_back(std::stoi(x));return o;}
 static void push(Action&a,uint8_t op,uint8_t item,int n){if(a.n_orders>=MAX_ORDERS||n<=0)return;a.orders[a.n_orders++]={op,item,n};}
+static void emit_group(Action&a,const CandidateDesc&d,int g){
+    if(g==0){for(int i=0;i<d.hires;++i)push(a,M_HIRE,0,1);}
+    else if(g==1)push(a,M_BUY_ANIMAL,COW,d.cows);
+    else if(g==2)push(a,M_BUY_ANIMAL,SHEEP,d.sheep);
+    else if(g==3)push(a,M_BUY_SEED,WHEAT,d.wheat_seed);
+    else if(g==4)push(a,M_BUY_SEED,MELON,d.melon_seed);
+    else if(g==5)push(a,M_BUY_PRODUCT,WHEAT,d.wheat_buy);
+}
 static Action make_first(const CandidateDesc& d){
     Action a{};a.n_units=1;a.units[0].op=d.farmer_build?OP_BUILD_PASTURE:OP_PASS;
-    if(d.order_template==0){
-        for(int i=0;i<d.hires;++i)push(a,M_HIRE,0,1);
-        push(a,M_BUY_ANIMAL,COW,d.cows);push(a,M_BUY_ANIMAL,SHEEP,d.sheep);
-        push(a,M_BUY_SEED,WHEAT,d.wheat_seed);push(a,M_BUY_SEED,MELON,d.melon_seed);push(a,M_BUY_PRODUCT,WHEAT,d.wheat_buy);
+    if(d.permuted){for(int k=0;k<6;++k)emit_group(a,d,d.groups[k]);}
+    else if(d.order_template==0){
+        emit_group(a,d,0);emit_group(a,d,1);emit_group(a,d,2);emit_group(a,d,3);emit_group(a,d,4);emit_group(a,d,5);
     }else{
-        push(a,M_BUY_PRODUCT,WHEAT,d.wheat_buy);
-        for(int i=0;i<d.hires;++i)push(a,M_HIRE,0,1);
-        push(a,M_BUY_ANIMAL,COW,d.cows);push(a,M_BUY_ANIMAL,SHEEP,d.sheep);
-        push(a,M_BUY_SEED,MELON,d.melon_seed);push(a,M_BUY_SEED,WHEAT,d.wheat_seed);
+        emit_group(a,d,5);emit_group(a,d,0);emit_group(a,d,1);emit_group(a,d,2);emit_group(a,d,4);emit_group(a,d,3);
     }
     return a;
 }
+static std::string group_text(const CandidateDesc&d){
+    if(!d.permuted)return d.order_template==0?"H-C-S-WS-MS-WB":"WB-H-C-S-MS-WS";
+    static const char* names[6]={"H","C","S","WS","MS","WB"};std::ostringstream o;
+    for(int k=0;k<6;++k){if(k)o<<'-';o<<names[d.groups[k]];}return o.str();
+}
+static std::vector<CandidateDesc> read_configs(const std::string&p){
+    std::ifstream in(p);if(!in)throw std::runtime_error("cannot open configs: "+p);std::vector<CandidateDesc> out;std::string l;
+    while(std::getline(in,l)){auto h=l.find('#');if(h!=std::string::npos)l.resize(h);auto a=l.find_first_not_of(" \t\r\n");if(a==std::string::npos)continue;l=l.substr(a);std::stringstream ss(l);std::string x;std::vector<int> v;bool ok=true;while(std::getline(ss,x,',')){try{v.push_back(std::stoi(x));}catch(...){ok=false;break;}}if(!ok)continue;if(v.size()!=7)throw std::runtime_error("config row must have 7 integers: build,hires,cows,sheep,wseed,mseed,wbuy");CandidateDesc d{};d.farmer_build=v[0];d.hires=v[1];d.cows=v[2];d.sheep=v[3];d.wheat_seed=v[4];d.melon_seed=v[5];d.wheat_buy=v[6];out.push_back(d);}
+    if(out.empty())throw std::runtime_error("no configs loaded");return out;
+}
+static void build_group_perms_rec(std::array<uint8_t,6>&p,int at,std::vector<std::array<uint8_t,6>>&out){
+    if(at==6){out.push_back(p);return;}
+    for(int i=at;i<6;++i){uint8_t t=p[at];p[at]=p[i];p[i]=t;build_group_perms_rec(p,at+1,out);t=p[at];p[at]=p[i];p[i]=t;}
+}
+static std::vector<std::array<uint8_t,6>> build_group_perms(){std::array<uint8_t,6>p{{0,1,2,3,4,5}};std::vector<std::array<uint8_t,6>>out;out.reserve(720);build_group_perms_rec(p,0,out);return out;}
 
 __device__ __forceinline__ Action dispatch_router(const GPProgram& router,const ObservationView& obs,const GPProgram* bank,int n_bank,const Action*routes,const GPRouteDesc*descs,int n_routes){
     const GPLeaf top=gp_select_leaf(router,obs);const int e=(int)top.pad;
@@ -57,23 +78,30 @@ __global__ void option_kernel(Config base,DeviceTables tables,const Action*first
 }
 
 int main(int argc,char**argv){
-    std::string routes_path,router_path,out_path,main_arg,anti_arg;std::vector<std::string>bank_paths;int anti_route=50,seeds=16,tpb=128;uint64_t seed_start=710000;bool wide=false;
+    std::string routes_path,router_path,out_path,main_arg,anti_arg,configs_path;std::vector<std::string>bank_paths;int anti_route=50,seeds=16,tpb=128;uint64_t seed_start=710000;bool wide=false,permute_groups=false;
     for(int i=1;i<argc;++i){std::string a=argv[i];auto need=[&](){if(i+1>=argc)throw std::runtime_error("missing value for "+a);return std::string(argv[++i]);};
-        if(a=="--routes")routes_path=need();else if(a=="--router")router_path=need();else if(a=="--program")bank_paths.push_back(need());else if(a=="--main-opponents")main_arg=need();else if(a=="--anti-opponents")anti_arg=need();else if(a=="--anti-route")anti_route=std::stoi(need());else if(a=="--seeds")seeds=std::stoi(need());else if(a=="--seed-start")seed_start=std::stoull(need());else if(a=="--tpb")tpb=std::stoi(need());else if(a=="--out")out_path=need();else if(a=="--wide")wide=true;else if(a=="--help"){std::cout<<"turn0_option_search --routes LIST --router ROUTER.bin --program P.bin (repeat) --main-opponents csv --anti-opponents csv [--anti-route 50 --seeds 16 --seed-start N --wide --out CSV]\n";return 0;}else throw std::runtime_error("unknown arg: "+a);
+        if(a=="--routes")routes_path=need();else if(a=="--router")router_path=need();else if(a=="--program")bank_paths.push_back(need());else if(a=="--main-opponents")main_arg=need();else if(a=="--anti-opponents")anti_arg=need();else if(a=="--anti-route")anti_route=std::stoi(need());else if(a=="--seeds")seeds=std::stoi(need());else if(a=="--seed-start")seed_start=std::stoull(need());else if(a=="--tpb")tpb=std::stoi(need());else if(a=="--out")out_path=need();else if(a=="--wide")wide=true;else if(a=="--configs")configs_path=need();else if(a=="--permute-groups")permute_groups=true;else if(a=="--help"){std::cout<<"turn0_option_search --routes LIST --router ROUTER.bin --program P.bin (repeat) --main-opponents csv --anti-opponents csv [--anti-route 50 --seeds 16 --seed-start N --wide | --configs CSV [--permute-groups] --out CSV]\n";return 0;}else throw std::runtime_error("unknown arg: "+a);
     }
     if(routes_path.empty()||router_path.empty()||bank_paths.empty()||main_arg.empty()||anti_arg.empty())throw std::runtime_error("missing required arguments");
+    if(permute_groups&&configs_path.empty())throw std::runtime_error("--permute-groups requires --configs");
     auto paths=read_list(routes_path);auto main_opps=parse_ints(main_arg),anti_opps=parse_ints(anti_arg);if(anti_route<0||anti_route>=(int)paths.size())throw std::runtime_error("bad anti route");
     std::vector<NativeTape>tapes;for(auto&p:paths)tapes.push_back(load_native_tape_json(p));std::vector<Action>hr;std::vector<GPRouteDesc>hd;for(auto&t:tapes){int o=hr.size();hr.insert(hr.end(),t.actions.begin(),t.actions.end());hd.push_back({o,(int)t.actions.size()});}
     GPProgram router=load_gp_program_binary(router_path);std::vector<GPProgram>bank;for(auto&p:bank_paths)bank.push_back(load_gp_program_binary(p));
     std::vector<CandidateDesc> desc;std::vector<Action> first;
-    const std::vector<int> hires = wide ? std::vector<int>{3,4,5} : std::vector<int>{4,5};
-    const std::vector<int> cows = {1,2};
-    const std::vector<int> sheep = wide ? std::vector<int>{2,3,4} : std::vector<int>{2,4};
-    const std::vector<int> wheat_seed = wide ? std::vector<int>{4,5,6,7,8} : std::vector<int>{5,7};
-    const std::vector<int> melon_seed = wide ? std::vector<int>{4,5,8,10,12} : std::vector<int>{5,12};
-    const std::vector<int> wheat_buy = wide ? std::vector<int>{4,6,8,10} : std::vector<int>{6,8};
-    for(int fb=0;fb<2;++fb)for(int h:hires)for(int c:cows)for(int sh:sheep)for(int ws:wheat_seed)for(int ms:melon_seed)for(int wb:wheat_buy)for(int ot=0;ot<2;++ot){CandidateDesc d{};d.farmer_build=fb;d.hires=h;d.cows=c;d.sheep=sh;d.wheat_seed=ws;d.melon_seed=ms;d.wheat_buy=wb;d.order_template=ot;desc.push_back(d);first.push_back(make_first(d));}
-    const int nc=desc.size(),jobs=nc*seeds;configure_device();TablesOwner tables;Config cfg;Action*df=nullptr,*dr=nullptr;GPRouteDesc*dd=nullptr;GPProgram*drouter=nullptr,*dbank=nullptr;Sim*ds=nullptr;double*drew=nullptr;
+    if(!configs_path.empty()){
+        auto base=read_configs(configs_path);
+        if(permute_groups){auto perms=build_group_perms();for(const auto&b:base)for(const auto&pm:perms){CandidateDesc d=b;d.permuted=1;d.groups=pm;desc.push_back(d);first.push_back(make_first(d));}}
+        else for(const auto&b:base)for(int ot=0;ot<2;++ot){CandidateDesc d=b;d.order_template=ot;desc.push_back(d);first.push_back(make_first(d));}
+    }else{
+        const std::vector<int> hires = wide ? std::vector<int>{3,4,5} : std::vector<int>{4,5};
+        const std::vector<int> cows = {1,2};
+        const std::vector<int> sheep = wide ? std::vector<int>{2,3,4} : std::vector<int>{2,4};
+        const std::vector<int> wheat_seed = wide ? std::vector<int>{4,5,6,7,8} : std::vector<int>{5,7};
+        const std::vector<int> melon_seed = wide ? std::vector<int>{4,5,8,10,12} : std::vector<int>{5,12};
+        const std::vector<int> wheat_buy = wide ? std::vector<int>{4,6,8,10} : std::vector<int>{6,8};
+        for(int fb=0;fb<2;++fb)for(int h:hires)for(int c:cows)for(int sh:sheep)for(int ws:wheat_seed)for(int ms:melon_seed)for(int wb:wheat_buy)for(int ot=0;ot<2;++ot){CandidateDesc d{};d.farmer_build=fb;d.hires=h;d.cows=c;d.sheep=sh;d.wheat_seed=ws;d.melon_seed=ms;d.wheat_buy=wb;d.order_template=ot;desc.push_back(d);first.push_back(make_first(d));}
+    }
+    const int nc=desc.size(),jobs=nc*seeds;std::cout<<"CANDIDATES "<<nc<<" configs="<<(configs_path.empty()?0:1)<<" permute_groups="<<permute_groups<<"\n";configure_device();TablesOwner tables;Config cfg;Action*df=nullptr,*dr=nullptr;GPRouteDesc*dd=nullptr;GPProgram*drouter=nullptr,*dbank=nullptr;Sim*ds=nullptr;double*drew=nullptr;
     KAGCUDA_CHECK(cudaMalloc((void**)&df,nc*sizeof(Action)));KAGCUDA_CHECK(cudaMalloc((void**)&dr,hr.size()*sizeof(Action)));KAGCUDA_CHECK(cudaMalloc((void**)&dd,hd.size()*sizeof(GPRouteDesc)));KAGCUDA_CHECK(cudaMalloc((void**)&drouter,sizeof(GPProgram)));KAGCUDA_CHECK(cudaMalloc((void**)&dbank,bank.size()*sizeof(GPProgram)));KAGCUDA_CHECK(cudaMalloc((void**)&ds,(size_t)jobs*sizeof(Sim)));KAGCUDA_CHECK(cudaMalloc((void**)&drew,(size_t)jobs*2*sizeof(double)));
     KAGCUDA_CHECK(cudaMemcpy(df,first.data(),nc*sizeof(Action),cudaMemcpyHostToDevice));KAGCUDA_CHECK(cudaMemcpy(dr,hr.data(),hr.size()*sizeof(Action),cudaMemcpyHostToDevice));KAGCUDA_CHECK(cudaMemcpy(dd,hd.data(),hd.size()*sizeof(GPRouteDesc),cudaMemcpyHostToDevice));KAGCUDA_CHECK(cudaMemcpy(drouter,&router,sizeof(router),cudaMemcpyHostToDevice));KAGCUDA_CHECK(cudaMemcpy(dbank,bank.data(),bank.size()*sizeof(GPProgram),cudaMemcpyHostToDevice));
     std::vector<Score> anti(nc),main(nc);std::vector<double>host((size_t)jobs*2);
@@ -90,7 +118,7 @@ int main(int argc,char**argv){
     std::vector<int>order(nc);for(int i=0;i<nc;++i)order[i]=i;
     for(int i=1;i<nc;++i){int x=order[i],j=i-1;while(j>=0){int y=order[j];double xaw=(double)anti[x].wins/anti[x].cases,xmw=(double)main[x].wins/main[x].cases,yaw=(double)anti[y].wins/anti[y].cases,ymw=(double)main[y].wins/main[y].cases;double xmin=xaw<xmw?xaw:xmw,ymin=yaw<ymw?yaw:ymw,xavg=(xaw+xmw)/2,yavg=(yaw+ymw)/2;double xs=anti[x].sum/anti[x].cases+main[x].sum/main[x].cases,ys=anti[y].sum/anti[y].cases+main[y].sum/main[y].cases;bool better=(xmin>ymin)||(xmin==ymin&&xavg>yavg)||(xmin==ymin&&xavg==yavg&&xs>ys);if(!better)break;order[j+1]=order[j];--j;}order[j+1]=x;}
     std::ostream*os=&std::cout;std::ofstream fout;if(!out_path.empty()){fout.open(out_path);if(!fout)throw std::runtime_error("cannot open out");os=&fout;}*os<<"rank,id,build,hires,cows,sheep,wseed,mseed,wbuy,order,anti_wins,anti_cases,anti_mean,anti_floor,main_wins,main_cases,main_mean,main_floor,min_wr,avg_wr\n";
-    for(int r=0;r<nc;++r){int i=order[r];auto&d=desc[i];double aw=(double)anti[i].wins/anti[i].cases,mw=(double)main[i].wins/main[i].cases;*os<<r<<','<<i<<','<<int(d.farmer_build)<<','<<int(d.hires)<<','<<int(d.cows)<<','<<int(d.sheep)<<','<<int(d.wheat_seed)<<','<<int(d.melon_seed)<<','<<int(d.wheat_buy)<<','<<int(d.order_template)<<','<<anti[i].wins<<','<<anti[i].cases<<','<<anti[i].sum/anti[i].cases<<','<<anti[i].floor<<','<<main[i].wins<<','<<main[i].cases<<','<<main[i].sum/main[i].cases<<','<<main[i].floor<<','<<(aw<mw?aw:mw)<<','<<(aw+mw)/2<<'\n';}
-    for(int r=0;r<(20<nc?20:nc);++r){int i=order[r];auto&d=desc[i];std::cout<<"TOP "<<r<<" id="<<i<<" build="<<int(d.farmer_build)<<" h="<<int(d.hires)<<" c="<<int(d.cows)<<" s="<<int(d.sheep)<<" ws="<<int(d.wheat_seed)<<" ms="<<int(d.melon_seed)<<" wb="<<int(d.wheat_buy)<<" ord="<<int(d.order_template)<<" anti="<<anti[i].wins<<'/'<<anti[i].cases<<" mean="<<anti[i].sum/anti[i].cases<<" main="<<main[i].wins<<'/'<<main[i].cases<<" mean="<<main[i].sum/main[i].cases<<" minwr="<<(((double)anti[i].wins/anti[i].cases)<((double)main[i].wins/main[i].cases)?((double)anti[i].wins/anti[i].cases):((double)main[i].wins/main[i].cases))<<"\n";}
+    for(int r=0;r<nc;++r){int i=order[r];auto&d=desc[i];double aw=(double)anti[i].wins/anti[i].cases,mw=(double)main[i].wins/main[i].cases;*os<<r<<','<<i<<','<<int(d.farmer_build)<<','<<int(d.hires)<<','<<int(d.cows)<<','<<int(d.sheep)<<','<<int(d.wheat_seed)<<','<<int(d.melon_seed)<<','<<int(d.wheat_buy)<<','<<group_text(d)<<','<<anti[i].wins<<','<<anti[i].cases<<','<<anti[i].sum/anti[i].cases<<','<<anti[i].floor<<','<<main[i].wins<<','<<main[i].cases<<','<<main[i].sum/main[i].cases<<','<<main[i].floor<<','<<(aw<mw?aw:mw)<<','<<(aw+mw)/2<<'\n';}
+    for(int r=0;r<(20<nc?20:nc);++r){int i=order[r];auto&d=desc[i];double aw=(double)anti[i].wins/anti[i].cases,mw=(double)main[i].wins/main[i].cases;std::cout<<"TOP "<<r<<" id="<<i<<" build="<<int(d.farmer_build)<<" h="<<int(d.hires)<<" c="<<int(d.cows)<<" s="<<int(d.sheep)<<" ws="<<int(d.wheat_seed)<<" ms="<<int(d.melon_seed)<<" wb="<<int(d.wheat_buy)<<" ord="<<group_text(d)<<" anti="<<anti[i].wins<<'/'<<anti[i].cases<<" mean="<<anti[i].sum/anti[i].cases<<" main="<<main[i].wins<<'/'<<main[i].cases<<" mean="<<main[i].sum/main[i].cases<<" minwr="<<(aw<mw?aw:mw)<<"\n";}
     cudaFree(df);cudaFree(dr);cudaFree(dd);cudaFree(drouter);cudaFree(dbank);cudaFree(ds);cudaFree(drew);return 0;
 }
