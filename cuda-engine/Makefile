@@ -8,7 +8,7 @@ NVCCFLAGS ?= -O3 -std=c++17 -arch=$(ARCH) -lineinfo --compiler-options=-O3,-Wall
 PTXAS ?= -Xptxas=-v
 BINS := $(BUILD_DIR)/validate $(BUILD_DIR)/bench $(BUILD_DIR)/price_probe
 
-.PHONY: all check validate-parity state-parity snapshot-parity price-parity policy-smoke bench branch-bench tape-bench tape-branch bonsai-search bonsai-eval-one bonsai-branch-cases hybrid-grid clean
+.PHONY: all check validate-parity state-parity snapshot-parity price-parity policy-smoke bench branch-bench tape-bench tape-branch bonsai-search bonsai-eval-one bonsai-branch-cases hybrid-grid clean opening-option-beam
 all: $(BINS)
 
 check: price-parity validate-parity state-parity snapshot-parity policy-smoke
@@ -59,6 +59,9 @@ $(BUILD_DIR)/wheat_timing_search: src/wheat_timing_search.cu include/tape_io.hpp
 	$(NVCC) $(NVCCFLAGS) $(PTXAS) $(INCLUDES) -o $@ $<
 
 $(BUILD_DIR)/turn0_option_search: src/turn0_option_search.cu include/bonsai_gp.cuh include/bonsai_io.hpp include/observation.cuh include/tape_io.hpp include/sim.cuh include/pyrandom.cuh include/runtime.cuh | $(BUILD_DIR)
+	$(NVCC) $(NVCCFLAGS) $(PTXAS) $(INCLUDES) -o $@ $<
+
+$(BUILD_DIR)/opening_option_beam: src/opening_option_beam.cu include/bonsai_gp.cuh include/observation.cuh include/tape_io.hpp include/sim.cuh include/pyrandom.cuh include/runtime.cuh | $(BUILD_DIR)
 	$(NVCC) $(NVCCFLAGS) $(PTXAS) $(INCLUDES) -o $@ $<
 
 $(BUILD_DIR)/bonsai_branch_cases: src/bonsai_branch_cases.cu include/bonsai_gp.cuh include/observation.cuh include/tape_io.hpp include/sim.cuh include/pyrandom.cuh include/runtime.cuh | $(BUILD_DIR)
@@ -117,6 +120,9 @@ wheat-timing-search: $(BUILD_DIR)/wheat_timing_search
 
 turn0-option-search: $(BUILD_DIR)/turn0_option_search
 	@echo "usage: $(BUILD_DIR)/turn0_option_search --routes LIST --router FILE.bin --program FILE.bin ... --main-opponents csv --anti-opponents csv"
+
+opening-option-beam: $(BUILD_DIR)/opening_option_beam
+	@echo "usage: $(BUILD_DIR)/opening_option_beam --routes LIST --root-ids csv --donor-routes csv --anti-opponents csv --main-opponents csv [options]"
 
 bonsai-branch-cases: $(BUILD_DIR)/bonsai_branch_cases
 	@echo "usage: $(BUILD_DIR)/bonsai_branch_cases --routes LIST --prefix FILE.bin --expert FILE.bin --branch-step N --out CSV"
