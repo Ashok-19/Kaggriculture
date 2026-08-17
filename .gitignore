@@ -20,3 +20,4 @@ continue_prompt.md
 public-notebooks/
 .chatgpt/
 our-own-older-agents/*.tar.gz
+kaggle-environments-master/

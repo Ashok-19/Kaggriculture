@@ -1,0 +1,126 @@
+{
+  "bb_slots": {
+    "leaf": 0,
+    "route": 1,
+    "stage144_done": 2,
+    "stage216_done": 3
+  },
+  "combined_agent_identity": "3e7f3a5c2592d0bdbc8344a891a8f2ca3a9000354b6945851788976fd2aed878",
+  "controller_compiled_bytes": 5484,
+  "controller_nodes": 99,
+  "controller_semantic_hash": "f95f1c2966cb0b32809e755936c4804fc302ccb8fcc348200784a607af4fa714",
+  "controller_state_slots": 48,
+  "leaf_enum": {
+    "A1": 0,
+    "A2": 1,
+    "B": 2,
+    "C1": 3,
+    "C2": 4,
+    "D1": 5,
+    "D2": 6,
+    "E": 7,
+    "F": 8,
+    "G": 9,
+    "H": 10,
+    "I": 11,
+    "J1": 12,
+    "J2": 13,
+    "K": 14,
+    "NONE": 255
+  },
+  "old_cuda": "scratch/bonsai_next/v6_cuda_eval.cu",
+  "old_cuda_sha256": "b34fdafe715772792b472dd4033760df9606326bbc97ebb776df0db9f9f1a770",
+  "oracle_python": "scratch/bonsai_cpu/stateful_core_v6/main.py",
+  "oracle_python_sha256": "a52dc608f2511224199d831a6a8f1c0de178724159d4f5538be1ab92dd32d54a",
+  "route_pack": {
+    "action_record_bytes": 94,
+    "action_records": 7909,
+    "format": "BKV6RP1",
+    "pack_sha256": "984320371f5b25da786ca4e791b0f159c2363a44bbf09681f1d8548181572837",
+    "payload_sha256": "f607b43ad8ec59781c32db5ef6b44345603fc4614d1de832d31afbf9ff71a87f",
+    "route_count": 11,
+    "route_ids": [
+      29,
+      64,
+      32,
+      79,
+      46,
+      63,
+      22,
+      34,
+      77,
+      70,
+      23
+    ],
+    "source_files": [
+      {
+        "actions": 719,
+        "file": "route29.json",
+        "route_id": 29,
+        "sha256": "45d9ae91579d3efe3a0593758c5dfcfe03f6f17b9bbb0fedceb3cc81f1eea538"
+      },
+      {
+        "actions": 719,
+        "file": "route64.json",
+        "route_id": 64,
+        "sha256": "3c812050d2125be8e9cc675ff35103310cde12cc70b69cc0a3ef28f878411a71"
+      },
+      {
+        "actions": 719,
+        "file": "route32.json",
+        "route_id": 32,
+        "sha256": "03bd60917c6076061c0c6d6433216109a3db9a9ff574bd7bc1cf3e0b9229d525"
+      },
+      {
+        "actions": 719,
+        "file": "route79.json",
+        "route_id": 79,
+        "sha256": "3060a041d65ebe7c89c0deae70819037c6bee4456e756da286944466ca61f138"
+      },
+      {
+        "actions": 719,
+        "file": "route46.json",
+        "route_id": 46,
+        "sha256": "f96ca07c81babf9d80cfde1f39f1df64d378abc96c75cc034a107f5a0e8f5224"
+      },
+      {
+        "actions": 719,
+        "file": "route63.json",
+        "route_id": 63,
+        "sha256": "dac215ec224bf409d12098f0130978df80adbc39850c2ff55416a1592c00dd98"
+      },
+      {
+        "actions": 719,
+        "file": "route22.json",
+        "route_id": 22,
+        "sha256": "45b814f9874fe290a3cf79b58d95bc47f82488c3d1c0da9f3b3cb86686bb1a10"
+      },
+      {
+        "actions": 719,
+        "file": "route34.json",
+        "route_id": 34,
+        "sha256": "6208bc0f0d631c7fcbf6727e2540405c389564085ac46c870a3df1ad094d466a"
+      },
+      {
+        "actions": 719,
+        "file": "route77.json",
+        "route_id": 77,
+        "sha256": "055d453e978da3768c303fad4b383d4a768185b598a2ccc3a572a65e54cd0ec7"
+      },
+      {
+        "actions": 719,
+        "file": "route70.json",
+        "route_id": 70,
+        "sha256": "20e914487f22ab84465c1b99c9f3812f75bc792dbb8f63da1c8a85b51383bc6c"
+      },
+      {
+        "actions": 719,
+        "file": "route23.json",
+        "route_id": 23,
+        "sha256": "0cbc0cf59ebeccdc6d9493e9a651c1898336b2c2a56359deb5334a6e3e08a643"
+      }
+    ],
+    "version": 1
+  },
+  "schema": 1
+}

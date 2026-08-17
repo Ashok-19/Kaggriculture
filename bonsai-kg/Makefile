@@ -4,8 +4,11 @@ CXX ?= g++
 NVCC ?= nvcc
 CXXFLAGS := -std=c++17 -O2 -Wall -Wextra -pedantic
 NVFLAGS := -O3 -std=c++17 -arch=sm_86 --compiler-options=-O3,-Wall
+V6BUILD := $(ROOT)/scratch/bonsai_kg_v6_translation
+V6INT := integrations/stateful_v6
+V6ASSETS := $(V6INT)/assets
 
-.PHONY: all build test python-test schema-test binary-validation differential game-parity feature-parity bench clean-build
+.PHONY: all build test python-test schema-test binary-validation differential game-parity feature-parity bench clean-build v6-assets v6-build v6-test v6-canary v6-official-canary
 
 all: build
 
@@ -81,6 +84,40 @@ bench: $(BUILD)/size_report $(BUILD)/benchmark $(BUILD)/cuda_policy_smoke
 	$(BUILD)/size_report
 	$(BUILD)/benchmark 5000000 65536 64
 	$(BUILD)/cuda_policy_smoke 4096 96
+
+v6-assets:
+	python3 $(V6INT)/build_assets.py
+
+$(V6BUILD):
+	mkdir -p $(V6BUILD)
+
+$(V6BUILD)/stateful_v6_pack_cpp: tests/stateful_v6_pack_cpp.cpp $(V6INT)/cpp_runtime.hpp $(V6INT)/route_pack.hpp $(V6ASSETS)/identity.hpp | $(V6BUILD)
+	$(CXX) $(CXXFLAGS) $< -o $@
+
+$(V6BUILD)/stateful_v6_pack_cuda: tests/stateful_v6_pack_cuda.cu $(V6INT)/cuda_runtime.cuh $(V6INT)/route_pack.hpp $(V6ASSETS)/identity.hpp | $(V6BUILD)
+	$(NVCC) $(NVFLAGS) $< -o $@
+
+$(V6BUILD)/stateful_v6_game_cpp: tests/stateful_v6_game_cpp.cpp $(V6INT)/cpp_runtime.hpp $(V6INT)/route_pack.hpp $(V6ASSETS)/identity.hpp | $(V6BUILD)
+	$(CXX) $(CXXFLAGS) $< -o $@
+
+$(V6BUILD)/stateful_v6_game_cuda: tests/stateful_v6_game_cuda.cu $(V6INT)/cuda_runtime.cuh $(V6INT)/route_pack.hpp $(V6ASSETS)/identity.hpp | $(V6BUILD)
+	$(NVCC) $(NVFLAGS) $< -o $@
+
+$(V6BUILD)/stateful_v6_observation_cpp: tests/stateful_v6_observation_cpp.cpp $(V6INT)/cpp_runtime.hpp $(V6INT)/route_pack.hpp $(V6ASSETS)/identity.hpp | $(V6BUILD)
+	$(CXX) $(CXXFLAGS) $< -o $@
+
+v6-build: v6-assets $(BUILD)/cpp_differential_runner $(BUILD)/cuda_differential_runner $(V6BUILD)/stateful_v6_pack_cpp $(V6BUILD)/stateful_v6_pack_cuda $(V6BUILD)/stateful_v6_game_cpp $(V6BUILD)/stateful_v6_game_cuda $(V6BUILD)/stateful_v6_observation_cpp
+
+v6-test: v6-build
+	python3 -m unittest -v tests/test_stateful_v6_translation.py
+	python3 tests/stateful_v6_controller_parity.py
+	python3 tests/stateful_v6_pack_parity.py
+
+v6-canary: v6-build
+	python3 tests/stateful_v6_translation_parity.py --games-per-seat 32 --steps 720
+
+v6-official-canary: v6-build
+	uv run --with kaggle-environments==1.32.7 python tests/stateful_v6_game_parity.py --games-per-seat 32 --steps 720
 
 clean-build:
 	rm -rf $(BUILD)
