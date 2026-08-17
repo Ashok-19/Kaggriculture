@@ -1,98 +1,168 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://recur-sion.local/bonsai-kg/policy-v1.schema.json",
-  "title": "Bonsai-KG Policy v1",
+  "$id": "https://recur-sion.local/bonsai-kg/policy-v2.schema.json",
+  "title": "Bonsai-KG Policy v2",
+  "description": "Structural authoring schema. python/bonsai_kg.py is the authoritative semantic/type/limit validator.",
   "type": "object",
   "required": ["schema_version", "tree"],
   "additionalProperties": false,
   "properties": {
-    "schema_version": {"const": 1},
+    "schema_version": {"const": 2},
     "name": {"type": "string"},
-    "canonical_policy_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "semantic_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
     "blackboard": {
       "type": "array",
       "maxItems": 32,
-      "items": {
-        "type": "object",
-        "required": ["name", "type"],
-        "additionalProperties": false,
-        "properties": {
-          "name": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]*$"},
-          "type": {"enum": ["BOOL", "I32", "U16", "ENUM8", "TILE", "UNIT"]},
-          "initial": {"type": "integer"}
-        }
-      }
+      "items": {"$ref": "#/$defs/blackboard_decl"}
+    },
+    "subtrees": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/subtree_def"}
     },
     "tree": {"$ref": "#/$defs/node"}
   },
   "$defs": {
-    "lhs": {
+    "blackboard_decl": {
+      "type": "object",
+      "required": ["name", "type"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]*$"},
+        "type": {"enum": ["BOOL", "I32", "U16", "ENUM8", "TILE", "UNIT"]},
+        "initial": {"type": "integer", "minimum": -2147483648, "maximum": 2147483647}
+      }
+    },
+    "portable_type": {"enum": ["I32", "TILE", "UNIT"]},
+    "value_ref": {
       "oneOf": [
-        {"type": "object", "required": ["feature"], "additionalProperties": false,
-         "properties": {"feature": {"type": "string"}, "arg": {"type": "integer"}}},
-        {"type": "object", "required": ["blackboard"], "additionalProperties": false,
-         "properties": {"blackboard": {"type": "string"}}}
+        {"type": "integer", "minimum": -2147483648, "maximum": 2147483647},
+        {
+          "type": "object",
+          "required": ["const"],
+          "additionalProperties": false,
+          "properties": {
+            "const": {"type": "integer", "minimum": -2147483648, "maximum": 2147483647},
+            "type": {"$ref": "#/$defs/portable_type"}
+          }
+        },
+        {
+          "type": "object",
+          "required": ["blackboard"],
+          "additionalProperties": false,
+          "properties": {"blackboard": {"type": "string"}}
+        },
+        {
+          "type": "object",
+          "required": ["feature"],
+          "additionalProperties": false,
+          "properties": {
+            "feature": {"type": "string"},
+            "arg": {"type": "integer", "minimum": -2147483648, "maximum": 2147483647}
+          }
+        },
+        {
+          "type": "object",
+          "required": ["binding"],
+          "additionalProperties": false,
+          "properties": {"binding": {"type": "string"}}
+        }
       ]
     },
     "predicate": {
-      "type": "object", "required": ["lhs", "op", "rhs"], "additionalProperties": false,
+      "type": "object",
+      "required": ["lhs", "op", "rhs"],
+      "additionalProperties": false,
       "properties": {
-        "lhs": {"$ref": "#/$defs/lhs"},
+        "lhs": {"$ref": "#/$defs/value_ref"},
         "op": {"enum": ["EQ", "NE", "LT", "LE", "GT", "GE"]},
-        "rhs": {"type": "integer"}
+        "rhs": {"$ref": "#/$defs/value_ref"}
       }
     },
     "effect": {
-      "type": "object", "required": ["op", "slot"], "additionalProperties": false,
+      "type": "object",
+      "required": ["op", "slot"],
+      "additionalProperties": false,
       "properties": {
         "op": {"enum": ["set", "clear", "add"]},
         "slot": {"type": "string"},
-        "value": {"type": "integer"}
+        "value": {"$ref": "#/$defs/value_ref"}
       }
     },
+    "effect_list": {
+      "type": "array",
+      "maxItems": 128,
+      "items": {"$ref": "#/$defs/effect"}
+    },
     "lifecycle": {
-      "type": "object", "additionalProperties": false,
+      "type": "object",
+      "additionalProperties": false,
       "properties": {
         "failure_if": {"$ref": "#/$defs/predicate"},
         "success_if": {"$ref": "#/$defs/predicate"},
         "skip_if": {"$ref": "#/$defs/predicate"},
         "while": {"$ref": "#/$defs/predicate"},
-        "on_success": {"type": "array", "items": {"$ref": "#/$defs/effect"}},
-        "on_failure": {"type": "array", "items": {"$ref": "#/$defs/effect"}},
-        "on_halted": {"type": "array", "items": {"$ref": "#/$defs/effect"}},
-        "post": {"type": "array", "items": {"$ref": "#/$defs/effect"}}
+        "on_success": {"$ref": "#/$defs/effect_list"},
+        "on_failure": {"$ref": "#/$defs/effect_list"},
+        "on_halted": {"$ref": "#/$defs/effect_list"},
+        "post": {"$ref": "#/$defs/effect_list"}
+      }
+    },
+    "subtree_def": {
+      "type": "object",
+      "required": ["name", "parameters", "tree"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {"type": "string"},
+        "parameters": {
+          "type": "object",
+          "additionalProperties": {"$ref": "#/$defs/portable_type"}
+        },
+        "tree": {"$ref": "#/$defs/node"}
       }
     },
     "node": {
       "type": "object",
       "required": ["type"],
+      "additionalProperties": false,
       "properties": {
-        "type": {"type": "string"},
+        "type": {
+          "enum": [
+            "Sequence", "Selector", "ReactiveSequence", "ReactiveSelector", "If", "Parallel",
+            "Invert", "ForceSuccess", "ForceFailure", "TurnTimeout", "Retry", "Repeat",
+            "KeepRunningUntilFailure", "Success", "Failure", "Condition", "SetBlackboard",
+            "AddBlackboard", "EmitUnitIntent", "EmitMarketIntent", "WaitTurns", "MoveUnitTo", "Subtree"
+          ]
+        },
         "name": {"type": "string"},
-        "children": {"type": "array", "items": {"$ref": "#/$defs/node"}},
+        "lifecycle": {"$ref": "#/$defs/lifecycle"},
+        "children": {"type": "array", "minItems": 1, "maxItems": 128, "items": {"$ref": "#/$defs/node"}},
         "child": {"$ref": "#/$defs/node"},
         "condition": {"$ref": "#/$defs/node"},
         "then": {"$ref": "#/$defs/node"},
         "else": {"$ref": "#/$defs/node"},
-        "lifecycle": {"$ref": "#/$defs/lifecycle"},
-        "lhs": {"$ref": "#/$defs/lhs"},
+        "lhs": {"$ref": "#/$defs/value_ref"},
         "op": {"type": "string"},
-        "rhs": {"type": "integer"},
+        "rhs": {"$ref": "#/$defs/value_ref"},
         "slot": {"type": "string"},
-        "value": {"type": "integer"},
+        "value": {"$ref": "#/$defs/value_ref"},
         "n": {"type": "integer"},
         "turns": {"type": "integer"},
         "success_threshold": {"type": "integer"},
         "failure_threshold": {"type": "integer"},
-        "unit": {"type": "integer"},
+        "unit": {"$ref": "#/$defs/value_ref"},
+        "target": {"$ref": "#/$defs/value_ref"},
         "x": {"type": "integer"},
         "y": {"type": "integer"},
         "priority": {"type": "integer"},
         "action": {"type": "string"},
         "item": {"type": ["string", "integer"]},
-        "quantity": {"type": "integer"}
-      },
-      "additionalProperties": false
+        "quantity": {"type": "integer"},
+        "subtree": {"type": "string"},
+        "bindings": {
+          "type": "object",
+          "additionalProperties": {"$ref": "#/$defs/value_ref"}
+        }
+      }
     }
   }
 }

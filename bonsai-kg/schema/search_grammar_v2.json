@@ -1,0 +1,39 @@
+{
+  "grammar_version": 2,
+  "compiled_abi_version": 2,
+  "policy_schema_version": 2,
+  "required_board_size": 10,
+  "limits": {
+    "max_nodes": 128,
+    "max_depth": 24,
+    "max_child_references": 256,
+    "max_blackboard_slots": 32,
+    "max_state_slots": 48,
+    "max_value_refs": 256,
+    "max_parallel_children": 16,
+    "max_deferred_intents": 128
+  },
+  "enabled_node_types": [
+    "Sequence", "Selector", "ReactiveSequence", "ReactiveSelector", "If",
+    "Invert", "ForceSuccess", "ForceFailure",
+    "Success", "Failure", "Condition", "SetBlackboard", "AddBlackboard",
+    "EmitUnitIntent", "EmitMarketIntent", "WaitTurns", "MoveUnitTo"
+  ],
+  "authoring_seed_constructs": ["Subtree"],
+  "vm_supported_but_disabled_for_blind_mutation": [
+    "Parallel", "TurnTimeout", "Retry", "Repeat", "KeepRunningUntilFailure"
+  ],
+  "value_ref_sources": ["CONST", "BB", "LEGAL_FEATURE"],
+  "value_ref_types": ["I32", "TILE", "UNIT"],
+  "parameter_bounds": {
+    "priority": [0, 255],
+    "wait_timeout_turns": [1, 720],
+    "retry_repeat_n": [1, 255],
+    "parallel_children": [2, 16]
+  },
+  "notes": [
+    "Subtree is expanded before runtime IR and is not a VM opcode.",
+    "Instant EmitUnitIntent/EmitMarketIntent operands remain compile-time constants in ABI v2.",
+    "Parallel and bounded-loop nodes require seeded/hand-authored evidence before enabling blind evolution."
+  ]
+}

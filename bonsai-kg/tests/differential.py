@@ -18,10 +18,12 @@ BB = [
     {"name":"counter","type":"I32","initial":0},
     {"name":"flag","type":"BOOL","initial":0},
     {"name":"quota","type":"U16","initial":3},
+    {"name":"unit","type":"UNIT","initial":0},
+    {"name":"target","type":"TILE","initial":45},
 ]
 
 
-def P(tree, bb=BB): return {"schema_version":1,"blackboard":bb,"tree":tree}
+def P(tree, bb=BB): return {"schema_version":2,"blackboard":bb,"tree":tree}
 
 def cond(feature="STEP", op="GE", rhs=1, arg=None):
     lhs={"feature":feature}
@@ -57,6 +59,16 @@ def coverage_policies():
         P({"type":"WaitTurns","turns":9,"lifecycle":{"failure_if":{"lhs":{"feature":"STEP"},"op":"EQ","rhs":8},"success_if":{"lhs":{"feature":"STEP"},"op":"EQ","rhs":9},"skip_if":{"lhs":{"feature":"STEP"},"op":"EQ","rhs":10},"while":{"lhs":{"feature":"STEP"},"op":"LT","rhs":4},"on_success":[{"op":"set","slot":"counter","value":1}],"on_failure":[{"op":"set","slot":"counter","value":2}],"on_halted":[{"op":"clear","slot":"counter"}],"post":[{"op":"add","slot":"counter","value":1}]}}),
         P({"type":"Sequence","children":[{"type":"EmitMarketIntent","action":"SELL","item":"WHEAT","quantity":i+1,"priority":i} for i in range(20)]}),
         P({"type":"Parallel","success_threshold":3,"failure_threshold":3,"children":[{"type":"EmitMarketIntent","action":"HIRE","priority":10},{"type":"EmitMarketIntent","action":"BUY_LAND","priority":30},{"type":"EmitMarketIntent","action":"HIRE","priority":20}]}),
+        P({"type":"SetBlackboard","slot":"counter","value":{"feature":"STEP"}}),
+        P({"type":"AddBlackboard","slot":"counter","value":{"feature":"HOUR"}}),
+        P({"type":"MoveUnitTo","unit":{"blackboard":"unit"},"target":{"blackboard":"target"},"priority":11}),
+        P({"type":"MoveUnitTo","unit":{"const":0,"type":"UNIT"},"target":{"feature":"OPP_WORKER_TILE","arg":0},"priority":12}),
+        P({"type":"Selector","children":[{"type":"Sequence","children":[{"type":"EmitMarketIntent","action":"HIRE","priority":200},{"type":"Failure"}]},{"type":"EmitMarketIntent","action":"BUY_LAND","priority":1}]}),
+        P({"type":"Selector","children":[{"type":"Sequence","children":[{"type":"EmitUnitIntent","unit":0,"action":"NORTH","priority":200},{"type":"Failure"}]},{"type":"EmitUnitIntent","unit":0,"action":"SOUTH","priority":1}]}),
+        P({"type":"Parallel","success_threshold":2,"failure_threshold":1,"children":[{"type":"Sequence","children":[{"type":"EmitMarketIntent","action":"HIRE","priority":99},{"type":"WaitTurns","turns":5}]},{"type":"Failure"}]}),
+        P({"type":"Sequence","children":[{"type":"Success","lifecycle":{"on_success":[{"op":"add","slot":"counter","value":1}]}},{"type":"SetBlackboard","slot":"flag","value":1}]},
+          [{"name":"counter","type":"I32","initial":2147483647},{"name":"flag","type":"BOOL","initial":0}]),
+        P({"type":"Success","lifecycle":{"on_success":[{"op":"set","slot":"counter","value":{"feature":"STEP"}}]}}),
     ]
 
 
@@ -88,6 +100,24 @@ def random_pred(r):
     return {"lhs":lhs,"op":r.choice(list(bkg.CMP)),"rhs":r.randint(-5,12000)}
 
 
+def random_i32_ref(r):
+    x=r.random()
+    if x<0.45:return r.randint(-5,20)
+    if x<0.65:return {"blackboard":r.choice(["counter","flag","quota"])}
+    return {"feature":r.choice(["STEP","DAY","HOUR","OWN_MONEY","OPP_MONEY","OWN_HIRES_TODAY","OPP_HIRES_TODAY"])}
+
+
+def random_unit_ref(r):
+    return {"blackboard":"unit"} if r.random()<0.45 else {"const":r.randrange(2),"type":"UNIT"}
+
+
+def random_tile_ref(r):
+    x=r.random()
+    if x<0.35:return {"blackboard":"target"}
+    if x<0.70:return {"const":r.randrange(100),"type":"TILE"}
+    return {"feature":r.choice(["OWN_WORKER_TILE","OPP_WORKER_TILE"]),"arg":r.randrange(2)}
+
+
 def maybe_lifecycle(r,node):
     if r.random()>=0.18:return node
     lc={}
@@ -96,9 +126,9 @@ def maybe_lifecycle(r,node):
     if r.random()<0.15: lc["success_if"]={"lhs":{"feature":"STEP"},"op":"EQ","rhs":r.randint(0,11)}
     if r.random()<0.15: lc["skip_if"]={"lhs":{"feature":"STEP"},"op":"EQ","rhs":r.randint(0,11)}
     if r.random()<0.5: lc["on_halted"]=[{"op":"clear","slot":"counter"}]
-    if r.random()<0.25: lc["on_success"]=[{"op":"add","slot":"counter","value":1}]
+    if r.random()<0.25: lc["on_success"]=[{"op":"add","slot":"counter","value":random_i32_ref(r)}]
     if r.random()<0.25: lc["on_failure"]=[{"op":"set","slot":"flag","value":1}]
-    if r.random()<0.25: lc["post"]=[{"op":"add","slot":"counter","value":1}]
+    if r.random()<0.25: lc["post"]=[{"op":"add","slot":"counter","value":random_i32_ref(r)}]
     if lc: node["lifecycle"]=lc
     return node
 
@@ -109,8 +139,8 @@ def gen_leaf(r):
     elif t=="Condition":
         pr=random_pred(r);node={"type":"Condition",**pr}
     elif t=="SetBlackboard":
-        slot=r.choice(["counter","flag","quota"]);value=r.randint(-5,20) if slot=="counter" else r.randint(0,1) if slot=="flag" else r.randint(0,20);node={"type":t,"slot":slot,"value":value}
-    elif t=="AddBlackboard":node={"type":t,"slot":"counter","value":r.randint(-3,4)}
+        slot=r.choice(["counter","flag","quota"]);value=random_i32_ref(r) if slot=="counter" else r.randint(0,1) if slot=="flag" else r.randint(0,20);node={"type":t,"slot":slot,"value":value}
+    elif t=="AddBlackboard":node={"type":t,"slot":"counter","value":random_i32_ref(r)}
     elif t=="EmitUnitIntent":node={"type":t,"unit":0,"action":r.choice(["NORTH","SOUTH","EAST","WEST","WATER","HARVEST","DIG"]),"priority":r.randrange(256)}
     elif t=="EmitMarketIntent":
         action=r.choice(["HIRE","BUY_LAND","BUY_SEED","BUY_PRODUCT","BUY_ANIMAL","SELL"]);node={"type":t,"action":action,"priority":r.randrange(256)}
@@ -119,20 +149,20 @@ def gen_leaf(r):
         elif action=="BUY_ANIMAL":node.update(item=r.choice(["GOOSE","COW","SHEEP"]),quantity=r.randint(1,2))
         elif action=="SELL":node.update(item=r.choice(bkg.ITEMS[:9]),quantity=r.randint(1,5))
     elif t=="WaitTurns":node={"type":t,"turns":r.randint(1,6)}
-    else:node={"type":t,"unit":0,"x":r.randrange(10),"y":r.randrange(10),"priority":r.randrange(256)}
+    else:node={"type":t,"unit":random_unit_ref(r),"target":random_tile_ref(r),"priority":r.randrange(256)}
     return maybe_lifecycle(r,node)
 
 
-def gen_node(r,depth=0):
-    if depth>=3 or r.random()<0.48:return gen_leaf(r)
+def gen_node(r,depth=0,max_depth=5):
+    if depth>=max_depth or r.random()<(0.40 if depth<3 else 0.58):return gen_leaf(r)
     if r.random()<0.62:
         t=r.choice(COMPOSITES)
-        if t=="If":node={"type":t,"condition":gen_node(r,depth+1),"then":gen_node(r,depth+1),"else":gen_node(r,depth+1)}
+        if t=="If":node={"type":t,"condition":gen_node(r,depth+1,max_depth),"then":gen_node(r,depth+1,max_depth),"else":gen_node(r,depth+1,max_depth)}
         else:
-            n=r.randint(2,4);node={"type":t,"children":[gen_node(r,depth+1) for _ in range(n)]}
+            n=r.randint(2,4);node={"type":t,"children":[gen_node(r,depth+1,max_depth) for _ in range(n)]}
             if t=="Parallel":node.update(success_threshold=r.randint(1,n),failure_threshold=r.randint(1,n))
     else:
-        t=r.choice(DECORATORS);node={"type":t,"child":gen_node(r,depth+1)}
+        t=r.choice(DECORATORS);node={"type":t,"child":gen_node(r,depth+1,max_depth)}
         if t=="TurnTimeout":node["turns"]=r.randint(1,6)
         elif t in ("Retry","Repeat"):node["n"]=r.randint(1,5)
     return maybe_lifecycle(r,node)
@@ -143,15 +173,16 @@ def frame_values(r,t):
           (bkg.FEATURES["OWN_MONEY"],0):r.randint(0,20000),(bkg.FEATURES["OPP_MONEY"],0):r.randint(0,20000),
           (bkg.FEATURES["OWN_UNITS"],0):r.randint(1,4),(bkg.FEATURES["OPP_UNITS"],0):r.randint(1,4),
           (bkg.FEATURES["OWN_LAND"],0):r.randint(1,4),(bkg.FEATURES["OPP_LAND"],0):r.randint(1,4),
-          (bkg.FEATURES["OWN_HIRES_TODAY"],0):r.randint(0,6),(bkg.FEATURES["OWN_SHED_TOTAL"],0):r.randint(0,100),
+          (bkg.FEATURES["OWN_HIRES_TODAY"],0):r.randint(0,6),(bkg.FEATURES["OPP_HIRES_TODAY"],0):r.randint(0,6),(bkg.FEATURES["OWN_SHED_TOTAL"],0):r.randint(0,100),
           (bkg.FEATURES["SHOP_COUNT"],0):r.randint(0,8)}
     for i in range(9): vals[(bkg.FEATURES["MARKET_PRICE"],i)]=r.randint(1,500);vals[(bkg.FEATURES["MARKET_INVENTORY"],i)]=r.randint(9000,11000)
     for i in range(12): vals[(bkg.FEATURES["OWN_SHED"],i)]=r.randint(0,30)
     for i in range(5): vals[(bkg.FEATURES["OWN_SEED"],i)]=r.randint(0,20)
     for i in range(8): vals[(bkg.FEATURES["SHOP_AT"],i)]=r.randint(-1,7);vals[(bkg.FEATURES["SHOP_SEEN"],i)]=r.randint(0,3)
     for u in range(4):
-        vals[(bkg.FEATURES["OWN_WORKER_X"],u)]=r.randrange(10);vals[(bkg.FEATURES["OWN_WORKER_Y"],u)]=r.randrange(10)
-        vals[(bkg.FEATURES["OPP_WORKER_X"],u)]=r.randrange(10);vals[(bkg.FEATURES["OPP_WORKER_Y"],u)]=r.randrange(10)
+        ox,oy,px,py=r.randrange(10),r.randrange(10),r.randrange(10),r.randrange(10)
+        vals[(bkg.FEATURES["OWN_WORKER_X"],u)]=ox;vals[(bkg.FEATURES["OWN_WORKER_Y"],u)]=oy;vals[(bkg.FEATURES["OWN_WORKER_TILE"],u)]=oy*10+ox
+        vals[(bkg.FEATURES["OPP_WORKER_X"],u)]=px;vals[(bkg.FEATURES["OPP_WORKER_Y"],u)]=py;vals[(bkg.FEATURES["OPP_WORKER_TILE"],u)]=py*10+px
     return vals
 
 
@@ -181,6 +212,14 @@ def node_counts(obj,counter):
         if k in obj:node_counts(obj[k],counter)
 
 
+def tree_depth(obj):
+    if not isinstance(obj,dict):return 0
+    kids=list(obj.get("children",[]) or [])
+    for k in ("child","condition","then","else"):
+        if k in obj:kids.append(obj[k])
+    return 1+max((tree_depth(x) for x in kids),default=0)
+
+
 def run(args):
     scratch=(ROOT/args.scratch).resolve();
     if scratch.exists():shutil.rmtree(scratch)
@@ -188,16 +227,17 @@ def run(args):
     rng=random.Random(args.seed);policies=coverage_policies();attempts=0
     while len(policies)<args.cases:
         attempts+=1
-        candidate=P(gen_node(rng))
+        candidate=P(gen_node(rng,max_depth=rng.choice([4,5,6,8])))
         try:
             cp=bkg.compile_policy(candidate)
-            if len(cp.nodes)<=48 and cp.state_count<=32:policies.append(candidate)
+            if len(cp.nodes)<=96 and cp.state_count<=48:policies.append(candidate)
         except bkg.PolicyError:pass
         if attempts>args.cases*100:raise RuntimeError("failed to generate enough valid random policies")
     policies=policies[:args.cases]
-    manifest=[];expected=[];coverage=Counter();total_nodes=0;max_nodes=0;max_state=0;compiled_bytes=0
+    manifest=[];expected=[];coverage=Counter();value_kinds=Counter();value_types=Counter();total_nodes=0;max_nodes=0;max_state=0;max_depth=0;total_lifecycles=0;compiled_bytes=0
     for ci,p in enumerate(policies):
-        cp=bkg.compile_policy(p);node_counts(p["tree"],coverage);total_nodes+=len(cp.nodes);max_nodes=max(max_nodes,len(cp.nodes));max_state=max(max_state,cp.state_count);compiled_bytes+=cp.compiled_bytes
+        cp=bkg.compile_policy(p);node_counts(p["tree"],coverage);total_nodes+=len(cp.nodes);max_nodes=max(max_nodes,len(cp.nodes));max_state=max(max_state,cp.state_count);max_depth=max(max_depth,tree_depth(p["tree"]));total_lifecycles+=len(cp.lifecycles);compiled_bytes+=cp.compiled_bytes
+        for v in cp.values:value_kinds[{0:"CONST",1:"BB",2:"LEGAL_FEATURE"}[v.kind]]+=1;value_types[bkg.BB_NAMES[v.type]]+=1
         ppath=scratch/f"case_{ci:04d}.bkgc";spath=scratch/f"case_{ci:04d}.bks";bkg.save_compiled(cp,ppath)
         frames=[frame_values(rng,t) for t in range(args.ticks)];write_seq(spath,frames);manifest.append((ppath,spath))
         vm=bkg.VM(cp)
@@ -219,7 +259,8 @@ def run(args):
                 if len(mismatches)>=10:break
     summary={"seed":args.seed,"policies":len(policies),"ticks_per_policy":args.ticks,"tick_records":len(expected),
              "pairwise_engine_comparisons":len(expected)*2,"mismatches":len(mismatches),"generator_attempts":attempts,
-             "total_nodes":total_nodes,"max_nodes":max_nodes,"max_state_slots":max_state,"mean_compiled_bytes":compiled_bytes/len(policies),
+             "total_nodes":total_nodes,"max_nodes":max_nodes,"max_state_slots":max_state,"max_tree_depth":max_depth,"total_lifecycles":total_lifecycles,"mean_compiled_bytes":compiled_bytes/len(policies),
+             "value_kind_coverage":dict(sorted(value_kinds.items())),"value_type_coverage":dict(sorted(value_types.items())),"targeted_v2_seed_policies":9,
              "node_type_coverage":dict(sorted(coverage.items()))}
     print(json.dumps(summary,sort_keys=True))
     for m in mismatches[:5]:print("MISMATCH",repr(m))

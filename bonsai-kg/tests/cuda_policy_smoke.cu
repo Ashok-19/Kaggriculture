@@ -44,6 +44,7 @@ int main(int argc,char**argv){
     configure_device();TablesOwner tables;const int n_envs=argc>1?std::atoi(argv[1]):4096;const int steps=argc>2?std::atoi(argv[2]):96;
     Node hnode{};hnode.type=N_SUCCESS;hnode.state_slot=NONE_U16;hnode.lifecycle_slot=NONE_U16;Node*dnode=nullptr;KAGCUDA_CHECK(cudaMalloc((void**)&dnode,sizeof(Node)));KAGCUDA_CHECK(cudaMemcpy(dnode,&hnode,sizeof(Node),cudaMemcpyHostToDevice));
     PolicyView p{};p.nodes=dnode;p.root=0;p.n_nodes=1;p.instruction_budget=64;CudaPolicy policy{p,10};Config cfg;cfg.seed=1000;cfg.episode_steps=steps;
+    if(cfg.board_size!=BOARD_SIZE){std::fprintf(stderr,"Bonsai-KG requires boardSize=10\n");return 2;}
     const double pass_ms=run_pass(cfg,tables.dev,n_envs);const double bonsai_ms=run_bonsai(cfg,tables.dev,policy,n_envs);const double turns=(double)n_envs*(steps-1);
     std::printf("PASS exact batched Bonsai-KG CUDA policy: envs=%d steps=%d pass_ms=%.3f bonsai_ms=%.3f pass_turns_s=%.0f bonsai_turns_s=%.0f overhead_ratio=%.4f runtime_state_bytes=%zu\n",n_envs,steps,pass_ms,bonsai_ms,turns/(pass_ms/1000.0),turns/(bonsai_ms/1000.0),bonsai_ms/pass_ms,sizeof(CudaPolicyState));
     cudaFree(dnode);return 0;

@@ -10,6 +10,7 @@ int main(int argc,char**argv){
         if(argc<2||argc>4)throw std::runtime_error("usage: cpp_game_runner POLICY [SEED] [EPISODE_STEPS]");
         const uint64_t seed=argc>=3?std::strtoull(argv[2],nullptr,10):12345ull;const int steps=argc>=4?std::atoi(argv[3]):16;
         auto owned=bonsaikg::load_compiled(argv[1]);auto p=owned.view();kag::Config cfg;cfg.seed=seed;cfg.episode_steps=steps;kag::Sim sim(cfg);
+        if(cfg.board_size!=bonsaikg::BOARD_SIZE)throw std::runtime_error("Bonsai-KG requires boardSize=10");
         bonsaikg::RuntimeState st{};bonsaikg::reset_runtime(p,st);int ti=0;
         while(!sim.st.done){
             bonsaikg::CppObservation obs{&sim,0};bonsaikg::ActionResult ar{};auto status=bonsaikg::tick(p,st,obs,cfg.max_orders,ar,nullptr);

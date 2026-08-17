@@ -6,6 +6,8 @@
 
 namespace bonsaikg {
 
+static_assert(kagcuda::BOARD == BOARD_SIZE, "Bonsai-KG requires boardSize=10");
+
 struct CudaObservation {
     kagcuda::ObservationView obs;
 
@@ -40,6 +42,9 @@ struct CudaObservation {
             case F_OWN_LAND: return own.n_quadrants();
             case F_OPP_LAND: return opp.n_quadrants();
             case F_OWN_HIRES_TODAY: return own.hires_today();
+            case F_OPP_HIRES_TODAY: return opp.hires_today();
+            case F_OWN_QUADRANT_UNLOCKED: return arg >= 0 && arg < 4 ? arg < own.n_quadrants() : 0;
+            case F_OPP_QUADRANT_UNLOCKED: return arg >= 0 && arg < 4 ? arg < opp.n_quadrants() : 0;
             case F_MARKET_PRICE:
                 return arg >= 0 && arg < kagcuda::N_PRODUCTS ? obs.market().price(arg) : 0;
             case F_MARKET_INVENTORY:
@@ -77,18 +82,28 @@ struct CudaObservation {
                 return arg >= 0 && arg < opp.n_units() ? opp.worker_x(arg) : -1;
             case F_OPP_WORKER_Y:
                 return arg >= 0 && arg < opp.n_units() ? opp.worker_y(arg) : -1;
+            case F_OWN_WORKER_TILE:
+                return arg >= 0 && arg < own.n_units() ? own.worker_y(arg) * BOARD_SIZE + own.worker_x(arg) : -1;
+            case F_OPP_WORKER_TILE:
+                return arg >= 0 && arg < opp.n_units() ? opp.worker_y(arg) * BOARD_SIZE + opp.worker_x(arg) : -1;
             default:
                 break;
         }
 
-        if (id >= F_OWN_TILE_KIND && id <= F_OPP_TILE_FERT_AVAILABLE) {
-            if (arg < 0 || arg >= 100) return 0;
-            const int y = arg / 10;
-            const int x = arg % 10;
+        const bool tile_feature = (id >= F_OWN_TILE_KIND && id <= F_OPP_TILE_FERT_AVAILABLE) ||
+                                  (id >= F_OWN_TILE_PLANTED_DAY && id <= F_OPP_TILE_HAS_ANIMAL);
+        if (tile_feature) {
+            if (arg < 0 || arg >= BOARD_SIZE * BOARD_SIZE) return 0;
+            const int y = arg / BOARD_SIZE;
+            const int x = arg % BOARD_SIZE;
             const bool own_side =
                 id == F_OWN_TILE_KIND || id == F_OWN_TILE_ITEM || id == F_OWN_TILE_YIELD ||
                 id == F_OWN_TILE_WATERED || id == F_OWN_TILE_FED || id == F_OWN_TILE_CARED ||
-                id == F_OWN_TILE_FERT_AVAILABLE;
+                id == F_OWN_TILE_FERT_AVAILABLE || id == F_OWN_TILE_PLANTED_DAY ||
+                id == F_OWN_TILE_CONSECUTIVE_UNWATERED || id == F_OWN_TILE_MAX_LIFESPAN_STEP ||
+                id == F_OWN_TILE_FERTILIZED_UNTIL_DAY || id == F_OWN_TILE_PLACED_DAY ||
+                id == F_OWN_TILE_CONSECUTIVE_UNFED || id == F_OWN_TILE_PENDING_CARE_BONUS ||
+                id == F_OWN_TILE_HAS_ANIMAL;
             const auto& tile = (own_side ? own : opp).tile(x, y);
             switch (id) {
                 case F_OWN_TILE_KIND:
@@ -112,6 +127,30 @@ struct CudaObservation {
                 case F_OWN_TILE_FERT_AVAILABLE:
                 case F_OPP_TILE_FERT_AVAILABLE:
                     return tile.fertilizer_available;
+                case F_OWN_TILE_PLANTED_DAY:
+                case F_OPP_TILE_PLANTED_DAY:
+                    return tile.kind == kagcuda::T_PLANT ? tile.planted_day : 0;
+                case F_OWN_TILE_CONSECUTIVE_UNWATERED:
+                case F_OPP_TILE_CONSECUTIVE_UNWATERED:
+                    return tile.kind == kagcuda::T_PLANT ? tile.consecutive_dry : 0;
+                case F_OWN_TILE_MAX_LIFESPAN_STEP:
+                case F_OPP_TILE_MAX_LIFESPAN_STEP:
+                    return tile.kind == kagcuda::T_PLANT ? tile.max_lifespan_step : -1;
+                case F_OWN_TILE_FERTILIZED_UNTIL_DAY:
+                case F_OPP_TILE_FERTILIZED_UNTIL_DAY:
+                    return tile.kind == kagcuda::T_PLANT ? tile.fertilized_until_day : -1;
+                case F_OWN_TILE_PLACED_DAY:
+                case F_OPP_TILE_PLACED_DAY:
+                    return tile.kind == kagcuda::T_COOP || tile.kind == kagcuda::T_PASTURE ? tile.planted_day : 0;
+                case F_OWN_TILE_CONSECUTIVE_UNFED:
+                case F_OPP_TILE_CONSECUTIVE_UNFED:
+                    return tile.kind == kagcuda::T_COOP || tile.kind == kagcuda::T_PASTURE ? tile.consecutive_dry : 0;
+                case F_OWN_TILE_PENDING_CARE_BONUS:
+                case F_OPP_TILE_PENDING_CARE_BONUS:
+                    return tile.kind == kagcuda::T_COOP || tile.kind == kagcuda::T_PASTURE ? tile.pending_care_bonus : 0;
+                case F_OWN_TILE_HAS_ANIMAL:
+                case F_OPP_TILE_HAS_ANIMAL:
+                    return tile.kind == kagcuda::T_COOP || tile.kind == kagcuda::T_PASTURE ? tile.has_animal : 0;
                 default:
                     break;
             }

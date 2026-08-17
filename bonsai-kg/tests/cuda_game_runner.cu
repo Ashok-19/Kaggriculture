@@ -13,9 +13,9 @@ using namespace bonsaikg;
 using namespace kagcuda;
 
 struct DevicePolicyOwner {
-    Node* nodes=nullptr; uint16_t* children=nullptr; BbDecl* bb=nullptr;
+    Node* nodes=nullptr; uint16_t* children=nullptr; BbDecl* bb=nullptr; ValueRef* values=nullptr;
     Predicate* pred=nullptr; Lifecycle* lc=nullptr; Effect* effects=nullptr;
-    ~DevicePolicyOwner(){if(nodes)cudaFree(nodes);if(children)cudaFree(children);if(bb)cudaFree(bb);if(pred)cudaFree(pred);if(lc)cudaFree(lc);if(effects)cudaFree(effects);}
+    ~DevicePolicyOwner(){if(nodes)cudaFree(nodes);if(children)cudaFree(children);if(bb)cudaFree(bb);if(values)cudaFree(values);if(pred)cudaFree(pred);if(lc)cudaFree(lc);if(effects)cudaFree(effects);}
 };
 template<class T> static T* copy_dev(const std::vector<T>&v){if(v.empty())return nullptr;T*d=nullptr;KAGCUDA_CHECK(cudaMalloc((void**)&d,v.size()*sizeof(T)));KAGCUDA_CHECK(cudaMemcpy(d,v.data(),v.size()*sizeof(T),cudaMemcpyHostToDevice));return d;}
 
@@ -45,9 +45,10 @@ int main(int argc,char**argv){
         if(argc<2||argc>4)throw std::runtime_error("usage: cuda_game_runner POLICY [SEED] [EPISODE_STEPS]");
         const uint64_t seed=argc>=3?std::strtoull(argv[2],nullptr,10):12345ull;const int steps=argc>=4?std::atoi(argv[3]):16;
         auto owned=bonsaikg::load_compiled(argv[1]);auto hp=owned.view();DevicePolicyOwner d;
-        d.nodes=copy_dev(owned.nodes);d.children=copy_dev(owned.child_refs);d.bb=copy_dev(owned.bb);d.pred=copy_dev(owned.predicates);d.lc=copy_dev(owned.lifecycles);d.effects=copy_dev(owned.effects);
-        PolicyView p=hp;p.nodes=d.nodes;p.child_refs=d.children;p.bb=d.bb;p.predicates=d.pred;p.lifecycles=d.lc;p.effects=d.effects;
+        d.nodes=copy_dev(owned.nodes);d.children=copy_dev(owned.child_refs);d.bb=copy_dev(owned.bb);d.values=copy_dev(owned.values);d.pred=copy_dev(owned.predicates);d.lc=copy_dev(owned.lifecycles);d.effects=copy_dev(owned.effects);
+        PolicyView p=hp;p.nodes=d.nodes;p.child_refs=d.children;p.bb=d.bb;p.values=d.values;p.predicates=d.pred;p.lifecycles=d.lc;p.effects=d.effects;
         kagcuda::configure_device();kagcuda::TablesOwner tables;kagcuda::Config cfg;cfg.seed=seed;cfg.episode_steps=steps;
+        if(cfg.board_size!=BOARD_SIZE)throw std::runtime_error("Bonsai-KG requires boardSize=10");
         kagcuda::Sim*sim=nullptr;RuntimeState*st=nullptr;GameTickOut*dout=nullptr;GameFinal*dfin=nullptr;
         KAGCUDA_CHECK(cudaMalloc((void**)&sim,sizeof(kagcuda::Sim)));KAGCUDA_CHECK(cudaMalloc((void**)&st,sizeof(RuntimeState)));
         KAGCUDA_CHECK(cudaMalloc((void**)&dout,steps*sizeof(GameTickOut)));KAGCUDA_CHECK(cudaMalloc((void**)&dfin,sizeof(GameFinal)));

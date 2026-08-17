@@ -22,7 +22,11 @@ def main(args):
         if cpp!=cuda:m.append({"seed":seed,"pair":"cpp_cuda","first":next((i for i,(a,b) in enumerate(zip(cpp,cuda)) if a!=b),min(len(cpp),len(cuda)))})
         if cpp!=off:m.append({"seed":seed,"pair":"cpp_official","first":next((i for i,(a,b) in enumerate(zip(cpp,off)) if a!=b),min(len(cpp),len(off))),"cpp":cpp[:3],"official":off[:3]})
         results.append({"seed":seed,"ticks":len(cpp)})
-    print(json.dumps({"seeds":len(args.seeds),"ticks_per_engine":total,"pairwise_hash_comparisons":total*2,"mismatches":len(m),"results":results},sort_keys=True))
+    reads_per_tick=3793;raw_per_tick=33
+    print(json.dumps({"seeds":len(args.seeds),"ticks_per_engine":total,"pairwise_exact_line_comparisons":total*2,
+                      "aggregate_feature_reads_per_tick":reads_per_tick,"aggregate_feature_reads_per_engine":total*reads_per_tick,
+                      "pairwise_aggregate_read_positions":total*reads_per_tick*2,"targeted_raw_values_per_tick":raw_per_tick,
+                      "pairwise_targeted_raw_values":total*raw_per_tick*2,"mismatches":len(m),"results":results},sort_keys=True))
     for x in m[:10]:print("MISMATCH",json.dumps(x,sort_keys=True))
     return 1 if m else 0
 

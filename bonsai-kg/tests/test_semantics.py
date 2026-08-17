@@ -13,7 +13,7 @@ import bonsai_kg as bkg
 
 
 def policy(tree, bb=None):
-    return {"schema_version": 1, "blackboard": bb or [], "tree": tree}
+    return {"schema_version": 2, "blackboard": bb or [], "tree": tree}
 
 
 def obs(step=0, extra=None):
@@ -186,7 +186,7 @@ class BonsaiKGSemantics(unittest.TestCase):
 
     def test_26_canonical_policy_hash_stable(self):
         src=policy({"type":"Success"}); h=bkg.policy_hash(src); canonical=bkg.canonical_policy(src)
-        self.assertEqual(canonical["canonical_policy_hash"],h); self.assertEqual(bkg.policy_hash(canonical),h)
+        self.assertEqual(canonical["semantic_hash"],h); self.assertEqual(bkg.policy_hash(canonical),h)
         reordered=json.loads(json.dumps(src,sort_keys=True)); self.assertEqual(bkg.policy_hash(reordered),h)
 
     def test_27_hidden_or_unknown_features_rejected(self):
@@ -241,7 +241,8 @@ class BonsaiKGSemantics(unittest.TestCase):
     def test_35_official_agent_wrapper_resets_on_step_rollback(self):
         src=policy({"type":"WaitTurns","turns":5})
         agent=bkg.KaggricultureAgent(src)
-        base={"player":0,"farms":[{},{}]}
+        tiles=[[None for _ in range(10)] for _ in range(10)]
+        base={"player":0,"farms":[{"tiles":tiles},{"tiles":tiles}]}
         agent({**base,"step":0});agent({**base,"step":1})
         self.assertEqual(agent.vm.state.ticks,2)
         agent({**base,"step":0})

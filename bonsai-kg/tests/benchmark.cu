@@ -30,9 +30,10 @@ struct BenchObs {
 struct OwnedTiny {
     Node nodes[5]{};
     uint16_t child_refs[4]{};
+    ValueRef values[4]{};
     PolicyView view() const {
-        PolicyView p{}; p.nodes=nodes; p.child_refs=child_refs; p.root=0; p.n_nodes=5;
-        p.n_child_refs=4; p.n_state=2; p.instruction_budget=64; return p;
+        PolicyView p{}; p.nodes=nodes; p.child_refs=child_refs; p.values=values; p.root=0; p.n_nodes=5;
+        p.n_child_refs=4; p.n_state=2; p.n_values=4; p.instruction_budget=64; p.board_size=BOARD_SIZE; p.max_intents=1; return p;
     }
 };
 
@@ -40,10 +41,14 @@ static OwnedTiny make_policy(){
     OwnedTiny o{};
     o.nodes[0].type=N_REACTIVE_SELECTOR; o.nodes[0].first_child=0; o.nodes[0].child_count=2; o.nodes[0].state_slot=0; o.nodes[0].lifecycle_slot=NONE_U16;
     o.nodes[1].type=N_SEQUENCE; o.nodes[1].first_child=2; o.nodes[1].child_count=2; o.nodes[1].state_slot=1; o.nodes[1].lifecycle_slot=NONE_U16;
-    o.nodes[2].type=N_CONDITION; o.nodes[2].flags=C_GE; o.nodes[2].state_slot=NONE_U16; o.nodes[2].lifecycle_slot=NONE_U16; o.nodes[2].p0=0; o.nodes[2].p1=F_STEP; o.nodes[2].p2=0; o.nodes[2].p3=1000000000;
+    o.nodes[2].type=N_CONDITION; o.nodes[2].flags=C_GE; o.nodes[2].state_slot=NONE_U16; o.nodes[2].lifecycle_slot=NONE_U16; o.nodes[2].p0=0; o.nodes[2].p1=1;
     o.nodes[3].type=N_SUCCESS; o.nodes[3].state_slot=NONE_U16; o.nodes[3].lifecycle_slot=NONE_U16;
-    o.nodes[4].type=N_MOVE_UNIT_TO; o.nodes[4].state_slot=NONE_U16; o.nodes[4].lifecycle_slot=NONE_U16; o.nodes[4].p0=0; o.nodes[4].p1=0; o.nodes[4].p2=0; o.nodes[4].p3=100;
+    o.nodes[4].type=N_MOVE_UNIT_TO; o.nodes[4].state_slot=NONE_U16; o.nodes[4].lifecycle_slot=NONE_U16; o.nodes[4].p0=2; o.nodes[4].p1=3; o.nodes[4].p2=100;
     o.child_refs[0]=1; o.child_refs[1]=4; o.child_refs[2]=2; o.child_refs[3]=3;
+    o.values[0]={V_LEGAL_FEATURE,B_I32,F_STEP,0,0};
+    o.values[1]={V_CONST,B_I32,0,0,1000000000};
+    o.values[2]={V_CONST,B_UNIT,0,0,0};
+    o.values[3]={V_CONST,B_TILE,0,0,0};
     return o;
 }
 
@@ -67,7 +72,7 @@ int main(int argc,char**argv){
     for(int i=0;i<cpu_iters;++i){BenchObs ob{i};ActionResult a;auto r=tick(hp,hs,ob,10,a,nullptr);cpu_checksum += static_cast<unsigned>(r)+static_cast<unsigned>(a.units[0].op);}
     auto t1=std::chrono::steady_clock::now(); double cpu_s=std::chrono::duration<double>(t1-t0).count();
 
-    Node*dn=dev_copy(host.nodes,5);uint16_t*dc=dev_copy(host.child_refs,4);PolicyView dp=hp;dp.nodes=dn;dp.child_refs=dc;
+    Node*dn=dev_copy(host.nodes,5);uint16_t*dc=dev_copy(host.child_refs,4);ValueRef*dv=dev_copy(host.values,4);PolicyView dp=hp;dp.nodes=dn;dp.child_refs=dc;dp.values=dv;
     RuntimeState*states=nullptr;uint32_t*checks=nullptr;ck(cudaMalloc((void**)&states,(size_t)n_envs*sizeof(RuntimeState)),"cudaMalloc states");ck(cudaMalloc((void**)&checks,(size_t)n_envs*sizeof(uint32_t)),"cudaMalloc checks");
     cudaEvent_t a,b;ck(cudaEventCreate(&a),"event create");ck(cudaEventCreate(&b),"event create");ck(cudaEventRecord(a),"event record");
     bench_kernel<<<(n_envs+255)/256,256>>>(dp,states,gpu_iters,checks);ck(cudaGetLastError(),"bench launch");ck(cudaEventRecord(b),"event record2");ck(cudaEventSynchronize(b),"event sync");float ms=0;ck(cudaEventElapsedTime(&ms,a,b),"elapsed");
@@ -75,5 +80,5 @@ int main(int argc,char**argv){
     const double gpu_ticks=(double)n_envs*gpu_iters; const double state_mib=(double)n_envs*sizeof(RuntimeState)/(1024.0*1024.0);
     std::cout<<"cpu_ticks="<<cpu_iters<<" cpu_seconds="<<cpu_s<<" cpu_ticks_per_s="<<(cpu_iters/cpu_s)<<" cpu_checksum="<<cpu_checksum<<"\n";
     std::cout<<"gpu_envs="<<n_envs<<" gpu_iters="<<gpu_iters<<" gpu_ticks="<<(uint64_t)gpu_ticks<<" gpu_ms="<<ms<<" gpu_ticks_per_s="<<(gpu_ticks/(ms/1000.0))<<" state_mib="<<state_mib<<" gpu_checksum="<<gpu_checksum<<"\n";
-    cudaEventDestroy(a);cudaEventDestroy(b);cudaFree(dn);cudaFree(dc);cudaFree(states);cudaFree(checks);return 0;
+    cudaEventDestroy(a);cudaEventDestroy(b);cudaFree(dn);cudaFree(dc);cudaFree(dv);cudaFree(states);cudaFree(checks);return 0;
 }

@@ -5,7 +5,7 @@ NVCC ?= nvcc
 CXXFLAGS := -std=c++17 -O2 -Wall -Wextra -pedantic
 NVFLAGS := -O3 -std=c++17 -arch=sm_86 --compiler-options=-O3,-Wall
 
-.PHONY: all build test python-test binary-validation differential game-parity feature-parity bench clean-build
+.PHONY: all build test python-test schema-test binary-validation differential game-parity feature-parity bench clean-build
 
 all: build
 
@@ -47,8 +47,14 @@ $(BUILD)/reactive_move.bkgc: examples/reactive_move.json python/bonsai_kg.py | $
 
 build: $(BUILD)/cpp_differential_runner $(BUILD)/cuda_differential_runner $(BUILD)/cpp_game_runner $(BUILD)/cuda_game_runner $(BUILD)/cpp_feature_parity $(BUILD)/cuda_feature_parity $(BUILD)/validate_compiled $(BUILD)/size_report $(BUILD)/benchmark $(BUILD)/cuda_policy_smoke $(BUILD)/reactive_move.bkgc
 
-python-test:
-	python3 tests/test_semantics.py
+python-test: $(BUILD)/validate_compiled
+	python3 -m unittest -v tests/test_semantics.py tests/test_v2_semantics.py tests/test_v2_limits.py
+
+schema-test:
+	python3 -m json.tool schema/policy.schema.json >/dev/null
+	python3 -m json.tool schema/search_grammar_v1.json >/dev/null
+	python3 -m json.tool schema/search_grammar_v2.json >/dev/null
+	python3 -c 'import json; p=json.load(open("schema/policy.schema.json")); g=json.load(open("schema/search_grammar_v2.json")); assert p["properties"]["schema_version"]["const"]==2 and g["compiled_abi_version"]==2 and g["required_board_size"]==10'
 
 binary-validation: $(BUILD)/validate_compiled
 	python3 tests/test_binary_validation.py
@@ -62,7 +68,7 @@ game-parity: $(BUILD)/cpp_game_runner $(BUILD)/cuda_game_runner $(BUILD)/reactiv
 feature-parity: $(BUILD)/cpp_feature_parity $(BUILD)/cuda_feature_parity
 	python3 tests/test_feature_parity.py --steps 80 --seeds 12345 54321
 
-test: python-test binary-validation differential game-parity feature-parity
+test: schema-test python-test binary-validation differential game-parity feature-parity
 
 bench: $(BUILD)/size_report $(BUILD)/benchmark $(BUILD)/cuda_policy_smoke
 	$(BUILD)/size_report
