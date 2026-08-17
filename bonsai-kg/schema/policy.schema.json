@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://recur-sion.local/bonsai-kg/policy-v1.schema.json",
+  "title": "Bonsai-KG Policy v1",
+  "type": "object",
+  "required": ["schema_version", "tree"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {"const": 1},
+    "name": {"type": "string"},
+    "canonical_policy_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "blackboard": {
+      "type": "array",
+      "maxItems": 32,
+      "items": {
+        "type": "object",
+        "required": ["name", "type"],
+        "additionalProperties": false,
+        "properties": {
+          "name": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]*$"},
+          "type": {"enum": ["BOOL", "I32", "U16", "ENUM8", "TILE", "UNIT"]},
+          "initial": {"type": "integer"}
+        }
+      }
+    },
+    "tree": {"$ref": "#/$defs/node"}
+  },
+  "$defs": {
+    "lhs": {
+      "oneOf": [
+        {"type": "object", "required": ["feature"], "additionalProperties": false,
+         "properties": {"feature": {"type": "string"}, "arg": {"type": "integer"}}},
+        {"type": "object", "required": ["blackboard"], "additionalProperties": false,
+         "properties": {"blackboard": {"type": "string"}}}
+      ]
+    },
+    "predicate": {
+      "type": "object", "required": ["lhs", "op", "rhs"], "additionalProperties": false,
+      "properties": {
+        "lhs": {"$ref": "#/$defs/lhs"},
+        "op": {"enum": ["EQ", "NE", "LT", "LE", "GT", "GE"]},
+        "rhs": {"type": "integer"}
+      }
+    },
+    "effect": {
+      "type": "object", "required": ["op", "slot"], "additionalProperties": false,
+      "properties": {
+        "op": {"enum": ["set", "clear", "add"]},
+        "slot": {"type": "string"},
+        "value": {"type": "integer"}
+      }
+    },
+    "lifecycle": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "failure_if": {"$ref": "#/$defs/predicate"},
+        "success_if": {"$ref": "#/$defs/predicate"},
+        "skip_if": {"$ref": "#/$defs/predicate"},
+        "while": {"$ref": "#/$defs/predicate"},
+        "on_success": {"type": "array", "items": {"$ref": "#/$defs/effect"}},
+        "on_failure": {"type": "array", "items": {"$ref": "#/$defs/effect"}},
+        "on_halted": {"type": "array", "items": {"$ref": "#/$defs/effect"}},
+        "post": {"type": "array", "items": {"$ref": "#/$defs/effect"}}
+      }
+    },
+    "node": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {"type": "string"},
+        "name": {"type": "string"},
+        "children": {"type": "array", "items": {"$ref": "#/$defs/node"}},
+        "child": {"$ref": "#/$defs/node"},
+        "condition": {"$ref": "#/$defs/node"},
+        "then": {"$ref": "#/$defs/node"},
+        "else": {"$ref": "#/$defs/node"},
+        "lifecycle": {"$ref": "#/$defs/lifecycle"},
+        "lhs": {"$ref": "#/$defs/lhs"},
+        "op": {"type": "string"},
+        "rhs": {"type": "integer"},
+        "slot": {"type": "string"},
+        "value": {"type": "integer"},
+        "n": {"type": "integer"},
+        "turns": {"type": "integer"},
+        "success_threshold": {"type": "integer"},
+        "failure_threshold": {"type": "integer"},
+        "unit": {"type": "integer"},
+        "x": {"type": "integer"},
+        "y": {"type": "integer"},
+        "priority": {"type": "integer"},
+        "action": {"type": "string"},
+        "item": {"type": ["string", "integer"]},
+        "quantity": {"type": "integer"}
+      },
+      "additionalProperties": false
+    }
+  }
+}

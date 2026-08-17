@@ -1,0 +1,25 @@
+{
+  "grammar_version": 1,
+  "compiled_abi_version": 1,
+  "limits": {
+    "max_nodes": 128,
+    "max_depth": 24,
+    "max_blackboard_slots": 32,
+    "max_state_slots": 48
+  },
+  "enabled_node_types": [
+    "Sequence", "Selector", "ReactiveSequence", "ReactiveSelector", "If",
+    "Invert", "ForceSuccess", "ForceFailure",
+    "Success", "Failure", "Condition", "SetBlackboard", "AddBlackboard",
+    "EmitUnitIntent", "EmitMarketIntent", "WaitTurns", "MoveUnitTo"
+  ],
+  "vm_supported_but_disabled": [
+    "Parallel", "TurnTimeout", "Retry", "Repeat", "KeepRunningUntilFailure"
+  ],
+  "parameter_bounds": {
+    "priority": [0, 255],
+    "wait_turns": [1, 720],
+    "retry_repeat_n": [1, 255],
+    "parallel_children": [2, 16]
+  }
+}

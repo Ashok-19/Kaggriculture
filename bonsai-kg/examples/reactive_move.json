@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "name": "reactive_move_halt_demo",
+  "blackboard": [
+    {"name": "reservation", "type": "I32", "initial": 0}
+  ],
+  "tree": {
+    "type": "ReactiveSelector",
+    "children": [
+      {
+        "type": "Sequence",
+        "children": [
+          {"type": "Condition", "lhs": {"feature": "STEP"}, "op": "GE", "rhs": 3},
+          {"type": "EmitMarketIntent", "action": "HIRE", "priority": 250}
+        ]
+      },
+      {
+        "type": "Sequence",
+        "lifecycle": {
+          "on_halted": [{"op": "clear", "slot": "reservation"}]
+        },
+        "children": [
+          {"type": "SetBlackboard", "slot": "reservation", "value": 1000},
+          {"type": "MoveUnitTo", "unit": 0, "x": 0, "y": 0, "priority": 100}
+        ]
+      },
+      {"type": "Success"}
+    ]
+  }
+}
