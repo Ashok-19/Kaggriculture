@@ -17,21 +17,20 @@ def line(t,res):
 
 
 def main(args):
+    if args.seat not in (0,1):raise ValueError("seat must be 0/1")
     source=bkg.load_policy_json(args.policy);cp=bkg.compile_policy(source);vm=bkg.VM(cp);records=[];last_step=-1;seed_visible=[]
     def agent(observation):
         nonlocal last_step
         step=int(observation.get("step",0) or 0)
         if step<=last_step:vm.reset()
-        last_step=step
-        seed_visible.append("seed" in observation)
+        last_step=step;seed_visible.append("seed" in observation)
         res=vm.tick(observation,max_market_orders=args.max_orders,trace=False);records.append(line(step,res));return bkg.to_official_action(res.action)
     env=make("kaggriculture",configuration={"episodeSteps":args.steps,"seed":args.seed,"maxMarketOrdersPerTurn":args.max_orders},debug=True)
-    env.run([agent,"pass"])
+    env.run([agent,"pass"] if args.seat==0 else ["pass",agent])
     for x in records:print(x)
-    final=env.steps[-1]
-    rewards=[s.reward for s in final]
-    print(json.dumps({"official_seed":env.info.get("seed"),"ticks":len(records),"rewards":rewards,"seed_exposed_to_agent":any(seed_visible)},sort_keys=True),file=sys.stderr)
+    final=env.steps[-1];rewards=[s.reward for s in final]
+    print(json.dumps({"official_seed":env.info.get("seed"),"ticks":len(records),"seat":args.seat,"rewards":rewards,"seed_exposed_to_agent":any(seed_visible)},sort_keys=True),file=sys.stderr)
     return 0
 
 if __name__=="__main__":
-    ap=argparse.ArgumentParser();ap.add_argument("policy");ap.add_argument("--seed",type=int,default=12345);ap.add_argument("--steps",type=int,default=16);ap.add_argument("--max-orders",type=int,default=10);raise SystemExit(main(ap.parse_args()))
+    ap=argparse.ArgumentParser();ap.add_argument("policy");ap.add_argument("--seed",type=int,default=12345);ap.add_argument("--steps",type=int,default=16);ap.add_argument("--max-orders",type=int,default=10);ap.add_argument("--seat",type=int,default=0);raise SystemExit(main(ap.parse_args()))

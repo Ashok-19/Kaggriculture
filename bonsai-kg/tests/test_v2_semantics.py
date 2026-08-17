@@ -17,7 +17,7 @@ NATIVE = ROOT / "scratch/bonsai_kg/validate_compiled"
 
 
 def P(tree, bb=None, **extra):
-    out = {"schema_version": 2, "blackboard": bb or [], "tree": tree}
+    out = {"schema_version": 3, "blackboard": bb or [], "tree": tree}
     out.update(extra)
     return out
 

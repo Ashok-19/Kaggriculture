@@ -7,6 +7,7 @@ int main(){
     std::cout << "Node=" << sizeof(Node) << "\n";
     std::cout << "BbDecl=" << sizeof(BbDecl) << "\n";
     std::cout << "ValueRef=" << sizeof(ValueRef) << "\n";
+    std::cout << "FeatureArgRef=" << sizeof(FeatureArgRef) << "\n";
     std::cout << "Predicate=" << sizeof(Predicate) << "\n";
     std::cout << "Lifecycle=" << sizeof(Lifecycle) << "\n";
     std::cout << "Effect=" << sizeof(Effect) << "\n";

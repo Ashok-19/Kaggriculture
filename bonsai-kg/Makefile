@@ -30,6 +30,12 @@ $(BUILD)/cpp_feature_parity: tests/cpp_feature_parity.cpp tests/feature_hash.hpp
 $(BUILD)/cuda_feature_parity: tests/cuda_feature_parity.cu tests/feature_hash.hpp cuda/kag_adapter.cuh include/bonsai_kg_abi.hpp | $(BUILD)
 	$(NVCC) $(NVFLAGS) $< -o $@
 
+$(BUILD)/cpp_observation_boundary: tests/cpp_observation_boundary.cpp cpp/kag_adapter.hpp include/bonsai_kg_abi.hpp | $(BUILD)
+	$(CXX) $(CXXFLAGS) $< -o $@
+
+$(BUILD)/cuda_observation_boundary: tests/cuda_observation_boundary.cu cuda/kag_adapter.cuh include/bonsai_kg_abi.hpp | $(BUILD)
+	$(NVCC) $(NVFLAGS) $< -o $@
+
 $(BUILD)/validate_compiled: tests/validate_compiled.cpp include/bonsai_kg_abi.hpp include/bonsai_kg_io.hpp | $(BUILD)
 	$(CXX) $(CXXFLAGS) $< -o $@
 
@@ -45,22 +51,23 @@ $(BUILD)/cuda_policy_smoke: tests/cuda_policy_smoke.cu cuda/policy.cuh cuda/kag_
 $(BUILD)/reactive_move.bkgc: examples/reactive_move.json python/bonsai_kg.py | $(BUILD)
 	python3 python/bonsai_kg.py $< --out $@
 
-build: $(BUILD)/cpp_differential_runner $(BUILD)/cuda_differential_runner $(BUILD)/cpp_game_runner $(BUILD)/cuda_game_runner $(BUILD)/cpp_feature_parity $(BUILD)/cuda_feature_parity $(BUILD)/validate_compiled $(BUILD)/size_report $(BUILD)/benchmark $(BUILD)/cuda_policy_smoke $(BUILD)/reactive_move.bkgc
+build: $(BUILD)/cpp_differential_runner $(BUILD)/cuda_differential_runner $(BUILD)/cpp_game_runner $(BUILD)/cuda_game_runner $(BUILD)/cpp_feature_parity $(BUILD)/cuda_feature_parity $(BUILD)/cpp_observation_boundary $(BUILD)/cuda_observation_boundary $(BUILD)/validate_compiled $(BUILD)/size_report $(BUILD)/benchmark $(BUILD)/cuda_policy_smoke $(BUILD)/reactive_move.bkgc
 
 python-test: $(BUILD)/validate_compiled
-	python3 -m unittest -v tests/test_semantics.py tests/test_v2_semantics.py tests/test_v2_limits.py
+	python3 -m unittest -v tests/test_semantics.py tests/test_v2_semantics.py tests/test_v2_limits.py tests/test_v3_finalization.py
 
 schema-test:
 	python3 -m json.tool schema/policy.schema.json >/dev/null
 	python3 -m json.tool schema/search_grammar_v1.json >/dev/null
 	python3 -m json.tool schema/search_grammar_v2.json >/dev/null
-	python3 -c 'import json; p=json.load(open("schema/policy.schema.json")); g=json.load(open("schema/search_grammar_v2.json")); assert p["properties"]["schema_version"]["const"]==2 and g["compiled_abi_version"]==2 and g["required_board_size"]==10'
+	python3 -m json.tool schema/search_grammar_v3.json >/dev/null
+	python3 -c 'import json; p=json.load(open("schema/policy.schema.json")); g=json.load(open("schema/search_grammar_v3.json")); assert p["properties"]["schema_version"]["const"]==3 and g["compiled_abi_version"]==3 and g["required_board_size"]==10'
 
 binary-validation: $(BUILD)/validate_compiled
 	python3 tests/test_binary_validation.py
 
 differential: $(BUILD)/cpp_differential_runner $(BUILD)/cuda_differential_runner
-	python3 tests/differential.py --cases 256 --ticks 16
+	python3 tests/differential.py --cases 512 --ticks 16
 
 game-parity: $(BUILD)/cpp_game_runner $(BUILD)/cuda_game_runner $(BUILD)/reactive_move.bkgc
 	python3 tests/game_parity.py --steps 80 --seeds 12345 54321 62000 62001

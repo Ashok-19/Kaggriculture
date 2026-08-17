@@ -15,7 +15,7 @@ struct BenchObs {
 #else
     inline
 #endif
-    int32_t feature(uint16_t id, int32_t arg) const {
+    int32_t feature(uint16_t id, int32_t arg, int32_t = 0) const {
         if (id == F_ALWAYS) return 1;
         if (id == F_STEP) return step;
         if (id == F_DAY) return step / 24;
@@ -39,11 +39,11 @@ struct OwnedTiny {
 
 static OwnedTiny make_policy(){
     OwnedTiny o{};
-    o.nodes[0].type=N_REACTIVE_SELECTOR; o.nodes[0].first_child=0; o.nodes[0].child_count=2; o.nodes[0].state_slot=0; o.nodes[0].lifecycle_slot=NONE_U16;
-    o.nodes[1].type=N_SEQUENCE; o.nodes[1].first_child=2; o.nodes[1].child_count=2; o.nodes[1].state_slot=1; o.nodes[1].lifecycle_slot=NONE_U16;
-    o.nodes[2].type=N_CONDITION; o.nodes[2].flags=C_GE; o.nodes[2].state_slot=NONE_U16; o.nodes[2].lifecycle_slot=NONE_U16; o.nodes[2].p0=0; o.nodes[2].p1=1;
-    o.nodes[3].type=N_SUCCESS; o.nodes[3].state_slot=NONE_U16; o.nodes[3].lifecycle_slot=NONE_U16;
-    o.nodes[4].type=N_MOVE_UNIT_TO; o.nodes[4].state_slot=NONE_U16; o.nodes[4].lifecycle_slot=NONE_U16; o.nodes[4].p0=2; o.nodes[4].p1=3; o.nodes[4].p2=100;
+    o.nodes[0].type=N_REACTIVE_SELECTOR; o.nodes[0].first_child=0; o.nodes[0].child_count=2; o.nodes[0].state_slot=0; o.nodes[0].lifecycle_slot=NONE_U16; o.nodes[0].subtree_end=5;
+    o.nodes[1].type=N_SEQUENCE; o.nodes[1].first_child=2; o.nodes[1].child_count=2; o.nodes[1].state_slot=1; o.nodes[1].lifecycle_slot=NONE_U16; o.nodes[1].subtree_end=4;
+    o.nodes[2].type=N_CONDITION; o.nodes[2].flags=C_GE; o.nodes[2].state_slot=NONE_U16; o.nodes[2].lifecycle_slot=NONE_U16; o.nodes[2].subtree_end=3; o.nodes[2].p0=0; o.nodes[2].p1=1;
+    o.nodes[3].type=N_SUCCESS; o.nodes[3].state_slot=NONE_U16; o.nodes[3].lifecycle_slot=NONE_U16; o.nodes[3].subtree_end=4;
+    o.nodes[4].type=N_MOVE_UNIT_TO; o.nodes[4].state_slot=NONE_U16; o.nodes[4].lifecycle_slot=NONE_U16; o.nodes[4].subtree_end=5; o.nodes[4].p0=2; o.nodes[4].p1=3; o.nodes[4].p2=100;
     o.child_refs[0]=1; o.child_refs[1]=4; o.child_refs[2]=2; o.child_refs[3]=3;
     o.values[0]={V_LEGAL_FEATURE,B_I32,F_STEP,0,0};
     o.values[1]={V_CONST,B_I32,0,0,1000000000};

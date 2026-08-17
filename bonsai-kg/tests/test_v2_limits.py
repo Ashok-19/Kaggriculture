@@ -11,7 +11,7 @@ import bonsai_kg as bkg
 
 
 def P(tree, bb=None):
-    return {"schema_version": 2, "blackboard": bb or [], "tree": tree}
+    return {"schema_version": 3, "blackboard": bb or [], "tree": tree}
 
 
 def wrap_depth(depth: int):

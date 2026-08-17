@@ -3,8 +3,8 @@
 #include <cstdlib>
 #include <iostream>
 
-static kag::Action scripted(const kag::Sim& sim){
-    kag::Action a{}; a.n_units=sim.st.farms[0].n_units; const int s=sim.st.step;
+static kag::Action scripted(const kag::Sim& sim,int player){
+    kag::Action a{};a.n_units=sim.st.farms[player].n_units;const int s=sim.st.step;
     if(s==0){a.n_orders=4;a.orders[0]={kag::M_BUY_SEED,kag::WHEAT,3};a.orders[1]={kag::M_BUY_PRODUCT,kag::WHEAT,2};a.orders[2]={kag::M_BUY_PRODUCT,kag::FERTILIZER,1};a.orders[3]={kag::M_HIRE,0,1};}
     else if(s==1)a.units[0]={kag::OP_PICKUP,kag::WHEAT,1};
     else if(s==2)a.units[0]={kag::OP_PLANT,kag::WHEAT,1};
@@ -23,16 +23,15 @@ static kag::Action scripted(const kag::Sim& sim){
 int main(int argc,char**argv){
     const uint64_t seed=argc>1?std::strtoull(argv[1],nullptr,10):12345ull;
     const int steps=argc>2?std::atoi(argv[2]):80;
-    kag::Config cfg; cfg.seed=seed; cfg.episode_steps=steps;
-    if(cfg.board_size!=bonsaikg::BOARD_SIZE){std::cerr<<"boardSize mismatch\n";return 2;}
-    kag::Sim sim(cfg); int t=0;
+    const int active=argc>3?std::atoi(argv[3]):0;
+    const int observe=argc>4?std::atoi(argv[4]):0;
+    if(active<0||active>1||observe<0||observe>1){std::cerr<<"player must be 0/1\n";return 2;}
+    kag::Config cfg;cfg.seed=seed;cfg.episode_steps=steps;if(cfg.board_size!=bonsaikg::BOARD_SIZE){std::cerr<<"boardSize mismatch\n";return 2;}
+    kag::Sim sim(cfg);int t=0;
     while(!sim.st.done){
-        bonsaikg::CppObservation obs{&sim,0};
-        int32_t raw[bonsaikg_test::TARGETED_FEATURE_COUNT]; bonsaikg_test::targeted_features(obs,raw);
-        std::cout<<"T="<<t<<" H="<<bonsaikg_test::hash_feature_registry(obs)<<" R=";
-        for(int i=0;i<bonsaikg_test::TARGETED_FEATURE_COUNT;++i){if(i)std::cout<<',';std::cout<<raw[i];}
-        std::cout<<"\n";
-        kag::Action a0=scripted(sim),a1{}; a1.n_units=sim.st.farms[1].n_units; sim.step(a0,a1); ++t;
+        bonsaikg::CppObservation obs{&sim,observe};int32_t raw[bonsaikg_test::TARGETED_FEATURE_COUNT];bonsaikg_test::targeted_features(obs,raw);
+        std::cout<<"T="<<t<<" H="<<bonsaikg_test::hash_feature_registry(obs)<<" R=";for(int i=0;i<bonsaikg_test::TARGETED_FEATURE_COUNT;++i){if(i)std::cout<<',';std::cout<<raw[i];}std::cout<<"\n";
+        kag::Action a0{},a1{};a0.n_units=sim.st.farms[0].n_units;a1.n_units=sim.st.farms[1].n_units;if(active==0)a0=scripted(sim,0);else a1=scripted(sim,1);sim.step(a0,a1);++t;
     }
     return 0;
 }

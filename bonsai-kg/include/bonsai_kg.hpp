@@ -42,7 +42,7 @@ struct Evaluator {
     BKG_HD Evaluator(const PolicyView& policy, RuntimeState& state, const Obs& observation, TraceBuffer* tr)
         : p(policy), s(state), obs(observation), trace(tr) {}
 
-    BKG_HD int32_t feature(uint16_t id, int32_t arg) const { return obs.feature(id, arg); }
+    BKG_HD int32_t feature(uint16_t id, int32_t arg0 = 0, int32_t arg1 = 0) const { return obs.feature(id, arg0, arg1); }
     BKG_HD void set_fault(uint16_t code) { if (!s.fault) s.fault = code; }
 
     BKG_HD void emit_trace(uint16_t node, Status status, uint8_t event) {
@@ -65,12 +65,20 @@ struct Evaluator {
     }
     BKG_HD uint16_t child(const Node& n, uint16_t i) const { return p.child_refs[n.first_child + i]; }
 
+    BKG_HD int32_t feature_arg_value(uint16_t idx) const {
+        if (idx >= p.n_feature_args) return 0;
+        const FeatureArgRef& a = p.feature_args[idx];
+        return a.kind == A_CONST ? a.value : (a.id < p.n_bb ? s.blackboard[a.id] : 0);
+    }
+
     BKG_HD int32_t value(uint16_t idx) const {
         if (idx >= p.n_values) return 0;
         const ValueRef& v = p.values[idx];
         if (v.kind == V_CONST) return v.value;
         if (v.kind == V_BB) return v.id < p.n_bb ? s.blackboard[v.id] : 0;
-        return feature(v.id, v.arg);
+        const int32_t a0 = v.value > 0 ? feature_arg_value(static_cast<uint16_t>(v.arg)) : 0;
+        const int32_t a1 = v.value > 1 ? feature_arg_value(static_cast<uint16_t>(v.arg + 1)) : 0;
+        return feature(v.id, a0, a1);
     }
 
     BKG_HD bool pred(uint16_t idx) const {
@@ -98,7 +106,21 @@ struct Evaluator {
         }
     }
 
+    BKG_HD void cancel_subtree_intents(uint16_t root) {
+        if (INTENT_CAP == 0 || root >= p.n_nodes) return;
+        const uint16_t hi = p.nodes[root].subtree_end;
+        uint16_t out = 0;
+        for (uint16_t i = 0; i < n_intents; ++i) {
+            const uint16_t source = intents[i].source;
+            if (source >= root && source < hi) continue;
+            if (out != i) intents[out] = intents[i];
+            ++out;
+        }
+        n_intents = out;
+    }
+
     BKG_HD void halt_node(uint16_t root) {
+        cancel_subtree_intents(root);
         HaltFrame hs[MAX_DEPTH]; int hp = 0;
         hs[hp++] = HaltFrame{root, 0, 0, {0,0,0}};
         while (hp > 0) {
@@ -153,7 +175,7 @@ struct Evaluator {
                 else if (r == FAILURE) { effects(lc.on_failure_start, lc.on_failure_count); effects(lc.post_start, lc.post_count); }
             }
         }
-        if (s.fault || r == FAILURE || r == SKIPPED) n_intents = frame.intent_start;
+        if (s.fault || r == FAILURE || r == SKIPPED) n_intents = frame.intent_start < n_intents ? frame.intent_start : n_intents;
         emit_trace(idx, r, event);
         --sp; last = r; have_last = true;
     }
@@ -168,20 +190,22 @@ struct Evaluator {
         have_last = false; return true;
     }
 
-    BKG_HD void emit_unit(int unit, int op, int arg, int quantity, int priority) {
+    BKG_HD void emit_unit(uint16_t source, int unit, int op, int arg, int quantity, int priority) {
         if (unit < 0 || unit >= MAX_UNITS) return;
         const uint16_t order = emit_seq++;
         if (INTENT_CAP == 0 || n_intents >= INTENT_CAP) { set_fault(INTENT_CAP == 0 ? 3 : 4); return; }
-        intents[n_intents++] = DeferredIntent{0, static_cast<uint8_t>(priority), static_cast<uint8_t>(op),
-                                               static_cast<uint8_t>(arg), static_cast<uint16_t>(quantity),
-                                               static_cast<uint8_t>(unit), static_cast<uint8_t>(order)};
+        intents[n_intents++] = DeferredIntent{static_cast<uint8_t>(priority), static_cast<uint8_t>(op),
+                                               static_cast<uint8_t>(arg), static_cast<uint8_t>(unit),
+                                               static_cast<uint16_t>(quantity), static_cast<uint8_t>(source),
+                                               static_cast<uint8_t>(order)};
     }
 
-    BKG_HD void emit_market(int op, int item, int quantity, int priority) {
+    BKG_HD void emit_market(uint16_t source, int op, int item, int quantity, int priority) {
         const uint16_t order = emit_seq++;
         if (INTENT_CAP == 0 || n_intents >= INTENT_CAP) { set_fault(INTENT_CAP == 0 ? 3 : 4); return; }
-        intents[n_intents++] = DeferredIntent{1, static_cast<uint8_t>(priority), static_cast<uint8_t>(op),
-                                               static_cast<uint8_t>(item), static_cast<uint16_t>(quantity), 0,
+        intents[n_intents++] = DeferredIntent{static_cast<uint8_t>(priority), static_cast<uint8_t>(op),
+                                               static_cast<uint8_t>(item), INTENT_MARKET_BIT,
+                                               static_cast<uint16_t>(quantity), static_cast<uint8_t>(source),
                                                static_cast<uint8_t>(order)};
     }
 
@@ -271,11 +295,32 @@ struct Evaluator {
                         if (!ok) { set_fault(2); finish(FAILURE); } else { s.blackboard[n.p0] = v; finish(SUCCESS); }
                         break;
                     }
-                    case N_EMIT_UNIT_INTENT:
-                        if (n.p0 >= feature(F_OWN_UNITS, 0)) finish(FAILURE);
-                        else { emit_unit(n.p0, n.p1, n.p2, n.p3, n.flags); finish(SUCCESS); }
+                    case N_EMIT_UNIT_INTENT: {
+                        const int unit = value(static_cast<uint16_t>(n.p0));
+                        const int item = value(static_cast<uint16_t>(n.p2));
+                        const int qty = value(static_cast<uint16_t>(n.p3));
+                        bool valid = unit >= 0 && unit < feature(F_OWN_UNITS, 0);
+                        if (n.p1 == U_PLANT) valid = valid && item >= 0 && item < 5 && qty == 1;
+                        else if (n.p1 == U_PICKUP || n.p1 == U_PLACE) valid = valid && item >= 0 && item < MAX_ITEMS && qty >= 1 && qty <= 32767;
+                        else valid = valid && item == -1 && qty == 1;
+                        if (!valid) finish(FAILURE);
+                        else { emit_unit(f.node, unit, n.p1, item < 0 ? 0 : item, qty, n.flags); finish(SUCCESS); }
                         break;
-                    case N_EMIT_MARKET_INTENT: emit_market(n.p0, n.p1, n.p2, n.p3); finish(SUCCESS); break;
+                    }
+                    case N_EMIT_MARKET_INTENT: {
+                        const int item = value(static_cast<uint16_t>(n.p1));
+                        const int qty = value(static_cast<uint16_t>(n.p2));
+                        bool valid = qty >= 1 && qty <= 65535;
+                        if (n.p0 == M_HIRE || n.p0 == M_BUY_LAND) valid = valid && item == -1 && qty == 1;
+                        else if (n.p0 == M_BUY_SEED) valid = valid && item >= 0 && item < 5;
+                        else if (n.p0 == M_BUY_PRODUCT) valid = valid && (item == 0 || item == 8);
+                        else if (n.p0 == M_BUY_ANIMAL) valid = valid && item >= 9 && item <= 11;
+                        else if (n.p0 == M_SELL) valid = valid && item >= 0 && item < 9;
+                        else valid = false;
+                        if (!valid) finish(FAILURE);
+                        else { emit_market(f.node, n.p0, item < 0 ? 0 : item, qty, n.p3); finish(SUCCESS); }
+                        break;
+                    }
                     case N_WAIT_TURNS: {
                         const int32_t now = feature(F_STEP, 0); const bool act = active(n);
                         if (!act) { st->a = static_cast<uint32_t>(now); finish(RUNNING); }
@@ -291,7 +336,7 @@ struct Evaluator {
                         const int tx = target % BOARD_SIZE, ty = target / BOARD_SIZE;
                         if (x == tx && y == ty) { finish(SUCCESS); break; }
                         const int op = x < tx ? U_EAST : x > tx ? U_WEST : y < ty ? U_SOUTH : U_NORTH;
-                        emit_unit(unit, op, 0, 1, n.p2); finish(RUNNING); break;
+                        emit_unit(f.node, unit, op, 0, 1, n.p2); finish(RUNNING); break;
                     }
                     default: set_fault(3); finish(FAILURE); break;
                 }
@@ -428,9 +473,10 @@ BKG_HD_NOINLINE Status tick_with_intents(const PolicyView& p, RuntimeState& s, c
     if (!s.fault && (raw == SUCCESS || raw == RUNNING)) {
         for (uint16_t i = 0; i < ev.n_intents; ++i) {
             const DeferredIntent& intent = ev.intents[i];
-            if (intent.kind == 0) {
-                if (intent.subject >= MAX_UNITS) continue;
-                UnitClaim& old = unit_claims[intent.subject];
+            if ((intent.subject_kind & INTENT_MARKET_BIT) == 0) {
+                const uint8_t unit = intent.subject_kind;
+                if (unit >= MAX_UNITS) continue;
+                UnitClaim& old = unit_claims[unit];
                 if (!old.present || intent.priority > old.priority ||
                     (intent.priority == old.priority && intent.order < old.order)) {
                     old.present = 1; old.priority = intent.priority; old.op = intent.op; old.arg = intent.arg;

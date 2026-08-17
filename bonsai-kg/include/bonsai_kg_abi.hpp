@@ -12,7 +12,7 @@
 
 namespace bonsaikg {
 
-constexpr uint16_t ABI_VERSION = 2;
+constexpr uint16_t ABI_VERSION = 3;
 constexpr int BOARD_SIZE = 10;
 constexpr int MAX_NODES = 128;
 constexpr int MAX_DEPTH = 24;
@@ -23,12 +23,15 @@ constexpr int MAX_PRED = 128;
 constexpr int MAX_LIFECYCLE = 64;
 constexpr int MAX_EFFECT = 128;
 constexpr int MAX_VALUE_REFS = 256;
+constexpr int MAX_FEATURE_ARGS = 512;
 constexpr int MAX_UNITS = 40;
+constexpr int MAX_ITEMS = 12;
 constexpr int MAX_MARKET_INTENTS = 16;
 constexpr int MAX_DEFERRED_INTENTS = MAX_NODES;
 constexpr uint16_t NONE_U16 = 0xFFFFu;
 constexpr uint32_t ACTIVE_BIT = 1u << 31;
 constexpr uint32_t RUNNING_MASK16 = 0xFFFFu;
+constexpr uint8_t INTENT_MARKET_BIT = 0x80u;
 
 enum Status : uint8_t { SUCCESS = 0, FAILURE = 1, RUNNING = 2, SKIPPED = 3 };
 
@@ -64,8 +67,9 @@ enum Feature : uint16_t {
 
 enum Compare : uint8_t { C_EQ = 0, C_NE, C_LT, C_LE, C_GT, C_GE };
 enum EffectOp : uint8_t { E_SET = 0, E_CLEAR, E_ADD };
-enum BbType : uint8_t { B_BOOL = 0, B_I32, B_U16, B_ENUM8, B_TILE, B_UNIT };
+enum BbType : uint8_t { B_BOOL = 0, B_I32, B_U16, B_ENUM8, B_TILE, B_UNIT, B_ITEM };
 enum ValueKind : uint8_t { V_CONST = 0, V_BB, V_LEGAL_FEATURE };
+enum FeatureArgKind : uint8_t { A_CONST = 0, A_BB = 1 };
 
 enum UnitOp : uint8_t {
     U_PASS = 0, U_NORTH, U_SOUTH, U_EAST, U_WEST, U_PICKUP, U_DROP, U_PLACE,
@@ -85,12 +89,12 @@ struct Header {
     uint16_t n_state;
     uint16_t n_bb;
     uint16_t n_values;
+    uint16_t n_feature_args;
     uint16_t n_predicates;
     uint16_t n_lifecycles;
     uint16_t n_effects;
     uint16_t instruction_budget;
     uint16_t board_size;
-    uint16_t max_intents;
 };
 static_assert(sizeof(Header) == 64, "Bonsai-KG Header ABI drift");
 
@@ -101,7 +105,7 @@ struct Node {
     uint16_t child_count;
     uint16_t state_slot;
     uint16_t lifecycle_slot;
-    uint16_t reserved;
+    uint16_t subtree_end; // exclusive preorder node id; includes this node's whole strict subtree
     int32_t p0;
     int32_t p1;
     int32_t p2;
@@ -114,6 +118,8 @@ struct BbDecl { uint8_t type; uint8_t pad[3]; int32_t initial; };
 static_assert(sizeof(BbDecl) == 8, "Bonsai-KG BbDecl ABI drift");
 struct ValueRef { uint8_t kind; uint8_t type; uint16_t id; int32_t arg; int32_t value; };
 static_assert(sizeof(ValueRef) == 12, "Bonsai-KG ValueRef ABI drift");
+struct FeatureArgRef { uint8_t kind; uint8_t type; uint16_t id; int32_t value; };
+static_assert(sizeof(FeatureArgRef) == 8, "Bonsai-KG FeatureArgRef ABI drift");
 struct Predicate { uint16_t lhs, rhs; uint8_t cmp; uint8_t pad[7]; };
 static_assert(sizeof(Predicate) == 12, "Bonsai-KG Predicate ABI drift");
 struct Lifecycle {
@@ -132,6 +138,7 @@ struct PolicyView {
     const uint16_t* child_refs = nullptr;
     const BbDecl* bb = nullptr;
     const ValueRef* values = nullptr;
+    const FeatureArgRef* feature_args = nullptr;
     const Predicate* predicates = nullptr;
     const Lifecycle* lifecycles = nullptr;
     const Effect* effects = nullptr;
@@ -141,12 +148,13 @@ struct PolicyView {
     uint16_t n_state = 0;
     uint16_t n_bb = 0;
     uint16_t n_values = 0;
+    uint16_t n_feature_args = 0;
     uint16_t n_predicates = 0;
     uint16_t n_lifecycles = 0;
     uint16_t n_effects = 0;
     uint16_t instruction_budget = 0;
     uint16_t board_size = BOARD_SIZE;
-    uint16_t max_intents = 0;
+    uint16_t max_intents = 0; // host-derived canonical count of potentially emitting nodes
 };
 
 struct NodeState { uint32_t a = 0, b = 0; };
@@ -156,22 +164,21 @@ static_assert(sizeof(UnitClaim) == 8, "UnitClaim size drift");
 struct MarketClaim { uint8_t priority = 0, op = M_NONE, item = 0, pad = 0; int32_t n = 0; uint16_t order = 0, pad2 = 0; };
 static_assert(sizeof(MarketClaim) == 12, "MarketClaim size drift");
 struct DeferredIntent {
-    uint8_t kind = 0, priority = 0, op = 0, arg = 0;
+    uint8_t priority = 0;
+    uint8_t op = 0;
+    uint8_t arg = 0;
+    uint8_t subject_kind = 0; // unit id 0..39, or INTENT_MARKET_BIT for market
     uint16_t n = 0;
-    uint8_t subject = 0, order = 0;
+    uint8_t source = 0;       // emitting node id, used for same-tick subtree cancellation
+    uint8_t order = 0;
 };
 static_assert(sizeof(DeferredIntent) == 8, "DeferredIntent size drift");
 
 struct RuntimeState {
-    // Episode-persistent working state. reset_runtime() initializes these once per episode.
     int32_t blackboard[MAX_BB];
     NodeState node_state[MAX_STATE];
-
-    // VM state. The deferred intent journal is tick-local Evaluator scratch, not persistent state.
     uint16_t visits = 0;
     uint16_t fault = 0;
-
-    // Episode-persistent diagnostic counter; never used for policy decisions.
     uint32_t ticks = 0;
 };
 
@@ -202,7 +209,11 @@ BKG_ABI_HD bool valid_bb_value(uint8_t type, int32_t value) {
     if (type == B_ENUM8) return value >= 0 && value <= 255;
     if (type == B_TILE) return value >= -1 && value < BOARD_SIZE * BOARD_SIZE;
     if (type == B_UNIT) return value >= -1 && value < MAX_UNITS;
+    if (type == B_ITEM) return value >= -1 && value < MAX_ITEMS;
     return false;
+}
+BKG_ABI_HD uint8_t value_type_for_bb(uint8_t type) {
+    return type == B_TILE || type == B_UNIT || type == B_ITEM ? type : static_cast<uint8_t>(B_I32);
 }
 BKG_ABI_HD int32_t clamp_i32_add(int32_t a, int32_t b, bool& ok) {
     const int64_t v = static_cast<int64_t>(a) + static_cast<int64_t>(b);
