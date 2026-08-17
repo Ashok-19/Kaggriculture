@@ -49,7 +49,7 @@ def main(args):
             results.append({"seed":seed,"scenario":name,"active_player":active,"observe_player":observe,"ticks":len(cpp)})
     if not private_nontrivial:m.append({"assertion":"player1 own-private canaries never became nontrivial"})
     if not opp_lifecycle_nontrivial:m.append({"assertion":"passive seat0 never observed nontrivial opponent lifecycle state"})
-    reads_per_tick=3793;raw_per_tick=38
+    reads_per_tick=3793;raw_per_tick=44
     print(json.dumps({"seeds":len(args.seeds),"scenarios":len(SCENARIOS),"ticks_per_engine":total,"pairwise_exact_line_comparisons":total*2,
                       "aggregate_feature_reads_per_tick":reads_per_tick,"aggregate_feature_reads_per_engine":total*reads_per_tick,
                       "pairwise_aggregate_read_positions":total*reads_per_tick*2,"targeted_raw_values_per_tick":raw_per_tick,

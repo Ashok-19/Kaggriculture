@@ -58,6 +58,14 @@ def coverage_policies():
  out=[
   P({"type":"Sequence","children":[{"type":"Success"},wait]}),P({"type":"Selector","children":[{"type":"Failure"},wait]}),
   P({"type":"ReactiveSequence","children":[cond("STEP","LT",4),wait]}),P({"type":"ReactiveSelector","children":[cond("STEP","GE",4),wait]}),
+  # Reactive stale-halt freeze seeds: the remembered child is revisited and completes
+  # normally on tick 1, versus genuine preemption before that old child is reached.
+  P({"type":"ReactiveSequence","children":[{"type":"Retry","n":2,"child":{"type":"Sequence","children":[cond("STEP","GE",1),{"type":"EmitMarketIntent","action":"HIRE","priority":90}]}},{"type":"WaitTurns","turns":5}]}),
+  P({"type":"ReactiveSequence","children":[{"type":"Retry","n":2,"child":{"type":"Sequence","children":[cond("STEP","GE",1),{"type":"EmitUnitIntent","unit":0,"action":"NORTH","priority":90}]}},{"type":"WaitTurns","turns":5}]}),
+  P({"type":"ReactiveSequence","children":[{"type":"Retry","n":2,"child":{"type":"Sequence","children":[cond("STEP","GE",1),{"type":"EmitMarketIntent","action":"HIRE","priority":89}]}},{"type":"Success"}]}),
+  P({"type":"ReactiveSequence","children":[{"type":"Retry","n":2,"lifecycle":{"on_halted":[{"op":"set","slot":"counter","value":7}]},"child":{"type":"Sequence","children":[cond("STEP","GE",1),{"type":"EmitMarketIntent","action":"HIRE","priority":88}]}},{"type":"WaitTurns","turns":5}]}),
+  P({"type":"ReactiveSequence","children":[cond("STEP","LT",1),{"type":"Sequence","lifecycle":{"on_halted":[{"op":"set","slot":"counter","value":8}]},"children":[{"type":"EmitMarketIntent","action":"HIRE","priority":87},{"type":"WaitTurns","turns":5}]}]}),
+  P({"type":"ReactiveSelector","children":[{"type":"Retry","n":2,"lifecycle":{"on_halted":[{"op":"set","slot":"counter","value":9}]},"child":{"type":"Failure"}},{"type":"EmitMarketIntent","action":"HIRE","priority":86}]}),
   P({"type":"If","condition":cond("STEP","LT",2),"then":wait,"else":{"type":"Success"}}),
   P({"type":"Parallel","success_threshold":2,"failure_threshold":2,"children":[wait,{"type":"Success"},{"type":"Failure"}]}),
   P({"type":"Invert","child":{"type":"Failure"}}),P({"type":"ForceSuccess","child":{"type":"Failure"}}),P({"type":"ForceFailure","child":{"type":"Success"}}),

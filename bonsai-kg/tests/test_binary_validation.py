@@ -55,6 +55,39 @@ def main():
     cp=copy.deepcopy(valid);cp.feature_args[0].type=bkg.BB_TYPES["UNIT"];cases.append(("bad_feature_arg_type.bkgc",cp))
     cp=copy.deepcopy(valid);cp.nodes[0].subtree_end-=1;cases.append(("bad_subtree_end.bkgc",cp))
     cp=copy.deepcopy(valid);cp.values[cp.nodes[3].p1].type=bkg.BB_TYPES["I32"];cases.append(("bad_item_value_type.bkgc",cp))
+
+    # Compiler/decompiler canonicality: these mutations remain structurally typed and
+    # receive a fresh semantic hash on save(), but cannot be produced faithfully by
+    # the authoring compiler for the mutated opcode/static domain.
+    dyn_bb=[{"name":"item","type":"ITEM","initial":-1},{"name":"qty","type":"I32","initial":1}]
+    cp=bkg.compile_policy({"schema_version":3,"blackboard":dyn_bb,"tree":{"type":"EmitMarketIntent","action":"SELL","item":{"blackboard":"item"},"quantity":{"blackboard":"qty"}}});cp.nodes[0].p0=bkg.MARKET_OPS["HIRE"];cases.append(("hire_hidden_dynamic_operands.bkgc",cp))
+    cp=bkg.compile_policy({"schema_version":3,"blackboard":dyn_bb,"tree":{"type":"EmitMarketIntent","action":"SELL","item":{"blackboard":"item"},"quantity":{"blackboard":"qty"}}});cp.nodes[0].p0=bkg.MARKET_OPS["BUY_LAND"];cases.append(("buy_land_hidden_dynamic_operands.bkgc",cp))
+    cp=bkg.compile_policy({"schema_version":3,"tree":{"type":"EmitMarketIntent","action":"HIRE"}});cp.values[cp.nodes[0].p2].value=2;cases.append(("hire_hidden_quantity_two.bkgc",cp))
+    cp=bkg.compile_policy({"schema_version":3,"tree":{"type":"EmitMarketIntent","action":"BUY_LAND"}});cp.values[cp.nodes[0].p1].value=bkg.ITEM_ID["WHEAT"];cases.append(("buy_land_hidden_item_wheat.bkgc",cp))
+
+    unit_bb=[{"name":"unit","type":"UNIT","initial":0},{"name":"item","type":"ITEM","initial":0},{"name":"qty","type":"I32","initial":1}]
+    cp=bkg.compile_policy({"schema_version":3,"blackboard":unit_bb,"tree":{"type":"EmitUnitIntent","unit":{"blackboard":"unit"},"action":"PICKUP","item":{"blackboard":"item"},"quantity":{"blackboard":"qty"}}});cp.nodes[0].p1=bkg.UNIT_OPS["WATER"];cases.append(("ordinary_unit_hidden_dynamic_operands.bkgc",cp))
+    cp=bkg.compile_policy({"schema_version":3,"blackboard":unit_bb,"tree":{"type":"EmitUnitIntent","unit":{"blackboard":"unit"},"action":"PICKUP","item":{"blackboard":"item"},"quantity":{"blackboard":"qty"}}});cp.nodes[0].p1=bkg.UNIT_OPS["PLANT"];cases.append(("plant_dynamic_quantity.bkgc",cp))
+    cp=bkg.compile_policy({"schema_version":3,"tree":{"type":"EmitUnitIntent","unit":0,"action":"PLANT","item":"WHEAT"}});cp.values[cp.nodes[0].p2].value=bkg.ITEM_ID["GOOSE"];cases.append(("plant_const_non_crop.bkgc",cp))
+    cp=bkg.compile_policy({"schema_version":3,"tree":{"type":"EmitUnitIntent","unit":0,"action":"PICKUP","item":"WHEAT","quantity":1}});cp.values[cp.nodes[0].p2].value=-1;cases.append(("pickup_const_item_none.bkgc",cp))
+    cp=bkg.compile_policy({"schema_version":3,"tree":{"type":"EmitUnitIntent","unit":0,"action":"PLACE","item":"WHEAT","quantity":1}});cp.values[cp.nodes[0].p3].value=0;cases.append(("place_const_quantity_zero.bkgc",cp))
+    cp=bkg.compile_policy({"schema_version":3,"tree":{"type":"EmitUnitIntent","unit":0,"action":"WATER"}});cp.values[cp.nodes[0].p2].value=bkg.ITEM_ID["WHEAT"];cases.append(("ordinary_unit_hidden_item_wheat.bkgc",cp))
+    cp=bkg.compile_policy({"schema_version":3,"tree":{"type":"EmitUnitIntent","unit":0,"action":"WATER"}});cp.values[cp.nodes[0].p3].value=2;cases.append(("ordinary_unit_hidden_quantity_two.bkgc",cp))
+
+    def mutated_market(action,item,bad_item=None,bad_qty=None):
+        cp=bkg.compile_policy({"schema_version":3,"tree":{"type":"EmitMarketIntent","action":action,"item":item,"quantity":1}})
+        if bad_item is not None:cp.values[cp.nodes[0].p1].value=bad_item
+        if bad_qty is not None:cp.values[cp.nodes[0].p2].value=bad_qty
+        return cp
+    cases.append(("buy_seed_const_non_crop.bkgc",mutated_market("BUY_SEED","WHEAT",bkg.ITEM_ID["GOOSE"])))
+    cases.append(("buy_product_const_carrot.bkgc",mutated_market("BUY_PRODUCT","WHEAT",bkg.ITEM_ID["CARROT"])))
+    cases.append(("buy_animal_const_wheat.bkgc",mutated_market("BUY_ANIMAL","GOOSE",bkg.ITEM_ID["WHEAT"])))
+    cases.append(("sell_const_animal.bkgc",mutated_market("SELL","WHEAT",bkg.ITEM_ID["GOOSE"])))
+    cases.append(("sell_const_quantity_zero.bkgc",mutated_market("SELL","WHEAT",bad_qty=0)))
+
+    cp=bkg.compile_policy({"schema_version":3,"blackboard":[{"name":"flag","type":"BOOL","initial":0}],"tree":{"type":"SetBlackboard","slot":"flag","value":1}});cp.values[cp.nodes[0].p1].value=2;cases.append(("set_bool_const_two.bkgc",cp))
+    cp=bkg.compile_policy({"schema_version":3,"blackboard":[{"name":"flag","type":"BOOL","initial":0}],"tree":{"type":"Success","lifecycle":{"on_success":[{"op":"set","slot":"flag","value":1}]}}});cp.values[cp.effects[0].value].value=2;cases.append(("effect_set_bool_const_two.bkgc",cp))
+
     invalid=[save(cp,name) for name,cp in cases]
 
     raw=bytearray(good.read_bytes())

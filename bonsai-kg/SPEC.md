@@ -60,6 +60,8 @@ Restart from child zero every tick and remember the previously RUNNING child. If
 
 ReactiveSequence advances on SUCCESS/SKIPPED and stops on FAILURE/RUNNING. ReactiveSelector advances on FAILURE/SKIPPED and stops on SUCCESS/RUNNING.
 
+The remembered RUNNING child is halt-eligible only while traversal has not yet revisited that child on the current tick. Once that exact child is evaluated again, it has either completed normally or remains the active RUNNING branch; it must not receive a later stale HALT merely because traversal continues to another child. A genuine reactive preemption occurs only when an earlier child changes outcome and stops/selects before the remembered old branch is reached. Normal terminal completion runs normal terminal hooks and never `on_halted`.
+
 ### If
 
 Exactly condition/then/else. The selected branch is latched while RUNNING. Terminal branch result clears the latch. A skipped condition yields internal SKIPPED.
@@ -152,6 +154,8 @@ There are no implicit TILE/UNIT/ITEM/I32 conversions. Comparisons require matchi
 
 TILE, UNIT, and ITEM accept NONE=-1. Runtime operation consumers decide whether NONE is locally valid; malformed compiled type metadata is rejected before execution.
 
+`OWN_TILE_ITEM(tile)` and `OPP_TILE_ITEM(tile)` use ITEM NONE (`-1`) whenever the tile has no logical crop/animal. A PLANT returns its crop ITEM id; an occupied COOP/PASTURE returns its animal ITEM id. EMPTY, LOCKED, WEED, empty animal structures, structures after an animal has escaped, TILE NONE, and out-of-range TILE indices return `-1`, never WHEAT/0.
+
 A legal-feature ValueRef does not recursively contain arbitrary ValueRefs as indices. Instead it points to a compact contiguous `FeatureArgRef` range.
 
 ## 9. Dynamic legal feature indices
@@ -237,6 +241,8 @@ Operation subsets:
 - BUY_ANIMAL: GOOSE/COW/SHEEP
 - SELL: product/fertilizer ids 0..8
 - market quantity: 1..65535.
+
+Compiler and binary loaders require the same canonical hidden/static operands. HIRE/BUY_LAND must store exact CONST ITEM NONE and exact CONST I32 quantity 1. PLANT must store exact CONST I32 quantity 1. Unit actions other than PLANT/PICKUP/PLACE must store exact CONST ITEM NONE and exact CONST I32 quantity 1. For operations that permit dynamic ITEM/quantity, dynamic typed refs remain valid, while compiler-known-invalid CONST domains are rejected during compilation/loading. This keeps every accepted binary faithfully decompilable to an authoring form with the same executable identity.
 
 `MoveUnitTo` consumes dynamic UNIT and TILE ValueRefs and emits one Manhattan move, X before Y, while RUNNING.
 
@@ -362,6 +368,8 @@ VM capability is intentionally broader than search grammar v3. Dynamic UNIT/ITEM
 Compiler/loader failures are fail-closed. They reject malformed types, invalid table ranges/aliases, noncanonical empty ranges, invalid state/lifecycle reuse, malformed feature signatures, invalid action ValueRef types, wrong board size, wrong preorder/subtree intervals, recursion, unreachable nodes, cycles, trailing bytes, nonzero padding/reserved bytes, and semantic hash mismatch.
 
 Runtime operation-domain invalidity that can legitimately arise from dynamic typed values is a leaf FAILURE, not a corrupt-policy fault.
+
+Static CONST writes to a blackboard destination are additionally checked against the destination's declared type, not only its effective ValueRef type. This applies to `SetBlackboard` and lifecycle SET effects, so for example CONST I32 `2` cannot be hidden in a BOOL destination encoding. Hash-valid binaries that violate these compiler-known canonical constraints are rejected before execution.
 
 Primary verification entry points:
 

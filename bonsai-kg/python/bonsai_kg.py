@@ -448,9 +448,15 @@ class DictObservation:
     @staticmethod
     def _tile_item(tile: Any) -> int:
         if not isinstance(tile, dict):
-            return 0
-        name = tile.get("crop", tile.get("animal", ""))
-        return ITEM_ID.get(str(name), 0)
+            return -1
+        kind = str(tile.get("kind", ""))
+        if kind == "PLANT":
+            crop = tile.get("crop")
+            return ITEM_ID.get(str(crop), -1) if crop else -1
+        if kind in ("COOP", "PASTURE"):
+            animal = tile.get("animal")
+            return ITEM_ID.get(str(animal), -1) if animal else -1
+        return -1
 
     def feature(self, feature_id: int, arg: int = 0, arg1: int = 0) -> int:
         o = self.obs
@@ -1292,8 +1298,11 @@ def validate_compiled(p: CompiledPolicy) -> None:
         if not 0 <= e.value < len(p.values): raise PolicyError(f"compiled effect {i} ValueRef invalid")
         declared = p.bb[e.slot].type
         expected = declared if declared in (BB_TYPES["TILE"], BB_TYPES["UNIT"], BB_TYPES["ITEM"]) else BB_TYPES["I32"]
-        if p.values[e.value].type != expected: raise PolicyError(f"compiled effect {i} ValueRef type mismatch")
+        ref = p.values[e.value]
+        if ref.type != expected: raise PolicyError(f"compiled effect {i} ValueRef type mismatch")
         if e.op == EFFECT_OP["add"] and declared != BB_TYPES["I32"]: raise PolicyError(f"compiled effect {i} ADD requires I32")
+        if e.op == EFFECT_OP["set"] and ref.kind == VALUE_KINDS["CONST"]:
+            _validate_bb_value(declared, ref.value, f"compiled effect {i} SET constant")
         effect_value_refs.add(e.value)
 
     used_predicates: set[int] = set(); used_effects: set[int] = set()
@@ -1369,16 +1378,57 @@ def validate_compiled(p: CompiledPolicy) -> None:
             if not 0 <= n.p0 < len(p.bb): raise PolicyError(f"compiled {NODE_NAMES[n.type]} slot invalid")
             declared=p.bb[n.p0].type; expected=declared if declared in (BB_TYPES["TILE"],BB_TYPES["UNIT"],BB_TYPES["ITEM"]) else BB_TYPES["I32"]
             require_ref(n.p1, expected, f"compiled {NODE_NAMES[n.type]} ValueRef invalid")
+            ref = p.values[n.p1]
             if n.type == NODE_TYPES["AddBlackboard"] and declared != BB_TYPES["I32"]: raise PolicyError("compiled AddBlackboard requires I32")
+            if n.type == NODE_TYPES["SetBlackboard"] and ref.kind == VALUE_KINDS["CONST"]:
+                _validate_bb_value(declared, ref.value, "compiled SetBlackboard constant")
         elif n.type == NODE_TYPES["EmitUnitIntent"]:
             if n.p1 not in UNIT_OPS.values() or not 0 <= n.flags <= 255: raise PolicyError("compiled EmitUnitIntent op/priority invalid")
             require_ref(n.p0, BB_TYPES["UNIT"], "compiled EmitUnitIntent unit ValueRef invalid")
             require_ref(n.p2, BB_TYPES["ITEM"], "compiled EmitUnitIntent item ValueRef invalid")
             require_ref(n.p3, BB_TYPES["I32"], "compiled EmitUnitIntent quantity ValueRef invalid")
+            item_ref, qty_ref = p.values[n.p2], p.values[n.p3]
+            item_const = item_ref.value if item_ref.kind == VALUE_KINDS["CONST"] else None
+            qty_const = qty_ref.value if qty_ref.kind == VALUE_KINDS["CONST"] else None
+            if n.p1 == UNIT_OPS["PLANT"]:
+                if not (qty_ref.kind == VALUE_KINDS["CONST"] and qty_ref.value == 1):
+                    raise PolicyError("compiled PLANT quantity must be canonical CONST I32 1")
+                if item_const is not None and not 0 <= item_const < N_CROPS:
+                    raise PolicyError("compiled PLANT constant item must be a crop")
+            elif n.p1 in (UNIT_OPS["PICKUP"], UNIT_OPS["PLACE"]):
+                if item_const is not None and not 0 <= item_const < len(ITEMS):
+                    raise PolicyError("compiled PICKUP/PLACE constant item invalid")
+                if qty_const is not None and not 1 <= qty_const <= 32767:
+                    raise PolicyError("compiled PICKUP/PLACE constant quantity invalid")
+            else:
+                if not (item_ref.kind == VALUE_KINDS["CONST"] and item_ref.value == -1):
+                    raise PolicyError("compiled unit action hidden item must be canonical CONST ITEM NONE")
+                if not (qty_ref.kind == VALUE_KINDS["CONST"] and qty_ref.value == 1):
+                    raise PolicyError("compiled unit action hidden quantity must be canonical CONST I32 1")
         elif n.type == NODE_TYPES["EmitMarketIntent"]:
             if n.p0 not in MARKET_OPS.values() or not 0 <= n.p3 <= 255: raise PolicyError("compiled EmitMarketIntent op/priority invalid")
             require_ref(n.p1, BB_TYPES["ITEM"], "compiled EmitMarketIntent item ValueRef invalid")
             require_ref(n.p2, BB_TYPES["I32"], "compiled EmitMarketIntent quantity ValueRef invalid")
+            item_ref, qty_ref = p.values[n.p1], p.values[n.p2]
+            item_const = item_ref.value if item_ref.kind == VALUE_KINDS["CONST"] else None
+            qty_const = qty_ref.value if qty_ref.kind == VALUE_KINDS["CONST"] else None
+            if n.p0 in (MARKET_OPS["HIRE"], MARKET_OPS["BUY_LAND"]):
+                if not (item_ref.kind == VALUE_KINDS["CONST"] and item_ref.value == -1):
+                    raise PolicyError("compiled HIRE/BUY_LAND item must be canonical CONST ITEM NONE")
+                if not (qty_ref.kind == VALUE_KINDS["CONST"] and qty_ref.value == 1):
+                    raise PolicyError("compiled HIRE/BUY_LAND quantity must be canonical CONST I32 1")
+            else:
+                if item_const is not None:
+                    if n.p0 == MARKET_OPS["BUY_SEED"] and not 0 <= item_const < N_CROPS:
+                        raise PolicyError("compiled BUY_SEED constant item invalid")
+                    if n.p0 == MARKET_OPS["BUY_PRODUCT"] and item_const not in (ITEM_ID["WHEAT"], ITEM_ID["FERTILIZER"]):
+                        raise PolicyError("compiled BUY_PRODUCT constant item invalid")
+                    if n.p0 == MARKET_OPS["BUY_ANIMAL"] and not ITEM_ID["GOOSE"] <= item_const <= ITEM_ID["SHEEP"]:
+                        raise PolicyError("compiled BUY_ANIMAL constant item invalid")
+                    if n.p0 == MARKET_OPS["SELL"] and not 0 <= item_const < N_PRODUCTS:
+                        raise PolicyError("compiled SELL constant item invalid")
+                if qty_const is not None and not 1 <= qty_const <= 65535:
+                    raise PolicyError("compiled market constant quantity invalid")
         elif n.type == NODE_TYPES["MoveUnitTo"]:
             require_ref(n.p0, BB_TYPES["UNIT"], "compiled MoveUnitTo unit ValueRef invalid")
             require_ref(n.p1, BB_TYPES["TILE"], "compiled MoveUnitTo target ValueRef invalid")
@@ -1613,14 +1663,19 @@ class VM:
             prev = int(st.a) - 1 if st.a else -1
             for i, c in enumerate(children):
                 r = self._eval_node(c)
+                # Once the remembered RUNNING child itself is revisited, it has either
+                # completed normally or remains the active branch. It is no longer a
+                # stale branch that may be halted later in this same traversal.
+                if i == prev:
+                    prev = -1
                 if t == NODE_TYPES["ReactiveSequence"]:
                     if r in (STATUS_SUCCESS, STATUS_SKIPPED): continue
-                    if prev >= 0 and prev != i: self._halt_node(children[prev])
+                    if prev >= 0: self._halt_node(children[prev])
                     st.a = i + 1 if r == STATUS_RUNNING else 0
                     return r
                 else:
                     if r in (STATUS_FAILURE, STATUS_SKIPPED): continue
-                    if prev >= 0 and prev != i: self._halt_node(children[prev])
+                    if prev >= 0: self._halt_node(children[prev])
                     st.a = i + 1 if r == STATUS_RUNNING else 0
                     return r
             if prev >= 0: self._halt_node(children[prev])

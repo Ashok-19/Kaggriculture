@@ -57,14 +57,18 @@ public:
         const bool tile_feature = (id>=F_OWN_TILE_KIND&&id<=F_OPP_TILE_FERT_AVAILABLE) ||
             (id>=F_OWN_TILE_PLANTED_DAY&&id<=F_OPP_TILE_HAS_ANIMAL);
         if (tile_feature) {
-            if (arg0 < 0 || arg0 >= BOARD_SIZE*BOARD_SIZE) return 0;
+            if (arg0 < 0 || arg0 >= BOARD_SIZE*BOARD_SIZE)
+                return (id == F_OWN_TILE_ITEM || id == F_OPP_TILE_ITEM) ? -1 : 0;
             const int y=arg0/BOARD_SIZE,x=arg0%BOARD_SIZE;
             const bool own_side = id==F_OWN_TILE_KIND||id==F_OWN_TILE_ITEM||id==F_OWN_TILE_YIELD||id==F_OWN_TILE_WATERED||id==F_OWN_TILE_FED||id==F_OWN_TILE_CARED||id==F_OWN_TILE_FERT_AVAILABLE||
                 id==F_OWN_TILE_PLANTED_DAY||id==F_OWN_TILE_CONSECUTIVE_UNWATERED||id==F_OWN_TILE_MAX_LIFESPAN_STEP||id==F_OWN_TILE_FERTILIZED_UNTIL_DAY||id==F_OWN_TILE_PLACED_DAY||id==F_OWN_TILE_CONSECUTIVE_UNFED||id==F_OWN_TILE_PENDING_CARE_BONUS||id==F_OWN_TILE_HAS_ANIMAL;
             const kag::Tile& t = (own_side?own:opp).tiles[y][x];
             switch(id){
                 case F_OWN_TILE_KIND: case F_OPP_TILE_KIND: return t.kind;
-                case F_OWN_TILE_ITEM: case F_OPP_TILE_ITEM: return t.what;
+                case F_OWN_TILE_ITEM: case F_OPP_TILE_ITEM:
+                    if (t.kind == kag::T_PLANT) return t.what;
+                    if ((t.kind == kag::T_COOP || t.kind == kag::T_PASTURE) && t.has_animal) return t.what;
+                    return -1;
                 case F_OWN_TILE_YIELD: case F_OPP_TILE_YIELD: return t.yield_units;
                 case F_OWN_TILE_WATERED: case F_OPP_TILE_WATERED: return t.watered_today;
                 case F_OWN_TILE_FED: case F_OPP_TILE_FED: return t.fed_today;

@@ -42,12 +42,13 @@ def targeted(obs):
     for q in range(4):out.extend((obs.feature(f["OWN_QUADRANT_UNLOCKED"],q),obs.feature(f["OPP_QUADRANT_UNLOCKED"],q)))
     for u in (0,1):out.extend((obs.feature(f["OWN_WORKER_TILE"],u),obs.feature(f["OPP_WORKER_TILE"],u)))
     plant,animal=44,43
+    out.extend((obs.feature(f["OWN_TILE_ITEM"],plant),obs.feature(f["OWN_TILE_ITEM"],animal),obs.feature(f["OWN_TILE_ITEM"],0),obs.feature(f["OPP_TILE_ITEM"],plant),obs.feature(f["OPP_TILE_ITEM"],animal),obs.feature(f["OPP_TILE_ITEM"],0)))
     for name in ("OWN_TILE_PLANTED_DAY","OWN_TILE_CONSECUTIVE_UNWATERED","OWN_TILE_MAX_LIFESPAN_STEP","OWN_TILE_FERTILIZED_UNTIL_DAY"):out.append(obs.feature(f[name],plant))
     for name in ("OWN_TILE_HAS_ANIMAL","OWN_TILE_PLACED_DAY","OWN_TILE_CONSECUTIVE_UNFED","OWN_TILE_PENDING_CARE_BONUS","OWN_TILE_FED","OWN_TILE_CARED","OWN_TILE_FERT_AVAILABLE"):out.append(obs.feature(f[name],animal))
     for name in ("OPP_TILE_PLANTED_DAY","OPP_TILE_CONSECUTIVE_UNWATERED","OPP_TILE_MAX_LIFESPAN_STEP","OPP_TILE_FERTILIZED_UNTIL_DAY"):out.append(obs.feature(f[name],plant))
     for name in ("OPP_TILE_HAS_ANIMAL","OPP_TILE_PLACED_DAY","OPP_TILE_CONSECUTIVE_UNFED","OPP_TILE_PENDING_CARE_BONUS"):out.append(obs.feature(f[name],animal))
     out.extend((obs.feature(f["OWN_SHED"],0),obs.feature(f["OWN_SHED"],8),obs.feature(f["OWN_SEED"],0),obs.feature(f["OWN_INVENTORY"],0,0),obs.feature(f["OWN_INVENTORY"],1,0)))
-    assert len(out)==38
+    assert len(out)==44
     return out
 
 def scripted(step):

@@ -362,25 +362,27 @@ struct Evaluator {
                     else { st->a = 0; finish(SUCCESS); }
                     break;
                 case 3: { // Reactive Sequence
-                    const int prev = f.aux ? static_cast<int>(f.aux) - 1 : -1;
+                    int prev = f.aux ? static_cast<int>(f.aux) - 1 : -1;
+                    if (prev == static_cast<int>(f.cursor)) { f.aux = 0; prev = -1; }
                     if (r == SUCCESS || r == SKIPPED) {
                         ++f.cursor;
                         if (f.cursor >= n.child_count) { if (prev >= 0) halt_node(child(n, static_cast<uint16_t>(prev))); st->a = 0; finish(SUCCESS); }
                         else push(child(n, f.cursor));
                     } else {
-                        if (prev >= 0 && prev != f.cursor) halt_node(child(n, static_cast<uint16_t>(prev)));
+                        if (prev >= 0) halt_node(child(n, static_cast<uint16_t>(prev)));
                         st->a = r == RUNNING ? static_cast<uint32_t>(f.cursor + 1) : 0; finish(r);
                     }
                     break;
                 }
                 case 4: { // Reactive Selector
-                    const int prev = f.aux ? static_cast<int>(f.aux) - 1 : -1;
+                    int prev = f.aux ? static_cast<int>(f.aux) - 1 : -1;
+                    if (prev == static_cast<int>(f.cursor)) { f.aux = 0; prev = -1; }
                     if (r == FAILURE || r == SKIPPED) {
                         ++f.cursor;
                         if (f.cursor >= n.child_count) { if (prev >= 0) halt_node(child(n, static_cast<uint16_t>(prev))); st->a = 0; finish(FAILURE); }
                         else push(child(n, f.cursor));
                     } else {
-                        if (prev >= 0 && prev != f.cursor) halt_node(child(n, static_cast<uint16_t>(prev)));
+                        if (prev >= 0) halt_node(child(n, static_cast<uint16_t>(prev)));
                         st->a = r == RUNNING ? static_cast<uint32_t>(f.cursor + 1) : 0; finish(r == RUNNING ? RUNNING : SUCCESS);
                     }
                     break;

@@ -31,7 +31,7 @@ BKG_TEST_HD uint64_t hash_feature_registry(const Obs&obs){
     return h;
 }
 
-constexpr int TARGETED_FEATURE_COUNT=38;
+constexpr int TARGETED_FEATURE_COUNT=44;
 
 template<class Obs>
 BKG_TEST_HD void targeted_features(const Obs&obs,int32_t*out){
@@ -40,6 +40,8 @@ BKG_TEST_HD void targeted_features(const Obs&obs,int32_t*out){
     for(int q=0;q<4;++q){out[k++]=obs.feature(bonsaikg::F_OWN_QUADRANT_UNLOCKED,q);out[k++]=obs.feature(bonsaikg::F_OPP_QUADRANT_UNLOCKED,q);}
     out[k++]=obs.feature(bonsaikg::F_OWN_WORKER_TILE,0);out[k++]=obs.feature(bonsaikg::F_OPP_WORKER_TILE,0);out[k++]=obs.feature(bonsaikg::F_OWN_WORKER_TILE,1);out[k++]=obs.feature(bonsaikg::F_OPP_WORKER_TILE,1);
     const int plant=44,animal=43;
+    out[k++]=obs.feature(bonsaikg::F_OWN_TILE_ITEM,plant);out[k++]=obs.feature(bonsaikg::F_OWN_TILE_ITEM,animal);out[k++]=obs.feature(bonsaikg::F_OWN_TILE_ITEM,0);
+    out[k++]=obs.feature(bonsaikg::F_OPP_TILE_ITEM,plant);out[k++]=obs.feature(bonsaikg::F_OPP_TILE_ITEM,animal);out[k++]=obs.feature(bonsaikg::F_OPP_TILE_ITEM,0);
     out[k++]=obs.feature(bonsaikg::F_OWN_TILE_PLANTED_DAY,plant);out[k++]=obs.feature(bonsaikg::F_OWN_TILE_CONSECUTIVE_UNWATERED,plant);out[k++]=obs.feature(bonsaikg::F_OWN_TILE_MAX_LIFESPAN_STEP,plant);out[k++]=obs.feature(bonsaikg::F_OWN_TILE_FERTILIZED_UNTIL_DAY,plant);
     out[k++]=obs.feature(bonsaikg::F_OWN_TILE_HAS_ANIMAL,animal);out[k++]=obs.feature(bonsaikg::F_OWN_TILE_PLACED_DAY,animal);out[k++]=obs.feature(bonsaikg::F_OWN_TILE_CONSECUTIVE_UNFED,animal);out[k++]=obs.feature(bonsaikg::F_OWN_TILE_PENDING_CARE_BONUS,animal);out[k++]=obs.feature(bonsaikg::F_OWN_TILE_FED,animal);out[k++]=obs.feature(bonsaikg::F_OWN_TILE_CARED,animal);out[k++]=obs.feature(bonsaikg::F_OWN_TILE_FERT_AVAILABLE,animal);
     out[k++]=obs.feature(bonsaikg::F_OPP_TILE_PLANTED_DAY,plant);out[k++]=obs.feature(bonsaikg::F_OPP_TILE_CONSECUTIVE_UNWATERED,plant);out[k++]=obs.feature(bonsaikg::F_OPP_TILE_MAX_LIFESPAN_STEP,plant);out[k++]=obs.feature(bonsaikg::F_OPP_TILE_FERTILIZED_UNTIL_DAY,plant);out[k++]=obs.feature(bonsaikg::F_OPP_TILE_HAS_ANIMAL,animal);out[k++]=obs.feature(bonsaikg::F_OPP_TILE_PLACED_DAY,animal);out[k++]=obs.feature(bonsaikg::F_OPP_TILE_CONSECUTIVE_UNFED,animal);out[k++]=obs.feature(bonsaikg::F_OPP_TILE_PENDING_CARE_BONUS,animal);

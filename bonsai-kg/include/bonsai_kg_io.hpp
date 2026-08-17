@@ -73,6 +73,60 @@ inline bool feature_const_arg_ok(uint16_t fid, uint8_t pos, int32_t v) {
 }
 inline bool zero_bytes(const uint8_t* p,size_t n){for(size_t i=0;i<n;++i)if(p[i])return false;return true;}
 
+inline bool exact_const_ref(const OwnedPolicy& o, int32_t ref, uint8_t type, int32_t value) {
+    if (ref < 0 || ref >= static_cast<int32_t>(o.values.size())) return false;
+    const ValueRef& v = o.values[static_cast<size_t>(ref)];
+    return v.kind == V_CONST && v.type == type && v.value == value;
+}
+
+inline void validate_action_canonicality(const OwnedPolicy& o, const Node& n) {
+    if (n.type == N_EMIT_UNIT_INTENT) {
+        const ValueRef& item = o.values[static_cast<size_t>(n.p2)];
+        const ValueRef& qty = o.values[static_cast<size_t>(n.p3)];
+        if (n.p1 == U_PLANT) {
+            if (!exact_const_ref(o, n.p3, B_I32, 1))
+                throw std::runtime_error("Bonsai-KG PLANT quantity noncanonical");
+            if (item.kind == V_CONST && (item.value < 0 || item.value >= 5))
+                throw std::runtime_error("Bonsai-KG PLANT constant item invalid");
+        } else if (n.p1 == U_PICKUP || n.p1 == U_PLACE) {
+            if (item.kind == V_CONST && (item.value < 0 || item.value >= MAX_ITEMS))
+                throw std::runtime_error("Bonsai-KG PICKUP/PLACE constant item invalid");
+            if (qty.kind == V_CONST && (qty.value < 1 || qty.value > 32767))
+                throw std::runtime_error("Bonsai-KG PICKUP/PLACE constant quantity invalid");
+        } else {
+            if (!exact_const_ref(o, n.p2, B_ITEM, -1))
+                throw std::runtime_error("Bonsai-KG hidden unit item noncanonical");
+            if (!exact_const_ref(o, n.p3, B_I32, 1))
+                throw std::runtime_error("Bonsai-KG hidden unit quantity noncanonical");
+        }
+        return;
+    }
+    if (n.type == N_EMIT_MARKET_INTENT) {
+        const ValueRef& item = o.values[static_cast<size_t>(n.p1)];
+        const ValueRef& qty = o.values[static_cast<size_t>(n.p2)];
+        if (n.p0 == M_HIRE || n.p0 == M_BUY_LAND) {
+            if (!exact_const_ref(o, n.p1, B_ITEM, -1))
+                throw std::runtime_error("Bonsai-KG HIRE/BUY_LAND item noncanonical");
+            if (!exact_const_ref(o, n.p2, B_I32, 1))
+                throw std::runtime_error("Bonsai-KG HIRE/BUY_LAND quantity noncanonical");
+            return;
+        }
+        if (item.kind == V_CONST) {
+            const int32_t v = item.value;
+            if (n.p0 == M_BUY_SEED && (v < 0 || v >= 5))
+                throw std::runtime_error("Bonsai-KG BUY_SEED constant item invalid");
+            if (n.p0 == M_BUY_PRODUCT && v != 0 && v != 8)
+                throw std::runtime_error("Bonsai-KG BUY_PRODUCT constant item invalid");
+            if (n.p0 == M_BUY_ANIMAL && (v < 9 || v > 11))
+                throw std::runtime_error("Bonsai-KG BUY_ANIMAL constant item invalid");
+            if (n.p0 == M_SELL && (v < 0 || v >= 9))
+                throw std::runtime_error("Bonsai-KG SELL constant item invalid");
+        }
+        if (qty.kind == V_CONST && (qty.value < 1 || qty.value > 65535))
+            throw std::runtime_error("Bonsai-KG market constant quantity invalid");
+    }
+}
+
 inline void sem_u8(std::vector<uint8_t>&o,uint8_t v){o.push_back(v);}
 inline void sem_u16(std::vector<uint8_t>&o,uint16_t v){o.push_back((uint8_t)v);o.push_back((uint8_t)(v>>8));}
 inline void sem_i32(std::vector<uint8_t>&o,int32_t v){uint32_t u=(uint32_t)v;o.push_back((uint8_t)u);o.push_back((uint8_t)(u>>8));o.push_back((uint8_t)(u>>16));o.push_back((uint8_t)(u>>24));}
@@ -125,13 +179,22 @@ inline void validate_owned_policy(const OwnedPolicy&o){
     for(uint8_t u:feature_arg_used)if(!u)throw std::runtime_error("Bonsai-KG FeatureArg table not dense/used");
     for(const Predicate&q:o.predicates)if(q.cmp>C_GE||q.lhs>=h.n_values||q.rhs>=h.n_values||!zero_bytes(q.pad,7)||o.values[q.lhs].type!=o.values[q.rhs].type)throw std::runtime_error("Bonsai-KG predicate invalid");
     for(const Predicate&q:o.predicates){value_used[q.lhs]=1;value_used[q.rhs]=1;}
-    for(const Effect&e:o.effects){if(e.op>E_ADD||e.slot>=h.n_bb||e.reserved)throw std::runtime_error("Bonsai-KG effect invalid");if(e.op==E_CLEAR){if(e.value)throw std::runtime_error("Bonsai-KG CLEAR noncanonical");continue;}if(e.value<0||e.value>=h.n_values)throw std::runtime_error("Bonsai-KG effect ValueRef invalid");const uint8_t expected=value_type_for_bb(o.bb[e.slot].type);if(o.values[e.value].type!=expected||(e.op==E_ADD&&o.bb[e.slot].type!=B_I32))throw std::runtime_error("Bonsai-KG effect type invalid");value_used[e.value]=1;}
+    for(const Effect& e : o.effects) {
+        if(e.op>E_ADD||e.slot>=h.n_bb||e.reserved)throw std::runtime_error("Bonsai-KG effect invalid");
+        if(e.op==E_CLEAR){if(e.value)throw std::runtime_error("Bonsai-KG CLEAR noncanonical");continue;}
+        if(e.value<0||e.value>=h.n_values)throw std::runtime_error("Bonsai-KG effect ValueRef invalid");
+        const uint8_t expected=value_type_for_bb(o.bb[e.slot].type);
+        const ValueRef& ref=o.values[e.value];
+        if(ref.type!=expected||(e.op==E_ADD&&o.bb[e.slot].type!=B_I32))throw std::runtime_error("Bonsai-KG effect type invalid");
+        if(e.op==E_SET&&ref.kind==V_CONST&&!valid_bb_value(o.bb[e.slot].type,ref.value))throw std::runtime_error("Bonsai-KG effect SET constant invalid for declared blackboard type");
+        value_used[e.value]=1;
+    }
     std::vector<uint8_t>pred_used(h.n_predicates,0),eff_used(h.n_effects,0),life_used(h.n_lifecycles,0),state_used(h.n_state,0),child_used(h.n_child_refs,0),parents(h.n_nodes,0);
     for(const Lifecycle&l:o.lifecycles){const uint16_t ps[4]={l.failure_if,l.success_if,l.skip_if,l.while_pred};for(uint16_t q:ps)if(q!=NONE_U16){if(q>=h.n_predicates||pred_used[q])throw std::runtime_error("Bonsai-KG lifecycle predicate invalid/aliased");pred_used[q]=1;}const uint16_t ranges[8]={l.on_success_start,l.on_success_count,l.on_failure_start,l.on_failure_count,l.on_halted_start,l.on_halted_count,l.post_start,l.post_count};for(int k=0;k<8;k+=2){uint16_t st=ranges[k],ct=ranges[k+1];if((uint32_t)st+ct>h.n_effects||(ct==0&&st!=0))throw std::runtime_error("Bonsai-KG lifecycle effect range invalid");for(uint16_t e=st;e<st+ct;++e){if(eff_used[e])throw std::runtime_error("Bonsai-KG lifecycle effect alias");eff_used[e]=1;}}}
     for(uint8_t u:pred_used)if(!u)throw std::runtime_error("Bonsai-KG predicate table not dense/used");
     for(uint8_t u:eff_used)if(!u)throw std::runtime_error("Bonsai-KG effect table not dense/used");
     auto require_ref=[&](int32_t r,uint8_t t){if(r<0||r>=h.n_values||o.values[r].type!=t)throw std::runtime_error("Bonsai-KG node ValueRef invalid");value_used[r]=1;};
-    for(uint16_t i=0;i<h.n_nodes;++i){const Node&n=o.nodes[i];if(!valid_node_type(n.type)||n.debug_id!=i||n.subtree_end<=i||n.subtree_end>h.n_nodes||(uint32_t)n.first_child+n.child_count>h.n_child_refs||(n.child_count==0&&n.first_child!=0))throw std::runtime_error("Bonsai-KG node encoding invalid");for(uint16_t pos=n.first_child;pos<n.first_child+n.child_count;++pos){if(child_used[pos])throw std::runtime_error("Bonsai-KG child range alias");child_used[pos]=1;const uint16_t c=o.child_refs[pos];if(c>=h.n_nodes||++parents[c]>1)throw std::runtime_error("Bonsai-KG child/tree invalid");}const bool core=n.type==N_SEQUENCE||n.type==N_SELECTOR||n.type==N_REACTIVE_SEQUENCE||n.type==N_REACTIVE_SELECTOR||n.type==N_IF||n.type==N_PARALLEL||n.type==N_TURN_TIMEOUT||n.type==N_RETRY||n.type==N_REPEAT||n.type==N_WAIT_TURNS;const bool needs=core||n.lifecycle_slot!=NONE_U16;if(needs!=(n.state_slot!=NONE_U16))throw std::runtime_error("Bonsai-KG state-slot requirement invalid");if(n.state_slot!=NONE_U16){if(n.state_slot>=h.n_state||state_used[n.state_slot])throw std::runtime_error("Bonsai-KG state slot invalid/aliased");state_used[n.state_slot]=1;}if(n.lifecycle_slot!=NONE_U16){if(n.lifecycle_slot>=h.n_lifecycles||life_used[n.lifecycle_slot])throw std::runtime_error("Bonsai-KG lifecycle invalid/aliased");life_used[n.lifecycle_slot]=1;}const bool composite=n.type<=N_PARALLEL;if((n.type==N_SEQUENCE||n.type==N_SELECTOR||n.type==N_REACTIVE_SEQUENCE||n.type==N_REACTIVE_SELECTOR)&&n.child_count==0)throw std::runtime_error("Bonsai-KG empty composite");if(n.type==N_IF&&n.child_count!=3)throw std::runtime_error("Bonsai-KG If invalid");if(n.type==N_PARALLEL&&(n.child_count<2||n.child_count>16||n.p0<1||n.p0>n.child_count||n.p1<1||n.p1>n.child_count))throw std::runtime_error("Bonsai-KG Parallel invalid");if(is_decorator(n.type)&&n.child_count!=1)throw std::runtime_error("Bonsai-KG decorator invalid");if(!composite&&!is_decorator(n.type)&&n.child_count!=0)throw std::runtime_error("Bonsai-KG leaf children invalid");if(n.type!=N_CONDITION&&n.type!=N_EMIT_UNIT_INTENT&&n.flags)throw std::runtime_error("Bonsai-KG flags noncanonical");bool allow[4]={0,0,0,0};if(n.type==N_PARALLEL)allow[0]=allow[1]=1;else if(n.type==N_TURN_TIMEOUT||n.type==N_RETRY||n.type==N_REPEAT||n.type==N_WAIT_TURNS)allow[0]=1;else if(n.type==N_CONDITION||n.type==N_SET_BLACKBOARD||n.type==N_ADD_BLACKBOARD)allow[0]=allow[1]=1;else if(n.type==N_EMIT_UNIT_INTENT||n.type==N_EMIT_MARKET_INTENT)allow[0]=allow[1]=allow[2]=allow[3]=1;else if(n.type==N_MOVE_UNIT_TO)allow[0]=allow[1]=allow[2]=1;const int32_t ps[4]={n.p0,n.p1,n.p2,n.p3};for(int k=0;k<4;++k)if(!allow[k]&&ps[k])throw std::runtime_error("Bonsai-KG parameter noncanonical");if((n.type==N_TURN_TIMEOUT||n.type==N_WAIT_TURNS)&&(n.p0<1||n.p0>720))throw std::runtime_error("Bonsai-KG turn bound invalid");if((n.type==N_RETRY||n.type==N_REPEAT)&&(n.p0<1||n.p0>255))throw std::runtime_error("Bonsai-KG count invalid");if(n.type==N_CONDITION){if(n.flags>C_GE||n.p0<0||n.p1<0||n.p0>=h.n_values||n.p1>=h.n_values||o.values[n.p0].type!=o.values[n.p1].type)throw std::runtime_error("Bonsai-KG Condition invalid");value_used[n.p0]=value_used[n.p1]=1;}else if(n.type==N_SET_BLACKBOARD||n.type==N_ADD_BLACKBOARD){if(n.p0<0||n.p0>=h.n_bb)throw std::runtime_error("Bonsai-KG BB leaf slot invalid");require_ref(n.p1,value_type_for_bb(o.bb[n.p0].type));if(n.type==N_ADD_BLACKBOARD&&o.bb[n.p0].type!=B_I32)throw std::runtime_error("Bonsai-KG Add requires I32");}else if(n.type==N_EMIT_UNIT_INTENT){if(n.p1<U_PASS||n.p1>U_CARE)throw std::runtime_error("Bonsai-KG unit op invalid");require_ref(n.p0,B_UNIT);require_ref(n.p2,B_ITEM);require_ref(n.p3,B_I32);}else if(n.type==N_EMIT_MARKET_INTENT){if(n.p0<M_HIRE||n.p0>M_SELL||n.p3<0||n.p3>255)throw std::runtime_error("Bonsai-KG market op invalid");require_ref(n.p1,B_ITEM);require_ref(n.p2,B_I32);}else if(n.type==N_MOVE_UNIT_TO){require_ref(n.p0,B_UNIT);require_ref(n.p1,B_TILE);if(n.p2<0||n.p2>255)throw std::runtime_error("Bonsai-KG Move priority invalid");}}
+    for(uint16_t i=0;i<h.n_nodes;++i){const Node&n=o.nodes[i];if(!valid_node_type(n.type)||n.debug_id!=i||n.subtree_end<=i||n.subtree_end>h.n_nodes||(uint32_t)n.first_child+n.child_count>h.n_child_refs||(n.child_count==0&&n.first_child!=0))throw std::runtime_error("Bonsai-KG node encoding invalid");for(uint16_t pos=n.first_child;pos<n.first_child+n.child_count;++pos){if(child_used[pos])throw std::runtime_error("Bonsai-KG child range alias");child_used[pos]=1;const uint16_t c=o.child_refs[pos];if(c>=h.n_nodes||++parents[c]>1)throw std::runtime_error("Bonsai-KG child/tree invalid");}const bool core=n.type==N_SEQUENCE||n.type==N_SELECTOR||n.type==N_REACTIVE_SEQUENCE||n.type==N_REACTIVE_SELECTOR||n.type==N_IF||n.type==N_PARALLEL||n.type==N_TURN_TIMEOUT||n.type==N_RETRY||n.type==N_REPEAT||n.type==N_WAIT_TURNS;const bool needs=core||n.lifecycle_slot!=NONE_U16;if(needs!=(n.state_slot!=NONE_U16))throw std::runtime_error("Bonsai-KG state-slot requirement invalid");if(n.state_slot!=NONE_U16){if(n.state_slot>=h.n_state||state_used[n.state_slot])throw std::runtime_error("Bonsai-KG state slot invalid/aliased");state_used[n.state_slot]=1;}if(n.lifecycle_slot!=NONE_U16){if(n.lifecycle_slot>=h.n_lifecycles||life_used[n.lifecycle_slot])throw std::runtime_error("Bonsai-KG lifecycle invalid/aliased");life_used[n.lifecycle_slot]=1;}const bool composite=n.type<=N_PARALLEL;if((n.type==N_SEQUENCE||n.type==N_SELECTOR||n.type==N_REACTIVE_SEQUENCE||n.type==N_REACTIVE_SELECTOR)&&n.child_count==0)throw std::runtime_error("Bonsai-KG empty composite");if(n.type==N_IF&&n.child_count!=3)throw std::runtime_error("Bonsai-KG If invalid");if(n.type==N_PARALLEL&&(n.child_count<2||n.child_count>16||n.p0<1||n.p0>n.child_count||n.p1<1||n.p1>n.child_count))throw std::runtime_error("Bonsai-KG Parallel invalid");if(is_decorator(n.type)&&n.child_count!=1)throw std::runtime_error("Bonsai-KG decorator invalid");if(!composite&&!is_decorator(n.type)&&n.child_count!=0)throw std::runtime_error("Bonsai-KG leaf children invalid");if(n.type!=N_CONDITION&&n.type!=N_EMIT_UNIT_INTENT&&n.flags)throw std::runtime_error("Bonsai-KG flags noncanonical");bool allow[4]={0,0,0,0};if(n.type==N_PARALLEL)allow[0]=allow[1]=1;else if(n.type==N_TURN_TIMEOUT||n.type==N_RETRY||n.type==N_REPEAT||n.type==N_WAIT_TURNS)allow[0]=1;else if(n.type==N_CONDITION||n.type==N_SET_BLACKBOARD||n.type==N_ADD_BLACKBOARD)allow[0]=allow[1]=1;else if(n.type==N_EMIT_UNIT_INTENT||n.type==N_EMIT_MARKET_INTENT)allow[0]=allow[1]=allow[2]=allow[3]=1;else if(n.type==N_MOVE_UNIT_TO)allow[0]=allow[1]=allow[2]=1;const int32_t ps[4]={n.p0,n.p1,n.p2,n.p3};for(int k=0;k<4;++k)if(!allow[k]&&ps[k])throw std::runtime_error("Bonsai-KG parameter noncanonical");if((n.type==N_TURN_TIMEOUT||n.type==N_WAIT_TURNS)&&(n.p0<1||n.p0>720))throw std::runtime_error("Bonsai-KG turn bound invalid");if((n.type==N_RETRY||n.type==N_REPEAT)&&(n.p0<1||n.p0>255))throw std::runtime_error("Bonsai-KG count invalid");if(n.type==N_CONDITION){if(n.flags>C_GE||n.p0<0||n.p1<0||n.p0>=h.n_values||n.p1>=h.n_values||o.values[n.p0].type!=o.values[n.p1].type)throw std::runtime_error("Bonsai-KG Condition invalid");value_used[n.p0]=value_used[n.p1]=1;}else if(n.type==N_SET_BLACKBOARD||n.type==N_ADD_BLACKBOARD){if(n.p0<0||n.p0>=h.n_bb)throw std::runtime_error("Bonsai-KG BB leaf slot invalid");require_ref(n.p1,value_type_for_bb(o.bb[n.p0].type));if(n.type==N_ADD_BLACKBOARD&&o.bb[n.p0].type!=B_I32)throw std::runtime_error("Bonsai-KG Add requires I32");if(n.type==N_SET_BLACKBOARD&&o.values[n.p1].kind==V_CONST&&!valid_bb_value(o.bb[n.p0].type,o.values[n.p1].value))throw std::runtime_error("Bonsai-KG SetBlackboard constant invalid for declared type");}else if(n.type==N_EMIT_UNIT_INTENT){if(n.p1<U_PASS||n.p1>U_CARE)throw std::runtime_error("Bonsai-KG unit op invalid");require_ref(n.p0,B_UNIT);require_ref(n.p2,B_ITEM);require_ref(n.p3,B_I32);validate_action_canonicality(o,n);}else if(n.type==N_EMIT_MARKET_INTENT){if(n.p0<M_HIRE||n.p0>M_SELL||n.p3<0||n.p3>255)throw std::runtime_error("Bonsai-KG market op invalid");require_ref(n.p1,B_ITEM);require_ref(n.p2,B_I32);validate_action_canonicality(o,n);}else if(n.type==N_MOVE_UNIT_TO){require_ref(n.p0,B_UNIT);require_ref(n.p1,B_TILE);if(n.p2<0||n.p2>255)throw std::runtime_error("Bonsai-KG Move priority invalid");}}
     for(uint8_t u:child_used)if(!u)throw std::runtime_error("Bonsai-KG child table not dense/used");
     for(uint8_t u:life_used)if(!u)throw std::runtime_error("Bonsai-KG lifecycle table not dense/used");
     for(uint8_t u:state_used)if(!u)throw std::runtime_error("Bonsai-KG state table not dense/used");
