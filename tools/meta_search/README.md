@@ -1,29 +1,184 @@
-# Dual-T4 Kaggriculture Bonsai Meta Search
+# Dual-T4 Kaggriculture GPU-Resident Memetic Meta Search
 
-This directory packages the development-only CUDA meta-discovery campaign used by `notebooks/kaggle_dual_t4_meta_search.ipynb`.
+`notebooks/kaggle_dual_t4_meta_search.ipynb` is a 10-hour, two-T4 discovery pipeline for compact Bonsai-compatible strategic programs. The long search is no longer a Python-orchestrated generational GA.
 
-## Purpose
+## Architecture
 
-The notebook runs two independent exact-CUDA program-search islands for roughly one Kaggle 10-hour session:
+There are exactly two independent top-level search universes:
 
-- GPU 0: exploitation-biased, strongly preserving proven v6 actuator basins and stronger selection pressure.
-- GPU 1: exploration-biased, lower selection pressure, fewer route-seeded individuals, extra structural mutation.
+- **GPU0 / exploit:** strongly anchored to verified 4096-byte historical Bonsai structural priors, lower mutation amplitude, larger local-refinement lanes and slower restarts.
+- **GPU1 / explore:** receives only one weak anchor, then uses substantially stronger structural mutation and faster stagnation resets to seek a different economic basin.
 
-The islands do not exchange populations during the main search. They write separate checkpoints and elite archives and are merged only after the search phase.
+Each top-level process owns one `CUDA_VISIBLE_DEVICES` value and never communicates with the other during the primary search. There is no NCCL, peer-to-peer population exchange, shared population lock, or periodic cross-GPU merge. The two result sets meet only in the final screen.
 
-The candidate representation is the existing fixed-size `GPProgram`/`GPManager` Bonsai search grammar in `cuda-engine/include/bonsai_gp.cuh`: ordered public-observation predicates plus modular route/manager leaves and an evolvable 11-phase economic blueprint. Candidate action selection cannot reference opponent identity, submission/replay IDs, episode IDs, seeds, hidden inventory, or future RNG.
+Python is a supervisor. One compiled `bonsai_memetic_search` process per GPU owns the expensive loop:
 
-## Exact semantics
+```text
+resident population
+    -> exact CUDA simulation
+    -> on-device family/regression fitness
+    -> QD niche archive
+    -> on-device island selection
+    -> stagnation / duplicate-signature reset
+    -> module crossover + structural mutation
+    -> GPU local-neighborhood refinement lanes
+    -> next resident generation
+```
 
-Simulation uses the repository CUDA engine pinned to the Kaggriculture `kaggle-environments==1.32.7` semantics. Search builds use `-O3` and explicitly do not use `--use_fast_math`.
+There is no per-generation Python callback and no reward/fitness round trip to Python. CUDA launches for multiple generations are queued from compiled C++; the host synchronizes only at sparse epoch/checkpoint boundaries measured in minutes.
 
-Early search stages approximate fitness only by using fewer development tapes and stopping exact trajectories earlier. The simulator transition semantics themselves are not approximated.
+## Compact search representation
 
-Before a long run, the notebook compiles and executes the exact BKG3-v6 CUDA compatibility runner and compares its stdout SHA-256 against `v6_smoke_reference.json`. Any mismatch aborts the campaign.
+The hot search uses `SearchGenome`, statically fixed at **256 bytes**. It is not JSON, a pointer tree, or a 719-action replay. It contains strategic degrees of freedom only:
 
-## Development-only input bundle
+- phase timing;
+- compact farm-layout weights and layout seeds;
+- land/labor/livestock/cash targets;
+- phase-specific execution mode and actuator route choices;
+- planner horizons and buffers;
+- market floors/reserves/liquidation controls;
+- task priorities;
+- up to four compact public-observation reactive rules.
 
-Build the upload directory locally from repository root:
+Every genome expands deterministically to the existing `GPManager` execution backbone and distills deterministically to a standard **4096-byte `GPProgram`**. Movement legality, watering, feeding, harvesting, shed interaction and other execution mechanics remain the shared competent Bonsai primitives; evolution searches strategy around them rather than rediscovering low-level legality.
+
+The compact quantization is a search-space parameterization, not a simulator approximation. Promoted candidates are always evaluated with the exact CUDA Kaggriculture simulator.
+
+## Official-engine exploitation axis
+
+Engine exploitation is a primary search axis, not a side experiment. The bundle contains the exact official `kaggriculture.py` used to derive these mechanics and locks its SHA-256 in `bundle_manifest.json`; the notebook aborts if that source changes. Code is authoritative over documentation.
+
+The current engine-aware grammar exposes only legal current observations and exact deterministic consequences of the official implementation:
+
+- shared market inventory and current market prices;
+- our private shed inventory;
+- both farms' public crop/animal/geometry exposure;
+- current unlocked shop instances, including duplicates;
+- market queue ordering, batch size and relative withholding pressure;
+- the special `$1` SELL branch, where a successful sale pays/removes our stock but does not increase shared market supply;
+- town-consumption timing after `_process_market`;
+- empty-space/geometry pressure that can legally alter end-of-day weed RNG consumption and therefore the later shop draw.
+
+No runtime gene can access opponent-private inventory, episode/replay identity, the seed, future RNG, or future shops. Geometry/RNG effects are discovered only through exact offline simulation and expressed at runtime as deterministic farm structure.
+
+The 256-byte genome dedicates compact bytes to an engine profile, market batch/order bias and packed relative-withholding/empty-space pressure. New engine-aware leaf kinds preserve the fixed 4096-byte `GPProgram` ABI. Search-vs-distilled parity is forced through these engine leaf modes before either long T4 run begins.
+
+Sub-island allocation is intentional:
+
+- GPU0/exploit: **12 of 32** default sub-islands are engine-mechanics refinement lanes;
+- GPU1/explore: **20 of 32** default sub-islands are de-novo/adversarial engine-mechanics lanes.
+
+The hot-loop objective remains relative. Rewards are candidate money minus opponent money; family loss/regression/downside constraints dominate ranking. Each offspring also carries the common-case mean of its parent/reference, so the GPU computes a `marginal_delta = offspring margin - parent margin` on the same family-balanced hard core. This is only a downstream tie-breaker after safety criteria and suppresses changes that merely raise both players together.
+
+## Exactness gates
+
+Simulation remains pinned to repository semantics for `kaggle-environments==1.32.7`. Builds use `-O3` and never use `--use_fast_math`.
+
+Before either long-lived T4 process starts, the notebook requires both:
+
+1. the existing BKG3-v6 CUDA fingerprint/tick smoke in `v6_smoke_reference.json`;
+2. a full-reward parity gate comparing a `SearchGenome` executor against its distilled standard `GPProgram` on the core development cases.
+
+Any mismatch aborts the notebook.
+
+The independent `bonsai_search` executable remains the final-screen evaluator. This gives the final candidates an independent exact `GPProgram` execution path rather than trusting only the search interpreter.
+
+## Development data boundary
+
+`prepare_input_bundle.py` builds a development-only Kaggle Dataset and asserts:
+
+- 168 development tapes / 21 families;
+- 84 frozen validation tapes excluded;
+- 50 blind continuity tapes excluded;
+- 28 family-holdout tapes excluded;
+- Kawashigi and Ueddy present in the hard core;
+- no forbidden tape content hash copied into the bundle;
+- no fast-math setting.
+
+The entire allowed corpus is parsed once before the resident search clock starts, encoded as native actions/descriptors and copied independently to each GPU. No JSON replay parsing occurs in the hot loop.
+
+## Device-resident multi-fidelity search
+
+Every resident candidate is repeatedly screened on the exact **core12 × both seats** evidence through step 120. This is the high-volume search fitness and includes both hard families and incumbent-win regression guards.
+
+Broader evidence is deliberately **not** run over the million-scale resident population. The 256-entry quality-diversity archive is the promotion boundary:
+
+- every 8 generations: QD elites -> one representative from all 21 families, both seats, step 240;
+- every 32 generations: QD elites -> 42 tapes, both seats, step 480;
+- every 128 generations: QD elites -> all 168 development tapes, both seats, full step 720.
+
+Certified higher-fidelity niche elites are stored separately and are preferred restart material after stagnation. Thus expensive evidence feeds back into search without turning a full-development pass into the dominant workload.
+
+The final ranking objective is family/downside oriented, not mean-margin oriented: fewer losing families, fewer losses, fewer incumbent-win regressions, stronger worst-family result, stronger floor, then global wins/margin.
+
+## Sub-islands, diversity and local refinement
+
+Each GPU maintains multiple logical sub-islands, normally in the 8–64 range and selected by the T4 autotuner. Every sub-island has independent RNG state, a local champion, stagnation count and reset history.
+
+Diversity has two layers:
+
+- selection breaks fitness ties toward less crowded strategic niches;
+- a 256-cell quality-diversity archive hashes strategic descriptors such as land/livestock/cash/execution/market regimes.
+
+A compact strategic behavior signature detects duplicate champions. Repeated stagnation or duplicate convergence triggers a strong island kick. Reset sources prefer higher-fidelity certified QD niches, then ordinary QD niches, then structural priors; this avoids repeatedly reseeding every island from the global champion.
+
+Local policy relaxation is discrete and GPU-side. A configurable prefix of each sub-island population is generated as small one-/two-coordinate neighborhoods around the current local elite. The rest of the population performs module-level crossover and broader mutation. GPU0 allocates more slots to these local neighborhoods; GPU1 allocates fewer and uses stronger structural changes.
+
+## VRAM policy
+
+`VRAM_TARGET` defaults to **0.95** of safely available memory, not 95% of nominal card bytes. Each resident engine:
+
+1. creates the CUDA context and immutable simulator lookup tables;
+2. loads development routes/corpus;
+3. queries live free VRAM;
+4. subtracts configurable emergency headroom (default 512 MiB);
+5. sizes the resident population against 95% of that safe remainder;
+6. backs off automatically if allocation fails.
+
+The memory is used for resident genomes, decoded manager caches, double candidate populations, simulator states, reward buffers, per-family accumulators, RNG state, island state, QD archives and promotion/certification workspaces.
+
+The notebook parses `RESIDENT_MEMORY` from each process and aborts the long run if the measured allocation is not near the safe target. Real T4 allocation and throughput values are reported only after the Kaggle run; local-GPU numbers are not substituted.
+
+## T4 autotuning
+
+Each T4 is tuned independently before the primary search. `autotune.py` benchmarks exact core generations over several population sizes and block sizes and selects the highest measured games/sec configuration. It records:
+
+- T4 model and free/total memory;
+- compute capability;
+- threads/block;
+- exact games/sec and candidates/sec;
+- 256-byte genome / manager / simulator sizes;
+- safe-memory budget;
+- estimated full-resident population and core-generation time.
+
+Production population remains live-VRAM autosized; small benchmark populations are only for launch-geometry throughput measurement.
+
+CUDA Graphs/persistent single-kernel execution are intentionally not assumed to be wins. The first optimized implementation already removes Python/host fitness orchestration and queues repeated CUDA work in compiled C++. Further graph/kernel fusion should be driven by real T4 profiling, register pressure and launch-overhead evidence rather than sophistication for its own sake.
+
+## Checkpoint and logging cadence
+
+Resident processes emit one compact heartbeat after an epoch and checkpoint roughly every three minutes when generation duration allows. Checkpoints contain sub-island champions/search counters, QD niche programs and multi-fidelity certified niche programs, not full simulator populations.
+
+SIGTERM/SIGINT is handled as a graceful-stop request: the engine finishes the current safe epoch, writes the final compact checkpoint/archive and exits. Resume is therefore **elite/QD continuation**, not a bit-exact restoration of the entire resident population/RNG stream.
+
+Notebook telemetry is sampled every five minutes using `nvidia-smi` and records GPU utilization, memory-controller utilization, VRAM, power and temperature. There is no per-game or per-candidate notebook output.
+
+## Absolute 10-hour lifecycle
+
+At Cell 1 the notebook records one monotonic `HARD_EXIT_DEADLINE = start + 10h`.
+
+Setup performs hardware probe, bundle audit, compilation, exactness gates and T4 autotuning. Search receives only the walltime left after reserving:
+
+- 15 minutes for graceful shutdown/orchestration;
+- 25 minutes for the final common screen/export.
+
+Both search engines have independent internal monotonic deadlines. Near the search-stop deadline the notebook requests graceful shutdown; no manual action is required.
+
+The final exact screen canonical-deduplicates exported `GPProgram`s and shards candidate programs between GPU0 and GPU1. Both devices use the same 168 tapes × both seats × seed definition. Results are merged only after both screen shards complete. The notebook then writes the result tarball and exits normally.
+
+## Input bundle
+
+Build locally:
 
 ```bash
 python3 tools/meta_search/prepare_input_bundle.py \
@@ -31,79 +186,59 @@ python3 tools/meta_search/prepare_input_bundle.py \
   --force
 ```
 
-The builder requires and verifies:
-
-- 168 development tapes across 21 priority families;
-- 84 frozen validation tapes excluded;
-- 50 blind elite/continuity tapes excluded;
-- 28 family holdouts excluded.
-
-It hashes forbidden tape contents and aborts if any forbidden tape is copied into the bundle. It never copies the source population directories wholesale.
-
-The generated directory is ignored through the repository-wide `scratch/` rule. Upload the **contents** of that directory to a private Kaggle Dataset named:
+The bundle includes:
 
 ```text
-kaggriculture-meta-search
+cuda-engine/src/bonsai_memetic_search.cu
+cuda-engine/src/bonsai_search.cu
+cuda-engine/include/...
+bonsai-kg/...
+actuators/...
+populations/...
+priors/*.bin
+tools/meta_search/...
+bundle_manifest.json
 ```
 
-Expected top-level bundle contents include `cuda-engine/`, `bonsai-kg/`, `tools/`, `actuators/`, `populations/`, `bundle_manifest.json`, and `README.md`.
+The three bundled `priors/*.bin` files are verified fixed-size historical 4096-byte `GPProgram` records. They are structural initialization priors, not claims of being the current champion.
 
-## Search funnel
+## Kaggle setup
 
-Stage 0 is the in-memory grammar normalization/legality filter applied during generation and mutation.
+1. Attach the private Dataset `ashok205/kaggriculture-meta-search`, latest version.
+2. Import `notebooks/kaggle_dual_t4_meta_search.ipynb`.
+3. Select **GPU T4 ×2**.
+4. Run all cells in order.
 
-The default compiled search funnel is benchmark-driven at runtime through free-VRAM sizing, but its development evidence grows deliberately:
+The notebook recognizes both common Kaggle input layouts, including:
 
-1. `stage1_massive_discovery`: 12 baseline-derived hard/guard families, both seats, exact trajectories through step 120; 55% of search walltime.
-2. `stage2_family_core`: one hard representative from each of all 21 families, both seats, through step 240; 20%.
-3. `stage3_medium`: two representatives per family (42 tapes), both seats, through step 480; 15%.
-4. `stage4_full_development`: all 168 development tapes, both seats, full 720-step semantics; 10%.
+```text
+/kaggle/input/datasets/ashok205/kaggriculture-meta-search
+```
 
-After stages 1–3, each island also runs its current champion through an infrequent full 168-tape × both-seat, 720-step development gate. This detects tiny-core overfit before the final hours without exposing frozen data.
-
-5. Final: exact-deduplicated elites from both islands receive the same full 168-tape × both-seat development screen at seed `2184000`.
-
-The final rank prioritizes, in order: losing-family count, total losses, regressions versus exact v6 baseline, worst-family win rate, downside floor, overall win rate, mean margin, then program complexity.
-
-## Kaggle notebook setup
-
-1. Create/upload the private Kaggle Dataset above.
-2. Import `notebooks/kaggle_dual_t4_meta_search.ipynb` as a Kaggle notebook.
-3. Attach the `kaggriculture-meta-search` Dataset as notebook input.
-4. In notebook settings, choose the accelerator that exposes **2 × NVIDIA T4** GPUs. The hardware probe deliberately aborts on fewer than two GPUs; with `REQUIRE_T4=True` it also aborts on another GPU model.
-5. Internet is not required. The notebook compiles entirely from the attached bundle.
-6. Run all cells in order. Do not manually alternate between GPU cells; both islands are launched concurrently and monitored by one orchestration loop.
-
-The central configuration cell exposes walltime, island seeds, VRAM target, checkpoint cadence, final-screen candidate count, and resume mode. Each GPU is independently autotuned across multiple candidate batch sizes and CUDA block sizes before the campaign. The measured turn-step rate is converted into a per-stage candidates/hour estimate and a checkpoint-friendly population cap; the CUDA executable independently derives the safe population ceiling from live free VRAM. The production population is therefore the smaller of the throughput-driven cap and the 93%-free-VRAM ceiling, with automatic OOM fallback to lower fractions. This prioritizes sustained useful throughput and bounded generations over merely filling memory.
-
-## Walltime and failure behavior
-
-The nominal search budget is 9h20m, but the notebook subtracts measured setup time plus a 10-minute orchestration/development-gate reserve and a 30-minute final-screen/export reserve before launching. It aborts rather than overrun if too little walltime remains. Each search stage checks monotonic walltime after complete generations.
-
-Every island has isolated output and archive directories. If one island fails, the monitor leaves the other running and may restart only the failed island once from its latest `checkpoint_best.bin`. The default archives/checkpoints every completed generation and writes atomically. A forced notebook guard may lose only the currently incomplete generation.
-
-## Resume
-
-Within the same Kaggle working session, set `RESUME=True` before rerunning the notebook and existing island checkpoints will be reused. If resuming in a fresh Kaggle session, attach a Dataset containing a previous `meta_search/` output tree, set `RESUME_DATASET_MOUNT` to that Dataset mount name, and set `RESUME=True`.
-
-Resume is elite-checkpoint continuation, not bit-exact replay of the entire evolutionary population: completed stages are skipped and an incomplete/downstream stage is reseeded from its last canonical champion using the recorded deterministic search seed schedule. The checkpoint records RNG state for audit, but the current campaign does not reconstruct the full prior population/RNG stream.
+and falls back to recursively locating a unique `bundle_manifest.json`.
 
 ## Outputs
-
-The notebook writes:
 
 ```text
 /kaggle/working/meta_search/
   config.json
   hardware.json
+  utilization_samples.jsonl
   island0/
     tuning.json
-    stage*/archive/
+    command.json
+    resident_search.log
+    resident_checkpoint.bin
+    checkpoint.json
+    subisland_*_best.bin
+    niche_*_best.bin
+    niche_archive.jsonl
+    certified_niche_*_L*.bin
+    certified_archive.jsonl
+    resident_summary.json
     summary.json
   island1/
-    tuning.json
-    stage*/archive/
-    summary.json
+    ...same independent files...
   merged/
     deduplicated_elites.jsonl
     final_screen_commands.json
@@ -114,34 +249,13 @@ The notebook writes:
     top_candidates.jsonl
     top_candidates/*.bin
     summary.json
-    reproduction_commands.txt
+  final_report.json
 ```
 
-and packages the complete compact result tree as:
+The notebook packages all of this as:
 
 ```text
 /kaggle/working/kaggriculture_dual_t4_meta_search_results.tar.gz
 ```
 
-The final common screen is split across both T4s, but every candidate is evaluated on the same development cases; this is only parallel partitioning of candidates, not a change in evidence.
-
-## Recover and import results
-
-After the Kaggle run completes, download `kaggriculture_dual_t4_meta_search_results.tar.gz` from notebook outputs. Locally import it under a run-specific ignored directory, for example:
-
-```bash
-mkdir -p scratch/bonsai_meta_search_runs/2026-08-18-dual-t4
-cd scratch/bonsai_meta_search_runs/2026-08-18-dual-t4
-tar -xzf /path/to/kaggriculture_dual_t4_meta_search_results.tar.gz
-```
-
-Alternatively use the tracked safe importer:
-
-```bash
-python3 tools/meta_search/import_results.py /path/to/kaggriculture_dual_t4_meta_search_results.tar.gz \
-  --run-id 2026-08-18-dual-t4
-```
-
-A future local session should inspect `meta_search/merged/top_candidates.jsonl` and its canonical 4096-byte candidate binaries, reproduce selected candidates in exact CUDA/C++, and distill only causal improvements into BKG3. Only after that should the 84 validation tapes, 50 blind tapes, or 28 family holdouts be exposed. Before any submission, still run the required 64/128-game official Python-engine canary.
-
-The discovery notebook does not modify the champion, push Git, or submit to Kaggle.
+The discovery run does not touch frozen validation, modify the champion, push Git, or submit to Kaggle. Any candidate considered for promotion must still be reproduced locally in exact CUDA/C++, then tested on the required 64/128-game official Python-engine canary before submission work begins.

@@ -21,11 +21,20 @@ MANAGER_OFFSET = 4 + 96 * 40  # GPProgram header + 96 GPRule records.
 def origin_info(path: Path) -> dict:
     parts = path.parts
     island = next((p for p in parts if p.startswith("island")), "unknown")
-    stage = next((p for p in parts if p.startswith("stage")), "unknown")
     m = GEN_RE.search(path.name)
-    generation, rank = (int(m.group(1)), int(m.group(2))) if m else (-1, 0)
-    sm = re.match(r"stage(\d+)", stage)
-    stage_order = int(sm.group(1)) if sm else 0
+    if m:
+        stage = next((p for p in parts if p.startswith("stage")), "legacy")
+        generation, rank = int(m.group(1)), int(m.group(2))
+        sm = re.match(r"stage(\d+)", stage)
+        stage_order = int(sm.group(1)) if sm else 1
+    elif path.name.startswith("certified_niche_"):
+        stage, generation, rank, stage_order = "resident-certified", -1, 0, 103
+    elif path.name.startswith("niche_"):
+        stage, generation, rank, stage_order = "resident-qd", -1, 0, 102
+    elif path.name.startswith("subisland_"):
+        stage, generation, rank, stage_order = "resident-subisland", -1, 0, 101
+    else:
+        stage, generation, rank, stage_order = "resident", -1, 0, 100
     return {"island": island, "stage": stage, "generation": generation, "archive_rank": rank, "stage_order": stage_order}
 
 
@@ -124,8 +133,15 @@ def main() -> int:
 
     # Exact-deduplicate canonical 4096-byte program records while preserving ancestry/origins.
     unique: dict[str, dict] = {}
-    for p in sorted(root.glob("island*/stage*/archive/*.bin")):
-        data = p.read_bytes(); h = hashlib.sha256(data).hexdigest(); info = origin_info(p)
+    candidate_paths = list(root.glob("island*/stage*/archive/*.bin"))
+    candidate_paths += list(root.glob("island*/subisland_*_best.bin"))
+    candidate_paths += list(root.glob("island*/niche_*_best.bin"))
+    candidate_paths += list(root.glob("island*/certified_niche_*_L*.bin"))
+    for p in sorted(set(candidate_paths)):
+        data = p.read_bytes()
+        if len(data) != 4096:
+            continue
+        h = hashlib.sha256(data).hexdigest(); info = origin_info(p)
         rec = unique.setdefault(h, {"sha256": h, "candidate_id": h[:16], "path": str(p), "origins": [], "descriptor": descriptor(data)})
         rec["origins"].append({**info, "path": str(p)})
         old = origin_info(Path(rec["path"]))

@@ -16,6 +16,11 @@ EXPECTED_VALIDATION = 84
 EXPECTED_BLIND = 50
 EXPECTED_FAMILY_HOLDOUT = 28
 V6_ROUTE_IDS = (22, 23, 29, 32, 34, 46, 63, 64, 70, 77, 79)
+SEARCH_PRIORS = (
+    ("broad_all81.bin", "scratch/bonsai_next/broad_all81_seed1273000_n256.txt.bin"),
+    ("efe4_tree.bin", "scratch/bonsai_next/efe4_tree_win_end2end_seed1265000_n256.txt.bin"),
+    ("prefix_route64.bin", "scratch/bonsai_next/prefix_route64_to_continuation.bin"),
+)
 
 
 def sha256(path: Path) -> str:
@@ -190,8 +195,22 @@ def main() -> int:
 
     # Runtime source: exact CUDA engine search subset and the BKG3-v6 CUDA smoke runner.
     copy_tree_files(root / "cuda-engine/include", out / "cuda-engine/include", ("*.cuh", "*.hpp"))
-    for rel in ("cuda-engine/src/bonsai_search.cu",):
+    for rel in ("cuda-engine/src/bonsai_search.cu", "cuda-engine/src/bonsai_memetic_search.cu"):
         copy_file(root / rel, out / rel)
+
+    official_engine = root / "kaggle-environments-master/kaggle_environments/envs/kaggriculture/kaggriculture.py"
+    if not official_engine.exists():
+        raise RuntimeError(f"official Kaggriculture engine source missing: {official_engine}")
+    copy_file(official_engine, out / "official_engine/kaggriculture.py")
+    official_engine_sha256 = sha256(official_engine)
+
+    prior_names = []
+    for name, rel in SEARCH_PRIORS:
+        src = root / rel
+        if not src.exists() or src.stat().st_size != 4096:
+            raise RuntimeError(f"invalid 4096-byte GPProgram search prior: {src}")
+        copy_file(src, out / "priors" / name)
+        prior_names.append(name)
     copy_tree_files(root / "bonsai-kg/include", out / "bonsai-kg/include", ("*.hpp",))
     copy_tree_files(root / "bonsai-kg/cuda", out / "bonsai-kg/cuda", ("*.cuh",))
     for rel in (
@@ -228,6 +247,12 @@ def main() -> int:
         "blind_excluded": holdout_counts["blind"],
         "family_holdout_excluded": holdout_counts["family_holdout"],
         "candidate_actuator_routes": list(V6_ROUTE_IDS),
+        "search_priors": prior_names,
+        "resident_search_genome_bytes": 256,
+        "engine_exploitation_search": True,
+        "engine_sub_islands": {"exploit": 12, "explore": 20, "total_default": 32},
+        "official_engine_path": "official_engine/kaggriculture.py",
+        "official_engine_sha256": official_engine_sha256,
         "pinned_semantics": "kaggle-environments==1.32.7",
         "fast_math": False,
     }

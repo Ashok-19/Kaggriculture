@@ -261,6 +261,44 @@ static bool fitter(const Fitness& a, const Fitness& b) {
     return a.ties < b.ties;
 }
 
+__global__ void gp_store_case_margin_seed1_kernel(const double* rewards,double* case_margins,int population,int n_cases,int case_index,int candidate_seat) {
+    const int pi=blockIdx.x*blockDim.x+threadIdx.x;
+    if(pi>=population)return;
+    const double r0=rewards[(size_t)pi*2],r1=rewards[(size_t)pi*2+1];
+    const double m=candidate_seat==0?r0-r1:r1-r0;
+    case_margins[(size_t)pi*n_cases+case_index]=m;
+}
+
+template<int MAX_TAIL>
+__global__ void gp_finalize_fitness_seed1_kernel(const double* case_margins,int population,int n_cases,Fitness* out) {
+    const int pi=blockIdx.x*blockDim.x+threadIdx.x;
+    if(pi>=population)return;
+    const int ntail=(n_cases+3)/4;
+    double weakest[MAX_TAIL];
+    int filled=0,wins=0,ties=0;
+    double sum=0.0,floor=DBL_MAX;
+    const double* row=case_margins+(size_t)pi*n_cases;
+    for(int ci=0;ci<n_cases;++ci){
+        const double x=row[ci];
+        if(x>0.0)++wins;else if(x==0.0)++ties;
+        sum+=x;if(x<floor)floor=x;
+        if(filled<ntail){
+            int pos=filled;
+            while(pos>0&&weakest[pos-1]>x){weakest[pos]=weakest[pos-1];--pos;}
+            weakest[pos]=x;++filled;
+        }else if(x<weakest[ntail-1]){
+            int pos=ntail-1;
+            while(pos>0&&weakest[pos-1]>x){weakest[pos]=weakest[pos-1];--pos;}
+            weakest[pos]=x;
+        }
+    }
+    double tail=0.0;for(int i=0;i<ntail;++i)tail+=weakest[i];
+    Fitness& f=out[pi];
+    f.wins=wins;f.ties=ties;f.cases=n_cases;f.floor=floor;f.sum=sum;
+    f.tail_mean=tail/ntail;f.worst_cohort=floor;
+    const double seed_mean=sum/n_cases;f.seed_tail=seed_mean;f.worst_seed=seed_mean;
+}
+
 static std::vector<std::string> read_list(const std::string& path) {
     std::ifstream in(path);
     if (!in) throw std::runtime_error("cannot open list: "+path);
@@ -979,6 +1017,8 @@ int main(int argc,char** argv){
     for(const auto& pp:router_program_paths)h_program_bank.push_back(load_gp_program_binary(pp));
     std::vector<GPProgram> h_opponent_programs;
     for(const auto& pp:opponent_program_paths)h_opponent_programs.push_back(load_gp_program_binary(pp));
+    const bool gpu_fitness_seed1 = seeds==1 && h_opponent_programs.empty() && !report_seeds && !report_cases && report_state_step<0 && !report_first_override && !report_first_override_gap;
+    const int gpu_fitness_cases = gpu_fitness_seed1 ? opponents*2 : 0;
     for(int e:marker_program_ids)if(e<0 || e>=(int)h_program_bank.size())throw std::runtime_error("marker commit program index out of range");
     GPProgram h_staged_router_prefix{};
     const bool have_staged_router_prefix=!staged_router_prefix_path.empty();
@@ -1000,7 +1040,8 @@ int main(int argc,char** argv){
         size_t free_bytes=0,total_bytes=0;KAGCUDA_CHECK(cudaMemGetInfo(&free_bytes,&total_bytes));
         const size_t fixed_bytes=h_routes.size()*sizeof(Action)+h_desc.size()*sizeof(GPRouteDesc)+h_manager_bank.size()*sizeof(GPManager)+h_program_bank.size()*sizeof(GPProgram)+h_opponent_programs.size()*sizeof(GPProgram)+h_seed_values.size()*sizeof(uint64_t)+marker_program_ids.size()*sizeof(int)+8*1024*1024;
         const size_t state_bytes=(report_state_step>=0||report_first_override||report_first_override_gap)?sizeof(GPStateReport):0;
-        const size_t per_candidate=sizeof(GPProgram)+(size_t)seeds*(sizeof(Sim)+2*sizeof(double)+state_bytes);
+        const size_t gpu_fitness_bytes=gpu_fitness_seed1?((size_t)gpu_fitness_cases*sizeof(double)+sizeof(Fitness)):0;
+        const size_t per_candidate=sizeof(GPProgram)+(size_t)seeds*(sizeof(Sim)+2*sizeof(double)+state_bytes)+gpu_fitness_bytes;
         const size_t budget=(size_t)(free_bytes*auto_vram_fraction);
         if(budget<=fixed_bytes+per_candidate)throw std::runtime_error("VRAM budget too small for one candidate");
         size_t planned=(budget-fixed_bytes)/per_candidate;
@@ -1010,7 +1051,7 @@ int main(int argc,char** argv){
         population=(int)planned;if(population<1)population=1;if(elite>population)elite=population;
         std::cout<<"AUTO_VRAM free_bytes="<<free_bytes<<" total_bytes="<<total_bytes<<" fraction="<<auto_vram_fraction<<" fixed_estimate="<<fixed_bytes<<" per_candidate="<<per_candidate<<" population="<<population<<"\n";
     }
-    Action* d_routes=nullptr; GPRouteDesc* d_desc=nullptr; GPProgram* d_prog=nullptr; GPManager* d_manager_bank=nullptr; GPProgram* d_program_bank=nullptr; GPProgram* d_opponent_programs=nullptr; GPProgram* d_staged_router_prefix=nullptr; GPProgram* d_early_marker_router=nullptr; GPProgram* d_reactive_override_router=nullptr; int* d_marker_program_map=nullptr; uint64_t* d_seed_values=nullptr; Sim* d_sims=nullptr; double* d_rewards=nullptr; GPStateReport* d_state_reports=nullptr;
+    Action* d_routes=nullptr; GPRouteDesc* d_desc=nullptr; GPProgram* d_prog=nullptr; GPManager* d_manager_bank=nullptr; GPProgram* d_program_bank=nullptr; GPProgram* d_opponent_programs=nullptr; GPProgram* d_staged_router_prefix=nullptr; GPProgram* d_early_marker_router=nullptr; GPProgram* d_reactive_override_router=nullptr; int* d_marker_program_map=nullptr; uint64_t* d_seed_values=nullptr; Sim* d_sims=nullptr; double* d_rewards=nullptr; double* d_case_margins=nullptr; Fitness* d_fit=nullptr; GPStateReport* d_state_reports=nullptr;
     const long long jobs64=(long long)population*(long long)seeds;if(jobs64<1||jobs64>std::numeric_limits<int>::max())throw std::runtime_error("population*seeds exceeds CUDA kernel index range");
     const int jobs=(int)jobs64;
     KAGCUDA_CHECK(cudaMalloc((void**)&d_routes,h_routes.size()*sizeof(Action)));
@@ -1018,6 +1059,10 @@ int main(int argc,char** argv){
     KAGCUDA_CHECK(cudaMalloc((void**)&d_prog,population*sizeof(GPProgram)));
     KAGCUDA_CHECK(cudaMalloc((void**)&d_sims,static_cast<size_t>(jobs)*sizeof(Sim)));
     KAGCUDA_CHECK(cudaMalloc((void**)&d_rewards,static_cast<size_t>(jobs)*2*sizeof(double)));
+    if(gpu_fitness_seed1){
+        KAGCUDA_CHECK(cudaMalloc((void**)&d_case_margins,(size_t)population*gpu_fitness_cases*sizeof(double)));
+        KAGCUDA_CHECK(cudaMalloc((void**)&d_fit,(size_t)population*sizeof(Fitness)));
+    }
     if(report_state_step>=0 || report_first_override || report_first_override_gap)KAGCUDA_CHECK(cudaMalloc((void**)&d_state_reports,static_cast<size_t>(jobs)*sizeof(GPStateReport)));
     KAGCUDA_CHECK(cudaMemcpy(d_routes,h_routes.data(),h_routes.size()*sizeof(Action),cudaMemcpyHostToDevice));
     KAGCUDA_CHECK(cudaMemcpy(d_desc,h_desc.data(),h_desc.size()*sizeof(GPRouteDesc),cudaMemcpyHostToDevice));
@@ -1029,7 +1074,7 @@ int main(int argc,char** argv){
     if(have_reactive_override_router){KAGCUDA_CHECK(cudaMalloc((void**)&d_reactive_override_router,sizeof(GPProgram)));KAGCUDA_CHECK(cudaMemcpy(d_reactive_override_router,&h_reactive_override_router,sizeof(GPProgram),cudaMemcpyHostToDevice));}
     if(!marker_program_ids.empty()){KAGCUDA_CHECK(cudaMalloc((void**)&d_marker_program_map,marker_program_ids.size()*sizeof(int)));KAGCUDA_CHECK(cudaMemcpy(d_marker_program_map,marker_program_ids.data(),marker_program_ids.size()*sizeof(int),cudaMemcpyHostToDevice));}
     if(!h_seed_values.empty()){KAGCUDA_CHECK(cudaMalloc((void**)&d_seed_values,h_seed_values.size()*sizeof(uint64_t)));KAGCUDA_CHECK(cudaMemcpy(d_seed_values,h_seed_values.data(),h_seed_values.size()*sizeof(uint64_t),cudaMemcpyHostToDevice));}
-    {size_t free_after=0,total_after=0;KAGCUDA_CHECK(cudaMemGetInfo(&free_after,&total_after));std::cout<<"MEMORY_PLAN sizeof_GPProgram="<<sizeof(GPProgram)<<" sizeof_Sim="<<sizeof(Sim)<<" jobs="<<jobs<<" allocated_estimate="<<(size_t)population*sizeof(GPProgram)+(size_t)jobs*(sizeof(Sim)+2*sizeof(double))<<" free_after="<<free_after<<" total="<<total_after<<" max_step="<<max_step<<" island="<<island_mode<<"\n";}
+    {size_t free_after=0,total_after=0;KAGCUDA_CHECK(cudaMemGetInfo(&free_after,&total_after));const size_t gpu_fit_alloc=gpu_fitness_seed1?((size_t)population*gpu_fitness_cases*sizeof(double)+(size_t)population*sizeof(Fitness)):0;std::cout<<"MEMORY_PLAN sizeof_GPProgram="<<sizeof(GPProgram)<<" sizeof_Sim="<<sizeof(Sim)<<" jobs="<<jobs<<" allocated_estimate="<<(size_t)population*sizeof(GPProgram)+(size_t)jobs*(sizeof(Sim)+2*sizeof(double))+gpu_fit_alloc<<" free_after="<<free_after<<" total="<<total_after<<" max_step="<<max_step<<" island="<<island_mode<<" gpu_fitness_seed1="<<(gpu_fitness_seed1?1:0)<<"\n";}
 
     HostRng rng(search_seed);
     const bool defer_initial_layout_seed = load_path.empty() && population_program_paths.empty() && !unit_route_sweep && !GP_ROUTER_ONLY && !suffix_search && !manager_only;
@@ -1146,12 +1191,35 @@ int main(int argc,char** argv){
     const int n_program_opponents=(int)h_opponent_programs.size();
     const int total_opponents=opponents+n_program_opponents;
     if(total_opponents<1)throw std::runtime_error("at least one route or program opponent is required");
-    std::vector<Fitness> fit(population); std::vector<double> host(static_cast<size_t>(jobs)*2);
+    std::vector<Fitness> fit(population); std::vector<double> host(gpu_fitness_seed1?0:static_cast<size_t>(jobs)*2);
     std::vector<GPStateReport> host_state_reports((report_state_step>=0||report_first_override||report_first_override_gap)?static_cast<size_t>(jobs):0);
-    std::vector<double> cohort_sum(static_cast<size_t>(population)*total_opponents*2);
-    std::vector<double> seed_sum(static_cast<size_t>(population)*seeds);
-    std::vector<int> seed_wins(static_cast<size_t>(population)*seeds);
+    std::vector<double> cohort_sum(gpu_fitness_seed1?0:static_cast<size_t>(population)*total_opponents*2);
+    std::vector<double> seed_sum(gpu_fitness_seed1?0:static_cast<size_t>(population)*seeds);
+    std::vector<int> seed_wins(gpu_fitness_seed1?0:static_cast<size_t>(population)*seeds);
     auto evaluate=[&](){
+        if(gpu_fitness_seed1){
+            KAGCUDA_CHECK(cudaMemcpy(d_prog,pop.data(),(size_t)population*sizeof(GPProgram),cudaMemcpyHostToDevice));
+            int case_index=0;
+            for(int oi=0;oi<opponents;++oi){
+                for(int seat=0;seat<2;++seat){
+                    gp_eval_kernel<<<(jobs+tpb-1)/tpb,tpb>>>(cfg,tables.dev,d_prog,population,d_routes,d_desc,candidate_route_count,d_manager_bank,(int)h_manager_bank.size(),d_program_bank,(int)h_program_bank.size(),d_staged_router_prefix,staged_router_step,d_early_marker_router,early_marker_step,d_reactive_override_router,d_marker_program_map,(int)marker_program_ids.size(),opponent_route_base+opponent_start+oi,seat,seed_start,d_seed_values,seeds,max_step,d_sims,d_rewards,report_state_step,report_first_override,report_first_override_gap,d_state_reports);
+                    KAGCUDA_CHECK(cudaGetLastError());
+                    gp_store_case_margin_seed1_kernel<<<(population+255)/256,256>>>(d_rewards,d_case_margins,population,gpu_fitness_cases,case_index++,seat);
+                    KAGCUDA_CHECK(cudaGetLastError());
+                }
+            }
+            const int ntail=(gpu_fitness_cases+3)/4;
+            if(ntail<=8)gp_finalize_fitness_seed1_kernel<8><<<(population+255)/256,256>>>(d_case_margins,population,gpu_fitness_cases,d_fit);
+            else if(ntail<=16)gp_finalize_fitness_seed1_kernel<16><<<(population+255)/256,256>>>(d_case_margins,population,gpu_fitness_cases,d_fit);
+            else if(ntail<=32)gp_finalize_fitness_seed1_kernel<32><<<(population+255)/256,256>>>(d_case_margins,population,gpu_fitness_cases,d_fit);
+            else if(ntail<=64)gp_finalize_fitness_seed1_kernel<64><<<(population+255)/256,256>>>(d_case_margins,population,gpu_fitness_cases,d_fit);
+            else if(ntail<=96)gp_finalize_fitness_seed1_kernel<96><<<(population+255)/256,256>>>(d_case_margins,population,gpu_fitness_cases,d_fit);
+            else if(ntail<=128)gp_finalize_fitness_seed1_kernel<128><<<(population+255)/256,256>>>(d_case_margins,population,gpu_fitness_cases,d_fit);
+            else throw std::runtime_error("GPU seed1 fitness tail exceeds supported 128 cohorts");
+            KAGCUDA_CHECK(cudaGetLastError());
+            KAGCUDA_CHECK(cudaMemcpy(fit.data(),d_fit,(size_t)population*sizeof(Fitness),cudaMemcpyDeviceToHost));
+            return;
+        }
         for (int i=0;i<population;++i) fit[i]=Fitness{};
         for(double& x:cohort_sum)x=0.0;
         for(double& x:seed_sum)x=0.0;
@@ -1301,6 +1369,6 @@ int main(int argc,char** argv){
         std::ofstream out(out_path);out<<"wins="<<global_fit.wins<<" cases="<<global_fit.cases<<" ties="<<global_fit.ties<<" floor="<<global_fit.floor<<" mean="<<mean(global_fit)<<" tail="<<global_fit.tail_mean<<" worst_cohort="<<global_fit.worst_cohort<<" seed_tail="<<global_fit.seed_tail<<" worst_seed="<<global_fit.worst_seed<<" fitness="<<fitness_mode<<"\n";dump_program(out,global_best);
         std::ofstream bout(out_path+".bin",std::ios::binary);bout.write(reinterpret_cast<const char*>(&global_best),sizeof(GPProgram));
     }
-    cudaFree(d_routes);cudaFree(d_desc);cudaFree(d_prog);if(d_manager_bank)cudaFree(d_manager_bank);if(d_program_bank)cudaFree(d_program_bank);if(d_opponent_programs)cudaFree(d_opponent_programs);if(d_staged_router_prefix)cudaFree(d_staged_router_prefix);if(d_early_marker_router)cudaFree(d_early_marker_router);if(d_reactive_override_router)cudaFree(d_reactive_override_router);if(d_marker_program_map)cudaFree(d_marker_program_map);if(d_state_reports)cudaFree(d_state_reports);if(d_seed_values)cudaFree(d_seed_values);cudaFree(d_sims);cudaFree(d_rewards);
+    cudaFree(d_routes);cudaFree(d_desc);cudaFree(d_prog);if(d_manager_bank)cudaFree(d_manager_bank);if(d_program_bank)cudaFree(d_program_bank);if(d_opponent_programs)cudaFree(d_opponent_programs);if(d_staged_router_prefix)cudaFree(d_staged_router_prefix);if(d_early_marker_router)cudaFree(d_early_marker_router);if(d_reactive_override_router)cudaFree(d_reactive_override_router);if(d_marker_program_map)cudaFree(d_marker_program_map);if(d_state_reports)cudaFree(d_state_reports);if(d_seed_values)cudaFree(d_seed_values);if(d_case_margins)cudaFree(d_case_margins);if(d_fit)cudaFree(d_fit);cudaFree(d_sims);cudaFree(d_rewards);
     return 0;
 }

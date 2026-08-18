@@ -65,6 +65,9 @@ enum GPLeafKind : uint8_t {
     GPL_MANAGER = 3,                // fully reactive units + reactive market/economy
     GPL_MANAGER_UNITS_ROUTE_MARKET = 4,
     GPL_ROUTE_UNITS_PLANNED_MARKET = 5, // coherent actuator + route-demand-aware synthesized economy
+    GPL_MANAGER_ENGINE_MARKET = 6,
+    GPL_ROUTE_UNITS_ENGINE_MARKET = 7,
+    GPL_ROUTE_UNITS_PLANNED_ENGINE_MARKET = 8,
 };
 
 struct GPCond {
@@ -845,9 +848,142 @@ __device__ __forceinline__ GPLeaf gp_select_leaf(const GPProgram& prog, const Ob
     return prog.rules[prog.n_rules ? prog.n_rules-1 : 0].leaf;
 }
 
+// Relative engine-mechanics market layer. It uses only legal current observations:
+// shared market/town state, our private shed, and both farms' public geometry.
+// It never exposes episode seed, future RNG, or opponent-private inventory.
+__device__ __forceinline__ int gp_engine_product_exposure(const PublicFarmView& farm, int item) {
+    if (item >= WHEAT && item <= MELON) return gp_public_crops(farm,item);
+    if (item == EGG) return gp_public_animals(farm,GOOSE);
+    if (item == MILK) return gp_public_animals(farm,COW);
+    if (item == WOOL) return gp_public_animals(farm,SHEEP);
+    if (item == FERTILIZER)
+        return gp_public_animals(farm,GOOSE)+gp_public_animals(farm,COW)+gp_public_animals(farm,SHEEP);
+    return 0;
+}
+
+__device__ __forceinline__ int gp_engine_town_pull_now(const ObservationView& obs, int item) {
+    int pull = 0;
+    if ((obs.step() & 3) == 0) {
+        const TownView town = obs.town();
+        for (int si=0; si<town.n_shops(); ++si) {
+            const int shop = town.shop(si);
+            if (shop >= 0 && shop < MAX_SHOP_INSTANCES && (D_SHOP_MASK[shop] & (1u<<item)))
+                pull += D_SHOP_MULT[shop];
+        }
+    }
+    if (obs.step()%24 == 0 && item != FERTILIZER) ++pull;
+    return pull;
+}
+
+__device__ __forceinline__ int gp_engine_order_score(const Order& o, const ObservationView& obs, uint8_t profile) {
+    const bool sells_first = (profile & 4) != 0;
+    const bool reverse_bias = (profile & 8) != 0;
+    const bool buys_first = (profile & 128) != 0;
+    int score = 0;
+    if (o.op == M_SELL) {
+        score += sells_first ? -1000 : 1000;
+        if (is_product(o.item)) {
+            const int p = obs.player();
+            const int rel = gp_engine_product_exposure(obs.farm(p),o.item)
+                          - gp_engine_product_exposure(obs.farm(1-p),o.item);
+            score += rel * 8;
+        }
+    } else if (o.op == M_BUY_PRODUCT || o.op == M_BUY_SEED || o.op == M_BUY_ANIMAL) {
+        score += buys_first ? -700 : 300;
+    } else {
+        score += 100;
+    }
+    return reverse_bias ? -score : score;
+}
+
+__device__ __forceinline__ void gp_engine_market_overlay(const GPManager& g, const ObservationView& obs,
+                                                          Action& out, uint8_t profile,
+                                                          uint8_t batch_bias, uint8_t pressure) {
+    const int p = obs.player(), q = 1-p;
+    const PrivateFarmView priv = obs.private_farm();
+    const bool terminal = obs.step() >= 710;
+    const bool shed_pressure = priv.shed_total() >= 90;
+    const int regime = profile & 3;
+    const int exposure_threshold = 1 + (pressure >> 4);
+    const int batch_cap = 1 + (batch_bias >> 2);
+    const bool floor_dump = (profile & 16) != 0;
+    const bool town_wait = (profile & 32) != 0;
+    const bool attack_pressure = (profile & 64) != 0;
+
+    Order kept[MAX_ORDERS];
+    int nk = 0;
+    bool has_sell[N_PRODUCTS] = {false};
+    for (int oi=0; oi<out.n_orders && oi<MAX_ORDERS; ++oi) {
+        Order o = out.orders[oi];
+        if (o.op == M_SELL && is_product(o.item)) {
+            const int item = o.item;
+            const int stock = priv.shed(item);
+            const int price = obs.market().price(item);
+            const int inv = obs.market().inventory(item);
+            const int own_exp = gp_engine_product_exposure(obs.farm(p),item);
+            const int opp_exp = gp_engine_product_exposure(obs.farm(q),item);
+            const int rel = own_exp - opp_exp;
+            const int pull = gp_engine_town_pull_now(obs,item);
+            bool withhold = false;
+            if (!terminal && !shed_pressure) {
+                if (regime == 1 && rel >= exposure_threshold && (pull > 0 || inv < 0)) withhold = true;
+                if (regime == 3 && town_wait && pull > 0 && price > 1 && rel >= 0) withhold = true;
+            }
+            if (withhold) continue;
+
+            int n = o.n;
+            if (!terminal && n > batch_cap) n = batch_cap;
+            if ((regime == 2 || attack_pressure) && opp_exp >= own_exp + exposure_threshold && price > 1) {
+                int aggressive = stock - static_cast<int>(g.sell_reserve[item]);
+                if (aggressive < 1) aggressive = 1;
+                if (aggressive > batch_cap*2) aggressive = batch_cap*2;
+                if (aggressive > n) n = aggressive;
+            }
+            if (floor_dump && price <= 1) {
+                int dump = stock - static_cast<int>(g.sell_reserve[item]);
+                if (terminal) dump = stock;
+                if (dump > n) n = dump;
+            }
+            if (n <= 0) continue;
+            o.n = n;
+            has_sell[item] = true;
+        }
+        if (nk < MAX_ORDERS) kept[nk++] = o;
+    }
+
+    if (floor_dump && nk < MAX_ORDERS) {
+        for (int item=0; item<N_PRODUCTS && nk<MAX_ORDERS; ++item) {
+            if (has_sell[item] || obs.market().price(item) > 1) continue;
+            int n = priv.shed(item) - static_cast<int>(g.sell_reserve[item]);
+            if (terminal) n = priv.shed(item);
+            if (n <= 0) continue;
+            if (!terminal && n > batch_cap*2) n = batch_cap*2;
+            Order o{}; o.op=M_SELL; o.item=static_cast<uint8_t>(item); o.n=n;
+            kept[nk++] = o;
+        }
+    }
+
+    for (int i=1; i<nk; ++i) {
+        const Order x = kept[i];
+        const int xs = gp_engine_order_score(x,obs,profile);
+        int j = i-1;
+        while (j>=0 && gp_engine_order_score(kept[j],obs,profile) > xs) {
+            kept[j+1] = kept[j];
+            --j;
+        }
+        kept[j+1] = x;
+    }
+    out.n_orders = nk;
+    for (int i=0; i<nk; ++i) out.orders[i] = kept[i];
+}
+
 __device__ __forceinline__ const GPManager& gp_leaf_manager(const GPProgram& prog, const GPLeaf& leaf,
                                                                const GPManager* manager_bank, int n_managers) {
-    if (manager_bank && n_managers > 0 && static_cast<int>(leaf.pad) < n_managers) return manager_bank[leaf.pad];
+    if (leaf.kind != GPL_MANAGER_ENGINE_MARKET &&
+        leaf.kind != GPL_ROUTE_UNITS_ENGINE_MARKET &&
+        leaf.kind != GPL_ROUTE_UNITS_PLANNED_ENGINE_MARKET &&
+        manager_bank && n_managers > 0 && static_cast<int>(leaf.pad) < n_managers)
+        return manager_bank[leaf.pad];
     return prog.manager;
 }
 
@@ -887,6 +1023,21 @@ __device__ __forceinline__ Action gp_act_with_managers(const GPProgram& prog, co
             gp_manager_units(manager,obs,out);
             out.n_orders = ma.n_orders;
             for (int i=0;i<ma.n_orders && i<MAX_ORDERS;++i) out.orders[i]=ma.orders[i];
+            break;
+        case GPL_MANAGER_ENGINE_MARKET:
+            gp_manager_units(manager,obs,out);
+            gp_manager_market(manager,obs,out);
+            gp_engine_market_overlay(manager,obs,out,leaf.pad,prog.pad[0],prog.pad[1]);
+            break;
+        case GPL_ROUTE_UNITS_ENGINE_MARKET:
+            out = gp_copy_action(ua,out.n_units);
+            gp_manager_market(manager,obs,out);
+            gp_engine_market_overlay(manager,obs,out,leaf.pad,prog.pad[0],prog.pad[1]);
+            break;
+        case GPL_ROUTE_UNITS_PLANNED_ENGINE_MARKET:
+            out = gp_copy_planned_action(ua,out.n_units,route_actions,route_descs[ur],obs.step());
+            gp_planned_market(manager,obs,route_actions,route_descs[ur],out);
+            gp_engine_market_overlay(manager,obs,out,leaf.pad,prog.pad[0],prog.pad[1]);
             break;
         default:
             out = gp_copy_action(ua,out.n_units);
