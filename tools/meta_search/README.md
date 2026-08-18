@@ -83,6 +83,12 @@ Any mismatch aborts the notebook.
 
 The independent `bonsai_search` executable remains the final-screen evaluator. This gives the final candidates an independent exact `GPProgram` execution path rather than trusting only the search interpreter.
 
+### Replay-faithful seed policy
+
+Primary fitness no longer uses one global simulation seed. Every development tape carries its canonical `source.seed`, materialized as `source_seed` in `dev_manifest.tsv`, and each `TierCase` evaluates both candidate seats under that tape's recorded seed. The 168-tape bank currently contains **152 unique recorded seeds**; the 12-tape hot core contains **12 distinct seeds**, so the engine-geometry/RNG search cannot optimize one shared shop/weed trajectory without increasing game count.
+
+The incumbent regression reference is seed-consistent as well. `baseline_dev_recorded_seed.tsv` contains **336 BKG3-v6 historical CUDA mode-0 cases** (168 tapes × both seats) evaluated on the same per-tape recorded seeds. Bundle construction, resident loading and final merge all reject any baseline row whose seed disagrees with the corresponding development tape. The old 2184000-only baseline is not used for v6 fitness/regression decisions.
+
 ## Development data boundary
 
 `prepare_input_bundle.py` builds a development-only Kaggle Dataset and asserts:
@@ -92,6 +98,8 @@ The independent `bonsai_search` executable remains the final-screen evaluator. T
 - 50 blind continuity tapes excluded;
 - 28 family-holdout tapes excluded;
 - Kawashigi and Ueddy present in the hard core;
+- 152 unique recorded development seeds and 12/12 distinct Stage-1 seeds;
+- 336 seed-consistent BKG3-v6 baseline/regression cases;
 - no forbidden tape content hash copied into the bundle;
 - no fast-math setting.
 
@@ -99,7 +107,7 @@ The entire allowed corpus is parsed once before the resident search clock starts
 
 ## Device-resident multi-fidelity search
 
-Every resident candidate is repeatedly screened on the exact **core12 × both seats** evidence through step 120. This is the high-volume search fitness and includes both hard families and incumbent-win regression guards.
+Every resident candidate is repeatedly screened on the exact **core12 × both seats** evidence through step 120, with each tape evaluated under its own recorded `source.seed`. This is the high-volume search fitness and includes both hard families and seed-consistent incumbent-win regression guards. Replay-faithful evidence exposes 19 baseline-losing development families, so the 12-family hot core reserves Kawashigi/Ueddy and fills the remaining slots by loss count/downside severity; the 21/42/168 promotion tiers retain complete family coverage.
 
 Broader evidence is deliberately **not** run over the million-scale resident population. The 256-entry quality-diversity archive is the promotion boundary:
 
@@ -113,7 +121,7 @@ The final ranking objective is family/downside oriented, not mean-margin oriente
 
 ## Sub-islands, diversity and local refinement
 
-Each GPU maintains multiple logical sub-islands, normally in the 8–64 range and selected by the T4 autotuner. Every sub-island has independent RNG state, a local champion, stagnation count and reset history.
+Each GPU maintains exactly **32 production logical sub-islands**; autotuning selects launch geometry but cannot change this strategic topology. Every sub-island has independent RNG state, a local champion, stagnation count and reset history. GPU0 reserves 12/32 for engine mechanics and GPU1 reserves 20/32.
 
 Diversity has two layers:
 
@@ -161,7 +169,7 @@ Resident processes emit one compact heartbeat after an epoch and checkpoint roug
 
 SIGTERM/SIGINT is handled as a graceful-stop request: the engine finishes the current safe epoch, writes the final compact checkpoint/archive and exits. Resume is therefore **elite/QD continuation**, not a bit-exact restoration of the entire resident population/RNG stream.
 
-Notebook telemetry is sampled every five minutes using `nvidia-smi` and records GPU utilization, memory-controller utilization, VRAM, power and temperature. There is no per-game or per-candidate notebook output.
+Notebook telemetry is sampled every five minutes using `nvidia-smi` and records GPU utilization, memory-controller utilization, VRAM, power and temperature. The warm-up gate is followed by a long-run watchdog: checkpoint generation progress has a 20-minute stale limit, while GPU idleness requires three consecutive monitor cycles whose three-sample utilization burst remains below 5%. A single transient 0% sample never triggers a restart. Each universe may be gracefully terminated and resumed from its compact checkpoint **once**; a second stall fails the run rather than wasting the remaining GPU budget. There is no per-game or per-candidate notebook output.
 
 ## Absolute 10-hour lifecycle
 
@@ -170,11 +178,11 @@ At Cell 1 the notebook records one monotonic `HARD_EXIT_DEADLINE = start + 10h`.
 Setup performs hardware probe, bundle audit, compilation, exactness gates and T4 autotuning. Search receives only the walltime left after reserving:
 
 - 15 minutes for graceful shutdown/orchestration;
-- 25 minutes for the final common screen/export.
+- 25 minutes for final screening and export, including a protected 3-minute export guard.
 
-Both search engines have independent internal monotonic deadlines. Near the search-stop deadline the notebook requests graceful shutdown; no manual action is required.
+Both search engines have independent internal monotonic deadlines. Near the search-stop deadline the notebook requests graceful process-group shutdown; no manual action is required.
 
-The final exact screen canonical-deduplicates exported `GPProgram`s and shards candidate programs between GPU0 and GPU1. Both devices use the same 168 tapes × both seats × seed definition. Results are merged only after both screen shards complete. The notebook then writes the result tarball and exits normally.
+The final exact screen canonical-deduplicates exported `GPProgram`s and shards candidate programs between GPU0 and GPU1. It remains replay-faithful: all 168 tapes × both seats use each tape's recorded seed. Before the full screen, both T4s run a small full-720-step evaluator probe; measured aggregate games/sec and remaining wall time determine how many candidates can safely finish, with a conservative safety factor and a requirement to preserve both search universes. Every evaluator runs in its own process group under an absolute deadline. If screening or its throughput probe overruns, the whole child group is terminated before the protected export guard. Artifact compression is separately deadline-bounded, so the 10-hour limit is enforced inside the final-screen/export subprocesses rather than checked only after they return.
 
 ## Input bundle
 

@@ -280,9 +280,24 @@ inline NativeTape load_native_tape_json(const std::string& path) {
                 const std::string key = j.string_value();
                 j.expect(':');
                 if (key == "source_seed") {
+                    // Backward-compatible legacy top-level metadata.
                     out.source_seed = static_cast<uint64_t>(j.integer_value());
                 } else if (key == "source_seat") {
                     out.source_seat = static_cast<int>(j.integer_value());
+                } else if (key == "source") {
+                    // Canonical replay-faithful metadata is nested under source.
+                    j.expect('{');
+                    if (!j.consume('}')) {
+                        for (;;) {
+                            const std::string skey = j.string_value();
+                            j.expect(':');
+                            if (skey == "seed") out.source_seed = static_cast<uint64_t>(j.integer_value());
+                            else if (skey == "seat") out.source_seat = static_cast<int>(j.integer_value());
+                            else j.skip_value();
+                            if (j.consume('}')) break;
+                            j.expect(',');
+                        }
+                    }
                 } else if (key == "actions") {
                     found_actions = true;
                     j.expect('[');

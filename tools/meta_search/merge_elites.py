@@ -6,16 +6,68 @@ import argparse
 import csv
 import hashlib
 import json
+import os
 import re
 import shutil
+import signal
 import struct
 import subprocess
+import time
 from collections import defaultdict
 from pathlib import Path
 
 CASE_RE = re.compile(r"CASE_REPORT pi=(\d+) opponent=(\d+) seat=(\d+) seed=(\d+) margin=([-+0-9.eE]+)")
 GEN_RE = re.compile(r"g(\d+)_r(\d+)\.bin$")
 MANAGER_OFFSET = 4 + 96 * 40  # GPProgram header + 96 GPRule records.
+
+
+def terminate_process_group(proc: subprocess.Popen, grace_seconds: float = 5.0) -> None:
+    if proc.poll() is not None:
+        return
+    try:
+        os.killpg(proc.pid, signal.SIGTERM)
+    except ProcessLookupError:
+        return
+    deadline = time.time() + max(0.0, grace_seconds)
+    while proc.poll() is None and time.time() < deadline:
+        time.sleep(0.1)
+    if proc.poll() is None:
+        try:
+            os.killpg(proc.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+    try:
+        proc.wait(timeout=2)
+    except subprocess.TimeoutExpired:
+        pass
+
+
+def wait_processes_until(processes: list[tuple], deadline_epoch: float, label: str) -> None:
+    pending = {id(row[0]): row for row in processes}
+    while pending and time.time() < deadline_epoch:
+        for key, row in list(pending.items()):
+            if row[0].poll() is not None:
+                pending.pop(key, None)
+        if pending:
+            time.sleep(0.2)
+    if pending:
+        for row in pending.values():
+            terminate_process_group(row[0])
+        raise TimeoutError(f"{label} exceeded absolute deadline with {len(pending)} evaluator process(es) still running")
+
+
+def launch_evaluator(binary: Path, bundle: Path, gpu: str, tpb: int, chunk: list[tuple[int, dict]],
+                     opponents: int, log: Path) -> tuple:
+    cmd = [str(binary), "--routes", str(bundle / "actuators/v6_routes.txt"),
+           "--opponent-routes", str(bundle / "populations/dev168.txt"), "--opponents", str(opponents),
+           "--opponent-recorded-seeds", "--generations", "1", "--seeds", "1", "--fitness", "wins",
+           "--max-step", "720", "--report-cases", "--tpb", str(tpb), "--island-mode", "exploit"]
+    for _, r in chunk:
+        cmd += ["--population-program", r["path"]]
+    env = dict(os.environ); env["CUDA_VISIBLE_DEVICES"] = gpu
+    fh = log.open("w")
+    proc = subprocess.Popen(cmd, stdout=fh, stderr=subprocess.STDOUT, env=env, start_new_session=True)
+    return proc, fh, log, chunk, cmd
 
 
 def origin_info(path: Path) -> dict:
@@ -114,7 +166,13 @@ def main() -> int:
     ap.add_argument("--search-root", type=Path, required=True)
     ap.add_argument("--output", type=Path, required=True)
     ap.add_argument("--max-candidates", type=int, default=256)
-    ap.add_argument("--seed", type=int, default=2184000)
+    ap.add_argument("--deadline-epoch", type=float, required=True,
+                    help="Absolute UNIX epoch by which all evaluator children must be finished or killed.")
+    ap.add_argument("--deadline-safety-seconds", type=float, default=45.0)
+    ap.add_argument("--probe-candidates-per-gpu", type=int, default=64)
+    ap.add_argument("--probe-opponents", type=int, default=8)
+    ap.add_argument("--probe-max-seconds", type=float, default=180.0)
+    ap.add_argument("--throughput-safety-factor", type=float, default=0.65)
     ap.add_argument("--tpb", type=int, default=128)
     ap.add_argument("--gpus", default="0,1")
     ap.add_argument("--tuning0", type=Path)
@@ -125,8 +183,15 @@ def main() -> int:
     manifest = list(csv.DictReader((bundle / "populations/dev_manifest.tsv").open(encoding="utf-8"), delimiter="\t"))
     if len(manifest) != 168 or any(r["bank_role"] != "dev" for r in manifest):
         raise RuntimeError("final screen requires exactly the 168 development tapes")
+    if any("source_seed" not in r or r["source_seed"] == "" for r in manifest):
+        raise RuntimeError("final screen requires recorded source_seed for every development tape")
+    recorded_seeds = [int(r["source_seed"]) for r in manifest]
     families = [r["team"] for r in manifest]
     baseline = list(csv.DictReader((bundle / "populations/baseline_dev_cases.tsv").open(encoding="utf-8"), delimiter="\t"))
+    for r in baseline:
+        oi = int(r["route_index"])
+        if not (0 <= oi < len(recorded_seeds)) or int(r["seed"]) != recorded_seeds[oi]:
+            raise RuntimeError(f"baseline/final-screen recorded seed mismatch route={oi}")
     baseline_by_case = {(int(r["route_index"]), int(r["seat"])): r["class"] for r in baseline}
     if len(baseline_by_case) != 336:
         raise RuntimeError("baseline development evidence must contain 168 tapes x both seats")
@@ -157,9 +222,13 @@ def main() -> int:
         return (-best[0], -best[1], -best[2], r["candidate_id"])
     records.sort(key=pre_key)
     selected = []
+    selected_sha = set()
     for island in ("island0", "island1"):
         for r in records:
-            if any(o["island"] == island for o in r["origins"]): selected.append(r); break
+            if any(o["island"] == island for o in r["origins"]):
+                if r["sha256"] not in selected_sha:
+                    selected.append(r); selected_sha.add(r["sha256"])
+                break
     seen = {r["sha256"] for r in selected}
     for r in records:
         if r["sha256"] not in seen:
@@ -172,42 +241,104 @@ def main() -> int:
 
     gpus = [x.strip() for x in args.gpus.split(",") if x.strip()]
     if not gpus: gpus = ["0"]
+    if args.deadline_epoch <= time.time() + args.deadline_safety_seconds:
+        raise RuntimeError("final-screen deadline already exhausted before evaluator probe")
+    if not (0.1 <= args.throughput_safety_factor <= 0.95):
+        raise RuntimeError("--throughput-safety-factor must be in 0.1..0.95")
     tunings = {}
     for gpu, path in (("0", args.tuning0), ("1", args.tuning1)):
         if path and path.exists(): tunings[gpu] = int(json.loads(path.read_text())["best_tpb"])
+
+    # Full-720-step replay-faithful throughput probe. Use enough candidate programs per
+    # GPU to exercise the same batched GPProgram path as the real final screen. This is
+    # intentionally tiny relative to the final 168x2 screen and is used only to budget
+    # candidates against the remaining hard wall clock.
+    probe_chunks = [[] for _ in gpus]
+    probe_limit = min(len(selected), max(1, args.probe_candidates_per_gpu) * len(gpus))
+    for i, r in enumerate(selected[:probe_limit]):
+        probe_chunks[i % len(gpus)].append((i, r))
+    probe_opponents = min(168, max(1, args.probe_opponents))
+    probe_processes = []
+    probe_commands = []
+    probe_started = time.time()
+    for gpu, chunk in zip(gpus, probe_chunks):
+        if not chunk: continue
+        tpb = tunings.get(gpu, args.tpb)
+        log = out / f"throughput_probe_gpu{gpu}.log"
+        row = launch_evaluator(args.binary, bundle, gpu, tpb, chunk, probe_opponents, log)
+        probe_processes.append(row)
+        probe_commands.append({"gpu": gpu, "tpb": tpb, "candidates": len(chunk), "opponents": probe_opponents, "command": row[4], "log": str(log)})
+    probe_deadline = min(args.deadline_epoch - args.deadline_safety_seconds, probe_started + args.probe_max_seconds)
+    try:
+        wait_processes_until(probe_processes, probe_deadline, "final evaluator throughput probe")
+    finally:
+        for proc, fh, *_ in probe_processes:
+            if proc.poll() is None: terminate_process_group(proc)
+            fh.close()
+    probe_failures = [(proc.returncode, str(log)) for proc, _, log, _, _ in probe_processes if proc.returncode != 0]
+    if probe_failures:
+        raise RuntimeError(f"final evaluator throughput probe failed: {probe_failures}")
+    probe_elapsed = max(1e-6, time.time() - probe_started)
+    probe_games = sum(len(chunk) * probe_opponents * 2 for chunk in probe_chunks)
+    measured_games_per_sec = probe_games / probe_elapsed
+    remaining_for_screen = args.deadline_epoch - args.deadline_safety_seconds - time.time()
+    games_per_candidate = 168 * 2
+    time_budget_candidates = int(max(0.0, remaining_for_screen) * measured_games_per_sec * args.throughput_safety_factor / games_per_candidate)
+    screen_budget = min(len(selected), args.max_candidates, time_budget_candidates)
+    required_min = min(len(selected), len(gpus))
+    if screen_budget < required_min:
+        raise RuntimeError(f"measured final-screen throughput cannot preserve both search universes: budget={screen_budget} required={required_min} gps={measured_games_per_sec:.2f} remaining={remaining_for_screen:.1f}s")
+    selected = selected[:screen_budget]
+    budget_record = {
+        "seed_policy": "recorded_per_tape",
+        "unique_recorded_seeds": len(set(recorded_seeds)),
+        "deadline_epoch": args.deadline_epoch,
+        "deadline_safety_seconds": args.deadline_safety_seconds,
+        "probe_games": probe_games,
+        "probe_elapsed_seconds": probe_elapsed,
+        "measured_games_per_sec": measured_games_per_sec,
+        "throughput_safety_factor": args.throughput_safety_factor,
+        "remaining_for_screen_seconds": remaining_for_screen,
+        "time_budget_candidates": time_budget_candidates,
+        "requested_max_candidates": args.max_candidates,
+        "screen_budget": screen_budget,
+        "probe_commands": probe_commands,
+    }
+    (out / "screen_budget.json").write_text(json.dumps(budget_record, indent=2) + "\n")
+    print(json.dumps(budget_record, indent=2), flush=True)
+
     chunks = [[] for _ in gpus]
     for i, r in enumerate(selected): chunks[i % len(gpus)].append((i, r))
     commands = []; processes = []
     for gpu, chunk in zip(gpus, chunks):
         if not chunk: continue
         tpb = tunings.get(gpu, args.tpb)
-        cmd = [str(args.binary), "--routes", str(bundle / "actuators/v6_routes.txt"),
-               "--opponent-routes", str(bundle / "populations/dev168.txt"), "--opponents", "168",
-               "--generations", "1", "--seeds", "1", "--seed-start", str(args.seed), "--fitness", "wins",
-               "--max-step", "720", "--report-cases", "--tpb", str(tpb), "--island-mode", "exploit"]
-        for _, r in chunk: cmd += ["--population-program", r["path"]]
         log = out / f"final_screen_gpu{gpu}.log"
-        env = dict(__import__("os").environ); env["CUDA_VISIBLE_DEVICES"] = gpu
-        fh = log.open("w")
-        proc = subprocess.Popen(cmd, stdout=fh, stderr=subprocess.STDOUT, env=env)
-        commands.append({"gpu": gpu, "tpb": tpb, "global_indices": [i for i, _ in chunk], "command": cmd, "log": str(log)})
-        processes.append((proc, fh, log, chunk))
+        row = launch_evaluator(args.binary, bundle, gpu, tpb, chunk, 168, log)
+        processes.append(row)
+        commands.append({"gpu": gpu, "tpb": tpb, "global_indices": [i for i, _ in chunk], "command": row[4], "log": str(log)})
     (out / "final_screen_commands.json").write_text(json.dumps(commands, indent=2) + "\n")
-    failures = []
-    for proc, fh, log, chunk in processes:
-        rc = proc.wait(); fh.close()
-        if rc != 0: failures.append((rc, str(log)))
+    try:
+        wait_processes_until(processes, args.deadline_epoch - args.deadline_safety_seconds, "final common CUDA screen")
+    finally:
+        for proc, fh, *_ in processes:
+            if proc.poll() is None: terminate_process_group(proc)
+            fh.close()
+    failures = [(proc.returncode, str(log)) for proc, _, log, _, _ in processes if proc.returncode != 0]
     if failures:
         raise RuntimeError(f"final common CUDA screen failed: {failures}")
 
     case_map: dict[int, list[tuple[int, int, float]]] = defaultdict(list)
-    for _, (_, _, log, chunk) in zip(commands, processes):
+    for _, (proc, fh, log, chunk, command) in zip(commands, processes):
         local_to_global = {local: global_i for local, (global_i, _) in enumerate(chunk)}
         for line in log.read_text(errors="replace").splitlines():
             m = CASE_RE.search(line)
             if m:
+                oi = int(m.group(2)); reported_seed = int(m.group(4))
+                if reported_seed != recorded_seeds[oi]:
+                    raise RuntimeError(f"recorded-seed mismatch in final screen opponent={oi}: reported={reported_seed} expected={recorded_seeds[oi]}")
                 gi = local_to_global[int(m.group(1))]
-                case_map[gi].append((int(m.group(2)), int(m.group(3)), float(m.group(5))))
+                case_map[gi].append((oi, int(m.group(3)), float(m.group(5))))
     if any(len(case_map[i]) != 336 for i in range(len(selected))):
         bad = {i: len(case_map[i]) for i in range(len(selected)) if len(case_map[i]) != 336}
         raise RuntimeError(f"incomplete final screen cases: {bad}")
@@ -255,7 +386,10 @@ def main() -> int:
     else:
         classification = "C. SEARCH COLLAPSED TO INCUMBENT BASIN"
     summary = {"unique_elites": len(records), "screened": len(selected), "nondominated": len(nondominated),
-               "baseline": base, "best_candidate": {k: best[k] for k in ("candidate_id","rank","wins","ties","losses","losing_families","regressions_vs_baseline","converted_baseline_losses","worst_family_wr","floor","mean_margin")},
+               "seed_policy": "recorded_per_tape", "unique_recorded_seeds": len(set(recorded_seeds)),
+               "measured_final_evaluator_games_per_sec": measured_games_per_sec,
+               "screen_budget": screen_budget, "baseline": base,
+               "best_candidate": {k: best[k] for k in ("candidate_id","rank","wins","ties","losses","losing_families","regressions_vs_baseline","converted_baseline_losses","worst_family_wr","floor","mean_margin")},
                "classification": classification}
     (out / "summary.json").write_text(json.dumps(summary, indent=2, ensure_ascii=False) + "\n")
     (out / "reproduction_commands.txt").write_text("Final screen commands are stored exactly in final_screen_commands.json.\nCandidate binaries are canonical 4096-byte GPProgram records; SHA-256 is the candidate identity.\n")

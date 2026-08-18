@@ -76,7 +76,7 @@ def main() -> int:
                     "--universe", args.universe,
                     "--local-per-island", "16", "--tpb", str(tpb), "--benchmark",
                     "--walltime-seconds", "900", "--search-seed", str(args.seed + population * 17 + tpb),
-                    "--seed-start", "2184000", "--vram-target", str(args.vram_target),
+                    "--vram-target", str(args.vram_target),
                     "--reserve-mib", str(args.reserve_mib),
                 ]
                 p = subprocess.run(cmd, text=True, capture_output=True)

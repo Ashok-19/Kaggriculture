@@ -122,7 +122,17 @@ def main() -> int:
         if sha256(src) in forbidden_hashes:
             raise RuntimeError(f"development tape collides with frozen validation/holdout: {src}")
         normalize_tape_json(src, out / rel)
+        tape_obj = json.loads(src.read_text(encoding="utf-8"))
+        source = tape_obj.get("source") if isinstance(tape_obj, dict) else None
+        if not isinstance(source, dict) or "seed" not in source or "seat" not in source:
+            raise RuntimeError(f"development tape lacks canonical source.seed/source.seat: {src}")
+        source_seed = int(source["seed"])
+        source_seat = int(source["seat"])
+        if source_seat != int(row["seat"]):
+            raise RuntimeError(f"source seat mismatch for {src}: tape={source_seat} manifest={row['seat']}")
         nr = dict(row)
+        nr["source_seed"] = str(source_seed)
+        nr["source_seat"] = str(source_seat)
         nr["bundle_path"] = rel.as_posix()
         bundle_rows.append(nr)
 
@@ -131,21 +141,38 @@ def main() -> int:
         w = csv.DictWriter(f, fieldnames=manifest_fields, delimiter="\t")
         w.writeheader(); w.writerows(bundle_rows)
 
-    # Baseline evidence selects hard representatives without exposing validation.
-    baseline_src = bank / "baseline_dev_cases.tsv"
+    # Replay-faithful BKG3-v6 mode-0 baseline evidence selects hard representatives
+    # and defines regression guards. It was regenerated on CUDA with each dev tape's
+    # canonical source.seed; do not mix these labels with a common synthetic seed.
+    baseline_src = root / "tools/meta_search/baseline_dev_recorded_seed.tsv"
     with baseline_src.open(encoding="utf-8", newline="") as f:
         baseline = list(csv.DictReader(f, delimiter="\t"))
+    if len(baseline) != 336:
+        raise RuntimeError(f"recorded-seed baseline must contain 168 tapes x both seats, got {len(baseline)}")
     by_original = {r["native_tape_path"]: r for r in bundle_rows}
     rewritten_baseline = []
+    baseline_cases_seen: set[tuple[int, int]] = set()
     path_worst: dict[str, float] = defaultdict(lambda: float("inf"))
     for row in baseline:
+        route_index = int(row["route_index"]); seat = int(row["seat"])
+        if not (0 <= route_index < len(bundle_rows)) or seat not in (0, 1):
+            raise RuntimeError(f"invalid recorded-seed baseline case: route={route_index} seat={seat}")
+        key = (route_index, seat)
+        if key in baseline_cases_seen:
+            raise RuntimeError(f"duplicate recorded-seed baseline case: {key}")
+        baseline_cases_seen.add(key)
         source_rel = row["path"]
-        if source_rel not in by_original:
-            raise RuntimeError(f"baseline references non-development tape: {source_rel}")
+        expected = bundle_rows[route_index]
+        if source_rel != expected["native_tape_path"] or source_rel not in by_original:
+            raise RuntimeError(f"baseline route/path mismatch route={route_index}: {source_rel}")
+        if int(row["seed"]) != int(expected["source_seed"]):
+            raise RuntimeError(f"baseline seed mismatch route={route_index}: baseline={row['seed']} tape={expected['source_seed']}")
         br = dict(row)
-        br["path"] = by_original[source_rel]["bundle_path"]
+        br["path"] = expected["bundle_path"]
         rewritten_baseline.append(br)
         path_worst[br["path"]] = min(path_worst[br["path"]], float(br["margin"]))
+    if len(baseline_cases_seen) != 336:
+        raise RuntimeError("recorded-seed baseline is missing one or more tape/seat cases")
     with (out / "populations/baseline_dev_cases.tsv").open("w", encoding="utf-8", newline="") as f:
         w = csv.DictWriter(f, fieldnames=list(rewritten_baseline[0]), delimiter="\t")
         w.writeheader(); w.writerows(rewritten_baseline)
@@ -172,8 +199,11 @@ def main() -> int:
     # the frozen baseline happens to beat their sampled tapes. Reserve explicit Stage-1
     # slots for them, then fill the remaining budget with baseline hard/fragile families.
     mandatory_stage1_elites = [f for f in ("Kawashigi", "Ueddy") if f in families]
-    stage1_families = []
-    for fam in hard_families + mandatory_stage1_elites + guard_families:
+    # Recorded-seed evidence exposes 19 losing families, so 12 Stage-1 slots can no
+    # longer contain all baseline-losers. Reserve strategic live-meta elites first,
+    # then fill the remaining slots by loss count / downside severity.
+    stage1_families = list(mandatory_stage1_elites)
+    for fam in hard_families + guard_families:
         if fam not in stage1_families:
             stage1_families.append(fam)
         if len(stage1_families) == 12:
@@ -181,6 +211,10 @@ def main() -> int:
     stage1 = [per_family[f][0] for f in stage1_families]
     stage2 = [per_family[f][0] for f in families]
     stage3 = [r for f in families for r in per_family[f][:2]]
+    dev_recorded_seeds = {int(r["source_seed"]) for r in bundle_rows}
+    stage1_recorded_seeds = {int(r["source_seed"]) for r in stage1}
+    if len(stage1_recorded_seeds) != len(stage1):
+        raise RuntimeError(f"Stage-1 recorded-seed diversity regressed: {len(stage1_recorded_seeds)}/{len(stage1)} unique")
     for name, selected in (("stage1_core12.txt", stage1), ("stage2_core21.txt", stage2), ("stage3_core42.txt", stage3), ("dev168.txt", bundle_rows)):
         (out / "populations" / name).write_text("".join(Path(r["bundle_path"]).relative_to("populations").as_posix() + "\n" for r in selected), encoding="utf-8")
 
@@ -224,6 +258,7 @@ def main() -> int:
         "tools/meta_search/autotune.py",
         "tools/meta_search/merge_elites.py",
         "tools/meta_search/v6_smoke_reference.json",
+        "tools/meta_search/baseline_dev_recorded_seed.tsv",
         "tools/meta_search/default_config.json",
     ):
         copy_file(root / rel, out / rel)
@@ -249,6 +284,13 @@ def main() -> int:
         "candidate_actuator_routes": list(V6_ROUTE_IDS),
         "search_priors": prior_names,
         "resident_search_genome_bytes": 256,
+        "recorded_seed_fitness": True,
+        "recorded_source_seed_count": len(dev_recorded_seeds),
+        "stage1_recorded_seed_count": len(stage1_recorded_seeds),
+        "baseline_seed_policy": "recorded_per_tape",
+        "baseline_reference": "BKG3-v6 historical CUDA mode0",
+        "baseline_cases": len(rewritten_baseline),
+        "baseline_source_sha256": sha256(baseline_src),
         "engine_exploitation_search": True,
         "engine_sub_islands": {"exploit": 12, "explore": 20, "total_default": 32},
         "official_engine_path": "official_engine/kaggriculture.py",

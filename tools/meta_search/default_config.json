@@ -4,7 +4,6 @@
   "orchestration_reserve_seconds": 900,
   "island0_seed": 340034,
   "island1_seed": 9340034,
-  "seed_start": 2184000,
   "vram_target_fraction": 0.95,
   "vram_reserve_mib": 512,
   "checkpoint_interval_seconds": 180,
@@ -38,8 +37,17 @@
     "full168_every_generations": 128
   },
   "final_screen_max_candidates": 256,
-  "final_screen_seed": 2184000,
   "monitor_interval_seconds": 300,
   "watchdog_stale_seconds": 1200,
-  "notes": "Primary population search is GPU-resident on exact core12 cases. GPU0 reserves 12/32 sub-islands for engine-mechanics refinement; GPU1 reserves 20/32 for de-novo/adversarial engine search. QD elites alone are promoted to broader exact tiers; no fast math."
+  "notes": "Primary population search is GPU-resident on exact core12 cases using each tape's recorded source.seed. GPU0 reserves 12/32 sub-islands for engine-mechanics refinement; GPU1 reserves 20/32 for de-novo/adversarial engine search. QD elites alone are promoted to broader exact tiers. Final screen is recorded-seed, throughput-budgeted, and hard-deadline bounded. No fast math.",
+  "final_screen_probe_candidates_per_gpu": 64,
+  "final_screen_probe_opponents": 8,
+  "final_screen_probe_max_seconds": 180,
+  "final_screen_deadline_safety_seconds": 45,
+  "final_screen_throughput_safety_factor": 0.65,
+  "final_export_guard_seconds": 180,
+  "watchdog_low_gpu_util_pct": 5,
+  "watchdog_low_gpu_samples": 3,
+  "watchdog_restart_grace_seconds": 180,
+  "watchdog_min_restart_remaining_seconds": 1800
 }

@@ -72,7 +72,6 @@ def main() -> int:
         "--reserve-mib", str(cfg["vram_reserve_mib"]),
         "--checkpoint-interval-seconds", str(cfg["checkpoint_interval_seconds"]),
         "--search-seed", str(search_seed),
-        "--seed-start", str(cfg["seed_start"]),
     ]
 
     # GPU0 starts from all strong historical structural priors. GPU1 receives only
