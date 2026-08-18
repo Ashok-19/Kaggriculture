@@ -35,6 +35,22 @@ def copy_file(src: Path, dst: Path) -> None:
     shutil.copy2(src, dst)
 
 
+def normalize_tape_json(src: Path, dst: Path) -> None:
+    """Write tape JSON as raw UTF-8 and canonicalize Kawashigi metadata."""
+    def normalize(value):
+        if isinstance(value, str):
+            return value.replace("カワシギ", "Kawashigi")
+        if isinstance(value, list):
+            return [normalize(x) for x in value]
+        if isinstance(value, dict):
+            return {k: normalize(v) for k, v in value.items()}
+        return value
+
+    obj = normalize(json.loads(src.read_text(encoding="utf-8")))
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    dst.write_text(json.dumps(obj, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8")
+
+
 def copy_tree_files(src: Path, dst: Path, patterns: tuple[str, ...]) -> None:
     for pattern in patterns:
         for p in sorted(src.glob(pattern)):
@@ -82,7 +98,7 @@ def main() -> int:
     manifest_path = bank / "priority_multireplay_manifest.tsv"
     with manifest_path.open(encoding="utf-8", newline="") as f:
         rows = list(csv.DictReader(f, delimiter="\t"))
-    dev = [r for r in rows if r["bank_role"] == "dev"]
+    dev = [dict(r, team=("Kawashigi" if r["team"] == "カワシギ" else r["team"])) for r in rows if r["bank_role"] == "dev"]
     validation = [r for r in rows if r["bank_role"] == "validation"]
     if len(dev) != EXPECTED_DEV or len(validation) != EXPECTED_VALIDATION:
         raise RuntimeError(f"bank split changed: dev={len(dev)} validation={len(validation)}")
@@ -98,7 +114,9 @@ def main() -> int:
         src = root / row["native_tape_path"]
         name = f"{i:04d}_{src.name}"
         rel = Path("populations/dev_tapes") / name
-        copy_file(src, out / rel)
+        if sha256(src) in forbidden_hashes:
+            raise RuntimeError(f"development tape collides with frozen validation/holdout: {src}")
+        normalize_tape_json(src, out / rel)
         nr = dict(row)
         nr["bundle_path"] = rel.as_posix()
         bundle_rows.append(nr)
@@ -148,7 +166,7 @@ def main() -> int:
     # Kawashigi family and Ueddy are strategically important live-meta families even when
     # the frozen baseline happens to beat their sampled tapes. Reserve explicit Stage-1
     # slots for them, then fill the remaining budget with baseline hard/fragile families.
-    mandatory_stage1_elites = [f for f in ("カワシギ", "Ueddy") if f in families]
+    mandatory_stage1_elites = [f for f in ("Kawashigi", "Ueddy") if f in families]
     stage1_families = []
     for fam in hard_families + mandatory_stage1_elites + guard_families:
         if fam not in stage1_families:
@@ -166,7 +184,7 @@ def main() -> int:
     for rid in V6_ROUTE_IDS:
         src = root / f"scratch/bonsai_cpu/stateful_core_v6/route{rid}.json"
         rel = Path("actuators/v6") / src.name
-        copy_file(src, out / rel)
+        normalize_tape_json(src, out / rel)
         actuator_lines.append(rel.relative_to("actuators").as_posix())
     (out / "actuators/v6_routes.txt").write_text("".join(x + "\n" for x in actuator_lines), encoding="utf-8")
 
