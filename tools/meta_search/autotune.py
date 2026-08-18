@@ -37,7 +37,7 @@ def gpu_info() -> dict:
         "memory_total_mib": int(total),
         "memory_free_mib": int(free),
         "compute_capability": cap,
-        "power_limit_w": float(power),
+        "power_limit_w": None if power in {"[N/A]", "N/A", ""} else float(power),
     }
 
 
@@ -55,6 +55,7 @@ def main() -> int:
     ap.add_argument("--vram-target", type=float, default=0.95)
     ap.add_argument("--reserve-mib", type=float, default=512.0)
     ap.add_argument("--target-generation-seconds", type=float, default=240.0)
+    ap.add_argument("--trial-timeout-seconds", type=float, default=180.0)
     args = ap.parse_args()
 
     binary = args.binary.resolve()
@@ -79,14 +80,21 @@ def main() -> int:
                     "--vram-target", str(args.vram_target),
                     "--reserve-mib", str(args.reserve_mib),
                 ]
-                p = subprocess.run(cmd, text=True, capture_output=True)
-            hb = HB_RE.search(p.stdout)
-            mm = MEM_RE.search(p.stdout)
+                try:
+                    p = subprocess.run(cmd, text=True, capture_output=True, timeout=args.trial_timeout_seconds)
+                    stdout, stderr, returncode = p.stdout, p.stderr, p.returncode
+                except subprocess.TimeoutExpired as exc:
+                    stdout = exc.stdout.decode() if isinstance(exc.stdout, bytes) else (exc.stdout or "")
+                    stderr = exc.stderr.decode() if isinstance(exc.stderr, bytes) else (exc.stderr or "")
+                    returncode = 124
+            hb = HB_RE.search(stdout)
+            mm = MEM_RE.search(stdout)
             row = {
                 "population": population,
                 "sub_islands": sub_islands,
                 "tpb": tpb,
-                "returncode": p.returncode,
+                "returncode": returncode,
+                "timed_out": returncode == 124,
                 "generation_seconds": float(hb.group(1)) if hb else None,
                 "candidates_per_sec": float(hb.group(2)) if hb else 0.0,
                 "games_per_sec": float(hb.group(3)) if hb else 0.0,
@@ -97,7 +105,7 @@ def main() -> int:
                 "sizeof_SearchGenome": int(mm.group(6)) if mm else None,
                 "sizeof_GPManager": int(mm.group(7)) if mm else None,
                 "sizeof_Sim": int(mm.group(8)) if mm else None,
-                "stderr_tail": p.stderr[-2000:],
+                "stderr_tail": stderr[-2000:],
             }
             trials.append(row)
             print(json.dumps(row), flush=True)

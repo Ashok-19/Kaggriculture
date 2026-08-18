@@ -10,9 +10,7 @@
   "epoch_generations": 8,
   "default_sub_islands": 32,
   "autotune_populations": [
-    4096,
-    16384,
-    65536
+    8192
   ],
   "autotune_tpb": [
     64,
@@ -20,7 +18,7 @@
     256
   ],
   "autotune_target_generation_seconds": 240,
-  "autotune_max_generation_seconds": 600,
+  "autotune_max_generation_seconds": 180,
   "exploit": {
     "stagnation_limit": 96,
     "local_per_island": 128,

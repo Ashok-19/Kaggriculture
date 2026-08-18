@@ -149,7 +149,7 @@ The notebook parses `RESIDENT_MEMORY` from each process and aborts the long run 
 
 ## T4 autotuning
 
-Each T4 is tuned independently before the primary search. `autotune.py` benchmarks exact core generations over several population sizes and block sizes and selects the highest measured games/sec configuration. It records:
+Each T4 is calibrated independently **and concurrently** before the primary search. `autotune.py` benchmarks one representative 8192-candidate / 32-sub-island exact core generation at each supported block size and selects the highest measured games/sec configuration. The 8192 batch is deliberately the smallest calibration population that preserves the production 32-island topology; production population itself is still live-VRAM autosized. Each calibration trial has a hard timeout. It records:
 
 - T4 model and free/total memory;
 - compute capability;

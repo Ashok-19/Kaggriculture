@@ -195,7 +195,11 @@ assert "engine_mode=1" in p.stdout and "mismatches=0" in p.stdout
 print("ENGINE-MODE SEARCH-GENOME DISTILLATION PARITY PASSED")
 '''),
 code(r'''
-# CELL 6 — independent exact resident-engine autotuning on GPU0/GPU1
+# CELL 6 — concurrent exact resident-engine launch-geometry calibration on GPU0/GPU1
+# Production population is still live-VRAM autosized. The 8192-candidate calibration
+# is the smallest representative batch that preserves all 32 production sub-islands.
+assert cfg["autotune_populations"] == [8192]
+autotune_jobs = []
 for gpu in (0, 1):
     env = os.environ.copy(); env["CUDA_VISIBLE_DEVICES"] = str(gpu)
     out = OUTPUT_ROOT / f"island{gpu}"; out.mkdir(parents=True, exist_ok=True)
@@ -204,19 +208,25 @@ for gpu in (0, 1):
     mode_cfg = cfg[mode]
     cmd = ["python3", str(WORK_ROOT / "tools/meta_search/autotune.py"),
            "--binary", str(resident_bin), "--bundle", str(WORK_ROOT), "--output", str(tuning),
-           "--populations", ",".join(map(str, cfg["autotune_populations"])),
+           "--populations", "8192",
            "--tpb", ",".join(map(str, cfg["autotune_tpb"])),
            "--sub-islands", str(cfg["default_sub_islands"]),
            "--engine-sub-islands", str(mode_cfg["engine_sub_islands"]),
            "--universe", mode,
            "--vram-target", str(VRAM_TARGET), "--reserve-mib", str(VRAM_RESERVE_MIB),
            "--target-generation-seconds", str(cfg["autotune_target_generation_seconds"]),
+           "--trial-timeout-seconds", str(cfg["autotune_max_generation_seconds"]),
            "--seed", str(770001 + gpu * 10000)]
-    p = subprocess.run(cmd, env=env, cwd=WORK_ROOT, text=True, capture_output=True)
-    print(p.stdout[-8000:])
+    p = subprocess.Popen(cmd, env=env, cwd=WORK_ROOT, text=True,
+                         stdout=subprocess.PIPE, stderr=subprocess.PIPE, start_new_session=True)
+    autotune_jobs.append((gpu, p, cmd))
+
+for gpu, p, cmd in autotune_jobs:
+    stdout, stderr = p.communicate()
+    print(f"GPU{gpu} autotune:\n{stdout[-8000:]}")
     if p.returncode != 0:
-        print(p.stderr); raise RuntimeError(f"GPU{gpu} resident autotune failed")
-print("both resident T4 autotuners passed")
+        print(stderr); raise RuntimeError(f"GPU{gpu} resident autotune failed: {cmd}")
+print("both resident T4 autotuners passed concurrently")
 '''),
 code(r'''
 # CELL 7 — compute the remaining search budget from one monotonic absolute deadline
