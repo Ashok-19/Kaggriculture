@@ -491,6 +491,45 @@ static uint8_t best_layout_seed(const uint8_t weight[8],int quadrants) {
     return (uint8_t)best_seed;
 }
 
+__device__ __forceinline__ uint32_t device_layout_mix32(uint32_t x) {
+    x ^= x >> 16; x *= 0x7feb352du; x ^= x >> 15; x *= 0x846ca68bu; x ^= x >> 16; return x;
+}
+
+__device__ __forceinline__ bool device_layout_unlocked(int quadrants,int x,int y) {
+    const int q=(y>=5?2:0)+(x>=5?1:0);
+    return q < quadrants;
+}
+
+__device__ uint8_t device_best_layout_seed(const uint8_t weight[8],int quadrants) {
+    int target_total=0;for(int k=0;k<8;++k)target_total+=weight[k];
+    const int cells=25*quadrants;
+    int best_seed=1,best_err=1<<30;
+    for(int seed=1;seed<=255;++seed){
+        int got[8]={0};
+        for(int y=0;y<10;++y)for(int x=0;x<10;++x){
+            if(!device_layout_unlocked(quadrants,x,y))continue;
+            int total=target_total;if(total<=0){++got[7];continue;}
+            int z=(int)(device_layout_mix32((uint32_t)(x+17*y+131*seed))%(uint32_t)total);
+            int cat=7;for(int k=0;k<8;++k){if(z<weight[k]){cat=k;break;}z-=weight[k];}
+            ++got[cat];
+        }
+        int err=0;for(int k=0;k<8;++k){const int target=target_total?((int)weight[k]*cells+target_total/2)/target_total:(k==7?cells:0);const int d=got[k]-target;err+=d*d;}
+        if(err<best_err){best_err=err;best_seed=seed;}
+    }
+    return (uint8_t)best_seed;
+}
+
+__global__ void gp_finalize_layout_seeds_kernel(GPProgram* programs,int n_programs,int skip_program) {
+    const size_t id=(size_t)blockIdx.x*blockDim.x+threadIdx.x;
+    const size_t total=(size_t)n_programs*GP_PHASES;
+    if(id>=total)return;
+    const int pi=(int)(id/GP_PHASES);
+    if(pi==skip_program)return;
+    const int ph=(int)(id-(size_t)pi*GP_PHASES);
+    GPManager& g=programs[pi].manager;
+    g.phase_layout_seed[ph]=device_best_layout_seed(g.phase_layout_weight[ph],g.phase_target_quadrants[ph]);
+}
+
 static void normalize_manager(GPManager& g) {
     // Strictly increasing causal phase boundaries.
     int prev=0;
@@ -507,7 +546,7 @@ static void normalize_manager(GPManager& g) {
     }
 }
 
-static GPManager elite_manager(int variant) {
+static GPManager elite_manager_impl(int variant, bool finalize_layout_seed) {
     GPManager g{};
     // Default struct is the sheep-heavy Ueddy/Kosti-style production backbone.
     if(variant==1){ // Kaw-like: 3 quadrants, cow-heavy, more STRAWBERRY.
@@ -525,13 +564,16 @@ static GPManager elite_manager(int variant) {
         for(int p=0;p<GP_PHASES;++p){g.phase_cow_target[p]=cows[p];g.phase_sheep_target[p]=sheep[p];g.phase_cash_reserve[p]=(uint16_t)(g.phase_cash_reserve[p]+300);}
     }
     normalize_manager(g);
-    for(int p=0;p<GP_PHASES;++p)g.phase_layout_seed[p]=best_layout_seed(g.phase_layout_weight[p],g.phase_target_quadrants[p]);
+    if(finalize_layout_seed)for(int p=0;p<GP_PHASES;++p)g.phase_layout_seed[p]=best_layout_seed(g.phase_layout_weight[p],g.phase_target_quadrants[p]);
     return g;
 }
 
-static GPManager random_manager(HostRng& r) {
+static GPManager elite_manager(int variant) { return elite_manager_impl(variant,true); }
+
+static GPManager random_manager(HostRng& r, bool defer_layout_seed=false) {
     // Random programs are still phase-coherent rather than arbitrary final farms.
-    GPManager g=elite_manager(ri(r,0,2));
+    // The base layout seed is irrelevant because the fully-mutated manager is finalized below.
+    GPManager g=elite_manager_impl(ri(r,0,2),false);
     for(int p=0;p<GP_PHASES;++p){
         for(int k=0;k<8;++k){int v=(int)g.phase_layout_weight[p][k]+ri(r,-12,12);if(v<0)v=0;if(v>80)v=80;g.phase_layout_weight[p][k]=(uint8_t)v;}
         g.phase_hires_per_day[p]=(uint8_t)ri(r,0,14);
@@ -543,11 +585,11 @@ static GPManager random_manager(HostRng& r) {
     g.drop_load=(uint8_t)ri(r,5,24);g.drop_hour=(uint8_t)ri(r,17,23);g.rebuild_step_div12=(uint8_t)ri(r,16,44);g.dist_penalty=(uint8_t)ri(r,1,10);
     for(int i=0;i<N_PRODUCTS;++i){g.sell_floor_pct[i]=(uint8_t)ri(r,30,160);g.sell_reserve[i]=(uint8_t)ri(r,0,24);}g.sell_batch=(uint8_t)ri(r,12,64);
     for(int i=0;i<10;++i)g.task_priority[i]=(uint8_t)ri(r,100,255);
-    normalize_manager(g);for(int p=0;p<GP_PHASES;++p)g.phase_layout_seed[p]=best_layout_seed(g.phase_layout_weight[p],g.phase_target_quadrants[p]);
+    normalize_manager(g);if(!defer_layout_seed)for(int p=0;p<GP_PHASES;++p)g.phase_layout_seed[p]=best_layout_seed(g.phase_layout_weight[p],g.phase_target_quadrants[p]);
     return g;
 }
 
-static GPProgram random_program(HostRng& r, int n_routes) {
+static GPProgram random_program(HostRng& r, int n_routes, bool defer_layout_seed=false) {
     GPProgram p{};
     p.n_rules=static_cast<uint8_t>(ri(r,1,4));
     for (int i=0;i<p.n_rules;++i) {
@@ -556,7 +598,7 @@ static GPProgram random_program(HostRng& r, int n_routes) {
         for (int c=0;c<rule.n_conds;++c) rule.conds[c]=random_cond(r);
         rule.leaf=random_leaf(r,n_routes);
     }
-    p.manager=random_manager(r);
+    p.manager=random_manager(r,defer_layout_seed);
     return p;
 }
 
@@ -990,6 +1032,8 @@ int main(int argc,char** argv){
     {size_t free_after=0,total_after=0;KAGCUDA_CHECK(cudaMemGetInfo(&free_after,&total_after));std::cout<<"MEMORY_PLAN sizeof_GPProgram="<<sizeof(GPProgram)<<" sizeof_Sim="<<sizeof(Sim)<<" jobs="<<jobs<<" allocated_estimate="<<(size_t)population*sizeof(GPProgram)+(size_t)jobs*(sizeof(Sim)+2*sizeof(double))<<" free_after="<<free_after<<" total="<<total_after<<" max_step="<<max_step<<" island="<<island_mode<<"\n";}
 
     HostRng rng(search_seed);
+    const bool defer_initial_layout_seed = load_path.empty() && population_program_paths.empty() && !unit_route_sweep && !GP_ROUTER_ONLY && !suffix_search && !manager_only;
+    const auto host_population_started=std::chrono::steady_clock::now();
     std::vector<GPProgram> pop(population);
     if(!population_program_paths.empty()){
         for(int i=0;i<population;++i){pop[i]=load_gp_program_binary(population_program_paths[i]);if(GP_ROUTER_ONLY)normalize_router(pop[i],rng);}
@@ -1061,9 +1105,9 @@ int main(int argc,char** argv){
         // with genuinely new manager/program genomes.
         int z=0;
         const int route_seed_limit=island_mode=="explore"?std::max(1,population/16):population;
-        for(int r=0;r<candidate_route_count && z<population && z<route_seed_limit;++r,++z){pop[z]=GPProgram{};pop[z].n_rules=1;pop[z].rules[0].leaf={GPL_ROUTE,(uint8_t)r,(uint8_t)r,0};pop[z].manager=random_manager(rng);}
-        for(int r=0;r<candidate_route_count && z<population && z<route_seed_limit;++r,++z){pop[z]=GPProgram{};pop[z].n_rules=1;pop[z].rules[0].leaf={GPL_ROUTE_UNITS_MANAGER_MARKET,(uint8_t)r,(uint8_t)r,0};pop[z].manager=random_manager(rng);}
-        while(z<population)pop[z++]=random_program(rng,candidate_route_count);
+        for(int r=0;r<candidate_route_count && z<population && z<route_seed_limit;++r,++z){pop[z]=GPProgram{};pop[z].n_rules=1;pop[z].rules[0].leaf={GPL_ROUTE,(uint8_t)r,(uint8_t)r,0};pop[z].manager=random_manager(rng,defer_initial_layout_seed);}
+        for(int r=0;r<candidate_route_count && z<population && z<route_seed_limit;++r,++z){pop[z]=GPProgram{};pop[z].n_rules=1;pop[z].rules[0].leaf={GPL_ROUTE_UNITS_MANAGER_MARKET,(uint8_t)r,(uint8_t)r,0};pop[z].manager=random_manager(rng,defer_initial_layout_seed);}
+        while(z<population)pop[z++]=random_program(rng,candidate_route_count,defer_initial_layout_seed);
     }
     if(!seed_program_path.empty() && load_path.empty() && !GP_ROUTER_ONLY && !unit_route_sweep && !suffix_search){
         GPProgram seedp=load_gp_program_binary(seed_program_path);
@@ -1083,6 +1127,20 @@ int main(int argc,char** argv){
     }
     if(pickup_horizon_override>=0 && !GP_ROUTER_ONLY){
         for(auto& p:pop)p.manager.planned_pickup_horizon=(uint8_t)pickup_horizon_override;
+    }
+    const double host_population_seconds=std::chrono::duration<double>(std::chrono::steady_clock::now()-host_population_started).count();
+    std::cout<<"HOST_INIT population="<<population<<" seconds="<<host_population_seconds<<" deferred_layout="<<(defer_initial_layout_seed?1:0)<<"\n";
+    if(defer_initial_layout_seed){
+        const int skip_program=!seed_program_path.empty()?0:-1;
+        const size_t bytes=(size_t)population*sizeof(GPProgram);
+        const size_t layout_jobs=(size_t)population*GP_PHASES;
+        const auto t0=std::chrono::steady_clock::now();
+        KAGCUDA_CHECK(cudaMemcpy(d_prog,pop.data(),bytes,cudaMemcpyHostToDevice));
+        gp_finalize_layout_seeds_kernel<<<(layout_jobs+255)/256,256>>>(d_prog,population,skip_program);
+        KAGCUDA_CHECK(cudaGetLastError());KAGCUDA_CHECK(cudaDeviceSynchronize());
+        KAGCUDA_CHECK(cudaMemcpy(pop.data(),d_prog,bytes,cudaMemcpyDeviceToHost));
+        const double sec=std::chrono::duration<double>(std::chrono::steady_clock::now()-t0).count();
+        std::cout<<"GPU_INIT_LAYOUT population="<<population<<" phases="<<GP_PHASES<<" seconds="<<sec<<" skip_program="<<skip_program<<"\n";
     }
 
     const int n_program_opponents=(int)h_opponent_programs.size();
@@ -1221,6 +1279,7 @@ int main(int argc,char** argv){
         std::cout.flush();
         if(walltime_seconds>0.0 && elapsed>=walltime_seconds){std::cout<<"WALLTIME_STOP elapsed="<<elapsed<<" limit="<<walltime_seconds<<"\n";break;}
         if(gen+1==generations)break;
+        const auto host_repro_started=std::chrono::steady_clock::now();
         std::vector<GPProgram> next(population);
         for(int i=0;i<elite;++i)next[i]=pop[order[i]];
         auto tournament=[&](){const int cap=island_mode=="explore"?(population-1):((population-1)<63?(population-1):63);int best=order[ri(rng,0,cap)];const int rounds=island_mode=="explore"?1:3;for(int k=0;k<rounds;++k){int q=order[ri(rng,0,cap)];if(fitter(fit[q],fit[best]))best=q;}return best;};
@@ -1232,6 +1291,8 @@ int main(int argc,char** argv){
             if(island_mode=="explore" && ri(rng,0,99)<60) next[i]=mutate(next[i],rng,candidate_route_count);
         }
         pop.swap(next);
+        const double host_repro_seconds=std::chrono::duration<double>(std::chrono::steady_clock::now()-host_repro_started).count();
+        std::cout<<"HOST_REPRO gen="<<gen<<" population="<<population<<" seconds="<<host_repro_seconds<<"\n";
     }
 
     std::cout<<"FINAL_BEST wins="<<global_fit.wins<<"/"<<global_fit.cases<<" ties="<<global_fit.ties<<" floor="<<global_fit.floor<<" mean="<<mean(global_fit)<<" tail="<<global_fit.tail_mean<<" worst_cohort="<<global_fit.worst_cohort<<" seed_tail="<<global_fit.seed_tail<<" worst_seed="<<global_fit.worst_seed<<" balanced="<<balanced_score(global_fit)<<"\n";
