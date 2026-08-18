@@ -1,7 +1,10 @@
 #include "runtime.cuh"
 #include "bonsai_gp.cuh"
 #include "bonsai_io.hpp"
+#include <algorithm>
 #include <cfloat>
+#include <chrono>
+#include <filesystem>
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
@@ -69,6 +72,7 @@ __global__ void gp_eval_kernel(Config base, DeviceTables tables,
                                const int* marker_program_map, int n_marker_programs,
                                int opponent_route, int candidate_seat,
                                uint64_t seed_start, const uint64_t* seed_values, int n_seeds,
+                               int max_step,
                                Sim* sims, double* rewards, int report_state_step, bool report_first_override, bool report_first_override_gap, GPStateReport* state_reports) {
     const int id = blockIdx.x * blockDim.x + threadIdx.x;
     const int total = n_programs * n_seeds;
@@ -82,7 +86,7 @@ __global__ void gp_eval_kernel(Config base, DeviceTables tables,
     const GPProgram& prog = programs[pi];
     const GPRouteDesc od = descs[opponent_route];
     bool ever_reactive_override=false;
-    while (!sim.st.done) {
+    while (!sim.st.done && sim.st.step < max_step) {
         const int step = sim.st.step;
         const int opp_seat = 1-candidate_seat;
         const ObservationView obs = make_observation(sim,candidate_seat);
@@ -167,6 +171,7 @@ __global__ void gp_eval_program_opponent_kernel(Config base, DeviceTables tables
                                                 const Action* routes, const GPRouteDesc* descs, int n_routes,
                                                 int candidate_seat,
                                                 uint64_t seed_start, const uint64_t* seed_values, int n_seeds,
+                                                int max_step,
                                                 Sim* sims, double* rewards) {
     const int id = blockIdx.x * blockDim.x + threadIdx.x;
     const int total = n_programs * n_seeds;
@@ -179,7 +184,7 @@ __global__ void gp_eval_program_opponent_kernel(Config base, DeviceTables tables
     sim.init(cfg,&tables);
     const GPProgram& prog = programs[pi];
     const GPProgram& opp_prog = opponent_programs[opponent_program];
-    while (!sim.st.done) {
+    while (!sim.st.done && sim.st.step < max_step) {
         const int opp_seat = 1-candidate_seat;
         const ObservationView cand_obs = make_observation(sim,candidate_seat);
         const ObservationView opp_obs = make_observation(sim,opp_seat);
@@ -259,13 +264,16 @@ static bool fitter(const Fitness& a, const Fitness& b) {
 static std::vector<std::string> read_list(const std::string& path) {
     std::ifstream in(path);
     if (!in) throw std::runtime_error("cannot open list: "+path);
+    const std::filesystem::path base=std::filesystem::absolute(std::filesystem::path(path)).parent_path();
     std::vector<std::string> out;
     std::string line;
     while (std::getline(in,line)) {
         const auto hash=line.find('#'); if (hash!=std::string::npos) line.resize(hash);
         const auto a=line.find_first_not_of(" \t\r\n"); if (a==std::string::npos) continue;
         const auto b=line.find_last_not_of(" \t\r\n");
-        out.push_back(line.substr(a,b-a+1));
+        std::filesystem::path p=line.substr(a,b-a+1);
+        if(p.is_relative())p=base/p;
+        out.push_back(p.lexically_normal().string());
     }
     return out;
 }
@@ -781,13 +789,15 @@ static void dump_program(std::ostream& os, const GPProgram& p) {
 }
 
 int main(int argc,char** argv){
-    std::string routes_list, out_path, load_path, seed_program_path, seed_program2_path, seed_list_arg, fitness_mode="robust", staged_router_prefix_path, early_marker_router_path, reactive_override_router_path;
+    std::string routes_list, opponent_routes_list, out_path, load_path, seed_program_path, seed_program2_path, seed_list_arg, fitness_mode="robust", staged_router_prefix_path, early_marker_router_path, reactive_override_router_path, island_mode="exploit", archive_dir;
     std::vector<std::string> router_manager_paths, router_program_paths, population_program_paths, opponent_program_paths;
     std::vector<int> router_unit_routes, router_route_ids, suffix_route_ids, marker_program_ids;
     bool manager_only=false,planned_market=false,router_only=false,route_router_only=false,program_router_only=false,suffix_search=false,suffix_rich=false,unit_route_sweep=false,report_seeds=false,report_cases=false,report_first_override=false,report_first_override_gap=false;
     int bootstrap_route=-1,bootstrap_step=0,manager_unit_route=-1,suffix_start=-1,suffix_freeze_override=-1,staged_router_step=-1,early_marker_step=-1;
     int pickup_horizon_override=-1,report_state_step=-1;
     int population=256,generations=20,seeds=8,opponents=8,opponent_start=0,elite=12,tpb=64;
+    int max_step=720, archive_count=8, archive_interval=20, population_cap=0;
+    double walltime_seconds=0.0, auto_vram_fraction=0.0;
     uint64_t seed_start=63000, search_seed=340034;
     for(int i=1;i<argc;++i){
         std::string a=argv[i];
@@ -804,7 +814,7 @@ int main(int argc,char** argv){
         if(a=="--report-first-override"){report_first_override=true;continue;}
         if(a=="--report-first-override-gap"){report_first_override_gap=true;continue;}
         auto need=[&](){if(i+1>=argc)throw std::runtime_error("missing value for "+a);return std::string(argv[++i]);};
-        if(a=="--routes")routes_list=need(); else if(a=="--population")population=std::stoi(need());
+        if(a=="--routes")routes_list=need(); else if(a=="--opponent-routes")opponent_routes_list=need(); else if(a=="--population")population=std::stoi(need());
         else if(a=="--generations")generations=std::stoi(need()); else if(a=="--seeds")seeds=std::stoi(need());
         else if(a=="--seed-start")seed_start=std::stoull(need()); else if(a=="--seed-list")seed_list_arg=need(); else if(a=="--opponents")opponents=std::stoi(need()); else if(a=="--opponent-start")opponent_start=std::stoi(need());
         else if(a=="--elite")elite=std::stoi(need()); else if(a=="--tpb")tpb=std::stoi(need());
@@ -833,11 +843,25 @@ int main(int argc,char** argv){
         else if(a=="--pickup-horizon")pickup_horizon_override=std::stoi(need());
         else if(a=="--report-state-step")report_state_step=std::stoi(need());
         else if(a=="--fitness")fitness_mode=need();
-        else if(a=="--help"){std::cout<<"bonsai_search --routes LIST [--population N --generations N --seeds N --seed-start S --seed-list S1,S2,... --opponents N --opponent-program FILE.bin (repeat) --elite N --seed-program FILE.bin [--seed-program2 FILE.bin] --router-only --router-manager FILE.bin (repeat) --router-unit-route N (repeat) --route-router-only --router-route N (repeat) --program-router-only --router-program FILE.bin (repeat) --population-program FILE.bin (repeat) --opponent-start N --staged-program-router-prefix FILE.bin --staged-program-router-step N --early-marker-router FILE.bin --early-marker-step N --reactive-override-router FILE.bin --marker-commit-program BANK_INDEX (repeat) --suffix-search --suffix-start N --suffix-freeze-rules N --suffix-route N (repeat) --unit-route-sweep --report-seeds --pickup-horizon N --fitness robust|balanced|wins --out PATH]\n";return 0;}
+        else if(a=="--max-step")max_step=std::stoi(need());
+        else if(a=="--walltime-seconds")walltime_seconds=std::stod(need());
+        else if(a=="--island-mode")island_mode=need();
+        else if(a=="--archive-dir")archive_dir=need();
+        else if(a=="--archive-count")archive_count=std::stoi(need());
+        else if(a=="--archive-interval")archive_interval=std::stoi(need());
+        else if(a=="--auto-vram-fraction")auto_vram_fraction=std::stod(need());
+        else if(a=="--population-cap")population_cap=std::stoi(need());
+        else if(a=="--help"){std::cout<<"bonsai_search --routes LIST [--population N --generations N --seeds N --seed-start S --seed-list S1,S2,... --opponents N --opponent-program FILE.bin (repeat) --elite N --seed-program FILE.bin [--seed-program2 FILE.bin] --router-only --router-manager FILE.bin (repeat) --router-unit-route N (repeat) --route-router-only --router-route N (repeat) --program-router-only --router-program FILE.bin (repeat) --population-program FILE.bin (repeat) --opponent-start N --staged-program-router-prefix FILE.bin --staged-program-router-step N --early-marker-router FILE.bin --early-marker-step N --reactive-override-router FILE.bin --marker-commit-program BANK_INDEX (repeat) --suffix-search --suffix-start N --suffix-freeze-rules N --suffix-route N (repeat) --unit-route-sweep --report-seeds --pickup-horizon N --fitness robust|balanced|wins --max-step N --walltime-seconds S --island-mode exploit|explore --opponent-routes LIST --auto-vram-fraction F --population-cap N --archive-dir DIR --archive-count N --archive-interval N --out PATH]\n";return 0;}
         else throw std::runtime_error("unknown argument: "+a);
     }
     if(routes_list.empty())throw std::runtime_error("--routes LIST is required");
     if(report_state_step>=720)throw std::runtime_error("--report-state-step must be <720");
+    if(max_step<1 || max_step>720)throw std::runtime_error("--max-step must be in 1..720");
+    if(walltime_seconds<0.0)throw std::runtime_error("--walltime-seconds must be >=0");
+    if(island_mode!="exploit" && island_mode!="explore")throw std::runtime_error("--island-mode must be exploit or explore");
+    if(archive_count<1)archive_count=1;if(archive_interval<1)archive_interval=1;
+    if(auto_vram_fraction<0.0 || auto_vram_fraction>=0.98)throw std::runtime_error("--auto-vram-fraction must be >=0 and <0.98");
+    if(population_cap<0)throw std::runtime_error("--population-cap must be >=0");
     if(fitness_mode=="robust")GP_FITNESS_MODE=GPF_ROBUST;
     else if(fitness_mode=="wins")GP_FITNESS_MODE=GPF_WINS;
     else if(fitness_mode=="balanced")GP_FITNESS_MODE=GPF_BALANCED;
@@ -886,19 +910,23 @@ int main(int argc,char** argv){
         if(!load_path.empty()||!seed_program_path.empty()||!seed_program2_path.empty())throw std::runtime_error("--population-program cannot be combined with --load or seed programs");
         population=(int)population_program_paths.size();elite=population;generations=1;
     }
-    auto paths=read_list(routes_list); if(paths.empty())throw std::runtime_error("route list is empty");
-    if(paths.size()>255)throw std::runtime_error("route count exceeds uint8 program encoding");
-    for(int ur:GP_ROUTER_UNIT_ROUTES)if(ur<0||ur>=(int)paths.size())throw std::runtime_error("router unit route out of range for route list");
-    for(int ur:GP_SUFFIX_ROUTES)if(ur<0||ur>=(int)paths.size())throw std::runtime_error("suffix route out of range for route list");
-    if(unit_route_sweep){population=(int)paths.size();elite=population;generations=1;GP_PLANNED_MARKET=true;}
-    if(opponent_start<0 || opponent_start>=static_cast<int>(paths.size()))throw std::runtime_error("--opponent-start out of range");
-    if(opponents>static_cast<int>(paths.size())-opponent_start)opponents=static_cast<int>(paths.size())-opponent_start;
+    auto candidate_paths=read_list(routes_list); if(candidate_paths.empty())throw std::runtime_error("route list is empty");
+    if(candidate_paths.size()>255)throw std::runtime_error("candidate route count exceeds uint8 program encoding");
+    auto opponent_paths=opponent_routes_list.empty()?candidate_paths:read_list(opponent_routes_list);
+    if(opponent_paths.empty())throw std::runtime_error("opponent route list is empty");
+    const int candidate_route_count=static_cast<int>(candidate_paths.size());
+    const int opponent_route_base=opponent_routes_list.empty()?0:candidate_route_count;
+    for(int ur:GP_ROUTER_UNIT_ROUTES)if(ur<0||ur>=candidate_route_count)throw std::runtime_error("router unit route out of range for candidate route list");
+    for(int ur:GP_SUFFIX_ROUTES)if(ur<0||ur>=candidate_route_count)throw std::runtime_error("suffix route out of range for candidate route list");
+    if(unit_route_sweep){population=candidate_route_count;elite=population;generations=1;GP_PLANNED_MARKET=true;}
+    if(opponent_start<0 || opponent_start>=static_cast<int>(opponent_paths.size()))throw std::runtime_error("--opponent-start out of range");
+    if(opponents>static_cast<int>(opponent_paths.size())-opponent_start)opponents=static_cast<int>(opponent_paths.size())-opponent_start;
     if(elite<1)elite=1;if(elite>population)elite=population;
 
-    std::vector<NativeTape> nt; nt.reserve(paths.size());
-    for(const auto& p:paths)nt.push_back(load_native_tape_json(p));
     std::vector<Action> h_routes; std::vector<GPRouteDesc> h_desc;
-    for(const auto& t:nt){int off=h_routes.size();h_routes.insert(h_routes.end(),t.actions.begin(),t.actions.end());h_desc.push_back({off,static_cast<int>(t.actions.size())});}
+    auto append_tape=[&](const std::string& p){NativeTape t=load_native_tape_json(p);int off=h_routes.size();h_routes.insert(h_routes.end(),t.actions.begin(),t.actions.end());h_desc.push_back({off,static_cast<int>(t.actions.size())});};
+    for(const auto& p:candidate_paths)append_tape(p);
+    if(!opponent_routes_list.empty())for(const auto& p:opponent_paths)append_tape(p);
 
     std::vector<GPManager> h_manager_bank;
     for(const auto& mp:router_manager_paths){
@@ -925,8 +953,24 @@ int main(int argc,char** argv){
     }
 
     configure_device(); TablesOwner tables; Config cfg;
+    if(auto_vram_fraction>0.0){
+        if(!load_path.empty()||!population_program_paths.empty()||unit_route_sweep)throw std::runtime_error("--auto-vram-fraction is incompatible with fixed-size evaluation modes");
+        size_t free_bytes=0,total_bytes=0;KAGCUDA_CHECK(cudaMemGetInfo(&free_bytes,&total_bytes));
+        const size_t fixed_bytes=h_routes.size()*sizeof(Action)+h_desc.size()*sizeof(GPRouteDesc)+h_manager_bank.size()*sizeof(GPManager)+h_program_bank.size()*sizeof(GPProgram)+h_opponent_programs.size()*sizeof(GPProgram)+h_seed_values.size()*sizeof(uint64_t)+marker_program_ids.size()*sizeof(int)+8*1024*1024;
+        const size_t state_bytes=(report_state_step>=0||report_first_override||report_first_override_gap)?sizeof(GPStateReport):0;
+        const size_t per_candidate=sizeof(GPProgram)+(size_t)seeds*(sizeof(Sim)+2*sizeof(double)+state_bytes);
+        const size_t budget=(size_t)(free_bytes*auto_vram_fraction);
+        if(budget<=fixed_bytes+per_candidate)throw std::runtime_error("VRAM budget too small for one candidate");
+        size_t planned=(budget-fixed_bytes)/per_candidate;
+        const size_t job_cap=(size_t)std::numeric_limits<int>::max()/(size_t)seeds;
+        if(planned>job_cap)planned=job_cap;
+        if(population_cap>0 && planned>(size_t)population_cap)planned=(size_t)population_cap;
+        population=(int)planned;if(population<1)population=1;if(elite>population)elite=population;
+        std::cout<<"AUTO_VRAM free_bytes="<<free_bytes<<" total_bytes="<<total_bytes<<" fraction="<<auto_vram_fraction<<" fixed_estimate="<<fixed_bytes<<" per_candidate="<<per_candidate<<" population="<<population<<"\n";
+    }
     Action* d_routes=nullptr; GPRouteDesc* d_desc=nullptr; GPProgram* d_prog=nullptr; GPManager* d_manager_bank=nullptr; GPProgram* d_program_bank=nullptr; GPProgram* d_opponent_programs=nullptr; GPProgram* d_staged_router_prefix=nullptr; GPProgram* d_early_marker_router=nullptr; GPProgram* d_reactive_override_router=nullptr; int* d_marker_program_map=nullptr; uint64_t* d_seed_values=nullptr; Sim* d_sims=nullptr; double* d_rewards=nullptr; GPStateReport* d_state_reports=nullptr;
-    const int jobs=population*seeds;
+    const long long jobs64=(long long)population*(long long)seeds;if(jobs64<1||jobs64>std::numeric_limits<int>::max())throw std::runtime_error("population*seeds exceeds CUDA kernel index range");
+    const int jobs=(int)jobs64;
     KAGCUDA_CHECK(cudaMalloc((void**)&d_routes,h_routes.size()*sizeof(Action)));
     KAGCUDA_CHECK(cudaMalloc((void**)&d_desc,h_desc.size()*sizeof(GPRouteDesc)));
     KAGCUDA_CHECK(cudaMalloc((void**)&d_prog,population*sizeof(GPProgram)));
@@ -943,6 +987,7 @@ int main(int argc,char** argv){
     if(have_reactive_override_router){KAGCUDA_CHECK(cudaMalloc((void**)&d_reactive_override_router,sizeof(GPProgram)));KAGCUDA_CHECK(cudaMemcpy(d_reactive_override_router,&h_reactive_override_router,sizeof(GPProgram),cudaMemcpyHostToDevice));}
     if(!marker_program_ids.empty()){KAGCUDA_CHECK(cudaMalloc((void**)&d_marker_program_map,marker_program_ids.size()*sizeof(int)));KAGCUDA_CHECK(cudaMemcpy(d_marker_program_map,marker_program_ids.data(),marker_program_ids.size()*sizeof(int),cudaMemcpyHostToDevice));}
     if(!h_seed_values.empty()){KAGCUDA_CHECK(cudaMalloc((void**)&d_seed_values,h_seed_values.size()*sizeof(uint64_t)));KAGCUDA_CHECK(cudaMemcpy(d_seed_values,h_seed_values.data(),h_seed_values.size()*sizeof(uint64_t),cudaMemcpyHostToDevice));}
+    {size_t free_after=0,total_after=0;KAGCUDA_CHECK(cudaMemGetInfo(&free_after,&total_after));std::cout<<"MEMORY_PLAN sizeof_GPProgram="<<sizeof(GPProgram)<<" sizeof_Sim="<<sizeof(Sim)<<" jobs="<<jobs<<" allocated_estimate="<<(size_t)population*sizeof(GPProgram)+(size_t)jobs*(sizeof(Sim)+2*sizeof(double))<<" free_after="<<free_after<<" total="<<total_after<<" max_step="<<max_step<<" island="<<island_mode<<"\n";}
 
     HostRng rng(search_seed);
     std::vector<GPProgram> pop(population);
@@ -1015,9 +1060,10 @@ int main(int argc,char** argv){
         // Seed known routes and cross-dimensional hybrids, then fill the majority
         // with genuinely new manager/program genomes.
         int z=0;
-        for(int r=0;r<static_cast<int>(paths.size()) && z<population;++r,++z){pop[z]=GPProgram{};pop[z].n_rules=1;pop[z].rules[0].leaf={GPL_ROUTE,(uint8_t)r,(uint8_t)r,0};pop[z].manager=random_manager(rng);}
-        for(int r=0;r<static_cast<int>(paths.size()) && z<population;++r,++z){pop[z]=GPProgram{};pop[z].n_rules=1;pop[z].rules[0].leaf={GPL_ROUTE_UNITS_MANAGER_MARKET,(uint8_t)r,(uint8_t)r,0};pop[z].manager=random_manager(rng);}
-        while(z<population)pop[z++]=random_program(rng,paths.size());
+        const int route_seed_limit=island_mode=="explore"?std::max(1,population/16):population;
+        for(int r=0;r<candidate_route_count && z<population && z<route_seed_limit;++r,++z){pop[z]=GPProgram{};pop[z].n_rules=1;pop[z].rules[0].leaf={GPL_ROUTE,(uint8_t)r,(uint8_t)r,0};pop[z].manager=random_manager(rng);}
+        for(int r=0;r<candidate_route_count && z<population && z<route_seed_limit;++r,++z){pop[z]=GPProgram{};pop[z].n_rules=1;pop[z].rules[0].leaf={GPL_ROUTE_UNITS_MANAGER_MARKET,(uint8_t)r,(uint8_t)r,0};pop[z].manager=random_manager(rng);}
+        while(z<population)pop[z++]=random_program(rng,candidate_route_count);
     }
     if(!seed_program_path.empty() && load_path.empty() && !GP_ROUTER_ONLY && !unit_route_sweep && !suffix_search){
         GPProgram seedp=load_gp_program_binary(seed_program_path);
@@ -1056,7 +1102,7 @@ int main(int argc,char** argv){
         for(int oi=0;oi<opponents;++oi){
             for(int seat=0;seat<2;++seat){
                 if(d_state_reports)KAGCUDA_CHECK(cudaMemset(d_state_reports,0,static_cast<size_t>(jobs)*sizeof(GPStateReport)));
-                gp_eval_kernel<<<(jobs+tpb-1)/tpb,tpb>>>(cfg,tables.dev,d_prog,population,d_routes,d_desc,paths.size(),d_manager_bank,(int)h_manager_bank.size(),d_program_bank,(int)h_program_bank.size(),d_staged_router_prefix,staged_router_step,d_early_marker_router,early_marker_step,d_reactive_override_router,d_marker_program_map,(int)marker_program_ids.size(),opponent_start+oi,seat,seed_start,d_seed_values,seeds,d_sims,d_rewards,report_state_step,report_first_override,report_first_override_gap,d_state_reports);
+                gp_eval_kernel<<<(jobs+tpb-1)/tpb,tpb>>>(cfg,tables.dev,d_prog,population,d_routes,d_desc,candidate_route_count,d_manager_bank,(int)h_manager_bank.size(),d_program_bank,(int)h_program_bank.size(),d_staged_router_prefix,staged_router_step,d_early_marker_router,early_marker_step,d_reactive_override_router,d_marker_program_map,(int)marker_program_ids.size(),opponent_route_base+opponent_start+oi,seat,seed_start,d_seed_values,seeds,max_step,d_sims,d_rewards,report_state_step,report_first_override,report_first_override_gap,d_state_reports);
                 KAGCUDA_CHECK(cudaGetLastError());KAGCUDA_CHECK(cudaDeviceSynchronize());
                 KAGCUDA_CHECK(cudaMemcpy(host.data(),d_rewards,host.size()*sizeof(double),cudaMemcpyDeviceToHost));
                 if(d_state_reports){
@@ -1086,7 +1132,7 @@ int main(int argc,char** argv){
         }
         for(int oi=0;oi<n_program_opponents;++oi){
             for(int seat=0;seat<2;++seat){
-                gp_eval_program_opponent_kernel<<<(jobs+tpb-1)/tpb,tpb>>>(cfg,tables.dev,d_prog,population,d_opponent_programs,oi,d_routes,d_desc,paths.size(),seat,seed_start,d_seed_values,seeds,d_sims,d_rewards);
+                gp_eval_program_opponent_kernel<<<(jobs+tpb-1)/tpb,tpb>>>(cfg,tables.dev,d_prog,population,d_opponent_programs,oi,d_routes,d_desc,candidate_route_count,seat,seed_start,d_seed_values,seeds,max_step,d_sims,d_rewards);
                 KAGCUDA_CHECK(cudaGetLastError());KAGCUDA_CHECK(cudaDeviceSynchronize());
                 KAGCUDA_CHECK(cudaMemcpy(host.data(),d_rewards,host.size()*sizeof(double),cudaMemcpyDeviceToHost));
                 for(int pi=0;pi<population;++pi)for(int si=0;si<seeds;++si){
@@ -1120,9 +1166,15 @@ int main(int argc,char** argv){
         }
     };
 
+    if(!archive_dir.empty())std::filesystem::create_directories(archive_dir);
+    const auto search_started=std::chrono::steady_clock::now();
     GPProgram global_best{}; Fitness global_fit{}; bool have_best=false;
+    uint64_t candidates_screened=0,games_simulated=0;
     for(int gen=0;gen<generations;++gen){
+        const auto gen_started=std::chrono::steady_clock::now();
         evaluate();
+        candidates_screened+=(uint64_t)population;
+        games_simulated+=(uint64_t)population*(uint64_t)seeds*(uint64_t)total_opponents*2ull;
         if(report_seeds){
             const int seed_cases=total_opponents*2;
             for(int pi=0;pi<population;++pi)for(int si=0;si<seeds;++si){
@@ -1131,25 +1183,53 @@ int main(int argc,char** argv){
             }
         }
         std::vector<int> order(population);for(int i=0;i<population;++i)order[i]=i;
-        for(int i=0;i<population;++i){
-            int best=i;
-            for(int j=i+1;j<population;++j) if(fitter(fit[order[j]],fit[order[best]])) best=j;
-            if(best!=i){const int t=order[i];order[i]=order[best];order[best]=t;}
-        }
+        std::sort(order.begin(),order.end(),[&](int a,int b){
+            if(fitter(fit[a],fit[b]))return true;
+            if(fitter(fit[b],fit[a]))return false;
+            if(pop[a].n_rules!=pop[b].n_rules)return pop[a].n_rules<pop[b].n_rules;
+            return a<b;
+        });
         const int bi=order[0];
-        if(!have_best||fitter(fit[bi],global_fit)){have_best=true;global_best=pop[bi];global_fit=fit[bi];}
+        const bool fit_tied=have_best&&!fitter(fit[bi],global_fit)&&!fitter(global_fit,fit[bi]);
+        const bool improved=!have_best||fitter(fit[bi],global_fit)||(fit_tied&&pop[bi].n_rules<global_best.n_rules);
+        if(improved){have_best=true;global_best=pop[bi];global_fit=fit[bi];}
         std::cout<<"GEN "<<gen<<" best="<<fit[bi].wins<<"/"<<fit[bi].cases<<" ties="<<fit[bi].ties<<" floor="<<fit[bi].floor<<" mean="<<mean(fit[bi])
                  <<" tail="<<fit[bi].tail_mean<<" worst_cohort="<<fit[bi].worst_cohort<<" seed_tail="<<fit[bi].seed_tail<<" worst_seed="<<fit[bi].worst_seed<<" balanced="<<balanced_score(fit[bi])
                  <<" global="<<global_fit.wins<<"/"<<global_fit.cases<<" gfloor="<<global_fit.floor<<" gmean="<<mean(global_fit)<<" gtail="<<global_fit.tail_mean<<" gworst="<<global_fit.worst_cohort<<" gseed_tail="<<global_fit.seed_tail<<" gworst_seed="<<global_fit.worst_seed<<" gbalanced="<<balanced_score(global_fit)<<"\n";
         dump_program(std::cout,pop[bi]); std::cout.flush();
+        const auto gen_finished=std::chrono::steady_clock::now();
+        const double gen_seconds=std::chrono::duration<double>(gen_finished-gen_started).count();
+        const double elapsed=std::chrono::duration<double>(gen_finished-search_started).count();
+        std::cout<<"PERF gen="<<gen<<" gen_seconds="<<gen_seconds<<" elapsed="<<elapsed<<" candidates_screened="<<candidates_screened<<" games_simulated="<<games_simulated<<" candidates_per_sec="<<(gen_seconds>0?population/gen_seconds:0.0)<<" games_per_sec="<<(gen_seconds>0?((double)population*seeds*total_opponents*2.0/gen_seconds):0.0)<<"\n";
+        if(!archive_dir.empty() && (improved || gen%archive_interval==0)){
+            const int nsave=std::min(archive_count,population);
+            for(int r=0;r<nsave;++r){
+                const int pi=order[r];
+                const std::string stem=archive_dir+"/g"+std::to_string(gen)+"_r"+std::to_string(r);
+                const std::string tmp=stem+".bin.tmp",dst=stem+".bin";
+                {std::ofstream b(tmp,std::ios::binary);b.write(reinterpret_cast<const char*>(&pop[pi]),sizeof(GPProgram));if(!b)throw std::runtime_error("failed writing archive "+tmp);}
+                std::filesystem::rename(tmp,dst);
+                std::ofstream meta(stem+".txt");meta<<"generation="<<gen<<" rank="<<r<<" wins="<<fit[pi].wins<<" cases="<<fit[pi].cases<<" ties="<<fit[pi].ties<<" floor="<<fit[pi].floor<<" mean="<<mean(fit[pi])<<" tail="<<fit[pi].tail_mean<<" worst_cohort="<<fit[pi].worst_cohort<<" seed_tail="<<fit[pi].seed_tail<<" worst_seed="<<fit[pi].worst_seed<<" island="<<island_mode<<" max_step="<<max_step<<"\n";dump_program(meta,pop[pi]);
+            }
+            const std::string best_tmp=archive_dir+"/checkpoint_best.bin.tmp",best_dst=archive_dir+"/checkpoint_best.bin";
+            {std::ofstream b(best_tmp,std::ios::binary);b.write(reinterpret_cast<const char*>(&global_best),sizeof(GPProgram));if(!b)throw std::runtime_error("failed writing checkpoint best");}
+            std::filesystem::rename(best_tmp,best_dst);
+            const std::string status_tmp=archive_dir+"/checkpoint.json.tmp",status_dst=archive_dir+"/checkpoint.json";
+            {std::ofstream s(status_tmp);s<<"{\"generation\":"<<gen<<",\"elapsed_seconds\":"<<elapsed<<",\"search_seed\":"<<search_seed<<",\"rng_state\":"<<rng.s<<",\"population\":"<<population<<",\"max_step\":"<<max_step<<",\"island_mode\":\""<<island_mode<<"\",\"candidates_screened\":"<<candidates_screened<<",\"games_simulated\":"<<games_simulated<<"}\n";}
+            std::filesystem::rename(status_tmp,status_dst);
+        }
+        std::cout.flush();
+        if(walltime_seconds>0.0 && elapsed>=walltime_seconds){std::cout<<"WALLTIME_STOP elapsed="<<elapsed<<" limit="<<walltime_seconds<<"\n";break;}
         if(gen+1==generations)break;
         std::vector<GPProgram> next(population);
         for(int i=0;i<elite;++i)next[i]=pop[order[i]];
-        auto tournament=[&](){const int cap=(population-1)<63?(population-1):63;int best=order[ri(rng,0,cap)];for(int k=0;k<3;++k){int q=order[ri(rng,0,cap)];if(fitter(fit[q],fit[best]))best=q;}return best;};
+        auto tournament=[&](){const int cap=island_mode=="explore"?(population-1):((population-1)<63?(population-1):63);int best=order[ri(rng,0,cap)];const int rounds=island_mode=="explore"?1:3;for(int k=0;k<rounds;++k){int q=order[ri(rng,0,cap)];if(fitter(fit[q],fit[best]))best=q;}return best;};
         for(int i=elite;i<population;++i){
             const int a=tournament(); GPProgram child=pop[a];
-            if(ri(rng,0,99)<25){const int b=tournament();if(!GP_SUFFIX_SEARCH)child=crossover(pop[a],pop[b],rng);else if(GP_SUFFIX_CROSSOVER)child=crossover_suffix(pop[a],pop[b],rng);}
-            next[i]=mutate(child,rng,paths.size());
+            const int crossover_pct=island_mode=="explore"?12:25;
+            if(ri(rng,0,99)<crossover_pct){const int b=tournament();if(!GP_SUFFIX_SEARCH)child=crossover(pop[a],pop[b],rng);else if(GP_SUFFIX_CROSSOVER)child=crossover_suffix(pop[a],pop[b],rng);}
+            next[i]=mutate(child,rng,candidate_route_count);
+            if(island_mode=="explore" && ri(rng,0,99)<60) next[i]=mutate(next[i],rng,candidate_route_count);
         }
         pop.swap(next);
     }

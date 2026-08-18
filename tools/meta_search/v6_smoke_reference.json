@@ -1,0 +1,16 @@
+{
+  "runner": "stateful_v6_game_cuda",
+  "controller": "bonsai-kg/integrations/stateful_v6/assets/controller.bkgc",
+  "route_pack": "bonsai-kg/integrations/stateful_v6/assets/routes.bkv6",
+  "seed_start": 990000,
+  "count": 2,
+  "seat": 0,
+  "steps": 96,
+  "stdout_sha256": "91442d61ae12a99817e4e552375a72aea1220934c86fef6cce43397e5dd3f842",
+  "stdout_bytes": 15772,
+  "expected_stderr_lines": [
+    "GAME=0 SEED=990000 SEAT=0 TICKS=95 CF=0 VF=0",
+    "GAME=1 SEED=990001 SEAT=0 TICKS=95 CF=0 VF=0"
+  ],
+  "origin": "Exact locally parity-validated BKG3-v6 CUDA runner at repository HEAD 390b24fbfd94d5c98d87ccad728dbe7ebfe20e05 before meta-search changes"
+}

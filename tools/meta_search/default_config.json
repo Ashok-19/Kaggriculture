@@ -1,0 +1,54 @@
+{
+  "total_walltime_seconds": 36000,
+  "search_walltime_seconds": 33600,
+  "island0_seed": 340034,
+  "island1_seed": 9340034,
+  "vram_target_fraction": 0.93,
+  "vram_fallback_fractions": [0.90, 0.86, 0.80],
+  "population_cap": 0,
+  "elite": 24,
+  "archive_count": 8,
+  "archive_interval_generations": 1,
+  "seed_start": 2184000,
+  "stages": [
+    {
+      "name": "stage1_massive_discovery",
+      "route_list": "populations/stage1_core12.txt",
+      "walltime_fraction": 0.55,
+      "target_generation_seconds": 120,
+      "max_step": 120,
+      "seeds": 1,
+      "fitness": "robust"
+    },
+    {
+      "name": "stage2_family_core",
+      "route_list": "populations/stage2_core21.txt",
+      "walltime_fraction": 0.20,
+      "target_generation_seconds": 180,
+      "max_step": 240,
+      "seeds": 1,
+      "fitness": "robust"
+    },
+    {
+      "name": "stage3_medium",
+      "route_list": "populations/stage3_core42.txt",
+      "walltime_fraction": 0.15,
+      "target_generation_seconds": 240,
+      "max_step": 480,
+      "seeds": 1,
+      "fitness": "balanced"
+    },
+    {
+      "name": "stage4_full_development",
+      "route_list": "populations/dev168.txt",
+      "walltime_fraction": 0.10,
+      "target_generation_seconds": 300,
+      "max_step": 720,
+      "seeds": 1,
+      "fitness": "balanced"
+    }
+  ],
+  "final_screen_max_candidates": 256,
+  "final_screen_seed": 2184000,
+  "notes": "Search semantics are exact. Early-stage fitness is approximate only because trajectories stop at max_step and use balanced development subsets."
+}
