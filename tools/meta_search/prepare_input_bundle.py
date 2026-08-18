@@ -143,7 +143,18 @@ def main() -> int:
         family_floor[fam] = min(family_floor[fam], float(row["margin"]))
     hard_families = sorted((f for f in families if family_losses[f] > 0), key=lambda f: (-family_losses[f], family_floor[f], f))
     guard_families = sorted((f for f in families if family_losses[f] == 0), key=lambda f: (family_floor[f], f))
-    stage1_families = (hard_families + guard_families)[:12]
+
+    # Keep the ultra-core adversarial rather than purely loss-driven. The current rank-1
+    # Kawashigi family and Ueddy are strategically important live-meta families even when
+    # the frozen baseline happens to beat their sampled tapes. Reserve explicit Stage-1
+    # slots for them, then fill the remaining budget with baseline hard/fragile families.
+    mandatory_stage1_elites = [f for f in ("カワシギ", "Ueddy") if f in families]
+    stage1_families = []
+    for fam in hard_families + mandatory_stage1_elites + guard_families:
+        if fam not in stage1_families:
+            stage1_families.append(fam)
+        if len(stage1_families) == 12:
+            break
     stage1 = [per_family[f][0] for f in stage1_families]
     stage2 = [per_family[f][0] for f in families]
     stage3 = [r for f in families for r in per_family[f][:2]]
@@ -194,6 +205,7 @@ def main() -> int:
         "stage2_routes": len(stage2),
         "stage3_routes": len(stage3),
         "stage1_families": stage1_families,
+        "stage1_mandatory_elites": mandatory_stage1_elites,
         "validation_excluded": len(validation),
         "blind_excluded": holdout_counts["blind"],
         "family_holdout_excluded": holdout_counts["family_holdout"],
