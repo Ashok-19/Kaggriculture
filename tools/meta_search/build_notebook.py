@@ -185,7 +185,8 @@ print("EXACT BKG3-v6 CUDA SMOKE PASSED", digest)
 prior = WORK_ROOT / "priors" / manifest["search_priors"][0]
 env = os.environ.copy(); env["CUDA_VISIBLE_DEVICES"] = "0"
 parity_cmd = [str(resident_bin), "--bundle", str(WORK_ROOT), "--output", str(OUTPUT_ROOT / "parity"),
-              "--sub-islands", "8", "--parity-check", "--seed-program", str(prior)]
+              "--sub-islands", "8", "--engine-sub-islands", "8",
+              "--parity-check", "--seed-program", str(prior)]
 p = subprocess.run(parity_cmd, env=env, text=True, capture_output=True)
 print(p.stdout)
 if p.returncode != 0:
