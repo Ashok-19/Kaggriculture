@@ -1,0 +1,255 @@
+{
+  "bkg4_abi": 4,
+  "bkg4_vm_frozen_commit": "8381e027646ba6494cbe4dd06a810ea55ec83575",
+  "combined_agent_identity": "150ec96d6ff59b33855b7191c5501c298491a5f9727f6441519ec1f4c0d29142",
+  "controller_bb_slots": 20,
+  "controller_max_depth": 11,
+  "controller_max_live_intents": 0,
+  "controller_max_visits": 220,
+  "controller_nodes": 300,
+  "controller_semantic_hash": "74a4ddd75d93ee46cdad3fc78dbe1caf408678f669dea117685998069e85f6af",
+  "controller_state_slots": 0,
+  "engine_exploits": "FERT81 -> CARROT-v3 -> EOD shed-overflow rescue",
+  "feature_registry": 1,
+  "legacy_route_pack": {
+    "action_record_bytes": 94,
+    "action_records": 7909,
+    "format": "BKV6RP1",
+    "pack_sha256": "f17c393ba5bf8d7f977a1d073995e29f012eb459c209c7832b027ccc539da0cc",
+    "payload_sha256": "d37d74f7cf15b651fef8cfc5396b6471f9893be556c7c5b1f47e80f727b50a8e",
+    "route_count": 11,
+    "route_ids": [
+      200,
+      201,
+      202,
+      203,
+      204,
+      205,
+      206,
+      207,
+      208,
+      209,
+      210
+    ],
+    "route_names": {
+      "200": "H4_P",
+      "201": "H4_A",
+      "202": "H4_W86",
+      "203": "H4_W253",
+      "204": "H4_FY",
+      "205": "H4_ICE164",
+      "206": "H4_ICE120",
+      "207": "H4_FF17",
+      "208": "EXT_D36",
+      "209": "EXT_D85",
+      "210": "EXT_D72"
+    },
+    "source_files": [
+      {
+        "actions": 719,
+        "name": "H4_P",
+        "route_id": 200,
+        "sha256": "9d92fcee6d2029f382e8a21321cf82bf1011832fc6e83a8ffb9ba46e1ddb7525",
+        "source": "scratch/live_top10/aug16_1549_refresh/tapes_dev/Yubo-best_s1_ep93580448.json"
+      },
+      {
+        "actions": 719,
+        "name": "H4_A",
+        "route_id": 201,
+        "sha256": "a335143ae8e25eab8b2c0f0bfc389483ec2a891321b2351f9feb2fc69c835c80",
+        "source": "scratch/bonsai_kg_v6_reinforcement/population/native_tapes/0005_peikopon_s0_ep94018272.json"
+      },
+      {
+        "actions": 719,
+        "name": "H4_W86",
+        "route_id": 202,
+        "sha256": "33443e153fcdc20ace125496beb198244c1d57e881a003f4d7500e03160cac43",
+        "source": "scratch/bonsai_kg_v6_reinforcement/population/native_tapes/3250_whitelok_s0_ep93993645.json"
+      },
+      {
+        "actions": 719,
+        "name": "H4_W253",
+        "route_id": 203,
+        "sha256": "f06cd0e772e3c5956d41a0e2a6bd62de35df3221a66abb8ea34424684fe3d03e",
+        "source": "scratch/bonsai_kg_v6_reinforcement/population/native_tapes/0024_Jince_s0_ep94010384.json"
+      },
+      {
+        "actions": 719,
+        "name": "H4_FY",
+        "route_id": 204,
+        "sha256": "fbe3000bc7ef570f8319d6f57da124ef403e1145abd8d471a171d91dff104fcb",
+        "source": "scratch/bonsai_kg_v6_reinforcement/population/native_tapes/0051_Tomas_Escobar_Rivera_s1_ep94020940.json"
+      },
+      {
+        "actions": 719,
+        "name": "H4_ICE164",
+        "route_id": 205,
+        "sha256": "faf227d9257df0e77ee16314431857a1b2dda1f2c42d539ee03fac2ed585af12",
+        "source": "scratch/bonsai_kg_v6_reinforcement/population/native_tapes/0046_wenyuan_Guo_s1_ep93977817.json"
+      },
+      {
+        "actions": 719,
+        "name": "H4_ICE120",
+        "route_id": 206,
+        "sha256": "5884960d1b12680573ab5927ba53a3ee021e13471400da82a1307c53bc827ef3",
+        "source": "scratch/bonsai_kg_v6_reinforcement/population/native_tapes/0019_dk2lone_s1_ep94001610.json"
+      },
+      {
+        "actions": 719,
+        "name": "H4_FF17",
+        "route_id": 207,
+        "sha256": "a8df194b605ce68ac51d2c5985bdbe3e90b68e58a8e117402b0b99d2b3fa8a7a",
+        "source": "scratch/live_top10/aug16_latest_refresh/tapes_dev/junichiro_morita_s0_ep93427728.json"
+      },
+      {
+        "actions": 719,
+        "name": "EXT_D36",
+        "route_id": 208,
+        "sha256": "7e3f10cad50354665554c6e3b3ca6779692843e32cd67c8fb361d6fdf8b1d26c",
+        "source": "scratch/live_top10/aug16_kawashigi_new55540317/tapes_dev20/kawashigi_new55540317_s1_ep93536446.json"
+      },
+      {
+        "actions": 719,
+        "name": "EXT_D85",
+        "route_id": 209,
+        "sha256": "74e7a58f974823904d2d3106d211ed08b93073a5d099ee5474238301fab003ff",
+        "source": "scratch/bonsai_kg_v6_reinforcement/population/native_tapes/0001_team_s0_ep94019141.json"
+      },
+      {
+        "actions": 719,
+        "name": "EXT_D72",
+        "route_id": 210,
+        "sha256": "0bcdf84212eb64c79608338b5adb291eb216b34401cece774fd9ed4e8e7134f3",
+        "source": "scratch/live_top10/aug16_2044_refresh/tapes_dev/Thomas_s0_ep93655746.json"
+      }
+    ],
+    "version": 1
+  },
+  "legacy_semantics": "h4_lowcash_p60_r86_r253_fy172_ice164_v120_ff17 + h4max_4branch",
+  "lineage": "animal_feed_deferral_plus_day2_capital_specialist_v1",
+  "module_manifest": {
+    "active_window": [
+      26,
+      36
+    ],
+    "bkg4_vm_frozen_commit": "8381e027646ba6494cbe4dd06a810ea55ec83575",
+    "category": "opening/day2_capital_specialist",
+    "causal_hypothesis": "When the opponent visibly commits to an early day-2 hire while still in a low-cash opening regime, the incumbent day-2 animal/fertilizer traversal leaves exploitable tempo. The minimized alternate traversal at steps 26-33 and 36 improves private production/capital without opponent identity or shared-price inflation.",
+    "composition": [
+      "animal_feed_deferral_v1",
+      "day2_capital_specialist_v1"
+    ],
+    "entry_step": 26,
+    "gate": "STEP == 26 and OPP_MONEY <= 139 and OPP_UNITS == 2",
+    "legal_features": [
+      "STEP",
+      "OPP_MONEY",
+      "OPP_UNITS",
+      "SHOP_AT",
+      "OWN_TILE_KIND"
+    ],
+    "module": "animal_feed_deferral_plus_day2_capital_specialist_v1",
+    "recoveries": [
+      {
+        "cuda_gain_on_current_ryo_pair_vs_parent": [
+          11746,
+          11434
+        ],
+        "gate": "specialist_active and 264 <= STEP <= 287 and SHOP_AT(0)==BAKERY and SHOP_AT(1)==SMOOTHIE_SHOP",
+        "route": 22
+      },
+      {
+        "cuda_gain_vs_parent": 2941,
+        "gate": "specialist_active and 264 <= STEP <= 287 and SHOP_AT(0)==BRUNCH_SPOT and SHOP_AT(1)==BRUNCH_SPOT and OWN_TILE_KIND(41)==WEED",
+        "route": 46
+      }
+    ],
+    "route_id": 211,
+    "search_campaign": "bkg4_hard_loss_specialist_day2_v1_20260820",
+    "search_mask": "0x01ff",
+    "search_mask_steps": [
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      36
+    ]
+  },
+  "module_source": "bonsai-kg/integrations/bkg4_champion/modules/animal_feed_deferral_plus_day2_capital_specialist_v1.json",
+  "runtime_reconciler": {
+    "defer_slot_names": [
+      "feed_defer_0",
+      "feed_defer_1",
+      "feed_defer_2",
+      "feed_defer_3",
+      "feed_defer_4",
+      "feed_defer_5",
+      "feed_defer_6",
+      "feed_defer_7",
+      "feed_defer_8",
+      "feed_defer_9",
+      "feed_defer_10",
+      "feed_defer_11",
+      "feed_defer_12"
+    ],
+    "defer_slots": [
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17
+    ],
+    "kind": "feed_deferral_route_value_v1",
+    "materialization_rule": "apply feed deferral; if the BKG4 per-tick route slot is nonzero, materialize that route ID for this tick only; never mutate the frozen controller route slot",
+    "max_units": 13,
+    "route_override_slot": 19,
+    "route_override_slot_name": "day2_capital_specialist_v1_route_override"
+  },
+  "schema": 1,
+  "v6_route_pack": {
+    "action_record_bytes": 94,
+    "action_records": 8628,
+    "format": "BKV6RP1",
+    "frozen_parent_pack_sha256": "984320371f5b25da786ca4e791b0f159c2363a44bbf09681f1d8548181572837",
+    "pack_sha256": "f788018bfafbb61782decb578a1f86dada7ecd93ed1cf5885934fb0f4603853f",
+    "path": "routes.bkv6",
+    "payload_sha256": "b4685b9b9b0af389cb4338ed0e3c16da837b743f07c24b559d7e315e5ffa60df",
+    "route_count": 12,
+    "route_ids": [
+      29,
+      64,
+      32,
+      79,
+      46,
+      63,
+      22,
+      34,
+      77,
+      70,
+      23,
+      211
+    ],
+    "strategic_source_files": [
+      {
+        "actions": 719,
+        "name": "day2_capital_specialist_v1",
+        "route_id": 211,
+        "sha256": "439e886bdd0a8557cedefab17ebdbe9add6f9e5e7871d504c4882e532d1669d0",
+        "source": "bonsai-kg/integrations/bkg4_champion/modules/routes/day2_capital_specialist_v1.json"
+      }
+    ],
+    "version": 1
+  }
+}

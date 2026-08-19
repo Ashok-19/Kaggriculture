@@ -87,6 +87,71 @@ def build_legacy_pack() -> Tuple[bytes, Dict[str, Any]]:
     }
 
 
+def build_extended_v6_pack(module: Dict[str, Any]) -> Tuple[bytes, Dict[str, Any]] | None:
+    strategic = list(module.get("strategic_routes") or []) if isinstance(module, dict) else []
+    if not strategic:
+        return None
+    base_path = V6 / "assets" / "routes.bkv6"
+    raw = base_path.read_bytes()
+    if len(raw) < HEADER.size:
+        raise ValueError("frozen v6 route pack too short")
+    magic, version, route_count, action_count, payload_hash = HEADER.unpack_from(raw, 0)
+    if magic != PACK_MAGIC or version != PACK_VERSION:
+        raise ValueError("invalid frozen v6 route pack")
+    base_desc_bytes = route_count * DESC.size
+    base_records = raw[HEADER.size + base_desc_bytes:]
+    if len(base_records) != action_count * ACTION_SIZE:
+        raise ValueError("frozen v6 route record size mismatch")
+    descs = [DESC.unpack_from(raw, HEADER.size + i * DESC.size) for i in range(route_count)]
+    existing = {int(x[0]) for x in descs}
+    new_records: List[bytes] = []
+    sources: List[Dict[str, Any]] = []
+    first = int(action_count)
+    for spec in strategic:
+        route_id = int(spec["route_id"])
+        if route_id in existing:
+            raise ValueError(f"strategic route id collision: {route_id}")
+        source = REPO_ROOT / str(spec["source"])
+        obj = json.loads(source.read_text(encoding="utf-8"))
+        actions = obj.get("actions")
+        if not isinstance(actions, list) or not actions:
+            raise ValueError(f"strategic route has no actions: {source}")
+        descs.append((route_id, len(actions), first))
+        first += len(actions)
+        new_records.extend(encode_action(dict(a)) for a in actions)
+        existing.add(route_id)
+        sources.append({
+            "route_id": route_id,
+            "name": str(spec.get("name") or f"route{route_id}"),
+            "source": str(source.resolve().relative_to(REPO_ROOT)),
+            "sha256": hashlib.sha256(source.read_bytes()).hexdigest(),
+            "actions": len(actions),
+        })
+    payload = bytearray()
+    for d in descs:
+        payload += DESC.pack(*d)
+    payload += base_records
+    for rec in new_records:
+        payload += rec
+    ph = hashlib.sha256(payload).digest()
+    pack = HEADER.pack(PACK_MAGIC, PACK_VERSION, len(descs), first, ph) + payload
+    base_identity = json.loads((V6 / "assets" / "identity.json").read_text(encoding="utf-8"))["route_pack"]
+    meta = {
+        "path": "routes.bkv6",
+        "format": "BKV6RP1",
+        "version": PACK_VERSION,
+        "route_ids": [int(x[0]) for x in descs],
+        "route_count": len(descs),
+        "action_records": first,
+        "action_record_bytes": ACTION_SIZE,
+        "payload_sha256": ph.hex(),
+        "pack_sha256": hashlib.sha256(pack).hexdigest(),
+        "frozen_parent_pack_sha256": str(base_identity["pack_sha256"]),
+        "strategic_source_files": sources,
+    }
+    return bytes(pack), meta
+
+
 def build_controller(module: Dict[str, Any] | None = None) -> bkg4.CompiledPolicy:
     source3 = bkg3.load_compiled(V6 / "assets" / "controller.bkgc")
     source4 = bkg4.bkg3_to_bkg4_source(source3)
@@ -133,13 +198,25 @@ def resolve_runtime_reconciler(module: Dict[str, Any] | None) -> Dict[str, Any] 
     name_to_slot = {name: i for i, name in enumerate(names)}
     raw = dict(module["runtime_reconciler"])
     defer_names = list(raw.get("defer_slots") or [])
-    if raw.get("kind") == "feed_deferral_v1":
+    kind = raw.get("kind")
+    if kind in ("feed_deferral_v1", "feed_deferral_route_override_v1", "feed_deferral_route_value_v1"):
         if not defer_names:
-            raise ValueError("feed_deferral_v1 requires defer_slots")
+            raise ValueError(f"{kind} requires defer_slots")
         raw["defer_slot_names"] = defer_names
         raw["defer_slots"] = [name_to_slot[name] for name in defer_names]
+        if kind in ("feed_deferral_route_override_v1", "feed_deferral_route_value_v1"):
+            route_name = str(raw.get("route_override_slot") or "")
+            if route_name not in name_to_slot:
+                raise ValueError(f"{kind} requires a valid route_override_slot")
+            raw["route_override_slot_name"] = route_name
+            raw["route_override_slot"] = name_to_slot[route_name]
+            if kind == "feed_deferral_route_override_v1":
+                route_id = int(raw.get("route_override_id", -1))
+                if not 0 <= route_id <= 65535:
+                    raise ValueError("feed_deferral_route_override_v1 route_override_id out of range")
+                raw["route_override_id"] = route_id
     else:
-        raise ValueError(f"unsupported runtime reconciler {raw.get('kind')!r}")
+        raise ValueError(f"unsupported runtime reconciler {kind!r}")
     return raw
 
 
@@ -159,7 +236,20 @@ def build(out_dir: Path, module_json: Path | None = None) -> Dict[str, Any]:
     legacy_path.write_bytes(legacy_pack)
 
     v6_identity = json.loads((V6 / "assets" / "identity.json").read_text(encoding="utf-8"))
-    v6_pack_hash = str(v6_identity["route_pack"]["pack_sha256"])
+    extended = build_extended_v6_pack(module) if module else None
+    if extended is None:
+        v6_route_meta = {
+            "path": "../stateful_v6/assets/routes.bkv6",
+            "pack_sha256": str(v6_identity["route_pack"]["pack_sha256"]),
+            "route_ids": list(v6_identity["route_pack"]["route_ids"]),
+            "route_count": int(v6_identity["route_pack"]["route_count"]),
+            "action_records": int(v6_identity["route_pack"]["action_records"]),
+            "action_record_bytes": int(v6_identity["route_pack"]["action_record_bytes"]),
+        }
+    else:
+        pack_bytes, v6_route_meta = extended
+        (out_dir / "routes.bkv6").write_bytes(pack_bytes)
+    v6_pack_hash = str(v6_route_meta["pack_sha256"])
     identity = {
         "schema": 1,
         "lineage": "BKG4_BASE_0" if module is None else str((module.get("manifest") or {}).get("module", "BKG4_CHALLENGER")),
@@ -173,10 +263,7 @@ def build(out_dir: Path, module_json: Path | None = None) -> Dict[str, Any]:
         "controller_max_depth": cp.max_depth,
         "controller_max_visits": cp.analysis[0].max_visits,
         "controller_max_live_intents": cp.max_live_intents,
-        "v6_route_pack": {
-            "path": "../stateful_v6/assets/routes.bkv6",
-            "pack_sha256": v6_pack_hash,
-        },
+        "v6_route_pack": v6_route_meta,
         "legacy_route_pack": legacy_meta,
         "legacy_semantics": "h4_lowcash_p60_r86_r253_fy172_ice164_v120_ff17 + h4max_4branch",
         "engine_exploits": "FERT81 -> CARROT-v3 -> EOD shed-overflow rescue",

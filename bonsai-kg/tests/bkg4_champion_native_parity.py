@@ -56,10 +56,11 @@ def main() -> int:
     ap.add_argument("--work", type=Path, default=Path("scratch/bkg4_search/native_parity_feed"))
     ap.add_argument("--cpp", type=Path, default=Path("scratch/bonsai_kg/v4_cpp_differential_runner"))
     ap.add_argument("--cuda", type=Path, default=Path("scratch/bonsai_kg/v4_cuda_differential_runner"))
+    ap.add_argument("--assets", type=Path, default=CHAMPION / "champions" / "feed_deferral_v1")
     args = ap.parse_args()
     work = (ROOT / args.work).resolve() if not args.work.is_absolute() else args.work
     work.mkdir(parents=True, exist_ok=True)
-    asset_dir = CHAMPION / "champions" / "feed_deferral_v1"
+    asset_dir = args.assets if args.assets.is_absolute() else (ROOT / args.assets).resolve()
     policy_path = asset_dir / "controller.bkgc"
     cp = bkg.load_compiled(policy_path)
 

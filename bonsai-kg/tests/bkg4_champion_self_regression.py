@@ -58,9 +58,10 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--seed-start", type=int, default=1820000)
     ap.add_argument("--seeds", type=int, default=2)
+    ap.add_argument("--candidate-assets", type=Path, default=CHAMPION / "champions" / "feed_deferral_v1")
     args = ap.parse_args()
     base_dir = CHAMPION / "assets"
-    cand_dir = CHAMPION / "champions" / "feed_deferral_v1"
+    cand_dir = args.candidate_assets if args.candidate_assets.is_absolute() else (ROOT / args.candidate_assets).resolve()
     rows = []
     regressions = 0
     improvements = 0

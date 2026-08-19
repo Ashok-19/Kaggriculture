@@ -1,0 +1,45 @@
+{
+  "schema": 1,
+  "campaign": "bkg4_hard_loss_specialist_day2_v1_20260820",
+  "starting_head": "10da9137c662d83b17a8ae47510c7052067cfa29",
+  "verdict": "PROMOTE",
+  "lineage": "animal_feed_deferral_v1 + day2_capital_specialist_v1",
+  "controller_semantic_hash": "74a4ddd75d93ee46cdad3fc78dbe1caf408678f669dea117685998069e85f6af",
+  "combined_agent_identity": "150ec96d6ff59b33855b7191c5501c298491a5f9727f6441519ec1f4c0d29142",
+  "controller": {"nodes": 300, "bb_slots": 20, "state_slots": 0, "max_depth": 11, "static_max_visits": 220, "max_live_intents": 0},
+  "capability": {
+    "entry_gate": "STEP == 26 and OPP_MONEY <= 139 and OPP_UNITS == 2",
+    "route_id": 211,
+    "route_mask": "0x01ff",
+    "route_steps": [26,27,28,29,30,31,32,33,36],
+    "recoveries": [
+      {"gate": "specialist_active and 264 <= STEP <= 287 and SHOP_AT(0)==BAKERY and SHOP_AT(1)==SMOOTHIE_SHOP", "route_id": 22},
+      {"gate": "specialist_active and 264 <= STEP <= 287 and SHOP_AT(0)==BRUNCH_SPOT and SHOP_AT(1)==BRUNCH_SPOT and OWN_TILE_KIND(41)==WEED", "route_id": 46}
+    ],
+    "market_shared_book_check": "The specialist/recovery gains are private production/execution gains. A diagnosed fresh regression reduced both players' money and was not treated as a shared-price opportunity."
+  },
+  "search": {
+    "semantic_opening_grid_games": 270010,
+    "day2_binary_masks": 65536,
+    "mask_discovery_cases": 26,
+    "mask_cuda_games": 1703936,
+    "zero_negative_flipping_masks": 16,
+    "minimal_elite_mask": "0x01ff",
+    "entry_threshold_neighbors": [120,130,139,145,160],
+    "entry_threshold_neighbor_result": "all identical on screen61/current140/historical336"
+  },
+  "validation": {
+    "screen61": {"parent_wins": 24, "parent_losses": 37, "candidate_wins": 26, "candidate_losses": 35, "loss_to_win": 2, "margin_regressions": 0},
+    "historical336": {"parent_wins": 251, "parent_losses": 85, "candidate_wins": 251, "candidate_losses": 85, "margin_regressions": 0, "bit_effect": "all 336 terminal margins unchanged"},
+    "fresh24": {"candidate_wins": 18, "candidate_losses": 6, "positive_deltas": 10, "negative_deltas": 0},
+    "sealed24": {"parent_wins": 12, "parent_losses": 12, "candidate_wins": 14, "candidate_losses": 10, "loss_to_win": 2, "negative_deltas": 0},
+    "current_ryo30": {"seeds": 15, "both_seats": true, "parent_wins": 8, "parent_losses": 22, "candidate_wins": 8, "candidate_losses": 22, "positive_deltas": 30, "negative_deltas": 0, "mean_delta": 1400.4333333333334, "floor_parent": -20143, "floor_candidate": -17341},
+    "shifted_current140": {"episodes": 35, "tapes": 70, "families": 20, "games": 140, "parent_wins": 92, "parent_losses": 48, "candidate_wins": 92, "candidate_losses": 48, "positive_deltas": 10, "negative_deltas": 0, "sum_delta": 13543},
+    "source_backed_recursion": {"games": 8, "outcome_regressions": 0, "minimum_delta": 280, "mean_delta": 364.75},
+    "vm_tri_engine": {"records": 2876, "python_cpp_mismatches": 0, "python_cuda_mismatches": 0},
+    "route_value_tri_engine": {"cases": 9, "python_cpp_mismatches": 0, "python_cuda_mismatches": 0},
+    "official_python64": {"wins": 39, "losses": 25, "parent_reference_wins": 37, "parent_reference_losses": 27}
+  },
+  "hot_path": {"ticks": 2876, "visits_p50": 116, "visits_p95": 139, "visits_p99": 144, "visits_max": 147, "feature_p50": 44, "feature_p95": 66, "feature_p99": 71, "feature_max": 74, "depth_p50": 7, "depth_p95": 7, "depth_p99": 7, "depth_max": 11},
+  "frozen_constraints": {"bkg4_vm_commit": "8381e027646ba6494cbe4dd06a810ea55ec83575", "abi": 4, "registry": 1, "feed_deferral_modified": false, "push": false, "submission": false}
+}

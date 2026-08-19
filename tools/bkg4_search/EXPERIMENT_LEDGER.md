@@ -64,3 +64,23 @@ Do not turn any backlog item into a route/seed/opponent lookup. New behavior mus
 | U/W/M-unflippable diagnosis | 10 canary losses | 5 Ryo + 4 Arman + 1 ReCurSiON; selector state cannot fix absent action headroom | **Search new lane/mechanic/capability** |
 
 **Terminal verdict:** **TEMPORAL INFORMATION-STATE HYPOTHESIS TERMINALLY REJECTED.** R1 legal history is measurably informative, but no causal temporal selector is broad/holdout-safe; perfect hidden truth adds no representation separation and remains unsafe as a policy gate. No temporal module, observer, regime controller, active probe, ABI change, or champion change is promoted.
+
+## 2026-08-20 — day2_capital_specialist_v1 PROMOTED
+
+- Parent: frozen `animal_feed_deferral_v1` (`e9e66dfc...abbc49`).
+- New semantic hash: `74a4ddd75d93ee46cdad3fc78dbe1caf408678f669dea117685998069e85f6af`.
+- Combined identity: `150ec96d6ff59b33855b7191c5501c298491a5f9727f6441519ec1f4c0d29142`.
+- 300 nodes / 20 BB / 0 NodeState; BKG4 VM/ABI/registry frozen.
+- Capability: step-26 public low-cash/single-hire specialist route, minimized to mask `0x01ff`, with nested BAKERY→SMOOTHIE and BRUNCH+weed recovery subtrees.
+- Search scale: 270,010 semantic opening games + 1,703,936 exhaustive day-2 mask games, plus recovery grids/broad validation.
+- screen61: 24W/37L -> 26W/35L, 0 negative deltas.
+- historical336: all terminal margins unchanged, 0 regressions.
+- fresh24: 10 positive / 14 zero / 0 negative.
+- sealed24: 12W/12L -> 14W/10L, 0 negative deltas.
+- current Ryo30: 30/30 positive deltas across 15 seeds/both seats.
+- fresh shifted-current140: 35 episodes / 70 tapes / 20 families / 140 games, 10 positive / 130 unchanged / 0 negative.
+- source-backed ReCurSiON: 0 regressions.
+- VM tri-engine: 0 mismatches / 2,876 records. Route-value materializer: 0 mismatches / 9 cases.
+- official Python64: 39W/25L vs accepted parent reference 37W/27L.
+- Shared-market audit: accepted gain is private execution/production; no rule is credited merely for lifting a shared market price.
+- Machine evidence: `tools/bkg4_search/DAY2_CAPITAL_SPECIALIST_TERMINAL.json`.

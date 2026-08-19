@@ -23,8 +23,8 @@ def pct(xs: list[int], q: float) -> int:
 
 
 def main() -> int:
-    ap=argparse.ArgumentParser();ap.add_argument('--seed-start',type=int,default=1830000);ap.add_argument('--seeds',type=int,default=2);a=ap.parse_args()
-    assets=CHAMPION/'champions'/'feed_deferral_v1';cp=bkg.load_compiled(assets/'controller.bkgc');visits=[];features=[];depth=[];active_ticks=0;authorized=0;ticks=0
+    ap=argparse.ArgumentParser();ap.add_argument('--seed-start',type=int,default=1830000);ap.add_argument('--seeds',type=int,default=2);ap.add_argument('--assets',type=Path,default=CHAMPION/'champions'/'feed_deferral_v1');a=ap.parse_args()
+    assets=a.assets if a.assets.is_absolute() else (ROOT/a.assets).resolve();cp=bkg.load_compiled(assets/'controller.bkgc');visits=[];features=[];depth=[];active_ticks=0;authorized=0;ticks=0
     for k in range(a.seeds):
         seed=a.seed_start+k
         for seat in (0,1):

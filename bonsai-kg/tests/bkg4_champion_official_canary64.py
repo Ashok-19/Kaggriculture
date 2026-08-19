@@ -70,9 +70,9 @@ def run_game(assets: Path, opponent: dict, seat: int) -> float:
 
 
 def main()->int:
-    ap=argparse.ArgumentParser();ap.add_argument('--games',type=int,default=64);ap.add_argument('--start',type=int,default=0);ap.add_argument('--count',type=int,default=0);ap.add_argument('--checkpoint',type=Path,default=Path('scratch/bkg4_search/official_canary64_checkpoint.jsonl'));a=ap.parse_args()
+    ap=argparse.ArgumentParser();ap.add_argument('--games',type=int,default=64);ap.add_argument('--start',type=int,default=0);ap.add_argument('--count',type=int,default=0);ap.add_argument('--checkpoint',type=Path,default=Path('scratch/bkg4_search/official_canary64_checkpoint.jsonl'));ap.add_argument('--assets',type=Path,default=CHAMPION/'champions'/'feed_deferral_v1');a=ap.parse_args()
     if a.games<=0 or a.games%2:raise ValueError('--games must be a positive even number')
-    assets=CHAMPION/'champions'/'feed_deferral_v1';identity=json.loads((assets/'identity.json').read_text())
+    assets=a.assets if a.assets.is_absolute() else (ROOT/a.assets).resolve();identity=json.loads((assets/'identity.json').read_text())
     opponents=collect_opponents(a.games//2);tasks=[(oi,opp,seat) for oi,opp in enumerate(opponents) for seat in (0,1)]
     checkpoint=(ROOT/a.checkpoint).resolve() if not a.checkpoint.is_absolute() else a.checkpoint;checkpoint.parent.mkdir(parents=True,exist_ok=True)
     done={}

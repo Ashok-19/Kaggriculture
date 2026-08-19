@@ -58,10 +58,15 @@ class BKG4ChampionAgent:
 
         v6_asset = V6 / "assets"
         v6_identity = json.loads((v6_asset / "identity.json").read_text(encoding="utf-8"))
-        expected_v6 = self.identity["v6_route_pack"]["pack_sha256"]
-        if v6_identity["route_pack"]["pack_sha256"] != expected_v6:
-            raise CompatibilityError("BKG4 champion frozen v6 route-pack identity mismatch")
-        self.base_pack = RoutePack(v6_asset / "routes.bkv6", v6_identity)
+        route_meta = dict(self.identity["v6_route_pack"])
+        expected_v6 = str(route_meta["pack_sha256"])
+        if route_meta.get("path") == "routes.bkv6":
+            route_path = self.asset_dir / "routes.bkv6"
+            self.base_pack = RoutePack(route_path, {"route_pack": route_meta})
+        else:
+            if v6_identity["route_pack"]["pack_sha256"] != expected_v6:
+                raise CompatibilityError("BKG4 champion frozen v6 route-pack identity mismatch")
+            self.base_pack = RoutePack(v6_asset / "routes.bkv6", v6_identity)
 
         legacy_identity = {"route_pack": self.identity["legacy_route_pack"]}
         self.legacy_pack = LegacyRoutePack(self.asset_dir / "legacy_routes.bkv6", legacy_identity)
@@ -73,10 +78,19 @@ class BKG4ChampionAgent:
         self.exploits = EngineExploitState()
         self.last_step = -1
         runtime_reconciler = self.identity.get("runtime_reconciler")
+        self.route_override_slot = None
+        self.route_override_id = None
+        self.route_override_value = False
         if runtime_reconciler is None:
             self.feed_defer_slots = ()
-        elif runtime_reconciler.get("kind") == "feed_deferral_v1":
+        elif runtime_reconciler.get("kind") in ("feed_deferral_v1", "feed_deferral_route_override_v1", "feed_deferral_route_value_v1"):
             self.feed_defer_slots = tuple(int(x) for x in runtime_reconciler.get("defer_slots") or [])
+            if runtime_reconciler.get("kind") == "feed_deferral_route_override_v1":
+                self.route_override_slot = int(runtime_reconciler["route_override_slot"])
+                self.route_override_id = int(runtime_reconciler["route_override_id"])
+            elif runtime_reconciler.get("kind") == "feed_deferral_route_value_v1":
+                self.route_override_slot = int(runtime_reconciler["route_override_slot"])
+                self.route_override_value = True
         else:
             raise CompatibilityError(f"unsupported BKG4 runtime reconciler {runtime_reconciler.get('kind')!r}")
 
@@ -95,8 +109,14 @@ class BKG4ChampionAgent:
 
     def state(self) -> Dict[str, Any]:
         bb = self.vm.state.blackboard
+        controller_route = int(bb[1]) if len(bb) > 1 else None
+        route_override_raw = int(bb[self.route_override_slot]) if self.route_override_slot is not None and 0 <= self.route_override_slot < len(bb) else 0
+        route_override_active = bool(route_override_raw)
+        effective_route = (route_override_raw if self.route_override_value else self.route_override_id) if route_override_active else controller_route
         return {
-            "route": int(bb[1]) if len(bb) > 1 else None,
+            "route": effective_route,
+            "controller_route": controller_route,
+            "route_override_active": route_override_active,
             "h4_trigger": self.legacy.h4_trigger,
             "external_ok": self.legacy.external_ok,
             "external_route": self.legacy.external_route,
@@ -118,6 +138,10 @@ class BKG4ChampionAgent:
         if result.status != bkg4.STATUS_SUCCESS:
             raise CompatibilityError(f"BKG4 controller returned {bkg4.STATUS_NAMES[result.status]}")
         route = int(self.vm.state.blackboard[1])
+        if self.route_override_slot is not None:
+            override = int(self.vm.state.blackboard[self.route_override_slot])
+            if override:
+                route = override if self.route_override_value else int(self.route_override_id)
         hands = self._hands(observation)
         action = self.base_pack.action(route, step, hands)
         action = apply_legacy_overlay(observation, action, self.legacy_pack, self.legacy, hands)

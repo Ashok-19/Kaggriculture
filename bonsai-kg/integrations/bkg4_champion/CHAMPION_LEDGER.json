@@ -112,6 +112,34 @@
           "interpretation": "Authoritative execution canary only. Absolute losses show the overall agent is not yet the ultimate 100% champion."
         }
       }
+    },
+    {
+      "name": "day2_capital_specialist_v1",
+      "status": "accepted_into_bkg4_lineage_not_default_submission",
+      "parent": "animal_feed_deferral_v1",
+      "asset_dir": "bonsai-kg/integrations/bkg4_champion/champions/day2_capital_specialist_v1",
+      "module_source": "bonsai-kg/integrations/bkg4_champion/modules/animal_feed_deferral_plus_day2_capital_specialist_v1.json",
+      "controller_semantic_hash": "74a4ddd75d93ee46cdad3fc78dbe1caf408678f669dea117685998069e85f6af",
+      "combined_agent_identity": "150ec96d6ff59b33855b7191c5501c298491a5f9727f6441519ec1f4c0d29142",
+      "nodes": 300,
+      "blackboard_slots": 20,
+      "state_slots": 0,
+      "max_depth": 11,
+      "static_max_visits": 220,
+      "max_live_intents": 0,
+      "rule": "At step 26, a public low-cash/single-hire opponent commitment may authorize a minimized day-2 route fragment; later BAKERY/SMOOTHIE or BRUNCH+weed states may authorize nested recovery routes. All route overrides are per-tick BKG4 BB values.",
+      "evidence": {
+        "screen61": {"parent_wins": 24, "candidate_wins": 26, "loss_to_win": 2, "margin_regressions": 0},
+        "historical336": {"parent_wins": 251, "candidate_wins": 251, "margin_regressions": 0, "all_margins_unchanged": true},
+        "sealed24": {"parent_wins": 12, "candidate_wins": 14, "loss_to_win": 2, "negative_deltas": 0},
+        "current_ryo30": {"seeds": 15, "both_seats": true, "positive_deltas": 30, "negative_deltas": 0, "mean_delta": 1400.4333333333334},
+        "shifted_current140": {"episodes": 35, "tapes": 70, "families": 20, "games": 140, "positive_deltas": 10, "negative_deltas": 0},
+        "source_backed_self_regression": {"games": 8, "outcome_regressions": 0, "minimum_margin_delta": 280},
+        "tri_engine_controller_parity": {"reachable_tick_records": 2876, "python_cpp_mismatches": 0, "python_cuda_mismatches": 0},
+        "route_value_materializer_parity": {"cases": 9, "python_cpp_mismatches": 0, "python_cuda_mismatches": 0},
+        "official_python_canary": {"games": 64, "wins": 39, "losses": 25, "parent_reference_wins": 37, "parent_reference_losses": 27}
+      },
+      "machine_evidence": "tools/bkg4_search/DAY2_CAPITAL_SPECIALIST_TERMINAL.json"
     }
   ],
   "submission_status": "not_submitted",
