@@ -106,12 +106,19 @@ $(V6BUILD)/stateful_v6_game_cuda: tests/stateful_v6_game_cuda.cu $(V6INT)/cuda_r
 $(V6BUILD)/stateful_v6_observation_cpp: tests/stateful_v6_observation_cpp.cpp $(V6INT)/cpp_runtime.hpp $(V6INT)/route_pack.hpp $(V6ASSETS)/identity.hpp | $(V6BUILD)
 	$(CXX) $(CXXFLAGS) $< -o $@
 
-v6-build: v6-assets $(BUILD)/cpp_differential_runner $(BUILD)/cuda_differential_runner $(V6BUILD)/stateful_v6_pack_cpp $(V6BUILD)/stateful_v6_pack_cuda $(V6BUILD)/stateful_v6_game_cpp $(V6BUILD)/stateful_v6_game_cuda $(V6BUILD)/stateful_v6_observation_cpp
+$(V6BUILD)/stateful_v6_engine_exploit_cpp: tests/stateful_v6_engine_exploit_cpp.cpp $(V6INT)/engine_exploits.hpp | $(V6BUILD)
+	$(CXX) $(CXXFLAGS) $< -o $@
+
+$(V6BUILD)/stateful_v6_engine_exploit_cuda: tests/stateful_v6_engine_exploit_cuda.cu $(V6INT)/engine_exploits.cuh | $(V6BUILD)
+	$(NVCC) $(NVFLAGS) $< -o $@
+
+v6-build: v6-assets $(BUILD)/cpp_differential_runner $(BUILD)/cuda_differential_runner $(V6BUILD)/stateful_v6_pack_cpp $(V6BUILD)/stateful_v6_pack_cuda $(V6BUILD)/stateful_v6_game_cpp $(V6BUILD)/stateful_v6_game_cuda $(V6BUILD)/stateful_v6_observation_cpp $(V6BUILD)/stateful_v6_engine_exploit_cpp $(V6BUILD)/stateful_v6_engine_exploit_cuda
 
 v6-test: v6-build
-	python3 -m unittest -v tests/test_stateful_v6_translation.py
+	python3 -m unittest -v tests/test_stateful_v6_translation.py tests/test_stateful_v6_engine_exploits.py
 	python3 tests/stateful_v6_controller_parity.py
 	python3 tests/stateful_v6_pack_parity.py
+	python3 tests/stateful_v6_engine_exploit_native_parity.py
 
 v6-canary: v6-build
 	python3 tests/stateful_v6_translation_parity.py --games-per-seat 32 --steps 720

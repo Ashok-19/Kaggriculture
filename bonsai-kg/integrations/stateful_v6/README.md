@@ -10,6 +10,20 @@ This package is the first post-freeze Bonsai-KG compatibility baseline. It trans
 
 No BKG3 opcode, ABI record, observation feature, status rule, or runtime layout is changed by this integration.
 
+## Validated engine-exploit overlay
+
+`engine_exploits.py`, `engine_exploits.hpp`, and `engine_exploits.cuh` contain the opt-in Python/C++/CUDA post-route market specialist profile frozen by the 2026-08-19 engine-mining campaign. They deliberately remain separate from the legacy compatibility controller and route-pack identity so the historical v6 translation contract stays exact.
+
+The profile applies, in order, the three accepted mechanics:
+
+1. **FERT81** — at post-EOD hour 1, front-load up to 24 FERTILIZER when price is at least 81, outside the H4/high-labor protected lanes.
+2. **Stateful CARROT v3** — latch before CARROT town consumption when own planted exposure is at least 8, exceeds opponent exposure, shed stock exists, and price is at most 160; suppress sales through consumption and release up to 4 units at the refreshed hour-1 quote.
+3. **EOD shed-overflow rescue** — at hour 23, append a sale of up to 8 low-value residual units only when projected EOD shed overflow would otherwise discard more valuable carried inventory. CARROT is protected while its withholding latch is active.
+
+The higher-level H4/self classifier supplies `external_ok`; the overlay also carries the validated step-25 high-labor latch. `tests/test_stateful_v6_engine_exploits.py` locks the Python thresholds, state transitions, order priority, overflow accounting, and 10-order behavior. `stateful_v6_engine_exploit_native_parity.py` compares deterministic C++ and CUDA branch scenarios and requires exact output equality.
+
+This overlay is a Bonsai actuator specialist around an already materialized route action; it does not change BKG3 ABI/schema or the frozen compatibility assets.
+
 ## BKG3 blackboard
 
 | slot | name | type | initial |
