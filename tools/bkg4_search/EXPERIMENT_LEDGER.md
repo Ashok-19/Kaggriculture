@@ -30,3 +30,20 @@ The canonical policy is `e9e66dfc9985a2111dc7c1b332fb569a02194528dd6512ccf3f154b
 These are hypotheses, not accepted exploits. Keep the engine-wide scope, but require count/headroom evidence and CUDA counterfactual search before adding any behavior: locked-tile movement/interactions, same-tile sequential multi-unit actions, atomic PLANT validation, unit-order-sensitive end-of-day inventory overflow, plant decay/harvest ordering, duplicate shop effects, low-price sales with weak shared-supply consequences, and other town/market ordering effects.
 
 Do not turn any backlog item into a route/seed/opponent lookup. New behavior must remain causal, legal-observation-driven, bounded in the BKG4 grammar, and independently validated.
+
+## Optimization-augmentation oracle campaign
+
+| Experiment | Scope | Result | Decision |
+|---|---:|---|---|
+| Leakage-free optimization screen | 61 cases: all 27 canary losses + 10 lowest canary wins + 12 historical holdout + 12 fresh holdout | Source episode/seat dedup fixed before final oracle rerun; both seats represented | **Use as oracle screen** |
+| ORACLE-U utility arbitration | 100,833 exact CUDA games | 8,591 active jobs; 16 hindsight loss→win flips; game best-delta mean +9,331.59, median +5,474, p90 +21,196, max +47,360 | **Headroom real; production selector not established** |
+| ORACLE-W worker/task-stream reassignment | 93,879 exact CUDA games | 59,556 active jobs; 17 hindsight loss→win flips; game best-delta mean +10,302.52, median +8,464, p90 +27,387, max +47,243 | **Largest hindsight ceiling; heterogeneous choices** |
+| ORACLE-M macro option commitment | 18,666 exact CUDA games | 14,897 active jobs; 13 hindsight loss→win flips; game best-delta mean +5,584.46, median +4,023, p90 +14,081, max +17,758 | **Material but third-ranked ceiling** |
+| U current-public ambiguity | 183 official-engine frames at steps 96/120/144 | HOLD_BUYS step120: 6 identical-public-state classes with mixed-sign outcomes, 29 cases, max within-class delta span 60,410 | **Reject hidden-future interpretation** |
+| U compact public gate search | 1–2 semantic predicates, discovery-selected, untouched historical/fresh holdout | Only discovery-safe flip gate: step144 + second PIZZA + opp money≥175; 4 discovery activations / 2 flips, **0 independent holdout activations** | **Reject: no holdout support** |
+| W compact public gate search | 1–2 semantic predicates over transition frames | Best discovery-safe gate: step264, sells≤1, opp weeds≥1 → SWAP_10_12/24; fresh holdout 3 activations, 2 negative, sum −8,232, min −4,490 | **Reject: holdout regression** |
+| M compact public gate search | 1–2 semantic predicates over transition frames | Best discovery-safe gate: step144, second SMOOTHIE, opp weeds=0 → route23/72; fresh holdout 6/6 negative, sum −93,100, min −36,103 | **Reject: severe holdout regression** |
+| Semantic neighborhoods around U/W/M near-misses | threshold/eligibility perturbations | U nearest thresholds introduce discovery regressions or no activation; W neighbors remain fresh-negative; M neighbors remain 6/6 fresh-negative | **Evolvability does not rescue candidates** |
+| Fixed optimizer decisions | all U/W/M candidate×probe choices on 61-screen | Only regression-free fixed choices have zero loss→win flips and trivial gains | **Reject as competitively immaterial** |
+
+**Terminal verdict:** the three optimization proposals expose substantial *clairvoyant* regret, but no tested legal/current-observation selector converts that ceiling into broad promotion-safe behavior. Do not ship a utility arbiter, assignment solver, or macro planner from this campaign. Return to causal BKG4 module / engine-mechanic discovery until a new observable separator exists.
