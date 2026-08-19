@@ -84,3 +84,25 @@ Do not turn any backlog item into a route/seed/opponent lookup. New behavior mus
 - official Python64: 39W/25L vs accepted parent reference 37W/27L.
 - Shared-market audit: accepted gain is private execution/production; no rule is credited merely for lifting a shared market price.
 - Machine evidence: `tools/bkg4_search/DAY2_CAPITAL_SPECIALIST_TERMINAL.json`.
+
+
+## 2026-08-20 — ACCEPT hire4_capital_cycle_v1
+
+Parent: `day2_capital_specialist_v1` (300 nodes). Candidate: `hire4_capital_cycle_v1` (315 nodes, BB21, state0).
+
+Causal gate: at step 26, `OPP_HIRES_TODAY == 4 && OPP_MONEY >= 30` latches route 212 through step 47. The gate is legal/public and strategy-agnostic.
+
+Shared-market check: the route contains a later `SELL FERTILIZER` + `BUY_PRODUCT WHEAT` sequence. Ablation removing that sequence destroys the capability; it finances the private animal/fertilizer production cycle. No credit is assigned to symmetric shared-price movement.
+
+Promotion evidence:
+- shifted current140: 92W/48L -> 94W/46L; 2 L->W, 0 W->L, 8 positive deltas, 0 negative deltas, +8,199 aggregate margin;
+- historical336, screen61, fresh24, sealed24: all margins unchanged;
+- source-backed ReCurSiON gate: 4 bounded games, 0 outcome regressions, min delta +347;
+- controller parity: 2,876 ticks, 0 Python/C++, 0 Python/CUDA mismatches;
+- route materialization parity including route 212: 12 cases, 0 mismatches;
+- hot path: p50/p95/p99/max visits 123/146/151/154, static max 234, state0, live intents0;
+- official Python canary64: 39W/25L, unchanged from the accepted 300-node parent.
+
+Machine evidence: `tools/bkg4_search/HIRE4_CAPITAL_CYCLE_TERMINAL.json`.
+
+The broader fragment remains research-only where exact public-state collisions mix positive and negative futures. Continue from the new 46-loss shifted-current frontier with additional specialized subtrees.

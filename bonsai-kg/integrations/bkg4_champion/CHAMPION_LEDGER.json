@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "updated": "2026-08-19",
+  "updated": "2026-08-20",
   "team": "ReCurSiON",
   "frozen_bkg4_vm_commit": "8381e027646ba6494cbe4dd06a810ea55ec83575",
   "default_runtime": {
@@ -140,6 +140,35 @@
         "official_python_canary": {"games": 64, "wins": 39, "losses": 25, "parent_reference_wins": 37, "parent_reference_losses": 27}
       },
       "machine_evidence": "tools/bkg4_search/DAY2_CAPITAL_SPECIALIST_TERMINAL.json"
+    },
+    {
+      "name": "hire4_capital_cycle_v1",
+      "status": "accepted_into_bkg4_lineage_not_default_submission",
+      "parent": "day2_capital_specialist_v1",
+      "asset_dir": "bonsai-kg/integrations/bkg4_champion/champions/hire4_capital_cycle_v1",
+      "module_source": "bonsai-kg/integrations/bkg4_champion/modules/animal_feed_deferral_plus_day2_plus_hire4_capital_cycle_v1.json",
+      "controller_semantic_hash": "ff77686ba8bc84cd0e2e5bb01991e042424831d46d5924d1b359f181aae28707",
+      "combined_agent_identity": "c656b2c69d9da226cdd4efb617ec97e3168deee8b8630bd170ab40f937325186",
+      "nodes": 315,
+      "blackboard_slots": 21,
+      "state_slots": 0,
+      "max_depth": 11,
+      "static_max_visits": 234,
+      "max_live_intents": 0,
+      "rule": "At step 26, if the public opponent state shows four hires today while retaining at least 30 cash, latch route 212 through step 47. Route 212 is a coherent private animal-care/fertilizer cycle; the coupled fertilizer sale and wheat rebuy are retained only because CUDA ablation shows they finance the private production loop rather than merely lifting shared prices.",
+      "evidence": {
+        "shifted_current140": {"parent_wins": 92, "candidate_wins": 94, "parent_losses": 48, "candidate_losses": 46, "loss_to_win": 2, "win_to_loss": 0, "positive_deltas": 8, "negative_deltas": 0, "sum_margin_delta": 8199, "minimum_delta": 0},
+        "historical336": {"games": 336, "all_margins_unchanged": true, "outcome_regressions": 0},
+        "screen61": {"games": 61, "all_margins_unchanged": true, "outcome_regressions": 0},
+        "fresh24": {"games": 24, "all_margins_unchanged": true, "outcome_regressions": 0},
+        "sealed24": {"games": 24, "all_margins_unchanged": true, "outcome_regressions": 0},
+        "source_backed_self_regression": {"games": 4, "historical_agents": ["f120_04ad004", "v32_d52526d"], "outcome_regressions": 0, "minimum_margin_delta": 347},
+        "tri_engine_controller_parity": {"reachable_tick_records": 2876, "python_cpp_mismatches": 0, "python_cuda_mismatches": 0},
+        "route_value_materializer_parity": {"cases": 12, "python_cpp_mismatches": 0, "python_cuda_mismatches": 0},
+        "hot_path_profile": {"ticks": 2876, "visit_p50": 123, "visit_p95": 146, "visit_p99": 151, "visit_max": 154, "state_slots": 0, "live_intents": 0},
+        "official_python_canary": {"games": 64, "wins": 39, "losses": 25, "ties": 0, "parent_reference_wins": 39, "parent_reference_losses": 25, "checkpoint_sha256": "86063a48c3e005c639ec3dc26a5c068bec0973efe8cbcceee791df29f4083e49"}
+      },
+      "machine_evidence": "tools/bkg4_search/HIRE4_CAPITAL_CYCLE_TERMINAL.json"
     }
   ],
   "submission_status": "not_submitted",
