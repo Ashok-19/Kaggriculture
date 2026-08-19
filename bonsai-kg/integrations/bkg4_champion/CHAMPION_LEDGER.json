@@ -169,6 +169,36 @@
         "official_python_canary": {"games": 64, "wins": 39, "losses": 25, "ties": 0, "parent_reference_wins": 39, "parent_reference_losses": 25, "checkpoint_sha256": "86063a48c3e005c639ec3dc26a5c068bec0973efe8cbcceee791df29f4083e49"}
       },
       "machine_evidence": "tools/bkg4_search/HIRE4_CAPITAL_CYCLE_TERMINAL.json"
+    },
+    {
+      "name": "fert_wool_expansion_v1",
+      "status": "accepted_into_bkg4_lineage_not_default_submission",
+      "parent": "hire4_capital_cycle_v1",
+      "asset_dir": "bonsai-kg/integrations/bkg4_champion/champions/fert_wool_expansion_v1",
+      "controller_semantic_hash": "04ab4789668a020d1e8194961b7a5cd2677b5d1c320e44b4c722ed66dace3532",
+      "combined_agent_identity": "e38c2b75d95b4b804b279778c514a9d77b2a5fadf75139c36555dd11fbb3f742",
+      "nodes": 330,
+      "blackboard_slots": 22,
+      "state_slots": 0,
+      "rule": "At step 264, FERTILIZER market inventory >=10105 and WOOL inventory <=9940 latches route 213 through step 287. Shared market state is only the lane selector; private HIRE/BUY_LAND/animal/crop expansion is the payoff.",
+      "evidence": {"shifted_current140": {"parent_wins": 94, "candidate_wins": 96, "loss_to_win": 2, "win_to_loss": 0, "positive_deltas": 4, "negative_deltas": 0}, "historical336": {"positive_deltas": 6, "negative_deltas": 0}, "screen61": {"positive_deltas": 2, "negative_deltas": 0}, "fresh24": {"all_unchanged": true}, "sealed24": {"all_unchanged": true}, "support": {"activations": 12, "positive": 12, "episodes": 6, "families": 4}, "shared_market_ablation": {"remove_private_expansion_negative": 12, "remove_sell_financing_negative": 9}}
+    },
+    {
+      "name": "w33_s172_expansion_v1",
+      "status": "accepted_into_bkg4_lineage_not_default_submission",
+      "parent": "fert_wool_expansion_v1",
+      "asset_dir": "bonsai-kg/integrations/bkg4_champion/champions/w33_s172_expansion_v1",
+      "controller_semantic_hash": "8c5d7cd0e32574cbe349d5964946a9e2d6e7a75d766708f5d82308cd8507a034",
+      "combined_agent_identity": "6359ab400f9d128945cdbba5df7178a33b88c643ddd9b488299d66e14daa6925",
+      "nodes": 345,
+      "blackboard_slots": 23,
+      "state_slots": 0,
+      "max_depth": 11,
+      "static_max_visits": 262,
+      "max_live_intents": 0,
+      "rule": "At step 192, WHEAT price ==33 and STRAWBERRY price ==172 latches route 214 through step 215. The price pair selects a discrete public market regime; the edge is private hiring, animal care, pasture and strawberry expansion.",
+      "evidence": {"shifted_current140": {"parent_wins": 96, "candidate_wins": 98, "parent_losses": 44, "candidate_losses": 42, "loss_to_win": 2, "win_to_loss": 0, "positive_deltas": 14, "negative_deltas": 0, "sum_margin_delta": 36428}, "historical336": {"positive_deltas": 46, "negative_deltas": 0, "sum_margin_delta": 37013}, "screen61": {"positive_deltas": 8, "negative_deltas": 0, "sum_margin_delta": 26112}, "fresh24": {"all_unchanged": true}, "sealed24": {"positive_deltas": 2, "negative_deltas": 0}, "support": {"activations": 70, "positive": 70, "episodes": 29, "families": 22}, "shared_market_ablation": {"remove_hires_negative": 70, "remove_sell_financing_negative": 68}, "tri_engine_controller_parity": {"records": 2876, "python_cpp_mismatches": 0, "python_cuda_mismatches": 0}, "route_materializer_parity": {"cases": 18, "mismatches": 0}, "source_backed_self_regression": {"games": 4, "outcome_regressions": 0, "minimum_margin_delta": 347}, "hot_path": {"visit_p50": 137, "visit_p95": 160, "visit_p99": 165, "visit_max": 168, "state_slots": 0, "live_intents": 0}, "official_python_canary": {"games": 64, "wins": 39, "losses": 25, "ties": 0, "checkpoint_sha256": "8d829383c555b2ca11ecea7acaefd8c5f0d1f14ab930fd7010e19a724c02a8d4"}},
+      "machine_evidence": "tools/bkg4_search/SPECIALIST_STACK_345_TERMINAL.json"
     }
   ],
   "submission_status": "not_submitted",

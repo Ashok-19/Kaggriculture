@@ -23,7 +23,7 @@ def py_line(pack,base,ov,step,n):
 
 def main():
     ap=argparse.ArgumentParser();ap.add_argument('--assets',type=Path,required=True);ap.add_argument('--cpp',type=Path,required=True);ap.add_argument('--cuda',type=Path,required=True);args=ap.parse_args(); assets=args.assets if args.assets.is_absolute() else ROOT/args.assets; pack=m.RoutePack(assets/'routes.bkv6',{'route_pack':__import__('json').loads((assets/'identity.json').read_text())['v6_route_pack']})
-    cases=[(64,0,26,1),(64,211,26,1),(64,211,33,2),(64,211,36,5),(64,212,26,1),(64,212,42,1),(64,212,45,1),(64,22,264,5),(64,22,287,8),(64,46,264,6),(64,46,287,10),(29,0,500,13)]
+    cases=[(64,0,26,1),(64,211,26,1),(64,211,33,2),(64,211,36,5),(64,212,26,1),(64,212,42,1),(64,212,45,1),(64,213,264,5),(64,213,267,13),(64,213,287,13),(64,214,192,6),(64,214,197,12),(64,214,215,12),(64,22,264,5),(64,22,287,8),(64,46,264,6),(64,46,287,10),(29,0,500,13)]
     bad=[]
     for c in cases:
         want=py_line(pack,*c); got=[]

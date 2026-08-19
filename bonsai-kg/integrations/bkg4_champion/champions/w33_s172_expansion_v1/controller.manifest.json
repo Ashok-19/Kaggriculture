@@ -1,0 +1,310 @@
+{
+  "bb_slots": 23,
+  "instruction_budget": 262,
+  "max_depth": 11,
+  "max_live_intents": 0,
+  "max_visits": 262,
+  "metadata": {
+    "effects": 12,
+    "feature_args": 29,
+    "lifecycles": 12,
+    "predicates": 0,
+    "values": 98
+  },
+  "modules": [
+    {
+      "action_domains": [],
+      "authorities": [],
+      "bb_reads": [
+        "feed_probe_tile"
+      ],
+      "bb_writes": [
+        "feed_probe_tile",
+        "feed_defer_0",
+        "feed_defer_1",
+        "feed_defer_2",
+        "feed_defer_3",
+        "feed_defer_4",
+        "feed_defer_5",
+        "feed_defer_6",
+        "feed_defer_7",
+        "feed_defer_8",
+        "feed_defer_9",
+        "feed_defer_10",
+        "feed_defer_11",
+        "feed_defer_12"
+      ],
+      "category": "engine_mechanics/animal_lifecycle",
+      "features": [
+        "OWN_UNITS",
+        "OWN_TILE_ITEM",
+        "OWN_WORKER_TILE",
+        "OWN_TILE_CONSECUTIVE_UNFED",
+        "OWN_TILE_PENDING_CARE_BONUS",
+        "OWN_TILE_HAS_ANIMAL"
+      ],
+      "max_depth": 5,
+      "max_live_intents": 0,
+      "max_visits": 144,
+      "may_run": false,
+      "name": "animal_feed_deferral_v1",
+      "node_count": 157,
+      "node_interval": [
+        100,
+        257
+      ],
+      "provenance": {
+        "candidate_id": "7002da5a004ff7b2e9817176e7166a91487a53e0c52a0b9dbda04e14c95e7961",
+        "source": "kaggriculture.py::_daily_refresh_animals"
+      },
+      "state_slots": []
+    }
+  ],
+  "nodes": 345,
+  "schema_version": 4,
+  "state_slots": 0,
+  "warnings": [
+    {
+      "code": "SPECIFIC_EXACT_EQUALITY",
+      "feature": "STEP",
+      "path": "root/2/1/1/condition",
+      "rhs": 26
+    },
+    {
+      "code": "SPECIFIC_EXACT_EQUALITY",
+      "feature": "STEP",
+      "path": "root/2/1/2/child/1/0",
+      "rhs": 26
+    },
+    {
+      "code": "SPECIFIC_EXACT_EQUALITY",
+      "feature": "STEP",
+      "path": "root/2/1/2/child/1/1",
+      "rhs": 27
+    },
+    {
+      "code": "SPECIFIC_EXACT_EQUALITY",
+      "feature": "STEP",
+      "path": "root/2/1/2/child/1/2",
+      "rhs": 28
+    },
+    {
+      "code": "SPECIFIC_EXACT_EQUALITY",
+      "feature": "STEP",
+      "path": "root/2/1/2/child/1/3",
+      "rhs": 29
+    },
+    {
+      "code": "SPECIFIC_EXACT_EQUALITY",
+      "feature": "STEP",
+      "path": "root/2/1/2/child/1/4",
+      "rhs": 30
+    },
+    {
+      "code": "SPECIFIC_EXACT_EQUALITY",
+      "feature": "STEP",
+      "path": "root/2/1/2/child/1/5",
+      "rhs": 31
+    },
+    {
+      "code": "SPECIFIC_EXACT_EQUALITY",
+      "feature": "STEP",
+      "path": "root/2/1/2/child/1/6",
+      "rhs": 32
+    },
+    {
+      "code": "SPECIFIC_EXACT_EQUALITY",
+      "feature": "STEP",
+      "path": "root/2/1/2/child/1/7",
+      "rhs": 33
+    },
+    {
+      "code": "SPECIFIC_EXACT_EQUALITY",
+      "feature": "STEP",
+      "path": "root/2/1/2/child/1/8",
+      "rhs": 36
+    },
+    {
+      "code": "SPECIFIC_EXACT_EQUALITY",
+      "feature": "STEP",
+      "path": "root/2/2/0/condition",
+      "rhs": 26
+    },
+    {
+      "code": "SPECIFIC_EXACT_EQUALITY",
+      "feature": "STEP",
+      "path": "root/2/3/0/condition",
+      "rhs": 264
+    },
+    {
+      "code": "SPECIFIC_EXACT_EQUALITY",
+      "feature": "STEP",
+      "path": "root/2/4/0/condition",
+      "rhs": 192
+    },
+    {
+      "code": "SPECIFIC_EXACT_EQUALITY",
+      "feature": "MARKET_PRICE",
+      "path": "root/2/4/0/then/child/0",
+      "rhs": 33
+    },
+    {
+      "code": "SPECIFIC_EXACT_EQUALITY",
+      "feature": "MARKET_PRICE",
+      "path": "root/2/4/0/then/child/1",
+      "rhs": 172
+    },
+    {
+      "code": "BB_FOREIGN_WRITER",
+      "owner": "animal_feed_deferral",
+      "slot": "feed_probe_tile",
+      "writers": [
+        "animal_feed_deferral_v1"
+      ]
+    },
+    {
+      "code": "BB_FOREIGN_WRITER",
+      "owner": "animal_feed_deferral",
+      "slot": "feed_defer_0",
+      "writers": [
+        "animal_feed_deferral_v1"
+      ]
+    },
+    {
+      "code": "BB_FOREIGN_WRITER",
+      "owner": "animal_feed_deferral",
+      "slot": "feed_defer_1",
+      "writers": [
+        "animal_feed_deferral_v1"
+      ]
+    },
+    {
+      "code": "BB_FOREIGN_WRITER",
+      "owner": "animal_feed_deferral",
+      "slot": "feed_defer_2",
+      "writers": [
+        "animal_feed_deferral_v1"
+      ]
+    },
+    {
+      "code": "BB_FOREIGN_WRITER",
+      "owner": "animal_feed_deferral",
+      "slot": "feed_defer_3",
+      "writers": [
+        "animal_feed_deferral_v1"
+      ]
+    },
+    {
+      "code": "BB_FOREIGN_WRITER",
+      "owner": "animal_feed_deferral",
+      "slot": "feed_defer_4",
+      "writers": [
+        "animal_feed_deferral_v1"
+      ]
+    },
+    {
+      "code": "BB_FOREIGN_WRITER",
+      "owner": "animal_feed_deferral",
+      "slot": "feed_defer_5",
+      "writers": [
+        "animal_feed_deferral_v1"
+      ]
+    },
+    {
+      "code": "BB_FOREIGN_WRITER",
+      "owner": "animal_feed_deferral",
+      "slot": "feed_defer_6",
+      "writers": [
+        "animal_feed_deferral_v1"
+      ]
+    },
+    {
+      "code": "BB_FOREIGN_WRITER",
+      "owner": "animal_feed_deferral",
+      "slot": "feed_defer_7",
+      "writers": [
+        "animal_feed_deferral_v1"
+      ]
+    },
+    {
+      "code": "BB_FOREIGN_WRITER",
+      "owner": "animal_feed_deferral",
+      "slot": "feed_defer_8",
+      "writers": [
+        "animal_feed_deferral_v1"
+      ]
+    },
+    {
+      "code": "BB_FOREIGN_WRITER",
+      "owner": "animal_feed_deferral",
+      "slot": "feed_defer_9",
+      "writers": [
+        "animal_feed_deferral_v1"
+      ]
+    },
+    {
+      "code": "BB_FOREIGN_WRITER",
+      "owner": "animal_feed_deferral",
+      "slot": "feed_defer_10",
+      "writers": [
+        "animal_feed_deferral_v1"
+      ]
+    },
+    {
+      "code": "BB_FOREIGN_WRITER",
+      "owner": "animal_feed_deferral",
+      "slot": "feed_defer_11",
+      "writers": [
+        "animal_feed_deferral_v1"
+      ]
+    },
+    {
+      "code": "BB_FOREIGN_WRITER",
+      "owner": "animal_feed_deferral",
+      "slot": "feed_defer_12",
+      "writers": [
+        "animal_feed_deferral_v1"
+      ]
+    },
+    {
+      "code": "BB_FOREIGN_WRITER",
+      "owner": "day2_capital_specialist_v1",
+      "slot": "day2_capital_specialist_v1_active",
+      "writers": [
+        "root"
+      ]
+    },
+    {
+      "code": "BB_FOREIGN_WRITER",
+      "owner": "day2_capital_specialist_v1",
+      "slot": "day2_capital_specialist_v1_route_override",
+      "writers": [
+        "root"
+      ]
+    },
+    {
+      "code": "BB_FOREIGN_WRITER",
+      "owner": "hire4_capital_cycle_v1",
+      "slot": "hire4_capital_cycle_v1_active",
+      "writers": [
+        "root"
+      ]
+    },
+    {
+      "code": "BB_FOREIGN_WRITER",
+      "owner": "fert_wool_expansion_v1",
+      "slot": "fert_wool_expansion_v1_active",
+      "writers": [
+        "root"
+      ]
+    },
+    {
+      "code": "BB_FOREIGN_WRITER",
+      "owner": "w33_s172_expansion_v1",
+      "slot": "w33_s172_expansion_v1_active",
+      "writers": [
+        "root"
+      ]
+    }
+  ]
+}

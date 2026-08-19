@@ -106,3 +106,17 @@ Promotion evidence:
 Machine evidence: `tools/bkg4_search/HIRE4_CAPITAL_CYCLE_TERMINAL.json`.
 
 The broader fragment remains research-only where exact public-state collisions mix positive and negative futures. Continue from the new 46-loss shifted-current frontier with additional specialized subtrees.
+
+
+## 2026-08-20 — ACCEPT specialist stack routes 213 + 214
+
+Parent `hire4_capital_cycle_v1` (315 nodes, 94W/46L shifted-current) was extended by two legal-state specialists.
+
+- Route 213 `fert_wool_expansion_v1`: step264 gate `FERT_INV>=10105 && WOOL_INV<=9940`, 12/12 positive supported activations, 2 current L->W, zero negative deltas. Shared-market ablation: removing private HIRE/BUY_LAND expansion makes all supported cases worse.
+- Route 214 `w33_s172_expansion_v1`: step192 gate `WHEAT_PRICE==33 && STRAWBERRY_PRICE==172`, 70/70 positive activations across 29 episodes / 22 families, 2 current L->W, zero negative deltas. Adjacent wheat-price regimes are mixed. Removing HIRE makes all 70 supported activations worse; removing SELL financing makes 68/70 worse.
+
+Composed controller: 345 nodes, BB23, state0, semantic hash `8c5d7cd0e32574cbe349d5964946a9e2d6e7a75d766708f5d82308cd8507a034`, identity `6359ab400f9d128945cdbba5df7178a33b88c643ddd9b488299d66e14daa6925`.
+
+Validation: current140 98W/42L (4 net flips vs 315 parent), historical336/screen61/fresh24/sealed24 no outcome regressions, controller parity 0 mismatches/2876 ticks, route materializer 0/18 mismatches, source-backed ReCurSiON 0/4 regressions, official Python canary64 39W/25L.
+
+Machine evidence: `tools/bkg4_search/SPECIALIST_STACK_345_TERMINAL.json`.
