@@ -1,0 +1,21 @@
+#include "../include/bonsai_kg_v4.hpp"
+#include "../include/bonsai_kg_v4_io.hpp"
+#include "v4_synthetic_io.hpp"
+#include <cuda_runtime.h>
+#include <iostream>
+#include <stdexcept>
+#include <vector>
+
+using namespace bonsaikg4;
+
+static void ck(cudaError_t e,const char*w){if(e!=cudaSuccess)throw std::runtime_error(std::string(w)+": "+cudaGetErrorString(e));}
+template<class T>static T*copy_dev(const std::vector<T>&v){if(v.empty())return nullptr;T*d=nullptr;ck(cudaMalloc((void**)&d,v.size()*sizeof(T)),"cudaMalloc table");ck(cudaMemcpy(d,v.data(),v.size()*sizeof(T),cudaMemcpyHostToDevice),"cudaMemcpy table");return d;}
+struct DevicePolicyOwner4{Node4*n=nullptr;uint16_t*c=nullptr;BbDecl4*bb=nullptr;ValueRef4*v=nullptr;FeatureArgRef4*a=nullptr;Predicate4*q=nullptr;Lifecycle4*l=nullptr;Effect4*e=nullptr;~DevicePolicyOwner4(){if(n)cudaFree(n);if(c)cudaFree(c);if(bb)cudaFree(bb);if(v)cudaFree(v);if(a)cudaFree(a);if(q)cudaFree(q);if(l)cudaFree(l);if(e)cudaFree(e);}};
+struct TickOut4{uint8_t status=0,pad=0;uint16_t fault=0;ActionResult4 action{};};
+
+__global__ void run_case4(PolicyView4 p,const bonsaikg_test::SynFrame*frames,int nf,int32_t*bb,NodeState4*ns,RuntimeMeta4*meta,TickOut4*out,int32_t*bb_hist,NodeState4*ns_hist){
+    if(blockIdx.x||threadIdx.x)return;RuntimeView4 st{bb,ns,meta};reset_runtime(p,st);
+    for(int t=0;t<nf;++t){bonsaikg_test::SyntheticObservation obs{frames+t};ActionResult4 ar{};Status r=tick4(p,st,obs,10,ar,nullptr);out[t].status=(uint8_t)r;out[t].fault=meta->fault;out[t].action=ar;for(uint16_t i=0;i<p.n_bb;++i)bb_hist[(size_t)t*p.n_bb+i]=bb[i];for(uint16_t i=0;i<p.n_state;++i)ns_hist[(size_t)t*p.n_state+i]=ns[i];}
+}
+
+int main(int argc,char**argv){try{if(argc!=2)throw std::runtime_error("usage: v4_cuda_differential_runner MANIFEST");auto cases=bonsaikg_test::load_manifest(argv[1]);for(size_t ci=0;ci<cases.size();++ci){auto owned=load_compiled4(cases[ci].first);PolicyView4 hp=owned.view();DevicePolicyOwner4 d;d.n=copy_dev(owned.nodes);d.c=copy_dev(owned.child_refs);d.bb=copy_dev(owned.bb);d.v=copy_dev(owned.values);d.a=copy_dev(owned.feature_args);d.q=copy_dev(owned.predicates);d.l=copy_dev(owned.lifecycles);d.e=copy_dev(owned.effects);PolicyView4 p=hp;p.nodes=d.n;p.child_refs=d.c;p.bb=d.bb;p.values=d.v;p.feature_args=d.a;p.predicates=d.q;p.lifecycles=d.l;p.effects=d.e;auto frames=bonsaikg_test::load_sequence(cases[ci].second);bonsaikg_test::SynFrame*df=nullptr;int32_t*dbb=nullptr,*dbh=nullptr;NodeState4*dns=nullptr,*dnh=nullptr;RuntimeMeta4*dm=nullptr;TickOut4*dout=nullptr;ck(cudaMalloc((void**)&df,frames.size()*sizeof(*df)),"frames");ck(cudaMemcpy(df,frames.data(),frames.size()*sizeof(*df),cudaMemcpyHostToDevice),"frames copy");if(hp.n_bb){ck(cudaMalloc((void**)&dbb,hp.n_bb*sizeof(int32_t)),"bb");ck(cudaMalloc((void**)&dbh,frames.size()*hp.n_bb*sizeof(int32_t)),"bb history");}if(hp.n_state){ck(cudaMalloc((void**)&dns,hp.n_state*sizeof(NodeState4)),"state");ck(cudaMalloc((void**)&dnh,frames.size()*hp.n_state*sizeof(NodeState4)),"state history");}ck(cudaMalloc((void**)&dm,sizeof(RuntimeMeta4)),"meta");ck(cudaMalloc((void**)&dout,frames.size()*sizeof(TickOut4)),"out");run_case4<<<1,1>>>(p,df,(int)frames.size(),dbb,dns,dm,dout,dbh,dnh);ck(cudaGetLastError(),"kernel");ck(cudaDeviceSynchronize(),"sync");std::vector<TickOut4>out(frames.size());ck(cudaMemcpy(out.data(),dout,out.size()*sizeof(TickOut4),cudaMemcpyDeviceToHost),"out copy");std::vector<int32_t>bbh(frames.size()*hp.n_bb);std::vector<NodeState4>nsh(frames.size()*hp.n_state);if(!bbh.empty())ck(cudaMemcpy(bbh.data(),dbh,bbh.size()*sizeof(int32_t),cudaMemcpyDeviceToHost),"bb hist copy");if(!nsh.empty())ck(cudaMemcpy(nsh.data(),dnh,nsh.size()*sizeof(NodeState4),cudaMemcpyDeviceToHost),"state hist copy");for(size_t t=0;t<frames.size();++t){RuntimeMeta4 m{out[t].fault,0,0};RuntimeView4 hs{hp.n_bb?bbh.data()+t*hp.n_bb:nullptr,hp.n_state?nsh.data()+t*hp.n_state:nullptr,&m};bonsaikg4_test::print_snapshot(std::cout,(int)ci,(int)t,(Status)out[t].status,hs,out[t].action,hp.n_bb,hp.n_state);}cudaFree(df);if(dbb)cudaFree(dbb);if(dbh)cudaFree(dbh);if(dns)cudaFree(dns);if(dnh)cudaFree(dnh);cudaFree(dm);cudaFree(dout);}return 0;}catch(const std::exception&e){std::cerr<<"ERROR: "<<e.what()<<'\n';return 2;}}

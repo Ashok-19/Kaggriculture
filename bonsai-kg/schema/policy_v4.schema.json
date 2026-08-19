@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://recursion.local/bonsai-kg/policy-v4.schema.json",
+  "title": "Bonsai-KG policy schema v4",
+  "type": "object",
+  "required": ["schema_version", "tree"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {"const": 4},
+    "feature_registry_version": {"const": 1},
+    "name": {"type": "string"},
+    "semantic_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "instruction_budget": {"type": "integer", "minimum": 1, "maximum": 65534},
+    "provenance": {"type": "object"},
+    "enums": {"type": "array", "maxItems": 255, "items": {"$ref": "#/$defs/enum"}},
+    "blackboard": {"type": "array", "maxItems": 128, "items": {"$ref": "#/$defs/bb"}},
+    "subtrees": {"type": "array", "items": {"$ref": "#/$defs/subtree"}},
+    "tree": {"$ref": "#/$defs/node"}
+  },
+  "$defs": {
+    "enum": {"type": "object", "required": ["name", "values"], "additionalProperties": false, "properties": {"name": {"type": "string", "minLength": 1}, "values": {"type": "array", "minItems": 1, "maxItems": 255, "uniqueItems": true, "items": {"type": "string", "minLength": 1}}}},
+    "bb": {"type": "object", "required": ["name", "type"], "additionalProperties": false, "properties": {"name": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]*$"}, "type": {"type": "string", "minLength": 1}, "initial": {}, "owner": {"type": "string", "minLength": 1}}},
+    "subtree": {"type": "object", "required": ["name", "parameters", "tree"], "additionalProperties": false, "properties": {"name": {"type": "string", "minLength": 1}, "parameters": {"type": "object"}, "category": {"type": "string"}, "provenance": {"type": "object"}, "tree": {"$ref": "#/$defs/node"}}},
+    "common": {"type": "object", "properties": {"name": {"type": "string"}, "module": {"type": "string"}, "category": {"type": "string"}, "provenance": {"type": "object"}, "lifecycle": {"type": "object"}}},
+    "node": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {"enum": ["Sequence", "Selector", "ReactiveSequence", "ReactiveSelector", "If", "ReactiveIf", "SwitchEnum", "Parallel", "Invert", "ForceSuccess", "ForceFailure", "TurnTimeout", "Retry", "Repeat", "KeepRunningUntilFailure", "Success", "Failure", "Condition", "SetBlackboard", "AddBlackboard", "EmitUnitIntent", "EmitMarketIntent", "WaitTurns", "MoveUnitTo", "Subtree"]},
+        "name": {"type": "string"}, "module": {"type": "string"}, "category": {"type": "string"}, "provenance": {"type": "object"}, "lifecycle": {"type": "object"},
+        "children": {"type": "array", "items": {"$ref": "#/$defs/node"}}, "child": {"$ref": "#/$defs/node"}, "condition": {"$ref": "#/$defs/node"}, "then": {"$ref": "#/$defs/node"}, "else": {"$ref": "#/$defs/node"},
+        "slot": {"type": "string"}, "cases": {"type": "object", "additionalProperties": {"$ref": "#/$defs/node"}}, "default": {"$ref": "#/$defs/node"},
+        "lhs": {}, "rhs": {}, "op": {"type": "string"}, "value": {}, "unit": {}, "item": {}, "quantity": {}, "target": {}, "x": {"type": "integer"}, "y": {"type": "integer"},
+        "action": {"type": "string"}, "priority": {"type": "integer", "minimum": 0, "maximum": 255}, "authority": {"enum": ["FALLBACK", "TACTICAL", "DOMAIN", "COMMITTED_STRATEGY", "RECOVERY", "INVARIANT"]},
+        "turns": {"type": "integer", "minimum": 1, "maximum": 720}, "n": {"type": "integer", "minimum": 1, "maximum": 255}, "success_threshold": {"type": "integer"}, "failure_threshold": {"type": "integer"},
+        "subtree": {"type": "string"}, "bindings": {"type": "object"}
+      },
+      "additionalProperties": false
+    }
+  }
+}

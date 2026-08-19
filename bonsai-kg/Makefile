@@ -4,11 +4,12 @@ CXX ?= g++
 NVCC ?= nvcc
 CXXFLAGS := -std=c++17 -O2 -Wall -Wextra -pedantic
 NVFLAGS := -O3 -std=c++17 -arch=sm_86 --compiler-options=-O3,-Wall
+V4NVFLAGS := -ccbin g++-9 -O3 --fmad=false -std=c++17 -arch=sm_86
 V6BUILD := $(ROOT)/scratch/bonsai_kg_v6_translation
 V6INT := integrations/stateful_v6
 V6ASSETS := $(V6INT)/assets
 
-.PHONY: all build test python-test schema-test binary-validation differential game-parity feature-parity bench clean-build v6-assets v6-build v6-test v6-canary v6-official-canary
+.PHONY: all build test python-test schema-test binary-validation differential game-parity feature-parity bench clean-build v4-build v4-test v4-schema-test v4-python-test v4-binary-validation v4-differential v4-boundary v4-conversion v4-game-parity v4-feature-parity v4-bench v6-assets v6-build v6-test v6-canary v6-official-canary
 
 all: build
 
@@ -53,6 +54,41 @@ $(BUILD)/cuda_policy_smoke: tests/cuda_policy_smoke.cu cuda/policy.cuh cuda/kag_
 
 $(BUILD)/reactive_move.bkgc: examples/reactive_move.json python/bonsai_kg.py | $(BUILD)
 	python3 python/bonsai_kg.py $< --out $@
+
+$(BUILD)/v4_cpp_differential_runner: tests/v4_cpp_differential_runner.cpp include/bonsai_kg_v4.hpp include/bonsai_kg_v4_abi.hpp include/bonsai_kg_v4_io.hpp tests/v4_synthetic_io.hpp | $(BUILD)
+	$(CXX) $(CXXFLAGS) -Iinclude -Itests $< -o $@
+
+$(BUILD)/v4_cuda_differential_runner: tests/v4_cuda_differential_runner.cu include/bonsai_kg_v4.hpp include/bonsai_kg_v4_abi.hpp include/bonsai_kg_v4_io.hpp tests/v4_synthetic_io.hpp | $(BUILD)
+	$(NVCC) $(V4NVFLAGS) -Iinclude -Itests $< -o $@
+
+$(BUILD)/v4_validate_compiled: tests/v4_validate_compiled.cpp include/bonsai_kg_v4_abi.hpp include/bonsai_kg_v4_io.hpp | $(BUILD)
+	$(CXX) $(CXXFLAGS) -Iinclude $< -o $@
+
+$(BUILD)/v4_size_report: tests/v4_size_report.cpp include/bonsai_kg_v4.hpp include/bonsai_kg_v4_abi.hpp | $(BUILD)
+	$(CXX) $(CXXFLAGS) -Iinclude $< -o $@
+
+$(BUILD)/v4_cpp_game_runner: tests/v4_cpp_game_runner.cpp cpp/kag_adapter_v4.hpp include/bonsai_kg_v4.hpp include/bonsai_kg_v4_io.hpp | $(BUILD)
+	$(CXX) $(CXXFLAGS) -Iinclude -Itests $< -o $@
+
+$(BUILD)/v4_cuda_game_runner: tests/v4_cuda_game_runner.cu cuda/kag_adapter_v4.cuh include/bonsai_kg_v4.hpp include/bonsai_kg_v4_io.hpp | $(BUILD)
+	$(NVCC) $(V4NVFLAGS) -Iinclude -Itests $< -o $@
+
+$(BUILD)/v4_cpp_feature_parity: tests/v4_cpp_feature_parity.cpp cpp/kag_adapter_v4.hpp tests/feature_hash.hpp | $(BUILD)
+	$(CXX) $(CXXFLAGS) -Iinclude -Itests $< -o $@
+
+$(BUILD)/v4_cuda_feature_parity: tests/v4_cuda_feature_parity.cu cuda/kag_adapter_v4.cuh tests/feature_hash.hpp | $(BUILD)
+	$(NVCC) $(V4NVFLAGS) -Iinclude -Itests $< -o $@
+
+$(BUILD)/v4_reactive_move.bkgc: examples/reactive_move_v4.json python/bonsai_kg_v4.py | $(BUILD)
+	python3 python/bonsai_kg_v4.py $< --out $@
+
+$(BUILD)/v4_benchmark: tests/v4_benchmark.cu include/bonsai_kg_v4.hpp include/bonsai_kg_v4_io.hpp | $(BUILD)
+	$(NVCC) $(V4NVFLAGS) -Iinclude $< -o $@
+
+$(BUILD)/v4_bkg3_comparison: tests/v4_bkg3_comparison.cu include/bonsai_kg.hpp include/bonsai_kg_v4.hpp include/bonsai_kg_v4_io.hpp | $(BUILD)
+	$(NVCC) $(V4NVFLAGS) -Iinclude $< -o $@
+
+v4-build: $(BUILD)/v4_cpp_differential_runner $(BUILD)/v4_cuda_differential_runner $(BUILD)/v4_validate_compiled $(BUILD)/v4_size_report $(BUILD)/v4_cpp_game_runner $(BUILD)/v4_cuda_game_runner $(BUILD)/v4_cpp_feature_parity $(BUILD)/v4_cuda_feature_parity $(BUILD)/v4_reactive_move.bkgc
 
 build: $(BUILD)/cpp_differential_runner $(BUILD)/cuda_differential_runner $(BUILD)/cpp_game_runner $(BUILD)/cuda_game_runner $(BUILD)/cpp_feature_parity $(BUILD)/cuda_feature_parity $(BUILD)/cpp_observation_boundary $(BUILD)/cuda_observation_boundary $(BUILD)/validate_compiled $(BUILD)/size_report $(BUILD)/benchmark $(BUILD)/cuda_policy_smoke $(BUILD)/reactive_move.bkgc
 
@@ -125,6 +161,38 @@ v6-canary: v6-build
 
 v6-official-canary: v6-build
 	uv run --with kaggle-environments==1.32.7 python tests/stateful_v6_game_parity.py --games-per-seat 32 --steps 720
+
+v4-schema-test:
+	python3 -m json.tool schema/policy_v4.schema.json >/dev/null
+	python3 -m json.tool schema/search_grammar_v4.json >/dev/null
+	python3 -c 'import json; p=json.load(open("schema/policy_v4.schema.json")); g=json.load(open("schema/search_grammar_v4.json")); assert p["properties"]["schema_version"]["const"]==4 and g["compiled_abi_version"]==4 and g["feature_registry_version"]==1'
+
+v4-python-test:
+	python3 -m unittest -v tests/test_v4_semantics.py
+
+v4-binary-validation: $(BUILD)/v4_validate_compiled
+	python3 tests/test_v4_malformed.py --validator $(BUILD)/v4_validate_compiled
+
+v4-differential: $(BUILD)/v4_cpp_differential_runner $(BUILD)/v4_cuda_differential_runner
+	python3 tests/v4_differential.py --cases 512 --ticks 16 --cpp $(BUILD)/v4_cpp_differential_runner --cuda $(BUILD)/v4_cuda_differential_runner
+
+v4-boundary: $(BUILD)/v4_validate_compiled $(BUILD)/v4_cpp_differential_runner $(BUILD)/v4_cuda_differential_runner
+	python3 tests/v4_boundary.py --validator $(BUILD)/v4_validate_compiled --cpp $(BUILD)/v4_cpp_differential_runner --cuda $(BUILD)/v4_cuda_differential_runner
+
+v4-conversion:
+	python3 tests/v4_conversion_equivalence.py --ticks 512
+
+v4-game-parity: $(BUILD)/v4_cpp_game_runner $(BUILD)/v4_cuda_game_runner $(BUILD)/v4_reactive_move.bkgc
+	python3 tests/v4_game_parity.py --policy-json bonsai-kg/examples/reactive_move_v4.json --policy-bin scratch/bonsai_kg/v4_reactive_move.bkgc --cpp scratch/bonsai_kg/v4_cpp_game_runner --cuda scratch/bonsai_kg/v4_cuda_game_runner --steps 16 --seeds 12345 54321
+
+v4-feature-parity: $(BUILD)/v4_cpp_feature_parity $(BUILD)/v4_cuda_feature_parity
+	python3 tests/test_feature_parity.py --cpp scratch/bonsai_kg/v4_cpp_feature_parity --cuda scratch/bonsai_kg/v4_cuda_feature_parity --steps 40 --seeds 12345 54321
+
+v4-test: v4-schema-test v4-python-test v4-binary-validation v4-differential v4-boundary v4-conversion v4-game-parity v4-feature-parity
+
+v4-bench: $(BUILD)/v4_benchmark $(BUILD)/v4_bkg3_comparison
+	python3 tests/v4_generate_bench_policies.py
+	python3 tests/v4_benchmark_matrix.py
 
 clean-build:
 	rm -rf $(BUILD)
