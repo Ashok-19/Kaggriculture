@@ -1,0 +1,3695 @@
+{
+  "active_information_probe": {
+    "reason": "R2 perfect-truth upper bound added zero marginal representation separation and truth-gated policies were unsafe; active probing prerequisites were not met.",
+    "tested": false
+  },
+  "ambiguity": {
+    "M": {
+      "R0": {
+        "cells": 11494,
+        "max_within_cell_regret_span": 33338,
+        "mixed_cases": 361,
+        "mixed_cells": 112,
+        "targets": {
+          "ROUTE_23_H144": {
+            "cells": 393,
+            "max_span": 17898,
+            "mixed_cases": 27,
+            "mixed_cells": 7
+          },
+          "ROUTE_46_H144": {
+            "cells": 378,
+            "max_span": 17898,
+            "mixed_cases": 33,
+            "mixed_cells": 9
+          },
+          "ROUTE_77_H72": {
+            "cells": 386,
+            "max_span": 33338,
+            "mixed_cases": 27,
+            "mixed_cells": 7
+          }
+        }
+      },
+      "R0+1": {
+        "cells": 11494,
+        "max_within_cell_regret_span": 33338,
+        "mixed_cases": 361,
+        "mixed_cells": 112,
+        "targets": {
+          "ROUTE_23_H144": {
+            "cells": 393,
+            "max_span": 17898,
+            "mixed_cases": 27,
+            "mixed_cells": 7
+          },
+          "ROUTE_46_H144": {
+            "cells": 378,
+            "max_span": 17898,
+            "mixed_cases": 33,
+            "mixed_cells": 9
+          },
+          "ROUTE_77_H72": {
+            "cells": 386,
+            "max_span": 33338,
+            "mixed_cases": 27,
+            "mixed_cells": 7
+          }
+        }
+      },
+      "R0+24": {
+        "cells": 11540,
+        "max_within_cell_regret_span": 33338,
+        "mixed_cases": 304,
+        "mixed_cells": 100,
+        "targets": {
+          "ROUTE_23_H144": {
+            "cells": 395,
+            "max_span": 14647,
+            "mixed_cases": 18,
+            "mixed_cells": 5
+          },
+          "ROUTE_46_H144": {
+            "cells": 380,
+            "max_span": 14647,
+            "mixed_cases": 26,
+            "mixed_cells": 8
+          },
+          "ROUTE_77_H72": {
+            "cells": 388,
+            "max_span": 33338,
+            "mixed_cases": 26,
+            "mixed_cells": 7
+          }
+        }
+      },
+      "R0+4": {
+        "cells": 11519,
+        "max_within_cell_regret_span": 33338,
+        "mixed_cases": 327,
+        "mixed_cells": 104,
+        "targets": {
+          "ROUTE_23_H144": {
+            "cells": 394,
+            "max_span": 17898,
+            "mixed_cases": 23,
+            "mixed_cells": 6
+          },
+          "ROUTE_46_H144": {
+            "cells": 379,
+            "max_span": 17898,
+            "mixed_cases": 31,
+            "mixed_cells": 9
+          },
+          "ROUTE_77_H72": {
+            "cells": 387,
+            "max_span": 33338,
+            "mixed_cases": 27,
+            "mixed_cells": 7
+          }
+        }
+      },
+      "R0+72": {
+        "cells": 11540,
+        "max_within_cell_regret_span": 33338,
+        "mixed_cases": 304,
+        "mixed_cells": 100,
+        "targets": {
+          "ROUTE_23_H144": {
+            "cells": 395,
+            "max_span": 14647,
+            "mixed_cases": 18,
+            "mixed_cells": 5
+          },
+          "ROUTE_46_H144": {
+            "cells": 380,
+            "max_span": 14647,
+            "mixed_cases": 26,
+            "mixed_cells": 8
+          },
+          "ROUTE_77_H72": {
+            "cells": 388,
+            "max_span": 33338,
+            "mixed_cases": 26,
+            "mixed_cells": 7
+          }
+        }
+      },
+      "R0+R1+TRUTH": {
+        "cells": 11540,
+        "max_within_cell_regret_span": 33338,
+        "mixed_cases": 304,
+        "mixed_cells": 100,
+        "targets": {
+          "ROUTE_23_H144": {
+            "cells": 395,
+            "max_span": 14647,
+            "mixed_cases": 18,
+            "mixed_cells": 5
+          },
+          "ROUTE_46_H144": {
+            "cells": 380,
+            "max_span": 14647,
+            "mixed_cases": 26,
+            "mixed_cells": 8
+          },
+          "ROUTE_77_H72": {
+            "cells": 388,
+            "max_span": 33338,
+            "mixed_cases": 26,
+            "mixed_cells": 7
+          }
+        }
+      },
+      "R0+events": {
+        "cells": 11540,
+        "max_within_cell_regret_span": 33338,
+        "mixed_cases": 304,
+        "mixed_cells": 100,
+        "targets": {
+          "ROUTE_23_H144": {
+            "cells": 395,
+            "max_span": 14647,
+            "mixed_cases": 18,
+            "mixed_cells": 5
+          },
+          "ROUTE_46_H144": {
+            "cells": 380,
+            "max_span": 14647,
+            "mixed_cases": 26,
+            "mixed_cells": 8
+          },
+          "ROUTE_77_H72": {
+            "cells": 388,
+            "max_span": 33338,
+            "mixed_cases": 26,
+            "mixed_cells": 7
+          }
+        }
+      }
+    },
+    "U": {
+      "R0": {
+        "cells": 6005,
+        "max_within_cell_regret_span": 153574,
+        "mixed_cases": 392,
+        "mixed_cells": 93,
+        "targets": {
+          "HOLD_BUYS": {
+            "cells": 321,
+            "max_span": 60410,
+            "mixed_cases": 63,
+            "mixed_cells": 17
+          },
+          "HOLD_SELL": {
+            "cells": 772,
+            "max_span": 60401,
+            "mixed_cases": 79,
+            "mixed_cells": 23
+          }
+        }
+      },
+      "R0+1": {
+        "cells": 6009,
+        "max_within_cell_regret_span": 153574,
+        "mixed_cases": 380,
+        "mixed_cells": 93,
+        "targets": {
+          "HOLD_BUYS": {
+            "cells": 321,
+            "max_span": 60410,
+            "mixed_cases": 63,
+            "mixed_cells": 17
+          },
+          "HOLD_SELL": {
+            "cells": 772,
+            "max_span": 60401,
+            "mixed_cases": 79,
+            "mixed_cells": 23
+          }
+        }
+      },
+      "R0+24": {
+        "cells": 6025,
+        "max_within_cell_regret_span": 153574,
+        "mixed_cases": 363,
+        "mixed_cells": 90,
+        "targets": {
+          "HOLD_BUYS": {
+            "cells": 323,
+            "max_span": 60410,
+            "mixed_cases": 58,
+            "mixed_cells": 16
+          },
+          "HOLD_SELL": {
+            "cells": 774,
+            "max_span": 60401,
+            "mixed_cases": 74,
+            "mixed_cells": 22
+          }
+        }
+      },
+      "R0+4": {
+        "cells": 6017,
+        "max_within_cell_regret_span": 153574,
+        "mixed_cases": 372,
+        "mixed_cells": 91,
+        "targets": {
+          "HOLD_BUYS": {
+            "cells": 322,
+            "max_span": 60410,
+            "mixed_cases": 59,
+            "mixed_cells": 16
+          },
+          "HOLD_SELL": {
+            "cells": 773,
+            "max_span": 60401,
+            "mixed_cases": 75,
+            "mixed_cells": 22
+          }
+        }
+      },
+      "R0+72": {
+        "cells": 6040,
+        "max_within_cell_regret_span": 153574,
+        "mixed_cases": 334,
+        "mixed_cells": 85,
+        "targets": {
+          "HOLD_BUYS": {
+            "cells": 325,
+            "max_span": 47940,
+            "mixed_cases": 48,
+            "mixed_cells": 14
+          },
+          "HOLD_SELL": {
+            "cells": 776,
+            "max_span": 46153,
+            "mixed_cases": 68,
+            "mixed_cells": 21
+          }
+        }
+      },
+      "R0+R1+TRUTH": {
+        "cells": 6040,
+        "max_within_cell_regret_span": 153574,
+        "mixed_cases": 334,
+        "mixed_cells": 85,
+        "targets": {
+          "HOLD_BUYS": {
+            "cells": 325,
+            "max_span": 47940,
+            "mixed_cases": 48,
+            "mixed_cells": 14
+          },
+          "HOLD_SELL": {
+            "cells": 776,
+            "max_span": 46153,
+            "mixed_cases": 68,
+            "mixed_cells": 21
+          }
+        }
+      },
+      "R0+events": {
+        "cells": 6040,
+        "max_within_cell_regret_span": 153574,
+        "mixed_cases": 334,
+        "mixed_cells": 85,
+        "targets": {
+          "HOLD_BUYS": {
+            "cells": 325,
+            "max_span": 47940,
+            "mixed_cases": 48,
+            "mixed_cells": 14
+          },
+          "HOLD_SELL": {
+            "cells": 776,
+            "max_span": 46153,
+            "mixed_cases": 68,
+            "mixed_cells": 21
+          }
+        }
+      }
+    },
+    "W": {
+      "R0": {
+        "cells": 46558,
+        "max_within_cell_regret_span": 153574,
+        "mixed_cases": 862,
+        "mixed_cells": 261,
+        "targets": {
+          "SWAP_0_3": {
+            "cells": 800,
+            "max_span": 82457,
+            "mixed_cases": 78,
+            "mixed_cells": 14
+          },
+          "SWAP_1_2": {
+            "cells": 800,
+            "max_span": 60499,
+            "mixed_cases": 46,
+            "mixed_cells": 8
+          },
+          "SWAP_6_9": {
+            "cells": 605,
+            "max_span": 17495,
+            "mixed_cases": 8,
+            "mixed_cells": 3
+          }
+        }
+      },
+      "R0+1": {
+        "cells": 46570,
+        "max_within_cell_regret_span": 153574,
+        "mixed_cases": 832,
+        "mixed_cells": 261,
+        "targets": {
+          "SWAP_0_3": {
+            "cells": 801,
+            "max_span": 82457,
+            "mixed_cases": 72,
+            "mixed_cells": 14
+          },
+          "SWAP_1_2": {
+            "cells": 801,
+            "max_span": 60499,
+            "mixed_cases": 46,
+            "mixed_cells": 8
+          },
+          "SWAP_6_9": {
+            "cells": 605,
+            "max_span": 17495,
+            "mixed_cases": 8,
+            "mixed_cells": 3
+          }
+        }
+      },
+      "R0+24": {
+        "cells": 46599,
+        "max_within_cell_regret_span": 153574,
+        "mixed_cases": 800,
+        "mixed_cells": 256,
+        "targets": {
+          "SWAP_0_3": {
+            "cells": 803,
+            "max_span": 82457,
+            "mixed_cases": 65,
+            "mixed_cells": 13
+          },
+          "SWAP_1_2": {
+            "cells": 803,
+            "max_span": 60499,
+            "mixed_cases": 46,
+            "mixed_cells": 8
+          },
+          "SWAP_6_9": {
+            "cells": 605,
+            "max_span": 17495,
+            "mixed_cases": 8,
+            "mixed_cells": 3
+          }
+        }
+      },
+      "R0+4": {
+        "cells": 46582,
+        "max_within_cell_regret_span": 153574,
+        "mixed_cases": 828,
+        "mixed_cells": 261,
+        "targets": {
+          "SWAP_0_3": {
+            "cells": 802,
+            "max_span": 82457,
+            "mixed_cases": 70,
+            "mixed_cells": 14
+          },
+          "SWAP_1_2": {
+            "cells": 802,
+            "max_span": 60499,
+            "mixed_cases": 46,
+            "mixed_cells": 8
+          },
+          "SWAP_6_9": {
+            "cells": 605,
+            "max_span": 17495,
+            "mixed_cases": 8,
+            "mixed_cells": 3
+          }
+        }
+      },
+      "R0+72": {
+        "cells": 46628,
+        "max_within_cell_regret_span": 153574,
+        "mixed_cases": 792,
+        "mixed_cells": 256,
+        "targets": {
+          "SWAP_0_3": {
+            "cells": 805,
+            "max_span": 82457,
+            "mixed_cases": 64,
+            "mixed_cells": 13
+          },
+          "SWAP_1_2": {
+            "cells": 805,
+            "max_span": 60499,
+            "mixed_cases": 46,
+            "mixed_cells": 8
+          },
+          "SWAP_6_9": {
+            "cells": 605,
+            "max_span": 17495,
+            "mixed_cases": 8,
+            "mixed_cells": 3
+          }
+        }
+      },
+      "R0+R1+TRUTH": {
+        "cells": 46628,
+        "max_within_cell_regret_span": 153574,
+        "mixed_cases": 792,
+        "mixed_cells": 256,
+        "targets": {
+          "SWAP_0_3": {
+            "cells": 805,
+            "max_span": 82457,
+            "mixed_cases": 64,
+            "mixed_cells": 13
+          },
+          "SWAP_1_2": {
+            "cells": 805,
+            "max_span": 60499,
+            "mixed_cases": 46,
+            "mixed_cells": 8
+          },
+          "SWAP_6_9": {
+            "cells": 605,
+            "max_span": 17495,
+            "mixed_cases": 8,
+            "mixed_cells": 3
+          }
+        }
+      },
+      "R0+events": {
+        "cells": 46628,
+        "max_within_cell_regret_span": 153574,
+        "mixed_cases": 792,
+        "mixed_cells": 256,
+        "targets": {
+          "SWAP_0_3": {
+            "cells": 805,
+            "max_span": 82457,
+            "mixed_cases": 64,
+            "mixed_cells": 13
+          },
+          "SWAP_1_2": {
+            "cells": 805,
+            "max_span": 60499,
+            "mixed_cases": 46,
+            "mixed_cells": 8
+          },
+          "SWAP_6_9": {
+            "cells": 605,
+            "max_span": 17495,
+            "mixed_cases": 8,
+            "mixed_cells": 3
+          }
+        }
+      }
+    }
+  },
+  "final_verdict": "TEMPORAL INFORMATION-STATE HYPOTHESIS TERMINALLY REJECTED",
+  "h2_truth": {
+    "artifact_sha256": "bebf0705c2bf2e32639fe294d6c2b250b6e71a323ca4d32c25a0cf86331ee7fa",
+    "containment_rate": null,
+    "exactness_rate": null,
+    "interval_width": null,
+    "observer_status": "NOT_IMPLEMENTED_PERFECT_TRUTH_UPPER_BOUND_FAILED",
+    "production_input": false,
+    "variables": [
+      "opp_total_item_0",
+      "opp_total_item_1",
+      "opp_total_item_2",
+      "opp_total_item_3",
+      "opp_total_item_4",
+      "opp_total_item_5",
+      "opp_total_item_6",
+      "opp_total_item_7",
+      "opp_total_item_8",
+      "opp_total_item_9",
+      "opp_total_item_10",
+      "opp_total_item_11",
+      "opp_seed_0",
+      "opp_seed_1",
+      "opp_seed_2",
+      "opp_seed_3",
+      "opp_seed_4"
+    ],
+    "width": 17
+  },
+  "hard_losses": {
+    "ryo_count": 20,
+    "ryo_oracle_cluster_counts": {
+      "M": 2,
+      "NONE": 5,
+      "U": 1,
+      "U+M": 2,
+      "U+W": 7,
+      "U+W+M": 1,
+      "W+M": 2
+    },
+    "ryo_public_trajectory_regimes": {
+      "early_land_then_cash_drawdown": 16,
+      "late_land_cash_positive_strawberry_burst": 4
+    },
+    "ryo_rows": [
+      {
+        "at144": {
+          "delta24_opp_money": -393,
+          "delta24_opp_strawberry": 1,
+          "opp_land": 2,
+          "opp_money": 177,
+          "opp_units": 1,
+          "own_land": 1,
+          "own_money": 303,
+          "route": 64,
+          "shop0": "BRUNCH_SPOT",
+          "shop1": "SMOOTHIE_SHOP",
+          "since_opp_land_increase": 23,
+          "truth_opp_strawberry_seed": 0,
+          "truth_opp_wheat": 13
+        },
+        "at192": {
+          "delta24_opp_money": -775,
+          "delta24_opp_strawberry": 3,
+          "opp_land": 2,
+          "opp_money": 597,
+          "opp_units": 1,
+          "own_land": 2,
+          "own_money": 116,
+          "route": 64,
+          "shop0": "BRUNCH_SPOT",
+          "shop1": "SMOOTHIE_SHOP",
+          "since_opp_land_increase": 71,
+          "truth_opp_strawberry_seed": 0,
+          "truth_opp_wheat": 7
+        },
+        "base_margin": -2787,
+        "case": 0,
+        "oracle_cluster": "U+M",
+        "seat": 0,
+        "trajectory_regime": "early_land_then_cash_drawdown"
+      },
+      {
+        "at144": {
+          "delta24_opp_money": -393,
+          "delta24_opp_strawberry": 1,
+          "opp_land": 2,
+          "opp_money": 177,
+          "opp_units": 1,
+          "own_land": 1,
+          "own_money": 303,
+          "route": 64,
+          "shop0": "BRUNCH_SPOT",
+          "shop1": "SMOOTHIE_SHOP",
+          "since_opp_land_increase": 23,
+          "truth_opp_strawberry_seed": 0,
+          "truth_opp_wheat": 13
+        },
+        "at192": {
+          "delta24_opp_money": -775,
+          "delta24_opp_strawberry": 3,
+          "opp_land": 2,
+          "opp_money": 597,
+          "opp_units": 1,
+          "own_land": 2,
+          "own_money": 116,
+          "route": 64,
+          "shop0": "BRUNCH_SPOT",
+          "shop1": "SMOOTHIE_SHOP",
+          "since_opp_land_increase": 71,
+          "truth_opp_strawberry_seed": 0,
+          "truth_opp_wheat": 7
+        },
+        "base_margin": -2787,
+        "case": 1,
+        "oracle_cluster": "U+M",
+        "seat": 1,
+        "trajectory_regime": "early_land_then_cash_drawdown"
+      },
+      {
+        "at144": {
+          "delta24_opp_money": -393,
+          "delta24_opp_strawberry": 1,
+          "opp_land": 2,
+          "opp_money": 177,
+          "opp_units": 1,
+          "own_land": 1,
+          "own_money": 303,
+          "route": 29,
+          "shop0": "BAKERY",
+          "shop1": "FARMERS_MARKET",
+          "since_opp_land_increase": 23,
+          "truth_opp_strawberry_seed": 0,
+          "truth_opp_wheat": 13
+        },
+        "at192": {
+          "delta24_opp_money": -772,
+          "delta24_opp_strawberry": 3,
+          "opp_land": 2,
+          "opp_money": 600,
+          "opp_units": 1,
+          "own_land": 2,
+          "own_money": 85,
+          "route": 29,
+          "shop0": "BAKERY",
+          "shop1": "FARMERS_MARKET",
+          "since_opp_land_increase": 71,
+          "truth_opp_strawberry_seed": 0,
+          "truth_opp_wheat": 7
+        },
+        "base_margin": -10525,
+        "case": 2,
+        "oracle_cluster": "NONE",
+        "seat": 0,
+        "trajectory_regime": "early_land_then_cash_drawdown"
+      },
+      {
+        "at144": {
+          "delta24_opp_money": -393,
+          "delta24_opp_strawberry": 1,
+          "opp_land": 2,
+          "opp_money": 177,
+          "opp_units": 1,
+          "own_land": 1,
+          "own_money": 303,
+          "route": 29,
+          "shop0": "BAKERY",
+          "shop1": "FARMERS_MARKET",
+          "since_opp_land_increase": 23,
+          "truth_opp_strawberry_seed": 0,
+          "truth_opp_wheat": 13
+        },
+        "at192": {
+          "delta24_opp_money": -772,
+          "delta24_opp_strawberry": 3,
+          "opp_land": 2,
+          "opp_money": 600,
+          "opp_units": 1,
+          "own_land": 2,
+          "own_money": 85,
+          "route": 29,
+          "shop0": "BAKERY",
+          "shop1": "FARMERS_MARKET",
+          "since_opp_land_increase": 71,
+          "truth_opp_strawberry_seed": 0,
+          "truth_opp_wheat": 7
+        },
+        "base_margin": -9139,
+        "case": 3,
+        "oracle_cluster": "NONE",
+        "seat": 1,
+        "trajectory_regime": "early_land_then_cash_drawdown"
+      },
+      {
+        "at144": {
+          "delta24_opp_money": -406,
+          "delta24_opp_strawberry": 1,
+          "opp_land": 2,
+          "opp_money": 165,
+          "opp_units": 1,
+          "own_land": 1,
+          "own_money": 289,
+          "route": 63,
+          "shop0": "SMOOTHIE_SHOP",
+          "shop1": "PIZZA_SHOP",
+          "since_opp_land_increase": 23,
+          "truth_opp_strawberry_seed": 0,
+          "truth_opp_wheat": 13
+        },
+        "at192": {
+          "delta24_opp_money": -964,
+          "delta24_opp_strawberry": 3,
+          "opp_land": 2,
+          "opp_money": 394,
+          "opp_units": 1,
+          "own_land": 2,
+          "own_money": 116,
+          "route": 63,
+          "shop0": "SMOOTHIE_SHOP",
+          "shop1": "PIZZA_SHOP",
+          "since_opp_land_increase": 71,
+          "truth_opp_strawberry_seed": 0,
+          "truth_opp_wheat": 7
+        },
+        "base_margin": -5574,
+        "case": 4,
+        "oracle_cluster": "W+M",
+        "seat": 0,
+        "trajectory_regime": "early_land_then_cash_drawdown"
+      },
+      {
+        "at144": {
+          "delta24_opp_money": -406,
+          "delta24_opp_strawberry": 1,
+          "opp_land": 2,
+          "opp_money": 165,
+          "opp_units": 1,
+          "own_land": 1,
+          "own_money": 289,
+          "route": 63,
+          "shop0": "SMOOTHIE_SHOP",
+          "shop1": "PIZZA_SHOP",
+          "since_opp_land_increase": 23,
+          "truth_opp_strawberry_seed": 0,
+          "truth_opp_wheat": 13
+        },
+        "at192": {
+          "delta24_opp_money": -964,
+          "delta24_opp_strawberry": 3,
+          "opp_land": 2,
+          "opp_money": 394,
+          "opp_units": 1,
+          "own_land": 2,
+          "own_money": 116,
+          "route": 63,
+          "shop0": "SMOOTHIE_SHOP",
+          "shop1": "PIZZA_SHOP",
+          "since_opp_land_increase": 71,
+          "truth_opp_strawberry_seed": 0,
+          "truth_opp_wheat": 7
+        },
+        "base_margin": -8794,
+        "case": 5,
+        "oracle_cluster": "W+M",
+        "seat": 1,
+        "trajectory_regime": "early_land_then_cash_drawdown"
+      },
+      {
+        "at144": {
+          "delta24_opp_money": 405,
+          "delta24_opp_strawberry": 0,
+          "opp_land": 1,
+          "opp_money": 803,
+          "opp_units": 1,
+          "own_land": 1,
+          "own_money": 293,
+          "route": 34,
+          "shop0": "YARN_STORE",
+          "shop1": "SMOOTHIE_SHOP",
+          "since_opp_land_increase": 9999,
+          "truth_opp_strawberry_seed": 0,
+          "truth_opp_wheat": 11
+        },
+        "at192": {
+          "delta24_opp_money": 147,
+          "delta24_opp_strawberry": 7,
+          "opp_land": 2,
+          "opp_money": 654,
+          "opp_units": 1,
+          "own_land": 2,
+          "own_money": 352,
+          "route": 34,
+          "shop0": "YARN_STORE",
+          "shop1": "SMOOTHIE_SHOP",
+          "since_opp_land_increase": 38,
+          "truth_opp_strawberry_seed": 0,
+          "truth_opp_wheat": 10
+        },
+        "base_margin": -10764,
+        "case": 6,
+        "oracle_cluster": "NONE",
+        "seat": 0,
+        "trajectory_regime": "late_land_cash_positive_strawberry_burst"
+      },
+      {
+        "at144": {
+          "delta24_opp_money": 405,
+          "delta24_opp_strawberry": 0,
+          "opp_land": 1,
+          "opp_money": 803,
+          "opp_units": 1,
+          "own_land": 1,
+          "own_money": 293,
+          "route": 34,
+          "shop0": "YARN_STORE",
+          "shop1": "SMOOTHIE_SHOP",
+          "since_opp_land_increase": 9999,
+          "truth_opp_strawberry_seed": 0,
+          "truth_opp_wheat": 11
+        },
+        "at192": {
+          "delta24_opp_money": 147,
+          "delta24_opp_strawberry": 7,
+          "opp_land": 2,
+          "opp_money": 654,
+          "opp_units": 1,
+          "own_land": 2,
+          "own_money": 352,
+          "route": 34,
+          "shop0": "YARN_STORE",
+          "shop1": "SMOOTHIE_SHOP",
+          "since_opp_land_increase": 38,
+          "truth_opp_strawberry_seed": 0,
+          "truth_opp_wheat": 10
+        },
+        "base_margin": -10686,
+        "case": 7,
+        "oracle_cluster": "NONE",
+        "seat": 1,
+        "trajectory_regime": "late_land_cash_positive_strawberry_burst"
+      },
+      {
+        "at144": {
+          "delta24_opp_money": -393,
+          "delta24_opp_strawberry": 1,
+          "opp_land": 2,
+          "opp_money": 177,
+          "opp_units": 1,
+          "own_land": 1,
+          "own_money": 303,
+          "route": 63,
+          "shop0": "PIZZA_SHOP",
+          "shop1": "PIZZA_SHOP",
+          "since_opp_land_increase": 23,
+          "truth_opp_strawberry_seed": 0,
+          "truth_opp_wheat": 13
+        },
+        "at192": {
+          "delta24_opp_money": -772,
+          "delta24_opp_strawberry": 3,
+          "opp_land": 2,
+          "opp_money": 600,
+          "opp_units": 1,
+          "own_land": 2,
+          "own_money": 113,
+          "route": 63,
+          "shop0": "PIZZA_SHOP",
+          "shop1": "PIZZA_SHOP",
+          "since_opp_land_increase": 71,
+          "truth_opp_strawberry_seed": 0,
+          "truth_opp_wheat": 7
+        },
+        "base_margin": -5274,
+        "case": 8,
+        "oracle_cluster": "U",
+        "seat": 0,
+        "trajectory_regime": "early_land_then_cash_drawdown"
+      },
+      {
+        "at144": {
+          "delta24_opp_money": -393,
+          "delta24_opp_strawberry": 1,
+          "opp_land": 2,
+          "opp_money": 177,
+          "opp_units": 1,
+          "own_land": 1,
+          "own_money": 303,
+          "route": 63,
+          "shop0": "PIZZA_SHOP",
+          "shop1": "PIZZA_SHOP",
+          "since_opp_land_increase": 23,
+          "truth_opp_strawberry_seed": 0,
+          "truth_opp_wheat": 13
+        },
+        "at192": {
+          "delta24_opp_money": -772,
+          "delta24_opp_strawberry": 3,
+          "opp_land": 2,
+          "opp_money": 600,
+          "opp_units": 1,
+          "own_land": 2,
+          "own_money": 113,
+          "route": 63,
+          "shop0": "PIZZA_SHOP",
+          "shop1": "PIZZA_SHOP",
+          "since_opp_land_increase": 71,
+          "truth_opp_strawberry_seed": 0,
+          "truth_opp_wheat": 7
+        },
+        "base_margin": -5537,
+        "case": 9,
+        "oracle_cluster": "NONE",
+        "seat": 1,
+        "trajectory_regime": "early_land_then_cash_drawdown"
+      },
+      {
+        "at144": {
+          "delta24_opp_money": -406,
+          "delta24_opp_strawberry": 1,
+          "opp_land": 2,
+          "opp_money": 165,
+          "opp_units": 1,
+          "own_land": 1,
+          "own_money": 289,
+          "route": 34,
+          "shop0": "PET_CAFE",
+          "shop1": "YARN_STORE",
+          "since_opp_land_increase": 23,
+          "truth_opp_strawberry_seed": 0,
+          "truth_opp_wheat": 13
+        },
+        "at192": {
+          "delta24_opp_money": -878,
+          "delta24_opp_strawberry": 7,
+          "opp_land": 2,
+          "opp_money": 340,
+          "opp_units": 1,
+          "own_land": 2,
+          "own_money": 133,
+          "route": 34,
+          "shop0": "PET_CAFE",
+          "shop1": "YARN_STORE",
+          "since_opp_land_increase": 71,
+          "truth_opp_strawberry_seed": 0,
+          "truth_opp_wheat": 7
+        },
+        "base_margin": -16153,
+        "case": 14,
+        "oracle_cluster": "U+W",
+        "seat": 0,
+        "trajectory_regime": "early_land_then_cash_drawdown"
+      },
+      {
+        "at144": {
+          "delta24_opp_money": -406,
+          "delta24_opp_strawberry": 1,
+          "opp_land": 2,
+          "opp_money": 165,
+          "opp_units": 1,
+          "own_land": 1,
+          "own_money": 289,
+          "route": 34,
+          "shop0": "PET_CAFE",
+          "shop1": "YARN_STORE",
+          "since_opp_land_increase": 23,
+          "truth_opp_strawberry_seed": 0,
+          "truth_opp_wheat": 13
+        },
+        "at192": {
+          "delta24_opp_money": -878,
+          "delta24_opp_strawberry": 7,
+          "opp_land": 2,
+          "opp_money": 340,
+          "opp_units": 1,
+          "own_land": 2,
+          "own_money": 133,
+          "route": 34,
+          "shop0": "PET_CAFE",
+          "shop1": "YARN_STORE",
+          "since_opp_land_increase": 71,
+          "truth_opp_strawberry_seed": 0,
+          "truth_opp_wheat": 7
+        },
+        "base_margin": -17435,
+        "case": 15,
+        "oracle_cluster": "U+W",
+        "seat": 1,
+        "trajectory_regime": "early_land_then_cash_drawdown"
+      },
+      {
+        "at144": {
+          "delta24_opp_money": -406,
+          "delta24_opp_strawberry": 1,
+          "opp_land": 2,
+          "opp_money": 165,
+          "opp_units": 1,
+          "own_land": 1,
+          "own_money": 289,
+          "route": 64,
+          "shop0": "PET_CAFE",
+          "shop1": "PIZZA_SHOP",
+          "since_opp_land_increase": 23,
+          "truth_opp_strawberry_seed": 0,
+          "truth_opp_wheat": 13
+        },
+        "at192": {
+          "delta24_opp_money": -784,
+          "delta24_opp_strawberry": 3,
+          "opp_land": 2,
+          "opp_money": 574,
+          "opp_units": 1,
+          "own_land": 2,
+          "own_money": 116,
+          "route": 64,
+          "shop0": "PET_CAFE",
+          "shop1": "PIZZA_SHOP",
+          "since_opp_land_increase": 71,
+          "truth_opp_strawberry_seed": 0,
+          "truth_opp_wheat": 7
+        },
+        "base_margin": -3306,
+        "case": 16,
+        "oracle_cluster": "U+W+M",
+        "seat": 0,
+        "trajectory_regime": "early_land_then_cash_drawdown"
+      },
+      {
+        "at144": {
+          "delta24_opp_money": -405,
+          "delta24_opp_strawberry": 1,
+          "opp_land": 2,
+          "opp_money": 166,
+          "opp_units": 1,
+          "own_land": 1,
+          "own_money": 194,
+          "route": 64,
+          "shop0": "PET_CAFE",
+          "shop1": "PIZZA_SHOP",
+          "since_opp_land_increase": 23,
+          "truth_opp_strawberry_seed": 0,
+          "truth_opp_wheat": 13
+        },
+        "at192": {
+          "delta24_opp_money": -782,
+          "delta24_opp_strawberry": 3,
+          "opp_land": 2,
+          "opp_money": 579,
+          "opp_units": 1,
+          "own_land": 2,
+          "own_money": 4,
+          "route": 64,
+          "shop0": "PET_CAFE",
+          "shop1": "PIZZA_SHOP",
+          "since_opp_land_increase": 71,
+          "truth_opp_strawberry_seed": 0,
+          "truth_opp_wheat": 7
+        },
+        "base_margin": -20143,
+        "case": 17,
+        "oracle_cluster": "U+W",
+        "seat": 1,
+        "trajectory_regime": "early_land_then_cash_drawdown"
+      },
+      {
+        "at144": {
+          "delta24_opp_money": -393,
+          "delta24_opp_strawberry": 1,
+          "opp_land": 2,
+          "opp_money": 177,
+          "opp_units": 1,
+          "own_land": 1,
+          "own_money": 303,
+          "route": 64,
+          "shop0": "FARMERS_MARKET",
+          "shop1": "PIZZA_SHOP",
+          "since_opp_land_increase": 23,
+          "truth_opp_strawberry_seed": 0,
+          "truth_opp_wheat": 13
+        },
+        "at192": {
+          "delta24_opp_money": -772,
+          "delta24_opp_strawberry": 3,
+          "opp_land": 2,
+          "opp_money": 500,
+          "opp_units": 1,
+          "own_land": 2,
+          "own_money": 113,
+          "route": 64,
+          "shop0": "FARMERS_MARKET",
+          "shop1": "PIZZA_SHOP",
+          "since_opp_land_increase": 71,
+          "truth_opp_strawberry_seed": 0,
+          "truth_opp_wheat": 7
+        },
+        "base_margin": -4992,
+        "case": 21,
+        "oracle_cluster": "U+W",
+        "seat": 0,
+        "trajectory_regime": "early_land_then_cash_drawdown"
+      },
+      {
+        "at144": {
+          "delta24_opp_money": -393,
+          "delta24_opp_strawberry": 1,
+          "opp_land": 2,
+          "opp_money": 177,
+          "opp_units": 1,
+          "own_land": 1,
+          "own_money": 303,
+          "route": 64,
+          "shop0": "FARMERS_MARKET",
+          "shop1": "PIZZA_SHOP",
+          "since_opp_land_increase": 23,
+          "truth_opp_strawberry_seed": 0,
+          "truth_opp_wheat": 13
+        },
+        "at192": {
+          "delta24_opp_money": -772,
+          "delta24_opp_strawberry": 3,
+          "opp_land": 2,
+          "opp_money": 500,
+          "opp_units": 1,
+          "own_land": 2,
+          "own_money": 113,
+          "route": 64,
+          "shop0": "FARMERS_MARKET",
+          "shop1": "PIZZA_SHOP",
+          "since_opp_land_increase": 71,
+          "truth_opp_strawberry_seed": 0,
+          "truth_opp_wheat": 7
+        },
+        "base_margin": -3914,
+        "case": 22,
+        "oracle_cluster": "U+W",
+        "seat": 1,
+        "trajectory_regime": "early_land_then_cash_drawdown"
+      },
+      {
+        "at144": {
+          "delta24_opp_money": -406,
+          "delta24_opp_strawberry": 1,
+          "opp_land": 2,
+          "opp_money": 165,
+          "opp_units": 1,
+          "own_land": 1,
+          "own_money": 289,
+          "route": 64,
+          "shop0": "PET_CAFE",
+          "shop1": "FARMERS_MARKET",
+          "since_opp_land_increase": 23,
+          "truth_opp_strawberry_seed": 0,
+          "truth_opp_wheat": 13
+        },
+        "at192": {
+          "delta24_opp_money": -784,
+          "delta24_opp_strawberry": 3,
+          "opp_land": 2,
+          "opp_money": 574,
+          "opp_units": 1,
+          "own_land": 2,
+          "own_money": 116,
+          "route": 64,
+          "shop0": "PET_CAFE",
+          "shop1": "FARMERS_MARKET",
+          "since_opp_land_increase": 71,
+          "truth_opp_strawberry_seed": 0,
+          "truth_opp_wheat": 7
+        },
+        "base_margin": -21890,
+        "case": 23,
+        "oracle_cluster": "U+W",
+        "seat": 0,
+        "trajectory_regime": "early_land_then_cash_drawdown"
+      },
+      {
+        "at144": {
+          "delta24_opp_money": -406,
+          "delta24_opp_strawberry": 1,
+          "opp_land": 2,
+          "opp_money": 165,
+          "opp_units": 1,
+          "own_land": 1,
+          "own_money": 289,
+          "route": 64,
+          "shop0": "PET_CAFE",
+          "shop1": "FARMERS_MARKET",
+          "since_opp_land_increase": 23,
+          "truth_opp_strawberry_seed": 0,
+          "truth_opp_wheat": 13
+        },
+        "at192": {
+          "delta24_opp_money": -784,
+          "delta24_opp_strawberry": 3,
+          "opp_land": 2,
+          "opp_money": 574,
+          "opp_units": 1,
+          "own_land": 2,
+          "own_money": 116,
+          "route": 64,
+          "shop0": "PET_CAFE",
+          "shop1": "FARMERS_MARKET",
+          "since_opp_land_increase": 71,
+          "truth_opp_strawberry_seed": 0,
+          "truth_opp_wheat": 7
+        },
+        "base_margin": -18697,
+        "case": 24,
+        "oracle_cluster": "U+W",
+        "seat": 1,
+        "trajectory_regime": "early_land_then_cash_drawdown"
+      },
+      {
+        "at144": {
+          "delta24_opp_money": 405,
+          "delta24_opp_strawberry": 0,
+          "opp_land": 1,
+          "opp_money": 803,
+          "opp_units": 1,
+          "own_land": 1,
+          "own_money": 293,
+          "route": 22,
+          "shop0": "YARN_STORE",
+          "shop1": "ICE_CREAM_SHOP",
+          "since_opp_land_increase": 9999,
+          "truth_opp_strawberry_seed": 0,
+          "truth_opp_wheat": 11
+        },
+        "at192": {
+          "delta24_opp_money": 147,
+          "delta24_opp_strawberry": 7,
+          "opp_land": 2,
+          "opp_money": 654,
+          "opp_units": 1,
+          "own_land": 2,
+          "own_money": 347,
+          "route": 22,
+          "shop0": "YARN_STORE",
+          "shop1": "ICE_CREAM_SHOP",
+          "since_opp_land_increase": 38,
+          "truth_opp_strawberry_seed": 0,
+          "truth_opp_wheat": 10
+        },
+        "base_margin": -6408,
+        "case": 25,
+        "oracle_cluster": "M",
+        "seat": 0,
+        "trajectory_regime": "late_land_cash_positive_strawberry_burst"
+      },
+      {
+        "at144": {
+          "delta24_opp_money": 405,
+          "delta24_opp_strawberry": 0,
+          "opp_land": 1,
+          "opp_money": 803,
+          "opp_units": 1,
+          "own_land": 1,
+          "own_money": 293,
+          "route": 22,
+          "shop0": "YARN_STORE",
+          "shop1": "ICE_CREAM_SHOP",
+          "since_opp_land_increase": 9999,
+          "truth_opp_strawberry_seed": 0,
+          "truth_opp_wheat": 11
+        },
+        "at192": {
+          "delta24_opp_money": 147,
+          "delta24_opp_strawberry": 7,
+          "opp_land": 2,
+          "opp_money": 654,
+          "opp_units": 1,
+          "own_land": 2,
+          "own_money": 347,
+          "route": 22,
+          "shop0": "YARN_STORE",
+          "shop1": "ICE_CREAM_SHOP",
+          "since_opp_land_increase": 38,
+          "truth_opp_strawberry_seed": 0,
+          "truth_opp_wheat": 10
+        },
+        "base_margin": -916,
+        "case": 26,
+        "oracle_cluster": "M",
+        "seat": 1,
+        "trajectory_regime": "late_land_cash_positive_strawberry_burst"
+      }
+    ],
+    "unflippable_count": 10,
+    "unflippable_rows": [
+      {
+        "at144": {
+          "delta24_opp_money": -393,
+          "delta24_opp_strawberry": 1,
+          "opp_land": 2,
+          "opp_money": 177,
+          "opp_units": 1,
+          "own_land": 1,
+          "own_money": 303,
+          "route": 29,
+          "shop0": "BAKERY",
+          "shop1": "FARMERS_MARKET",
+          "since_opp_land_increase": 23,
+          "truth_opp_strawberry_seed": 0,
+          "truth_opp_wheat": 13
+        },
+        "at192": {
+          "delta24_opp_money": -772,
+          "delta24_opp_strawberry": 3,
+          "opp_land": 2,
+          "opp_money": 600,
+          "opp_units": 1,
+          "own_land": 2,
+          "own_money": 85,
+          "route": 29,
+          "shop0": "BAKERY",
+          "shop1": "FARMERS_MARKET",
+          "since_opp_land_increase": 71,
+          "truth_opp_strawberry_seed": 0,
+          "truth_opp_wheat": 7
+        },
+        "base_margin": -10525,
+        "case": 2,
+        "seat": 0,
+        "team": "Ryo Hasegawa"
+      },
+      {
+        "at144": {
+          "delta24_opp_money": -393,
+          "delta24_opp_strawberry": 1,
+          "opp_land": 2,
+          "opp_money": 177,
+          "opp_units": 1,
+          "own_land": 1,
+          "own_money": 303,
+          "route": 29,
+          "shop0": "BAKERY",
+          "shop1": "FARMERS_MARKET",
+          "since_opp_land_increase": 23,
+          "truth_opp_strawberry_seed": 0,
+          "truth_opp_wheat": 13
+        },
+        "at192": {
+          "delta24_opp_money": -772,
+          "delta24_opp_strawberry": 3,
+          "opp_land": 2,
+          "opp_money": 600,
+          "opp_units": 1,
+          "own_land": 2,
+          "own_money": 85,
+          "route": 29,
+          "shop0": "BAKERY",
+          "shop1": "FARMERS_MARKET",
+          "since_opp_land_increase": 71,
+          "truth_opp_strawberry_seed": 0,
+          "truth_opp_wheat": 7
+        },
+        "base_margin": -9139,
+        "case": 3,
+        "seat": 1,
+        "team": "Ryo Hasegawa"
+      },
+      {
+        "at144": {
+          "delta24_opp_money": 405,
+          "delta24_opp_strawberry": 0,
+          "opp_land": 1,
+          "opp_money": 803,
+          "opp_units": 1,
+          "own_land": 1,
+          "own_money": 293,
+          "route": 34,
+          "shop0": "YARN_STORE",
+          "shop1": "SMOOTHIE_SHOP",
+          "since_opp_land_increase": 9999,
+          "truth_opp_strawberry_seed": 0,
+          "truth_opp_wheat": 11
+        },
+        "at192": {
+          "delta24_opp_money": 147,
+          "delta24_opp_strawberry": 7,
+          "opp_land": 2,
+          "opp_money": 654,
+          "opp_units": 1,
+          "own_land": 2,
+          "own_money": 352,
+          "route": 34,
+          "shop0": "YARN_STORE",
+          "shop1": "SMOOTHIE_SHOP",
+          "since_opp_land_increase": 38,
+          "truth_opp_strawberry_seed": 0,
+          "truth_opp_wheat": 10
+        },
+        "base_margin": -10764,
+        "case": 6,
+        "seat": 0,
+        "team": "Ryo Hasegawa"
+      },
+      {
+        "at144": {
+          "delta24_opp_money": 405,
+          "delta24_opp_strawberry": 0,
+          "opp_land": 1,
+          "opp_money": 803,
+          "opp_units": 1,
+          "own_land": 1,
+          "own_money": 293,
+          "route": 34,
+          "shop0": "YARN_STORE",
+          "shop1": "SMOOTHIE_SHOP",
+          "since_opp_land_increase": 9999,
+          "truth_opp_strawberry_seed": 0,
+          "truth_opp_wheat": 11
+        },
+        "at192": {
+          "delta24_opp_money": 147,
+          "delta24_opp_strawberry": 7,
+          "opp_land": 2,
+          "opp_money": 654,
+          "opp_units": 1,
+          "own_land": 2,
+          "own_money": 352,
+          "route": 34,
+          "shop0": "YARN_STORE",
+          "shop1": "SMOOTHIE_SHOP",
+          "since_opp_land_increase": 38,
+          "truth_opp_strawberry_seed": 0,
+          "truth_opp_wheat": 10
+        },
+        "base_margin": -10686,
+        "case": 7,
+        "seat": 1,
+        "team": "Ryo Hasegawa"
+      },
+      {
+        "at144": {
+          "delta24_opp_money": -393,
+          "delta24_opp_strawberry": 1,
+          "opp_land": 2,
+          "opp_money": 177,
+          "opp_units": 1,
+          "own_land": 1,
+          "own_money": 303,
+          "route": 63,
+          "shop0": "PIZZA_SHOP",
+          "shop1": "PIZZA_SHOP",
+          "since_opp_land_increase": 23,
+          "truth_opp_strawberry_seed": 0,
+          "truth_opp_wheat": 13
+        },
+        "at192": {
+          "delta24_opp_money": -772,
+          "delta24_opp_strawberry": 3,
+          "opp_land": 2,
+          "opp_money": 600,
+          "opp_units": 1,
+          "own_land": 2,
+          "own_money": 113,
+          "route": 63,
+          "shop0": "PIZZA_SHOP",
+          "shop1": "PIZZA_SHOP",
+          "since_opp_land_increase": 71,
+          "truth_opp_strawberry_seed": 0,
+          "truth_opp_wheat": 7
+        },
+        "base_margin": -5537,
+        "case": 9,
+        "seat": 1,
+        "team": "Ryo Hasegawa"
+      },
+      {
+        "at144": {
+          "delta24_opp_money": 139,
+          "delta24_opp_strawberry": 4,
+          "opp_land": 1,
+          "opp_money": 153,
+          "opp_units": 1,
+          "own_land": 1,
+          "own_money": 309,
+          "route": 63,
+          "shop0": "ICE_CREAM_SHOP",
+          "shop1": "PIZZA_SHOP",
+          "since_opp_land_increase": 9999,
+          "truth_opp_strawberry_seed": 5,
+          "truth_opp_wheat": 23
+        },
+        "at192": {
+          "delta24_opp_money": -763,
+          "delta24_opp_strawberry": 8,
+          "opp_land": 2,
+          "opp_money": 379,
+          "opp_units": 1,
+          "own_land": 2,
+          "own_money": 105,
+          "route": 63,
+          "shop0": "ICE_CREAM_SHOP",
+          "shop1": "PIZZA_SHOP",
+          "since_opp_land_increase": 31,
+          "truth_opp_strawberry_seed": 1,
+          "truth_opp_wheat": 14
+        },
+        "base_margin": -3908,
+        "case": 12,
+        "seat": 0,
+        "team": "Arman Tuganbaev"
+      },
+      {
+        "at144": {
+          "delta24_opp_money": 139,
+          "delta24_opp_strawberry": 4,
+          "opp_land": 1,
+          "opp_money": 153,
+          "opp_units": 1,
+          "own_land": 1,
+          "own_money": 309,
+          "route": 63,
+          "shop0": "ICE_CREAM_SHOP",
+          "shop1": "PIZZA_SHOP",
+          "since_opp_land_increase": 9999,
+          "truth_opp_strawberry_seed": 5,
+          "truth_opp_wheat": 23
+        },
+        "at192": {
+          "delta24_opp_money": -763,
+          "delta24_opp_strawberry": 8,
+          "opp_land": 2,
+          "opp_money": 379,
+          "opp_units": 1,
+          "own_land": 2,
+          "own_money": 105,
+          "route": 63,
+          "shop0": "ICE_CREAM_SHOP",
+          "shop1": "PIZZA_SHOP",
+          "since_opp_land_increase": 31,
+          "truth_opp_strawberry_seed": 1,
+          "truth_opp_wheat": 14
+        },
+        "base_margin": -3908,
+        "case": 13,
+        "seat": 1,
+        "team": "Arman Tuganbaev"
+      },
+      {
+        "at144": {
+          "delta24_opp_money": 138,
+          "delta24_opp_strawberry": 4,
+          "opp_land": 1,
+          "opp_money": 155,
+          "opp_units": 1,
+          "own_land": 1,
+          "own_money": 282,
+          "route": 22,
+          "shop0": "YARN_STORE",
+          "shop1": "ICE_CREAM_SHOP",
+          "since_opp_land_increase": 9999,
+          "truth_opp_strawberry_seed": 8,
+          "truth_opp_wheat": 13
+        },
+        "at192": {
+          "delta24_opp_money": -1172,
+          "delta24_opp_strawberry": 5,
+          "opp_land": 2,
+          "opp_money": 1768,
+          "opp_units": 1,
+          "own_land": 2,
+          "own_money": 333,
+          "route": 22,
+          "shop0": "YARN_STORE",
+          "shop1": "ICE_CREAM_SHOP",
+          "since_opp_land_increase": 33,
+          "truth_opp_strawberry_seed": 0,
+          "truth_opp_wheat": 11
+        },
+        "base_margin": -15530,
+        "case": 18,
+        "seat": 0,
+        "team": "Arman Tuganbaev"
+      },
+      {
+        "at144": {
+          "delta24_opp_money": 138,
+          "delta24_opp_strawberry": 4,
+          "opp_land": 1,
+          "opp_money": 155,
+          "opp_units": 1,
+          "own_land": 1,
+          "own_money": 282,
+          "route": 22,
+          "shop0": "YARN_STORE",
+          "shop1": "ICE_CREAM_SHOP",
+          "since_opp_land_increase": 9999,
+          "truth_opp_strawberry_seed": 8,
+          "truth_opp_wheat": 13
+        },
+        "at192": {
+          "delta24_opp_money": -1172,
+          "delta24_opp_strawberry": 5,
+          "opp_land": 2,
+          "opp_money": 1768,
+          "opp_units": 1,
+          "own_land": 2,
+          "own_money": 333,
+          "route": 22,
+          "shop0": "YARN_STORE",
+          "shop1": "ICE_CREAM_SHOP",
+          "since_opp_land_increase": 33,
+          "truth_opp_strawberry_seed": 0,
+          "truth_opp_wheat": 11
+        },
+        "base_margin": -15665,
+        "case": 19,
+        "seat": 1,
+        "team": "Arman Tuganbaev"
+      },
+      {
+        "at144": {
+          "delta24_opp_money": -180,
+          "delta24_opp_strawberry": 4,
+          "opp_land": 1,
+          "opp_money": 558,
+          "opp_units": 1,
+          "own_land": 1,
+          "own_money": 40,
+          "route": 32,
+          "shop0": "ICE_CREAM_SHOP",
+          "shop1": "BRUNCH_SPOT",
+          "since_opp_land_increase": 9999,
+          "truth_opp_strawberry_seed": 0,
+          "truth_opp_wheat": 9
+        },
+        "at192": {
+          "delta24_opp_money": -1950,
+          "delta24_opp_strawberry": 10,
+          "opp_land": 2,
+          "opp_money": 904,
+          "opp_units": 1,
+          "own_land": 2,
+          "own_money": 1,
+          "route": 32,
+          "shop0": "ICE_CREAM_SHOP",
+          "shop1": "BRUNCH_SPOT",
+          "since_opp_land_increase": 31,
+          "truth_opp_strawberry_seed": 0,
+          "truth_opp_wheat": 13
+        },
+        "base_margin": -49506,
+        "case": 20,
+        "seat": 0,
+        "team": "ReCurSiON"
+      }
+    ],
+    "unflippable_team_counts": {
+      "Arman Tuganbaev": 4,
+      "ReCurSiON": 1,
+      "Ryo Hasegawa": 5
+    }
+  },
+  "league_validation": {
+    "H0": {
+      "fresh24": {
+        "artifact": "scratch/bkg4_search/h0_hold_buys_fresh24.b4h0",
+        "artifact_sha256": "ec4b5d6faf63264566190b3c2b64f870d46258a509bd6c1067c7ef39f03b98df",
+        "base_losses": 6,
+        "base_wins": 18,
+        "candidates": {
+          "BASE": {
+            "activations": 0,
+            "loss_to_win_flips": 0,
+            "losses": 6,
+            "max_delta": 0,
+            "mean_delta": 0,
+            "min_delta": 0,
+            "negative_deltas": 0,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 0,
+            "protected_margin_regressions": 0,
+            "rewrites": 0,
+            "runtime_fault_games": 0,
+            "sum_delta": 0,
+            "win_to_loss_regressions": 0,
+            "wins": 18
+          },
+          "OPP_MONEY_GE_250": {
+            "activations": 0,
+            "loss_to_win_flips": 0,
+            "losses": 6,
+            "max_delta": 0,
+            "mean_delta": 0,
+            "min_delta": 0,
+            "negative_deltas": 0,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 0,
+            "protected_margin_regressions": 0,
+            "rewrites": 0,
+            "runtime_fault_games": 0,
+            "sum_delta": 0,
+            "win_to_loss_regressions": 0,
+            "wins": 18
+          },
+          "OPP_MONEY_GE_300": {
+            "activations": 0,
+            "loss_to_win_flips": 0,
+            "losses": 6,
+            "max_delta": 0,
+            "mean_delta": 0,
+            "min_delta": 0,
+            "negative_deltas": 0,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 0,
+            "protected_margin_regressions": 0,
+            "rewrites": 0,
+            "runtime_fault_games": 0,
+            "sum_delta": 0,
+            "win_to_loss_regressions": 0,
+            "wins": 18
+          },
+          "OPP_MONEY_GE_350": {
+            "activations": 0,
+            "loss_to_win_flips": 0,
+            "losses": 6,
+            "max_delta": 0,
+            "mean_delta": 0,
+            "min_delta": 0,
+            "negative_deltas": 0,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 0,
+            "protected_margin_regressions": 0,
+            "rewrites": 0,
+            "runtime_fault_games": 0,
+            "sum_delta": 0,
+            "win_to_loss_regressions": 0,
+            "wins": 18
+          },
+          "OPP_MONEY_GE_400": {
+            "activations": 0,
+            "loss_to_win_flips": 0,
+            "losses": 6,
+            "max_delta": 0,
+            "mean_delta": 0,
+            "min_delta": 0,
+            "negative_deltas": 0,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 0,
+            "protected_margin_regressions": 0,
+            "rewrites": 0,
+            "runtime_fault_games": 0,
+            "sum_delta": 0,
+            "win_to_loss_regressions": 0,
+            "wins": 18
+          },
+          "OPP_MONEY_GE_450": {
+            "activations": 0,
+            "loss_to_win_flips": 0,
+            "losses": 6,
+            "max_delta": 0,
+            "mean_delta": 0,
+            "min_delta": 0,
+            "negative_deltas": 0,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 0,
+            "protected_margin_regressions": 0,
+            "rewrites": 0,
+            "runtime_fault_games": 0,
+            "sum_delta": 0,
+            "win_to_loss_regressions": 0,
+            "wins": 18
+          },
+          "OPP_MONEY_GE_500": {
+            "activations": 0,
+            "loss_to_win_flips": 0,
+            "losses": 6,
+            "max_delta": 0,
+            "mean_delta": 0,
+            "min_delta": 0,
+            "negative_deltas": 0,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 0,
+            "protected_margin_regressions": 0,
+            "rewrites": 0,
+            "runtime_fault_games": 0,
+            "sum_delta": 0,
+            "win_to_loss_regressions": 0,
+            "wins": 18
+          },
+          "OPP_MONEY_GE_525": {
+            "activations": 0,
+            "loss_to_win_flips": 0,
+            "losses": 6,
+            "max_delta": 0,
+            "mean_delta": 0,
+            "min_delta": 0,
+            "negative_deltas": 0,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 0,
+            "protected_margin_regressions": 0,
+            "rewrites": 0,
+            "runtime_fault_games": 0,
+            "sum_delta": 0,
+            "win_to_loss_regressions": 0,
+            "wins": 18
+          },
+          "OPP_MONEY_GE_550": {
+            "activations": 0,
+            "loss_to_win_flips": 0,
+            "losses": 6,
+            "max_delta": 0,
+            "mean_delta": 0,
+            "min_delta": 0,
+            "negative_deltas": 0,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 0,
+            "protected_margin_regressions": 0,
+            "rewrites": 0,
+            "runtime_fault_games": 0,
+            "sum_delta": 0,
+            "win_to_loss_regressions": 0,
+            "wins": 18
+          },
+          "OPP_MONEY_GE_570": {
+            "activations": 0,
+            "loss_to_win_flips": 0,
+            "losses": 6,
+            "max_delta": 0,
+            "mean_delta": 0,
+            "min_delta": 0,
+            "negative_deltas": 0,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 0,
+            "protected_margin_regressions": 0,
+            "rewrites": 0,
+            "runtime_fault_games": 0,
+            "sum_delta": 0,
+            "win_to_loss_regressions": 0,
+            "wins": 18
+          }
+        },
+        "cases": 24
+      },
+      "historical336": {
+        "artifact": "scratch/bkg4_search/h0_hold_buys_historical336.b4h0",
+        "artifact_sha256": "9dc1544199e74244bf41d011b57771d7d90676676a59240f6563cbc8bc263ff3",
+        "base_losses": 85,
+        "base_wins": 251,
+        "candidates": {
+          "BASE": {
+            "activations": 0,
+            "loss_to_win_flips": 0,
+            "losses": 85,
+            "max_delta": 0,
+            "mean_delta": 0,
+            "min_delta": 0,
+            "negative_deltas": 0,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 0,
+            "protected_margin_regressions": 0,
+            "rewrites": 0,
+            "runtime_fault_games": 0,
+            "sum_delta": 0,
+            "win_to_loss_regressions": 0,
+            "wins": 251
+          },
+          "OPP_MONEY_GE_250": {
+            "activations": 0,
+            "loss_to_win_flips": 0,
+            "losses": 85,
+            "max_delta": 0,
+            "mean_delta": 0,
+            "min_delta": 0,
+            "negative_deltas": 0,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 0,
+            "protected_margin_regressions": 0,
+            "rewrites": 0,
+            "runtime_fault_games": 0,
+            "sum_delta": 0,
+            "win_to_loss_regressions": 0,
+            "wins": 251
+          },
+          "OPP_MONEY_GE_300": {
+            "activations": 0,
+            "loss_to_win_flips": 0,
+            "losses": 85,
+            "max_delta": 0,
+            "mean_delta": 0,
+            "min_delta": 0,
+            "negative_deltas": 0,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 0,
+            "protected_margin_regressions": 0,
+            "rewrites": 0,
+            "runtime_fault_games": 0,
+            "sum_delta": 0,
+            "win_to_loss_regressions": 0,
+            "wins": 251
+          },
+          "OPP_MONEY_GE_350": {
+            "activations": 0,
+            "loss_to_win_flips": 0,
+            "losses": 85,
+            "max_delta": 0,
+            "mean_delta": 0,
+            "min_delta": 0,
+            "negative_deltas": 0,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 0,
+            "protected_margin_regressions": 0,
+            "rewrites": 0,
+            "runtime_fault_games": 0,
+            "sum_delta": 0,
+            "win_to_loss_regressions": 0,
+            "wins": 251
+          },
+          "OPP_MONEY_GE_400": {
+            "activations": 0,
+            "loss_to_win_flips": 0,
+            "losses": 85,
+            "max_delta": 0,
+            "mean_delta": 0,
+            "min_delta": 0,
+            "negative_deltas": 0,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 0,
+            "protected_margin_regressions": 0,
+            "rewrites": 0,
+            "runtime_fault_games": 0,
+            "sum_delta": 0,
+            "win_to_loss_regressions": 0,
+            "wins": 251
+          },
+          "OPP_MONEY_GE_450": {
+            "activations": 0,
+            "loss_to_win_flips": 0,
+            "losses": 85,
+            "max_delta": 0,
+            "mean_delta": 0,
+            "min_delta": 0,
+            "negative_deltas": 0,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 0,
+            "protected_margin_regressions": 0,
+            "rewrites": 0,
+            "runtime_fault_games": 0,
+            "sum_delta": 0,
+            "win_to_loss_regressions": 0,
+            "wins": 251
+          },
+          "OPP_MONEY_GE_500": {
+            "activations": 0,
+            "loss_to_win_flips": 0,
+            "losses": 85,
+            "max_delta": 0,
+            "mean_delta": 0,
+            "min_delta": 0,
+            "negative_deltas": 0,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 0,
+            "protected_margin_regressions": 0,
+            "rewrites": 0,
+            "runtime_fault_games": 0,
+            "sum_delta": 0,
+            "win_to_loss_regressions": 0,
+            "wins": 251
+          },
+          "OPP_MONEY_GE_525": {
+            "activations": 0,
+            "loss_to_win_flips": 0,
+            "losses": 85,
+            "max_delta": 0,
+            "mean_delta": 0,
+            "min_delta": 0,
+            "negative_deltas": 0,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 0,
+            "protected_margin_regressions": 0,
+            "rewrites": 0,
+            "runtime_fault_games": 0,
+            "sum_delta": 0,
+            "win_to_loss_regressions": 0,
+            "wins": 251
+          },
+          "OPP_MONEY_GE_550": {
+            "activations": 0,
+            "loss_to_win_flips": 0,
+            "losses": 85,
+            "max_delta": 0,
+            "mean_delta": 0,
+            "min_delta": 0,
+            "negative_deltas": 0,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 0,
+            "protected_margin_regressions": 0,
+            "rewrites": 0,
+            "runtime_fault_games": 0,
+            "sum_delta": 0,
+            "win_to_loss_regressions": 0,
+            "wins": 251
+          },
+          "OPP_MONEY_GE_570": {
+            "activations": 0,
+            "loss_to_win_flips": 0,
+            "losses": 85,
+            "max_delta": 0,
+            "mean_delta": 0,
+            "min_delta": 0,
+            "negative_deltas": 0,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 0,
+            "protected_margin_regressions": 0,
+            "rewrites": 0,
+            "runtime_fault_games": 0,
+            "sum_delta": 0,
+            "win_to_loss_regressions": 0,
+            "wins": 251
+          }
+        },
+        "cases": 336
+      },
+      "sealed24": {
+        "artifact": "scratch/bkg4_search/h0_hold_buys_sealed24.b4h0",
+        "artifact_sha256": "331ef5bf74d91eb9939c8b26caba07e8fda9f2d541a1632635461653962028b3",
+        "base_losses": 12,
+        "base_wins": 12,
+        "candidates": {
+          "BASE": {
+            "activations": 0,
+            "loss_to_win_flips": 0,
+            "losses": 12,
+            "max_delta": 0,
+            "mean_delta": 0,
+            "min_delta": 0,
+            "negative_deltas": 0,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 0,
+            "protected_margin_regressions": 0,
+            "rewrites": 0,
+            "runtime_fault_games": 0,
+            "sum_delta": 0,
+            "win_to_loss_regressions": 0,
+            "wins": 12
+          },
+          "OPP_MONEY_GE_250": {
+            "activations": 2,
+            "loss_to_win_flips": 0,
+            "losses": 12,
+            "max_delta": 3278,
+            "mean_delta": 252.375,
+            "min_delta": 0,
+            "negative_deltas": 0,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 2,
+            "protected_margin_regressions": 0,
+            "rewrites": 4,
+            "runtime_fault_games": 0,
+            "sum_delta": 6057,
+            "win_to_loss_regressions": 0,
+            "wins": 12
+          },
+          "OPP_MONEY_GE_300": {
+            "activations": 2,
+            "loss_to_win_flips": 0,
+            "losses": 12,
+            "max_delta": 3278,
+            "mean_delta": 252.375,
+            "min_delta": 0,
+            "negative_deltas": 0,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 2,
+            "protected_margin_regressions": 0,
+            "rewrites": 4,
+            "runtime_fault_games": 0,
+            "sum_delta": 6057,
+            "win_to_loss_regressions": 0,
+            "wins": 12
+          },
+          "OPP_MONEY_GE_350": {
+            "activations": 2,
+            "loss_to_win_flips": 0,
+            "losses": 12,
+            "max_delta": 3278,
+            "mean_delta": 252.375,
+            "min_delta": 0,
+            "negative_deltas": 0,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 2,
+            "protected_margin_regressions": 0,
+            "rewrites": 4,
+            "runtime_fault_games": 0,
+            "sum_delta": 6057,
+            "win_to_loss_regressions": 0,
+            "wins": 12
+          },
+          "OPP_MONEY_GE_400": {
+            "activations": 2,
+            "loss_to_win_flips": 0,
+            "losses": 12,
+            "max_delta": 3278,
+            "mean_delta": 252.375,
+            "min_delta": 0,
+            "negative_deltas": 0,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 2,
+            "protected_margin_regressions": 0,
+            "rewrites": 4,
+            "runtime_fault_games": 0,
+            "sum_delta": 6057,
+            "win_to_loss_regressions": 0,
+            "wins": 12
+          },
+          "OPP_MONEY_GE_450": {
+            "activations": 2,
+            "loss_to_win_flips": 0,
+            "losses": 12,
+            "max_delta": 3278,
+            "mean_delta": 252.375,
+            "min_delta": 0,
+            "negative_deltas": 0,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 2,
+            "protected_margin_regressions": 0,
+            "rewrites": 4,
+            "runtime_fault_games": 0,
+            "sum_delta": 6057,
+            "win_to_loss_regressions": 0,
+            "wins": 12
+          },
+          "OPP_MONEY_GE_500": {
+            "activations": 2,
+            "loss_to_win_flips": 0,
+            "losses": 12,
+            "max_delta": 3278,
+            "mean_delta": 252.375,
+            "min_delta": 0,
+            "negative_deltas": 0,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 2,
+            "protected_margin_regressions": 0,
+            "rewrites": 4,
+            "runtime_fault_games": 0,
+            "sum_delta": 6057,
+            "win_to_loss_regressions": 0,
+            "wins": 12
+          },
+          "OPP_MONEY_GE_525": {
+            "activations": 2,
+            "loss_to_win_flips": 0,
+            "losses": 12,
+            "max_delta": 3278,
+            "mean_delta": 252.375,
+            "min_delta": 0,
+            "negative_deltas": 0,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 2,
+            "protected_margin_regressions": 0,
+            "rewrites": 4,
+            "runtime_fault_games": 0,
+            "sum_delta": 6057,
+            "win_to_loss_regressions": 0,
+            "wins": 12
+          },
+          "OPP_MONEY_GE_550": {
+            "activations": 2,
+            "loss_to_win_flips": 0,
+            "losses": 12,
+            "max_delta": 3278,
+            "mean_delta": 252.375,
+            "min_delta": 0,
+            "negative_deltas": 0,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 2,
+            "protected_margin_regressions": 0,
+            "rewrites": 4,
+            "runtime_fault_games": 0,
+            "sum_delta": 6057,
+            "win_to_loss_regressions": 0,
+            "wins": 12
+          },
+          "OPP_MONEY_GE_570": {
+            "activations": 2,
+            "loss_to_win_flips": 0,
+            "losses": 12,
+            "max_delta": 3278,
+            "mean_delta": 252.375,
+            "min_delta": 0,
+            "negative_deltas": 0,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 2,
+            "protected_margin_regressions": 0,
+            "rewrites": 4,
+            "runtime_fault_games": 0,
+            "sum_delta": 6057,
+            "win_to_loss_regressions": 0,
+            "wins": 12
+          }
+        },
+        "cases": 24
+      }
+    },
+    "H1": {
+      "fresh24": {
+        "artifact": "scratch/bkg4_search/h1_temporal_swap_fresh24.b4h1",
+        "artifact_sha256": "411ccec7c6a072a7183e30607be287a75ab6e1c5d08a5c7b4cf8b9381e300d6d",
+        "base_losses": 6,
+        "base_wins": 18,
+        "candidates": {
+          "BASE": {
+            "activations": 0,
+            "loss_to_win_flips": 0,
+            "losses": 6,
+            "max_delta": 0,
+            "mean_delta": 0,
+            "min_delta": 0,
+            "negative_deltas": 0,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 0,
+            "protected_margin_regressions": 0,
+            "rewrites": 0,
+            "runtime_fault_games": 0,
+            "sum_delta": 0,
+            "win_to_loss_regressions": 0,
+            "wins": 18
+          },
+          "STRAW_GROWTH_GE_1_H12": {
+            "activations": 2,
+            "loss_to_win_flips": 0,
+            "losses": 6,
+            "max_delta": 0,
+            "mean_delta": -102.66666666666667,
+            "min_delta": -1232,
+            "negative_deltas": 2,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 0,
+            "protected_margin_regressions": 2,
+            "rewrites": 20,
+            "runtime_fault_games": 0,
+            "sum_delta": -2464,
+            "win_to_loss_regressions": 0,
+            "wins": 18
+          },
+          "STRAW_GROWTH_GE_1_H24": {
+            "activations": 2,
+            "loss_to_win_flips": 0,
+            "losses": 8,
+            "max_delta": 0,
+            "mean_delta": -1633.0833333333333,
+            "min_delta": -19597,
+            "negative_deltas": 2,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 0,
+            "protected_margin_regressions": 2,
+            "rewrites": 44,
+            "runtime_fault_games": 0,
+            "sum_delta": -39194,
+            "win_to_loss_regressions": 2,
+            "wins": 16
+          },
+          "STRAW_GROWTH_GE_1_H36": {
+            "activations": 2,
+            "loss_to_win_flips": 0,
+            "losses": 8,
+            "max_delta": 0,
+            "mean_delta": -1662.8333333333333,
+            "min_delta": -19954,
+            "negative_deltas": 2,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 0,
+            "protected_margin_regressions": 2,
+            "rewrites": 64,
+            "runtime_fault_games": 0,
+            "sum_delta": -39908,
+            "win_to_loss_regressions": 2,
+            "wins": 16
+          },
+          "STRAW_GROWTH_GE_1_H48": {
+            "activations": 2,
+            "loss_to_win_flips": 0,
+            "losses": 8,
+            "max_delta": 0,
+            "mean_delta": -1633.0833333333333,
+            "min_delta": -19597,
+            "negative_deltas": 2,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 0,
+            "protected_margin_regressions": 2,
+            "rewrites": 88,
+            "runtime_fault_games": 0,
+            "sum_delta": -39194,
+            "win_to_loss_regressions": 2,
+            "wins": 16
+          },
+          "STRAW_GROWTH_GE_2_H12": {
+            "activations": 2,
+            "loss_to_win_flips": 0,
+            "losses": 6,
+            "max_delta": 0,
+            "mean_delta": -102.66666666666667,
+            "min_delta": -1232,
+            "negative_deltas": 2,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 0,
+            "protected_margin_regressions": 2,
+            "rewrites": 20,
+            "runtime_fault_games": 0,
+            "sum_delta": -2464,
+            "win_to_loss_regressions": 0,
+            "wins": 18
+          },
+          "STRAW_GROWTH_GE_2_H24": {
+            "activations": 2,
+            "loss_to_win_flips": 0,
+            "losses": 8,
+            "max_delta": 0,
+            "mean_delta": -1633.0833333333333,
+            "min_delta": -19597,
+            "negative_deltas": 2,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 0,
+            "protected_margin_regressions": 2,
+            "rewrites": 44,
+            "runtime_fault_games": 0,
+            "sum_delta": -39194,
+            "win_to_loss_regressions": 2,
+            "wins": 16
+          },
+          "STRAW_GROWTH_GE_2_H36": {
+            "activations": 2,
+            "loss_to_win_flips": 0,
+            "losses": 8,
+            "max_delta": 0,
+            "mean_delta": -1662.8333333333333,
+            "min_delta": -19954,
+            "negative_deltas": 2,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 0,
+            "protected_margin_regressions": 2,
+            "rewrites": 64,
+            "runtime_fault_games": 0,
+            "sum_delta": -39908,
+            "win_to_loss_regressions": 2,
+            "wins": 16
+          },
+          "STRAW_GROWTH_GE_2_H48": {
+            "activations": 2,
+            "loss_to_win_flips": 0,
+            "losses": 8,
+            "max_delta": 0,
+            "mean_delta": -1633.0833333333333,
+            "min_delta": -19597,
+            "negative_deltas": 2,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 0,
+            "protected_margin_regressions": 2,
+            "rewrites": 88,
+            "runtime_fault_games": 0,
+            "sum_delta": -39194,
+            "win_to_loss_regressions": 2,
+            "wins": 16
+          },
+          "STRAW_GROWTH_GE_3_H12": {
+            "activations": 2,
+            "loss_to_win_flips": 0,
+            "losses": 6,
+            "max_delta": 0,
+            "mean_delta": -102.66666666666667,
+            "min_delta": -1232,
+            "negative_deltas": 2,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 0,
+            "protected_margin_regressions": 2,
+            "rewrites": 20,
+            "runtime_fault_games": 0,
+            "sum_delta": -2464,
+            "win_to_loss_regressions": 0,
+            "wins": 18
+          },
+          "STRAW_GROWTH_GE_3_H24": {
+            "activations": 2,
+            "loss_to_win_flips": 0,
+            "losses": 8,
+            "max_delta": 0,
+            "mean_delta": -1633.0833333333333,
+            "min_delta": -19597,
+            "negative_deltas": 2,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 0,
+            "protected_margin_regressions": 2,
+            "rewrites": 44,
+            "runtime_fault_games": 0,
+            "sum_delta": -39194,
+            "win_to_loss_regressions": 2,
+            "wins": 16
+          },
+          "STRAW_GROWTH_GE_3_H36": {
+            "activations": 2,
+            "loss_to_win_flips": 0,
+            "losses": 8,
+            "max_delta": 0,
+            "mean_delta": -1662.8333333333333,
+            "min_delta": -19954,
+            "negative_deltas": 2,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 0,
+            "protected_margin_regressions": 2,
+            "rewrites": 64,
+            "runtime_fault_games": 0,
+            "sum_delta": -39908,
+            "win_to_loss_regressions": 2,
+            "wins": 16
+          },
+          "STRAW_GROWTH_GE_3_H48": {
+            "activations": 2,
+            "loss_to_win_flips": 0,
+            "losses": 8,
+            "max_delta": 0,
+            "mean_delta": -1633.0833333333333,
+            "min_delta": -19597,
+            "negative_deltas": 2,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 0,
+            "protected_margin_regressions": 2,
+            "rewrites": 88,
+            "runtime_fault_games": 0,
+            "sum_delta": -39194,
+            "win_to_loss_regressions": 2,
+            "wins": 16
+          }
+        },
+        "cases": 24
+      },
+      "historical336": {
+        "artifact": "scratch/bkg4_search/h1_temporal_swap_historical336.b4h1",
+        "artifact_sha256": "016e91f52ecedccd19747691af2b78c7206769423d3862c4f219da30dc7871ad",
+        "base_losses": 85,
+        "base_wins": 251,
+        "candidates": {
+          "BASE": {
+            "activations": 0,
+            "loss_to_win_flips": 0,
+            "losses": 85,
+            "max_delta": 0,
+            "mean_delta": 0,
+            "min_delta": 0,
+            "negative_deltas": 0,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 0,
+            "protected_margin_regressions": 0,
+            "rewrites": 0,
+            "runtime_fault_games": 0,
+            "sum_delta": 0,
+            "win_to_loss_regressions": 0,
+            "wins": 251
+          },
+          "STRAW_GROWTH_GE_1_H12": {
+            "activations": 47,
+            "loss_to_win_flips": 0,
+            "losses": 89,
+            "max_delta": 0,
+            "mean_delta": -163.32440476190476,
+            "min_delta": -6757,
+            "negative_deltas": 47,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 0,
+            "protected_margin_regressions": 47,
+            "rewrites": 470,
+            "runtime_fault_games": 0,
+            "sum_delta": -54877,
+            "win_to_loss_regressions": 4,
+            "wins": 247
+          },
+          "STRAW_GROWTH_GE_1_H24": {
+            "activations": 47,
+            "loss_to_win_flips": 5,
+            "losses": 86,
+            "max_delta": 26116,
+            "mean_delta": 147.64285714285714,
+            "min_delta": -13828,
+            "negative_deltas": 27,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 16,
+            "protected_margin_regressions": 27,
+            "rewrites": 1034,
+            "runtime_fault_games": 0,
+            "sum_delta": 49608,
+            "win_to_loss_regressions": 6,
+            "wins": 250
+          },
+          "STRAW_GROWTH_GE_1_H36": {
+            "activations": 47,
+            "loss_to_win_flips": 5,
+            "losses": 86,
+            "max_delta": 25954,
+            "mean_delta": 114.63988095238095,
+            "min_delta": -14111,
+            "negative_deltas": 33,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 14,
+            "protected_margin_regressions": 33,
+            "rewrites": 1504,
+            "runtime_fault_games": 0,
+            "sum_delta": 38519,
+            "win_to_loss_regressions": 6,
+            "wins": 250
+          },
+          "STRAW_GROWTH_GE_1_H48": {
+            "activations": 47,
+            "loss_to_win_flips": 5,
+            "losses": 86,
+            "max_delta": 26116,
+            "mean_delta": 147.64285714285714,
+            "min_delta": -13828,
+            "negative_deltas": 27,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 16,
+            "protected_margin_regressions": 27,
+            "rewrites": 2068,
+            "runtime_fault_games": 0,
+            "sum_delta": 49608,
+            "win_to_loss_regressions": 6,
+            "wins": 250
+          },
+          "STRAW_GROWTH_GE_2_H12": {
+            "activations": 45,
+            "loss_to_win_flips": 0,
+            "losses": 89,
+            "max_delta": 0,
+            "mean_delta": -157.70535714285714,
+            "min_delta": -6757,
+            "negative_deltas": 45,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 0,
+            "protected_margin_regressions": 45,
+            "rewrites": 450,
+            "runtime_fault_games": 0,
+            "sum_delta": -52989,
+            "win_to_loss_regressions": 4,
+            "wins": 247
+          },
+          "STRAW_GROWTH_GE_2_H24": {
+            "activations": 45,
+            "loss_to_win_flips": 5,
+            "losses": 86,
+            "max_delta": 26116,
+            "mean_delta": 226.67857142857142,
+            "min_delta": -8268,
+            "negative_deltas": 25,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 16,
+            "protected_margin_regressions": 25,
+            "rewrites": 990,
+            "runtime_fault_games": 0,
+            "sum_delta": 76164,
+            "win_to_loss_regressions": 6,
+            "wins": 250
+          },
+          "STRAW_GROWTH_GE_2_H36": {
+            "activations": 45,
+            "loss_to_win_flips": 5,
+            "losses": 86,
+            "max_delta": 25954,
+            "mean_delta": 195.36011904761904,
+            "min_delta": -8551,
+            "negative_deltas": 31,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 14,
+            "protected_margin_regressions": 31,
+            "rewrites": 1440,
+            "runtime_fault_games": 0,
+            "sum_delta": 65641,
+            "win_to_loss_regressions": 6,
+            "wins": 250
+          },
+          "STRAW_GROWTH_GE_2_H48": {
+            "activations": 45,
+            "loss_to_win_flips": 5,
+            "losses": 86,
+            "max_delta": 26116,
+            "mean_delta": 226.67857142857142,
+            "min_delta": -8268,
+            "negative_deltas": 25,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 16,
+            "protected_margin_regressions": 25,
+            "rewrites": 1980,
+            "runtime_fault_games": 0,
+            "sum_delta": 76164,
+            "win_to_loss_regressions": 6,
+            "wins": 250
+          },
+          "STRAW_GROWTH_GE_3_H12": {
+            "activations": 27,
+            "loss_to_win_flips": 0,
+            "losses": 86,
+            "max_delta": 0,
+            "mean_delta": -109.79464285714286,
+            "min_delta": -6757,
+            "negative_deltas": 27,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 0,
+            "protected_margin_regressions": 27,
+            "rewrites": 270,
+            "runtime_fault_games": 0,
+            "sum_delta": -36891,
+            "win_to_loss_regressions": 1,
+            "wins": 250
+          },
+          "STRAW_GROWTH_GE_3_H24": {
+            "activations": 27,
+            "loss_to_win_flips": 2,
+            "losses": 88,
+            "max_delta": 12844,
+            "mean_delta": -107.08333333333333,
+            "min_delta": -8268,
+            "negative_deltas": 19,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 6,
+            "protected_margin_regressions": 19,
+            "rewrites": 594,
+            "runtime_fault_games": 0,
+            "sum_delta": -35980,
+            "win_to_loss_regressions": 5,
+            "wins": 248
+          },
+          "STRAW_GROWTH_GE_3_H36": {
+            "activations": 27,
+            "loss_to_win_flips": 2,
+            "losses": 88,
+            "max_delta": 12561,
+            "mean_delta": -129.46130952380952,
+            "min_delta": -8551,
+            "negative_deltas": 21,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 6,
+            "protected_margin_regressions": 21,
+            "rewrites": 864,
+            "runtime_fault_games": 0,
+            "sum_delta": -43499,
+            "win_to_loss_regressions": 5,
+            "wins": 248
+          },
+          "STRAW_GROWTH_GE_3_H48": {
+            "activations": 27,
+            "loss_to_win_flips": 2,
+            "losses": 88,
+            "max_delta": 12844,
+            "mean_delta": -107.08333333333333,
+            "min_delta": -8268,
+            "negative_deltas": 19,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 6,
+            "protected_margin_regressions": 19,
+            "rewrites": 1188,
+            "runtime_fault_games": 0,
+            "sum_delta": -35980,
+            "win_to_loss_regressions": 5,
+            "wins": 248
+          }
+        },
+        "cases": 336
+      },
+      "sealed24": {
+        "artifact": "scratch/bkg4_search/h1_temporal_swap_sealed24.b4h1",
+        "artifact_sha256": "4ebd2a82b6a6e280e36c0c06a7d5c75b41683ff69b256e882b77904a1ff241ae",
+        "base_losses": 12,
+        "base_wins": 12,
+        "candidates": {
+          "BASE": {
+            "activations": 0,
+            "loss_to_win_flips": 0,
+            "losses": 12,
+            "max_delta": 0,
+            "mean_delta": 0,
+            "min_delta": 0,
+            "negative_deltas": 0,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 0,
+            "protected_margin_regressions": 0,
+            "rewrites": 0,
+            "runtime_fault_games": 0,
+            "sum_delta": 0,
+            "win_to_loss_regressions": 0,
+            "wins": 12
+          },
+          "STRAW_GROWTH_GE_1_H12": {
+            "activations": 4,
+            "loss_to_win_flips": 0,
+            "losses": 12,
+            "max_delta": 0,
+            "mean_delta": -582.6666666666666,
+            "min_delta": -6840,
+            "negative_deltas": 4,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 0,
+            "protected_margin_regressions": 4,
+            "rewrites": 40,
+            "runtime_fault_games": 0,
+            "sum_delta": -13984,
+            "win_to_loss_regressions": 0,
+            "wins": 12
+          },
+          "STRAW_GROWTH_GE_1_H24": {
+            "activations": 4,
+            "loss_to_win_flips": 0,
+            "losses": 12,
+            "max_delta": 736,
+            "mean_delta": 40,
+            "min_delta": 0,
+            "negative_deltas": 0,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 2,
+            "protected_margin_regressions": 0,
+            "rewrites": 88,
+            "runtime_fault_games": 0,
+            "sum_delta": 960,
+            "win_to_loss_regressions": 0,
+            "wins": 12
+          },
+          "STRAW_GROWTH_GE_1_H36": {
+            "activations": 4,
+            "loss_to_win_flips": 0,
+            "losses": 12,
+            "max_delta": 495,
+            "mean_delta": 10.583333333333334,
+            "min_delta": -112,
+            "negative_deltas": 3,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 1,
+            "protected_margin_regressions": 3,
+            "rewrites": 128,
+            "runtime_fault_games": 0,
+            "sum_delta": 254,
+            "win_to_loss_regressions": 0,
+            "wins": 12
+          },
+          "STRAW_GROWTH_GE_1_H48": {
+            "activations": 4,
+            "loss_to_win_flips": 0,
+            "losses": 12,
+            "max_delta": 736,
+            "mean_delta": 40,
+            "min_delta": 0,
+            "negative_deltas": 0,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 2,
+            "protected_margin_regressions": 0,
+            "rewrites": 176,
+            "runtime_fault_games": 0,
+            "sum_delta": 960,
+            "win_to_loss_regressions": 0,
+            "wins": 12
+          },
+          "STRAW_GROWTH_GE_2_H12": {
+            "activations": 4,
+            "loss_to_win_flips": 0,
+            "losses": 12,
+            "max_delta": 0,
+            "mean_delta": -582.6666666666666,
+            "min_delta": -6840,
+            "negative_deltas": 4,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 0,
+            "protected_margin_regressions": 4,
+            "rewrites": 40,
+            "runtime_fault_games": 0,
+            "sum_delta": -13984,
+            "win_to_loss_regressions": 0,
+            "wins": 12
+          },
+          "STRAW_GROWTH_GE_2_H24": {
+            "activations": 4,
+            "loss_to_win_flips": 0,
+            "losses": 12,
+            "max_delta": 736,
+            "mean_delta": 40,
+            "min_delta": 0,
+            "negative_deltas": 0,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 2,
+            "protected_margin_regressions": 0,
+            "rewrites": 88,
+            "runtime_fault_games": 0,
+            "sum_delta": 960,
+            "win_to_loss_regressions": 0,
+            "wins": 12
+          },
+          "STRAW_GROWTH_GE_2_H36": {
+            "activations": 4,
+            "loss_to_win_flips": 0,
+            "losses": 12,
+            "max_delta": 495,
+            "mean_delta": 10.583333333333334,
+            "min_delta": -112,
+            "negative_deltas": 3,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 1,
+            "protected_margin_regressions": 3,
+            "rewrites": 128,
+            "runtime_fault_games": 0,
+            "sum_delta": 254,
+            "win_to_loss_regressions": 0,
+            "wins": 12
+          },
+          "STRAW_GROWTH_GE_2_H48": {
+            "activations": 4,
+            "loss_to_win_flips": 0,
+            "losses": 12,
+            "max_delta": 736,
+            "mean_delta": 40,
+            "min_delta": 0,
+            "negative_deltas": 0,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 2,
+            "protected_margin_regressions": 0,
+            "rewrites": 176,
+            "runtime_fault_games": 0,
+            "sum_delta": 960,
+            "win_to_loss_regressions": 0,
+            "wins": 12
+          },
+          "STRAW_GROWTH_GE_3_H12": {
+            "activations": 2,
+            "loss_to_win_flips": 0,
+            "losses": 12,
+            "max_delta": 0,
+            "mean_delta": -73.375,
+            "min_delta": -881,
+            "negative_deltas": 2,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 0,
+            "protected_margin_regressions": 2,
+            "rewrites": 20,
+            "runtime_fault_games": 0,
+            "sum_delta": -1761,
+            "win_to_loss_regressions": 0,
+            "wins": 12
+          },
+          "STRAW_GROWTH_GE_3_H24": {
+            "activations": 2,
+            "loss_to_win_flips": 0,
+            "losses": 12,
+            "max_delta": 736,
+            "mean_delta": 40,
+            "min_delta": 0,
+            "negative_deltas": 0,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 2,
+            "protected_margin_regressions": 0,
+            "rewrites": 44,
+            "runtime_fault_games": 0,
+            "sum_delta": 960,
+            "win_to_loss_regressions": 0,
+            "wins": 12
+          },
+          "STRAW_GROWTH_GE_3_H36": {
+            "activations": 2,
+            "loss_to_win_flips": 0,
+            "losses": 12,
+            "max_delta": 495,
+            "mean_delta": 19.916666666666668,
+            "min_delta": -17,
+            "negative_deltas": 1,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 1,
+            "protected_margin_regressions": 1,
+            "rewrites": 64,
+            "runtime_fault_games": 0,
+            "sum_delta": 478,
+            "win_to_loss_regressions": 0,
+            "wins": 12
+          },
+          "STRAW_GROWTH_GE_3_H48": {
+            "activations": 2,
+            "loss_to_win_flips": 0,
+            "losses": 12,
+            "max_delta": 736,
+            "mean_delta": 40,
+            "min_delta": 0,
+            "negative_deltas": 0,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 2,
+            "protected_margin_regressions": 0,
+            "rewrites": 88,
+            "runtime_fault_games": 0,
+            "sum_delta": 960,
+            "win_to_loss_regressions": 0,
+            "wins": 12
+          }
+        },
+        "cases": 24
+      }
+    },
+    "H2": {
+      "fresh24": {
+        "artifact": "scratch/bkg4_search/h2_truth_fresh24.b4h2",
+        "artifact_sha256": "56b034aaa67931e82a3d2d0f360f8b7dc46450044d72f6eafe73d1064fa99d29",
+        "base_losses": 6,
+        "base_wins": 18,
+        "candidates": {
+          "BASE": {
+            "activations": 0,
+            "loss_to_win_flips": 0,
+            "losses": 6,
+            "max_delta": 0,
+            "mean_delta": 0,
+            "min_delta": 0,
+            "negative_deltas": 0,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 0,
+            "protected_margin_regressions": 0,
+            "rewrites": 0,
+            "runtime_fault_games": 0,
+            "sum_delta": 0,
+            "win_to_loss_regressions": 0,
+            "wins": 18
+          },
+          "TRUE_STRAW_SEED0_SWAP69_H24": {
+            "activations": 0,
+            "loss_to_win_flips": 0,
+            "losses": 6,
+            "max_delta": 0,
+            "mean_delta": 0,
+            "min_delta": 0,
+            "negative_deltas": 0,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 0,
+            "protected_margin_regressions": 0,
+            "rewrites": 0,
+            "runtime_fault_games": 0,
+            "sum_delta": 0,
+            "win_to_loss_regressions": 0,
+            "wins": 18
+          },
+          "TRUE_STRAW_SEED0_SWAP69_H48": {
+            "activations": 0,
+            "loss_to_win_flips": 0,
+            "losses": 6,
+            "max_delta": 0,
+            "mean_delta": 0,
+            "min_delta": 0,
+            "negative_deltas": 0,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 0,
+            "protected_margin_regressions": 0,
+            "rewrites": 0,
+            "runtime_fault_games": 0,
+            "sum_delta": 0,
+            "win_to_loss_regressions": 0,
+            "wins": 18
+          },
+          "TRUE_WHEAT_SEED0_HOLD_BUYS": {
+            "activations": 0,
+            "loss_to_win_flips": 0,
+            "losses": 6,
+            "max_delta": 0,
+            "mean_delta": 0,
+            "min_delta": 0,
+            "negative_deltas": 0,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 0,
+            "protected_margin_regressions": 0,
+            "rewrites": 0,
+            "runtime_fault_games": 0,
+            "sum_delta": 0,
+            "win_to_loss_regressions": 0,
+            "wins": 18
+          }
+        },
+        "cases": 24
+      },
+      "historical336": {
+        "artifact": "scratch/bkg4_search/h2_truth_historical336.b4h2",
+        "artifact_sha256": "fd7e1c234a068d8866a0bdcf0cfee47038e784b293fe294bd336da3f161eb252",
+        "base_losses": 85,
+        "base_wins": 251,
+        "candidates": {
+          "BASE": {
+            "activations": 0,
+            "loss_to_win_flips": 0,
+            "losses": 85,
+            "max_delta": 0,
+            "mean_delta": 0,
+            "min_delta": 0,
+            "negative_deltas": 0,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 0,
+            "protected_margin_regressions": 0,
+            "rewrites": 0,
+            "runtime_fault_games": 0,
+            "sum_delta": 0,
+            "win_to_loss_regressions": 0,
+            "wins": 251
+          },
+          "TRUE_STRAW_SEED0_SWAP69_H24": {
+            "activations": 40,
+            "loss_to_win_flips": 5,
+            "losses": 86,
+            "max_delta": 26116,
+            "mean_delta": 276.7559523809524,
+            "min_delta": -8268,
+            "negative_deltas": 22,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 16,
+            "protected_margin_regressions": 22,
+            "rewrites": 880,
+            "runtime_fault_games": 0,
+            "sum_delta": 92990,
+            "win_to_loss_regressions": 6,
+            "wins": 250
+          },
+          "TRUE_STRAW_SEED0_SWAP69_H48": {
+            "activations": 40,
+            "loss_to_win_flips": 5,
+            "losses": 86,
+            "max_delta": 26116,
+            "mean_delta": 276.7559523809524,
+            "min_delta": -8268,
+            "negative_deltas": 22,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 16,
+            "protected_margin_regressions": 22,
+            "rewrites": 1760,
+            "runtime_fault_games": 0,
+            "sum_delta": 92990,
+            "win_to_loss_regressions": 6,
+            "wins": 250
+          },
+          "TRUE_WHEAT_SEED0_HOLD_BUYS": {
+            "activations": 0,
+            "loss_to_win_flips": 0,
+            "losses": 85,
+            "max_delta": 0,
+            "mean_delta": 0,
+            "min_delta": 0,
+            "negative_deltas": 0,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 0,
+            "protected_margin_regressions": 0,
+            "rewrites": 0,
+            "runtime_fault_games": 0,
+            "sum_delta": 0,
+            "win_to_loss_regressions": 0,
+            "wins": 251
+          }
+        },
+        "cases": 336
+      },
+      "sealed24": {
+        "artifact": "scratch/bkg4_search/h2_truth_sealed24.b4h2",
+        "artifact_sha256": "099880eba1d909140a025b8a5b7a4e746488778b8bdc9a2fe0e6b314da2c3547",
+        "base_losses": 12,
+        "base_wins": 12,
+        "candidates": {
+          "BASE": {
+            "activations": 0,
+            "loss_to_win_flips": 0,
+            "losses": 12,
+            "max_delta": 0,
+            "mean_delta": 0,
+            "min_delta": 0,
+            "negative_deltas": 0,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 0,
+            "protected_margin_regressions": 0,
+            "rewrites": 0,
+            "runtime_fault_games": 0,
+            "sum_delta": 0,
+            "win_to_loss_regressions": 0,
+            "wins": 12
+          },
+          "TRUE_STRAW_SEED0_SWAP69_H24": {
+            "activations": 4,
+            "loss_to_win_flips": 0,
+            "losses": 12,
+            "max_delta": 736,
+            "mean_delta": 40,
+            "min_delta": 0,
+            "negative_deltas": 0,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 2,
+            "protected_margin_regressions": 0,
+            "rewrites": 88,
+            "runtime_fault_games": 0,
+            "sum_delta": 960,
+            "win_to_loss_regressions": 0,
+            "wins": 12
+          },
+          "TRUE_STRAW_SEED0_SWAP69_H48": {
+            "activations": 4,
+            "loss_to_win_flips": 0,
+            "losses": 12,
+            "max_delta": 736,
+            "mean_delta": 40,
+            "min_delta": 0,
+            "negative_deltas": 0,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 2,
+            "protected_margin_regressions": 0,
+            "rewrites": 176,
+            "runtime_fault_games": 0,
+            "sum_delta": 960,
+            "win_to_loss_regressions": 0,
+            "wins": 12
+          },
+          "TRUE_WHEAT_SEED0_HOLD_BUYS": {
+            "activations": 2,
+            "loss_to_win_flips": 0,
+            "losses": 12,
+            "max_delta": 3278,
+            "mean_delta": 252.375,
+            "min_delta": 0,
+            "negative_deltas": 0,
+            "own_history_margin_regressions": 0,
+            "positive_deltas": 2,
+            "protected_margin_regressions": 0,
+            "rewrites": 4,
+            "runtime_fault_games": 0,
+            "sum_delta": 6057,
+            "win_to_loss_regressions": 0,
+            "wins": 12
+          }
+        },
+        "cases": 24
+      }
+    }
+  },
+  "metamorphic": {
+    "causal_feature_change_changed_decision": true,
+    "current_shop_context_change_changed_decision": true,
+    "diagnostic_rule": "first_shop==PIZZA && delta24(opponent STRAWBERRY planted count)>=2",
+    "irrelevant_perturbations_preserved_decision": 367,
+    "irrelevant_temporal_components_perturbed": 367
+  },
+  "paired_histories": {
+    "M": {
+      "examples": [
+        {
+          "choice": "ROUTE_77_H72",
+          "first_history_differences": [],
+          "history_diff_count": 0,
+          "negative_case": 14,
+          "negative_delta": -5685,
+          "positive_case": 23,
+          "positive_delta": 9709,
+          "step": 72
+        },
+        {
+          "choice": "ROUTE_77_H144",
+          "first_history_differences": [],
+          "history_diff_count": 0,
+          "negative_case": 14,
+          "negative_delta": -5617,
+          "positive_case": 23,
+          "positive_delta": 7732,
+          "step": 72
+        },
+        {
+          "choice": "ROUTE_22_H72",
+          "first_history_differences": [
+            [
+              "delta4.opp_money",
+              44,
+              14
+            ]
+          ],
+          "history_diff_count": 1,
+          "negative_case": 29,
+          "negative_delta": -5689,
+          "positive_case": 2,
+          "positive_delta": 2686,
+          "step": 144
+        },
+        {
+          "choice": "ROUTE_34_H72",
+          "first_history_differences": [
+            [
+              "delta4.opp_money",
+              44,
+              14
+            ]
+          ],
+          "history_diff_count": 1,
+          "negative_case": 29,
+          "negative_delta": -5689,
+          "positive_case": 2,
+          "positive_delta": 2686,
+          "step": 144
+        },
+        {
+          "choice": "ROUTE_63_H72",
+          "first_history_differences": [
+            [
+              "delta4.opp_money",
+              44,
+              14
+            ]
+          ],
+          "history_diff_count": 1,
+          "negative_case": 29,
+          "negative_delta": -5629,
+          "positive_case": 2,
+          "positive_delta": 2746,
+          "step": 144
+        }
+      ],
+      "r0_mixed_cells_fully_resolved_by_r1": 12,
+      "r0_mixed_cells_split_by_r1": 16
+    },
+    "U": {
+      "examples": [
+        {
+          "choice": "UNIT0_CARE",
+          "first_history_differences": [],
+          "history_diff_count": 0,
+          "negative_case": 0,
+          "negative_delta": -49644,
+          "positive_case": 2,
+          "positive_delta": 5,
+          "step": 48
+        },
+        {
+          "choice": "UNIT0_COLLECT_FERT",
+          "first_history_differences": [],
+          "history_diff_count": 0,
+          "negative_case": 0,
+          "negative_delta": -49644,
+          "positive_case": 2,
+          "positive_delta": 5,
+          "step": 48
+        },
+        {
+          "choice": "HOLD_SELL",
+          "first_history_differences": [
+            [
+              "delta72.market_inv_8",
+              16,
+              18
+            ],
+            [
+              "delta72.opp_money",
+              191,
+              389
+            ],
+            [
+              "since_opp_weed_change",
+              9999,
+              79
+            ]
+          ],
+          "history_diff_count": 3,
+          "negative_case": 16,
+          "negative_delta": -15544,
+          "positive_case": 14,
+          "positive_delta": 25891,
+          "step": 120
+        },
+        {
+          "choice": "HOLD_BUYS",
+          "first_history_differences": [
+            [
+              "delta72.market_inv_8",
+              16,
+              18
+            ],
+            [
+              "delta72.opp_money",
+              191,
+              389
+            ],
+            [
+              "since_opp_weed_change",
+              9999,
+              79
+            ]
+          ],
+          "history_diff_count": 3,
+          "negative_case": 16,
+          "negative_delta": -15431,
+          "positive_case": 14,
+          "positive_delta": 25980,
+          "step": 120
+        },
+        {
+          "choice": "BUYS_FIRST",
+          "first_history_differences": [
+            [
+              "delta72.market_inv_8",
+              16,
+              18
+            ],
+            [
+              "delta72.opp_money",
+              191,
+              389
+            ],
+            [
+              "since_opp_weed_change",
+              9999,
+              79
+            ]
+          ],
+          "history_diff_count": 3,
+          "negative_case": 16,
+          "negative_delta": -15539,
+          "positive_case": 14,
+          "positive_delta": 25872,
+          "step": 120
+        }
+      ],
+      "r0_mixed_cells_fully_resolved_by_r1": 8,
+      "r0_mixed_cells_split_by_r1": 18
+    },
+    "W": {
+      "examples": [
+        {
+          "choice": "SWAP_0_1",
+          "first_history_differences": [],
+          "history_diff_count": 0,
+          "negative_case": 0,
+          "negative_delta": -55995,
+          "positive_case": 23,
+          "positive_delta": 12183,
+          "step": 48
+        },
+        {
+          "choice": "SWAP_0_2",
+          "first_history_differences": [],
+          "history_diff_count": 0,
+          "negative_case": 0,
+          "negative_delta": -54928,
+          "positive_case": 15,
+          "positive_delta": 5150,
+          "step": 48
+        },
+        {
+          "choice": "SWAP_0_3",
+          "first_history_differences": [
+            [
+              "delta24.market_inv_8",
+              1,
+              3
+            ],
+            [
+              "delta24.opp_money",
+              -25,
+              173
+            ],
+            [
+              "since_opp_weed_change",
+              9999,
+              31
+            ]
+          ],
+          "history_diff_count": 3,
+          "negative_case": 16,
+          "negative_delta": -17452,
+          "positive_case": 14,
+          "positive_delta": 33055,
+          "step": 72
+        },
+        {
+          "choice": "SWAP_0_4",
+          "first_history_differences": [],
+          "history_diff_count": 0,
+          "negative_case": 0,
+          "negative_delta": -49644,
+          "positive_case": 2,
+          "positive_delta": 5,
+          "step": 48
+        },
+        {
+          "choice": "SWAP_0_1",
+          "first_history_differences": [
+            [
+              "delta24.market_inv_8",
+              1,
+              3
+            ],
+            [
+              "delta24.opp_money",
+              -25,
+              173
+            ],
+            [
+              "since_opp_weed_change",
+              9999,
+              31
+            ]
+          ],
+          "history_diff_count": 3,
+          "negative_case": 16,
+          "negative_delta": -15432,
+          "positive_case": 14,
+          "positive_delta": 32784,
+          "step": 72
+        }
+      ],
+      "r0_mixed_cells_fully_resolved_by_r1": 5,
+      "r0_mixed_cells_split_by_r1": 23
+    }
+  },
+  "promotion": {
+    "combined_identity": null,
+    "controller_hash": null,
+    "new_bb": 0,
+    "new_nodes": 0,
+    "new_state": 0,
+    "promoted": false
+  },
+  "r0": {
+    "artifact_sha256": "1e77511f6da0fb67250b5f7879fdb3b0ffe093edc1116e3f700fb72f23879973",
+    "bb_width": 18,
+    "cases": 61,
+    "compat_width": 15,
+    "meta_width": 2,
+    "probes": 22,
+    "registry_width": 3793,
+    "width": 3828
+  },
+  "r1": {
+    "artifact_sha256": "a17e305ee8e6775bcc7c8f5f600c17e56cf7188f581a2f8320a19676f06db622",
+    "horizons": [
+      1,
+      4,
+      24,
+      72
+    ],
+    "semantic_only": true,
+    "width": 368
+  },
+  "schema": 1,
+  "screen_gates": {
+    "H0_current_gate": {
+      "canary_discovery": {
+        "loss_to_win_flips": 0,
+        "min_delta": 0,
+        "n": 2,
+        "negative": 0,
+        "sum_delta": 6057
+      },
+      "fresh_holdout": {
+        "loss_to_win_flips": 2,
+        "min_delta": 0,
+        "n": 2,
+        "negative": 0,
+        "sum_delta": 34642
+      }
+    },
+    "H1_temporal_gate": {
+      "canary_discovery": {
+        "loss_to_win_flips": 0,
+        "min_delta": 0,
+        "n": 2,
+        "negative": 0,
+        "sum_delta": 960
+      },
+      "fresh_holdout": {
+        "loss_to_win_flips": 0,
+        "min_delta": 0,
+        "n": 2,
+        "negative": 0,
+        "sum_delta": 8860
+      },
+      "historical_holdout": {
+        "loss_to_win_flips": 2,
+        "min_delta": 0,
+        "n": 4,
+        "negative": 0,
+        "sum_delta": 37230
+      }
+    },
+    "H2_perfect_truth_gate": {
+      "canary_discovery": {
+        "loss_to_win_flips": 0,
+        "min_delta": 0,
+        "n": 2,
+        "negative": 0,
+        "sum_delta": 960
+      },
+      "fresh_holdout": {
+        "loss_to_win_flips": 0,
+        "min_delta": 0,
+        "n": 2,
+        "negative": 0,
+        "sum_delta": 8860
+      },
+      "historical_holdout": {
+        "loss_to_win_flips": 2,
+        "min_delta": 0,
+        "n": 4,
+        "negative": 0,
+        "sum_delta": 37230
+      }
+    }
+  },
+  "temporal_feature_resolution": {
+    "M": {
+      "r0_mixed_cells": 112,
+      "top_fully_resolving_features": [
+        [
+          "delta4.opp_money",
+          8
+        ],
+        [
+          "delta24.market_inv_8",
+          4
+        ],
+        [
+          "delta24.opp_money",
+          4
+        ],
+        [
+          "since_opp_weed_change",
+          4
+        ]
+      ],
+      "top_split_features": [
+        [
+          "delta4.opp_money",
+          9
+        ],
+        [
+          "delta24.market_inv_8",
+          7
+        ],
+        [
+          "delta24.opp_money",
+          7
+        ],
+        [
+          "since_opp_weed_change",
+          7
+        ]
+      ]
+    },
+    "U": {
+      "r0_mixed_cells": 93,
+      "top_fully_resolving_features": [
+        [
+          "since_opp_weed_change",
+          6
+        ],
+        [
+          "delta72.market_inv_8",
+          4
+        ],
+        [
+          "delta72.opp_money",
+          4
+        ],
+        [
+          "delta4.opp_money",
+          2
+        ],
+        [
+          "delta24.market_inv_8",
+          1
+        ],
+        [
+          "delta24.opp_money",
+          1
+        ],
+        [
+          "delta72.opp_kind_0",
+          1
+        ],
+        [
+          "delta72.opp_kind_2",
+          1
+        ]
+      ],
+      "top_split_features": [
+        [
+          "since_opp_weed_change",
+          14
+        ],
+        [
+          "delta72.market_inv_8",
+          6
+        ],
+        [
+          "delta72.opp_money",
+          6
+        ],
+        [
+          "delta24.market_inv_8",
+          5
+        ],
+        [
+          "delta24.opp_money",
+          5
+        ],
+        [
+          "delta72.opp_kind_0",
+          3
+        ],
+        [
+          "delta72.opp_kind_2",
+          3
+        ],
+        [
+          "delta1.market_inv_0",
+          2
+        ],
+        [
+          "delta1.opp_money",
+          2
+        ],
+        [
+          "since_market_inv_decrease_0",
+          2
+        ],
+        [
+          "delta4.opp_money",
+          2
+        ]
+      ]
+    },
+    "W": {
+      "r0_mixed_cells": 261,
+      "top_fully_resolving_features": [
+        [
+          "delta24.market_inv_8",
+          5
+        ],
+        [
+          "delta24.opp_money",
+          5
+        ],
+        [
+          "since_opp_weed_change",
+          5
+        ]
+      ],
+      "top_split_features": [
+        [
+          "since_opp_weed_change",
+          16
+        ],
+        [
+          "delta24.market_inv_8",
+          8
+        ],
+        [
+          "delta24.opp_money",
+          8
+        ],
+        [
+          "delta1.market_inv_0",
+          5
+        ],
+        [
+          "delta1.opp_money",
+          5
+        ],
+        [
+          "since_market_inv_decrease_0",
+          5
+        ],
+        [
+          "delta72.opp_kind_0",
+          5
+        ],
+        [
+          "delta72.opp_kind_2",
+          5
+        ],
+        [
+          "delta72.market_inv_8",
+          3
+        ],
+        [
+          "delta72.opp_money",
+          3
+        ],
+        [
+          "delta4.opp_money",
+          2
+        ]
+      ]
+    }
+  }
+}

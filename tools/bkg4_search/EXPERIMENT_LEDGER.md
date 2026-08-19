@@ -47,3 +47,20 @@ Do not turn any backlog item into a route/seed/opponent lookup. New behavior mus
 | Fixed optimizer decisions | all U/W/M candidate×probe choices on 61-screen | Only regression-free fixed choices have zero loss→win flips and trivial gains | **Reject as competitively immaterial** |
 
 **Terminal verdict:** the three optimization proposals expose substantial *clairvoyant* regret, but no tested legal/current-observation selector converts that ceiling into broad promotion-safe behavior. Do not ship a utility arbiter, assignment solver, or macro planner from this campaign. Return to causal BKG4 module / engine-mechanic discovery until a new observable separator exists.
+
+## Temporal information-state campaign
+
+| Experiment | Scope | Result | Decision |
+|---|---:|---|---|
+| Complete R0 capture | 61 cases × 22 probes × 3,828 exact values | Full registry-v1 + 18 BB + 15 legal compatibility/exploit + 2 runtime values; zero CUDA faults | **Previous coarse ambiguity test corrected** |
+| Exact R0 ambiguity | all active U/W/M screen decisions | Mixed cells persist: U 93, W 261, M 112; max spans 153,574 / 153,574 / 33,338 | **H0 not established by completeness alone** |
+| H0 SMOOTHIE/high-cash HOLD_BUYS | threshold sweep 250..570 | Screen fresh pair flips 2 losses, but 0/336 historical + 0/24 independent fresh activations; only 2 sealed positives | **Reject as too narrow** |
+| R1 semantic history capture | 1/4/24/72 deltas + own-action counts + event-since; 368 values | Mixed cells reduce to U 85, W 256, M 100; legal history genuinely splits some exact-R0 cells | **Information exists, policy value unproven** |
+| H1 strawberry-growth SWAP_6_9 | broad historical336/fresh24/sealed24 CUDA | H24 growth>=2: historical +76,164 aggregate but 25 protected regressions + 6 wins lost; fresh 2/2 negative, -39,194, two wins lost | **Reject H1 promotion** |
+| Temporal metamorphic test | strongest H1 diagnostic rule | 367/367 unrelated temporal perturbations preserved decision; causal history/context changes changed it | **Causal specificity pass, outcome gate fail** |
+| Perfect hidden-truth upper bound | R0+R1 + true opponent 12-item totals + 5 seeds | Adds **zero** mixed-cell separation: 85/256/100 unchanged | **Hidden resource state not missing separator** |
+| H2 perfect-truth policy | true strawberry seeds==0 -> SWAP_6_9 | historical336: 22 protected regressions, 6 wins lost; independent fresh24 no support | **Reject H2 before observer implementation** |
+| Ryo trajectory diagnosis | 20 remaining Ryo canary losses | Multiple U/W/M headroom clusters; 16 early-land/cash-drawdown + 4 late-land/cash-positive strawberry-burst; 5 have no U/W/M flip | **No identity routing; new capability needed** |
+| U/W/M-unflippable diagnosis | 10 canary losses | 5 Ryo + 4 Arman + 1 ReCurSiON; selector state cannot fix absent action headroom | **Search new lane/mechanic/capability** |
+
+**Terminal verdict:** **TEMPORAL INFORMATION-STATE HYPOTHESIS TERMINALLY REJECTED.** R1 legal history is measurably informative, but no causal temporal selector is broad/holdout-safe; perfect hidden truth adds no representation separation and remains unsafe as a policy gate. No temporal module, observer, regime controller, active probe, ABI change, or champion change is promoted.
