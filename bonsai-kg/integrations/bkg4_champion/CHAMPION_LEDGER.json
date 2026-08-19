@@ -1,0 +1,119 @@
+{
+  "schema": 1,
+  "updated": "2026-08-19",
+  "team": "ReCurSiON",
+  "frozen_bkg4_vm_commit": "8381e027646ba6494cbe4dd06a810ea55ec83575",
+  "default_runtime": {
+    "lineage": "BKG4_BASE_0",
+    "asset_dir": "bonsai-kg/integrations/bkg4_champion/assets",
+    "controller_semantic_hash": "23382643aa290701bc2568dd5537862c78b181990027d8d7522aff1ed48559c2",
+    "combined_agent_identity": "601f4d0914564e07485b08dc6f563eb497a93316391225fdce1cbaf5fa59e4ea",
+    "nodes": 99,
+    "blackboard_slots": 4,
+    "state_slots": 0
+  },
+  "accepted_modules": [
+    {
+      "name": "animal_feed_deferral_v1",
+      "status": "accepted_into_bkg4_lineage_not_default_submission",
+      "asset_dir": "bonsai-kg/integrations/bkg4_champion/champions/feed_deferral_v1",
+      "module_source": "bonsai-kg/integrations/bkg4_champion/modules/animal_feed_deferral_v1.json",
+      "controller_semantic_hash": "e9e66dfc9985a2111dc7c1b332fb569a02194528dd6512ccf3f154bd28abbc49",
+      "combined_agent_identity": "8cd92cc600537f5f0157925cd0b7d0de203e3b0d8187dd5389e02af96c9faf43",
+      "nodes": 256,
+      "blackboard_slots": 18,
+      "state_slots": 0,
+      "max_depth": 11,
+      "static_max_visits": 179,
+      "max_live_intents": 0,
+      "rule": "For a route-planned FEED, replace FEED with PASS only when the BKG4 tree authorizes that unit from legal state: cow, consecutive_unfed == 0, pending_care_bonus == 0.",
+      "distillation": {
+        "tree_owns_causal_authorization": true,
+        "reconciler_is_materialization_only": true,
+        "abi_changed": false,
+        "vm_changed": false
+      },
+      "evidence": {
+        "historical_cuda": {
+          "games": 336,
+          "families": 21,
+          "unique_seeds": 152,
+          "both_seats": true,
+          "base_wins": 243,
+          "candidate_wins": 251,
+          "base_losses": 93,
+          "candidate_losses": 85,
+          "positive_deltas": 330,
+          "zero_deltas": 5,
+          "negative_deltas": 1,
+          "minimum_delta": -566,
+          "mean_delta": 369.8958333333333,
+          "outcome_regressions": 0,
+          "candidate_rewrites": 1852,
+          "analysis_sha256": "2d05e32bd67df45ce12b5d5995f86ecf426ce2d78cef7a3a739a8a6a072fc433"
+        },
+        "sealed_current_holdout": {
+          "games": 24,
+          "positive_deltas": 24,
+          "outcome_regressions": 0,
+          "mean_delta": 450.8333333333333,
+          "analysis_sha256": "3ff8e2873efcc56ae63ac2a065da5ed0bd69a7c7a441e42c87eacbb467250f14"
+        },
+        "canonical_cuda_distillation": {
+          "games": 336,
+          "mismatches_vs_searched_mechanic": 0,
+          "rewrites": 1852,
+          "canonical_result_sha256": "6038a8dac45a775dc09abeeaf5ca692534b3cd1bcba5eca571e3673c9d4506cc"
+        },
+        "tri_engine_controller_parity": {
+          "reachable_tick_records": 2876,
+          "python_cpp_mismatches": 0,
+          "python_cuda_mismatches": 0
+        },
+        "source_backed_self_regression": {
+          "historical_agents": ["f120_04ad004", "v32_d52526d"],
+          "games": 8,
+          "outcome_regressions": 0,
+          "minimum_margin_delta": 280,
+          "maximum_margin_delta": 477,
+          "mean_margin_delta": 364.75
+        },
+        "evolvability": {
+          "neighbors": 10,
+          "promotion_safe_neighbors": 8,
+          "lexicographically_identical_elite_neighbors": 6,
+          "direct_v": 0.4915190294319567,
+          "lineage_q": 0.48230588960277604,
+          "brittleness_sigma": 0.00921313982918065,
+          "artifact_sha256": "b41ac47e8b9047a4091acca442a16d8d370a4d0dece4d4a6424bfad9f89eb098"
+        },
+        "hot_path_profile": {
+          "ticks": 2876,
+          "visit_p50": 101,
+          "visit_p95": 124,
+          "visit_p99": 129,
+          "visit_max": 132,
+          "authorization_active_ticks": 172,
+          "state_slots": 0,
+          "live_intents": 0
+        },
+        "official_python_canary": {
+          "games": 64,
+          "opponent_tapes": 32,
+          "both_seats": true,
+          "wins": 37,
+          "losses": 27,
+          "ties": 0,
+          "mean_margin": 10216.0,
+          "median_margin": 3908.0,
+          "floor_margin": -49506.0,
+          "checkpoint_sha256": "abe109f7f4d4bdfa561d74e678613999fadc675955c5ad0c6302a98b1ac29d5e",
+          "used_for_search_feedback": false,
+          "interpretation": "Authoritative execution canary only. Absolute losses show the overall agent is not yet the ultimate 100% champion."
+        }
+      }
+    }
+  ],
+  "submission_status": "not_submitted",
+  "ultimate_100_percent_goal_reached": false
+}

@@ -32,6 +32,11 @@
       "actions": ["EmitUnitIntent", "MoveUnitTo"],
       "control": ["Sequence", "Selector", "ReactiveSequence", "ReactiveSelector", "If", "ReactiveIf", "SwitchEnum", "TurnTimeout"]
     },
+    "animal_lifecycle": {
+      "features": ["STEP", "DAY", "HOUR", "OWN_UNITS", "OWN_WORKER_TILE", "OWN_TILE_KIND", "OWN_TILE_ITEM", "OWN_TILE_HAS_ANIMAL", "OWN_TILE_CONSECUTIVE_UNFED", "OWN_TILE_PENDING_CARE_BONUS", "OWN_TILE_FED", "OWN_TILE_CARED", "OWN_SHED", "OWN_INVENTORY"],
+      "actions": ["SetBlackboard"],
+      "control": ["Sequence", "Selector", "ReactiveSequence", "ReactiveSelector", "If", "ReactiveIf", "SwitchEnum", "Invert", "ForceSuccess", "ForceFailure"]
+    },
     "portfolio": {
       "features": ["STEP", "DAY", "HOUR", "OWN_MONEY", "OPP_MONEY", "OWN_LAND", "OPP_LAND", "OWN_SEED", "OWN_SHED", "MARKET_PRICE", "MARKET_INVENTORY", "SHOP_COUNT", "SHOP_AT", "SHOP_SEEN"],
       "actions": ["EmitMarketIntent", "SetBlackboard"],

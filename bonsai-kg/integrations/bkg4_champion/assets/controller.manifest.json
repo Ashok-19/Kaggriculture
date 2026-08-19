@@ -1,0 +1,19 @@
+{
+  "bb_slots": 4,
+  "instruction_budget": 64,
+  "max_depth": 11,
+  "max_live_intents": 0,
+  "max_visits": 35,
+  "metadata": {
+    "effects": 12,
+    "feature_args": 10,
+    "lifecycles": 12,
+    "predicates": 0,
+    "values": 49
+  },
+  "modules": [],
+  "nodes": 99,
+  "schema_version": 4,
+  "state_slots": 0,
+  "warnings": []
+}

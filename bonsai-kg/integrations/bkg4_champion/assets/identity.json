@@ -1,0 +1,136 @@
+{
+  "bkg4_abi": 4,
+  "bkg4_vm_frozen_commit": "8381e027646ba6494cbe4dd06a810ea55ec83575",
+  "combined_agent_identity": "601f4d0914564e07485b08dc6f563eb497a93316391225fdce1cbaf5fa59e4ea",
+  "controller_bb_slots": 4,
+  "controller_max_depth": 11,
+  "controller_max_live_intents": 0,
+  "controller_max_visits": 35,
+  "controller_nodes": 99,
+  "controller_semantic_hash": "23382643aa290701bc2568dd5537862c78b181990027d8d7522aff1ed48559c2",
+  "controller_state_slots": 0,
+  "engine_exploits": "FERT81 -> CARROT-v3 -> EOD shed-overflow rescue",
+  "feature_registry": 1,
+  "legacy_route_pack": {
+    "action_record_bytes": 94,
+    "action_records": 7909,
+    "format": "BKV6RP1",
+    "pack_sha256": "f17c393ba5bf8d7f977a1d073995e29f012eb459c209c7832b027ccc539da0cc",
+    "payload_sha256": "d37d74f7cf15b651fef8cfc5396b6471f9893be556c7c5b1f47e80f727b50a8e",
+    "route_count": 11,
+    "route_ids": [
+      200,
+      201,
+      202,
+      203,
+      204,
+      205,
+      206,
+      207,
+      208,
+      209,
+      210
+    ],
+    "route_names": {
+      "200": "H4_P",
+      "201": "H4_A",
+      "202": "H4_W86",
+      "203": "H4_W253",
+      "204": "H4_FY",
+      "205": "H4_ICE164",
+      "206": "H4_ICE120",
+      "207": "H4_FF17",
+      "208": "EXT_D36",
+      "209": "EXT_D85",
+      "210": "EXT_D72"
+    },
+    "source_files": [
+      {
+        "actions": 719,
+        "name": "H4_P",
+        "route_id": 200,
+        "sha256": "9d92fcee6d2029f382e8a21321cf82bf1011832fc6e83a8ffb9ba46e1ddb7525",
+        "source": "scratch/live_top10/aug16_1549_refresh/tapes_dev/Yubo-best_s1_ep93580448.json"
+      },
+      {
+        "actions": 719,
+        "name": "H4_A",
+        "route_id": 201,
+        "sha256": "a335143ae8e25eab8b2c0f0bfc389483ec2a891321b2351f9feb2fc69c835c80",
+        "source": "scratch/bonsai_kg_v6_reinforcement/population/native_tapes/0005_peikopon_s0_ep94018272.json"
+      },
+      {
+        "actions": 719,
+        "name": "H4_W86",
+        "route_id": 202,
+        "sha256": "33443e153fcdc20ace125496beb198244c1d57e881a003f4d7500e03160cac43",
+        "source": "scratch/bonsai_kg_v6_reinforcement/population/native_tapes/3250_whitelok_s0_ep93993645.json"
+      },
+      {
+        "actions": 719,
+        "name": "H4_W253",
+        "route_id": 203,
+        "sha256": "f06cd0e772e3c5956d41a0e2a6bd62de35df3221a66abb8ea34424684fe3d03e",
+        "source": "scratch/bonsai_kg_v6_reinforcement/population/native_tapes/0024_Jince_s0_ep94010384.json"
+      },
+      {
+        "actions": 719,
+        "name": "H4_FY",
+        "route_id": 204,
+        "sha256": "fbe3000bc7ef570f8319d6f57da124ef403e1145abd8d471a171d91dff104fcb",
+        "source": "scratch/bonsai_kg_v6_reinforcement/population/native_tapes/0051_Tomas_Escobar_Rivera_s1_ep94020940.json"
+      },
+      {
+        "actions": 719,
+        "name": "H4_ICE164",
+        "route_id": 205,
+        "sha256": "faf227d9257df0e77ee16314431857a1b2dda1f2c42d539ee03fac2ed585af12",
+        "source": "scratch/bonsai_kg_v6_reinforcement/population/native_tapes/0046_wenyuan_Guo_s1_ep93977817.json"
+      },
+      {
+        "actions": 719,
+        "name": "H4_ICE120",
+        "route_id": 206,
+        "sha256": "5884960d1b12680573ab5927ba53a3ee021e13471400da82a1307c53bc827ef3",
+        "source": "scratch/bonsai_kg_v6_reinforcement/population/native_tapes/0019_dk2lone_s1_ep94001610.json"
+      },
+      {
+        "actions": 719,
+        "name": "H4_FF17",
+        "route_id": 207,
+        "sha256": "a8df194b605ce68ac51d2c5985bdbe3e90b68e58a8e117402b0b99d2b3fa8a7a",
+        "source": "scratch/live_top10/aug16_latest_refresh/tapes_dev/junichiro_morita_s0_ep93427728.json"
+      },
+      {
+        "actions": 719,
+        "name": "EXT_D36",
+        "route_id": 208,
+        "sha256": "7e3f10cad50354665554c6e3b3ca6779692843e32cd67c8fb361d6fdf8b1d26c",
+        "source": "scratch/live_top10/aug16_kawashigi_new55540317/tapes_dev20/kawashigi_new55540317_s1_ep93536446.json"
+      },
+      {
+        "actions": 719,
+        "name": "EXT_D85",
+        "route_id": 209,
+        "sha256": "74e7a58f974823904d2d3106d211ed08b93073a5d099ee5474238301fab003ff",
+        "source": "scratch/bonsai_kg_v6_reinforcement/population/native_tapes/0001_team_s0_ep94019141.json"
+      },
+      {
+        "actions": 719,
+        "name": "EXT_D72",
+        "route_id": 210,
+        "sha256": "0bcdf84212eb64c79608338b5adb291eb216b34401cece774fd9ed4e8e7134f3",
+        "source": "scratch/live_top10/aug16_2044_refresh/tapes_dev/Thomas_s0_ep93655746.json"
+      }
+    ],
+    "version": 1
+  },
+  "legacy_semantics": "h4_lowcash_p60_r86_r253_fy172_ice164_v120_ff17 + h4max_4branch",
+  "lineage": "BKG4_BASE_0",
+  "module_source": null,
+  "schema": 1,
+  "v6_route_pack": {
+    "pack_sha256": "984320371f5b25da786ca4e791b0f159c2363a44bbf09681f1d8548181572837",
+    "path": "../stateful_v6/assets/routes.bkv6"
+  }
+}
