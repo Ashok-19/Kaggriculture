@@ -45,6 +45,8 @@ def main() -> int:
     mode_cfg = cfg[mode]
     search_seed = int(cfg["island0_seed"] if args.island == 0 else cfg["island1_seed"])
     tpb = int(tuning["best_tpb"])
+    population = int(tuning["production_population"])
+    expected_generation_seconds = float(tuning["estimated_production_core_generation_seconds"])
     # Strategic topology is configuration, not an autotune variable. Small
     # benchmark populations may use fewer temporary sub-islands, but the long
     # production universe always preserves the intended 32-island grammar split.
@@ -52,12 +54,17 @@ def main() -> int:
     engine_sub_islands = int(mode_cfg["engine_sub_islands"])
     if not (4 <= sub_islands <= 64 and 0 <= engine_sub_islands <= sub_islands):
         raise RuntimeError(f"invalid production island topology: {sub_islands=} {engine_sub_islands=}")
+    if population < sub_islands * 256 or population % sub_islands != 0:
+        raise RuntimeError(f"invalid throughput-targeted production population: {population=} {sub_islands=}")
+    if expected_generation_seconds <= 0:
+        raise RuntimeError(f"invalid expected generation time: {expected_generation_seconds}")
 
     cmd = [
         str(args.binary),
         "--bundle", str(bundle),
         "--output", str(out),
         "--universe", mode,
+        "--population", str(population),
         "--sub-islands", str(sub_islands),
         "--engine-sub-islands", str(engine_sub_islands),
         "--tpb", str(tpb),
@@ -90,6 +97,8 @@ def main() -> int:
         "cuda_visible_devices": os.environ.get("CUDA_VISIBLE_DEVICES"),
         "search_seed": search_seed,
         "tpb": tpb,
+        "population": population,
+        "expected_core_generation_seconds": expected_generation_seconds,
         "sub_islands": sub_islands,
         "engine_sub_islands": engine_sub_islands,
         "engine_sub_island_fraction": engine_sub_islands / sub_islands,

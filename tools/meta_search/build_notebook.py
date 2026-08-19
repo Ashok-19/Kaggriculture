@@ -101,6 +101,9 @@ assert manifest["blind_excluded"] == 50
 assert manifest["family_holdout_excluded"] == 28
 assert manifest["fast_math"] is False
 assert manifest["resident_search_genome_bytes"] == 256
+assert manifest["production_population_policy"] == "throughput_targeted", "v8+ dataset required: production population policy mismatch"
+assert manifest["autotune_population"] == 8192, "v8+ dataset required: autotune population mismatch"
+assert manifest["watchdog_generation_aware"] is True, "v8+ dataset required: watchdog policy mismatch"
 assert manifest["recorded_seed_fitness"] is True
 assert manifest["stage1_recorded_seed_count"] == 12
 assert manifest["recorded_source_seed_count"] >= 12
@@ -154,7 +157,7 @@ cfg.update({
 print(json.dumps(manifest, indent=2, ensure_ascii=False))
 '''),
 code(r'''
-# CELL 4 — compile the resident search engine, independent exact evaluator, and BKG3-v6 smoke
+# CELL 4 — compile only search-critical binaries; final evaluator compiles in background after search launch
 cc = gpus[0]["compute_capability"].replace(".", "")
 arch = [f"-gencode=arch=compute_{cc},code=sm_{cc}"]
 common = ["nvcc", "-O3", "-std=c++17", "-lineinfo", "-Xptxas=-v", *arch]
@@ -163,13 +166,14 @@ assert all("fast_math" not in x and "fast-math" not in x for x in common)
 resident_bin = BUILD_ROOT / "bonsai_memetic_search"
 evaluator_bin = BUILD_ROOT / "bonsai_search"
 v6_smoke_bin = BUILD_ROOT / "stateful_v6_game_cuda"
+if evaluator_bin.exists(): evaluator_bin.unlink()
+evaluator_compile_cmd = [*common, "-I", str(WORK_ROOT / "cuda-engine/include"), "-o", str(evaluator_bin),
+                         str(WORK_ROOT / "cuda-engine/src/bonsai_search.cu")]
 run([*common, "-I", str(WORK_ROOT / "cuda-engine/include"), "-o", str(resident_bin),
      str(WORK_ROOT / "cuda-engine/src/bonsai_memetic_search.cu")], capture=False)
-run([*common, "-I", str(WORK_ROOT / "cuda-engine/include"), "-o", str(evaluator_bin),
-     str(WORK_ROOT / "cuda-engine/src/bonsai_search.cu")], capture=False)
 run([*common, "-o", str(v6_smoke_bin), str(WORK_ROOT / "bonsai-kg/tests/stateful_v6_game_cuda.cu")], capture=False)
-assert resident_bin.exists() and evaluator_bin.exists() and v6_smoke_bin.exists()
-print("compiled resident/evaluator/smoke binaries")
+assert resident_bin.exists() and v6_smoke_bin.exists() and not evaluator_bin.exists()
+print("compiled resident/smoke binaries; final evaluator compile deferred until T4 search is active")
 '''),
 code(r'''
 # CELL 5 — exact semantics gates: BKG3-v6 fingerprint + SearchGenome→GPProgram parity
@@ -196,8 +200,9 @@ print("ENGINE-MODE SEARCH-GENOME DISTILLATION PARITY PASSED")
 '''),
 code(r'''
 # CELL 6 — concurrent exact resident-engine launch-geometry calibration on GPU0/GPU1
-# Production population is still live-VRAM autosized. The 8192-candidate calibration
-# is the smallest representative batch that preserves all 32 production sub-islands.
+# The 8192-candidate calibration is the smallest representative batch that preserves
+# all 32 production sub-islands. Production population is derived from measured T4
+# throughput and target generation latency, with safe VRAM used only as an upper cap.
 assert cfg["autotune_populations"] == [8192]
 autotune_jobs = []
 for gpu in (0, 1):
@@ -215,6 +220,7 @@ for gpu in (0, 1):
            "--universe", mode,
            "--vram-target", str(VRAM_TARGET), "--reserve-mib", str(VRAM_RESERVE_MIB),
            "--target-generation-seconds", str(cfg["autotune_target_generation_seconds"]),
+           "--production-generation-safety-factor", str(cfg["production_generation_safety_factor"]),
            "--trial-timeout-seconds", str(cfg["autotune_max_generation_seconds"]),
            "--seed", str(770001 + gpu * 10000)]
     p = subprocess.Popen(cmd, env=env, cwd=WORK_ROOT, text=True,
@@ -226,7 +232,15 @@ for gpu, p, cmd in autotune_jobs:
     print(f"GPU{gpu} autotune:\n{stdout[-8000:]}")
     if p.returncode != 0:
         print(stderr); raise RuntimeError(f"GPU{gpu} resident autotune failed: {cmd}")
-print("both resident T4 autotuners passed concurrently")
+    tuning_data = json.loads((OUTPUT_ROOT / f"island{gpu}/tuning.json").read_text())
+    production_population = int(tuning_data["production_population"])
+    expected_generation = float(tuning_data["estimated_production_core_generation_seconds"])
+    assert production_population >= cfg["default_sub_islands"] * 256
+    assert production_population % cfg["default_sub_islands"] == 0
+    assert 0 < expected_generation <= cfg["autotune_target_generation_seconds"]
+    print(f"GPU{gpu} production population={production_population} expected_core_generation={expected_generation:.1f}s "
+          f"safe_fraction={tuning_data['production_allocated_fraction_of_safe']:.3f}")
+print("both resident T4 autotuners passed concurrently with bounded production generation latency")
 '''),
 code(r'''
 # CELL 7 — compute the remaining search budget from one monotonic absolute deadline
@@ -278,10 +292,10 @@ for gpu in (0, 1):
     print(f"launched GPU{gpu} universe pid={campaigns[gpu]['proc'].pid}")
 '''),
 code(r'''
-# CELL 9 — warm-up gate: both physical T4s active and resident allocation near safe target
+# CELL 9 — warm-up gate: exact throughput-sized populations active and both T4s compute-bound
 expected_uuids = {g["uuid"] for g in gpus[:2]}
-mem_re = re.compile(r"allocated_fraction_of_safe=([0-9.eE+-]+)")
-allocation_seen = {}
+mem_re = re.compile(r"RESIDENT_MEMORY .*?population=(\d+).*?allocated_fraction_of_safe=([0-9.eE+-]+)")
+resident_seen = {}
 for _ in range(36):
     for gpu, item in campaigns.items():
         rc = item["proc"].poll()
@@ -289,16 +303,21 @@ for _ in range(36):
         log = OUTPUT_ROOT / f"island{gpu}/resident_search.log"
         if log.exists():
             m = mem_re.search(log.read_text(errors="replace"))
-            if m: allocation_seen[gpu] = float(m.group(1))
+            if m: resident_seen[gpu] = {"population": int(m.group(1)), "safe_fraction": float(m.group(2))}
     apps = run(["nvidia-smi", "--query-compute-apps=gpu_uuid,pid,used_memory", "--format=csv,noheader"]).stdout
     active = {line.split(",", 1)[0].strip() for line in apps.splitlines() if line.strip()}
-    if expected_uuids.issubset(active) and len(allocation_seen) == 2: break
+    if expected_uuids.issubset(active) and len(resident_seen) == 2: break
     time.sleep(5)
-print("safe allocation fractions:", allocation_seen)
-assert len(allocation_seen) == 2, "resident memory plan did not become observable on both GPUs"
-assert all(0.90 <= x <= 0.99 for x in allocation_seen.values()), f"resident allocation missed safe target: {allocation_seen}"
+print("resident memory plans:", resident_seen)
+assert len(resident_seen) == 2, "resident memory plan did not become observable on both GPUs"
+for gpu in (0, 1):
+    tuning_data = json.loads((OUTPUT_ROOT / f"island{gpu}/tuning.json").read_text())
+    expected_population = int(tuning_data["production_population"])
+    seen = resident_seen[gpu]
+    assert seen["population"] == expected_population, f"GPU{gpu} production population mismatch: {seen} vs {expected_population}"
+    assert 0.0 < seen["safe_fraction"] < 0.99, f"GPU{gpu} unsafe resident allocation: {seen}"
 
-# Prove the processes are computing, not merely holding VRAM while CPU orchestration spins.
+# Prove the processes are computing, not merely holding memory while CPU orchestration spins.
 util_samples = {0: [], 1: []}
 for _ in range(6):
     rows = run(["nvidia-smi", "--query-gpu=index,utilization.gpu", "--format=csv,noheader,nounits"]).stdout.splitlines()
@@ -310,6 +329,15 @@ print("warmup GPU utilization samples:", util_samples)
 for gpu, vals in util_samples.items():
     assert vals and max(vals) >= 50 and sum(vals)/len(vals) >= 20, f"GPU{gpu} is not sustaining CUDA work: {vals}"
 print("BOTH T4 RESIDENT UNIVERSES ACTIVE AND COMPUTE-BOUND")
+
+# The independent final-screen evaluator is expensive to compile on Kaggle (~26m in
+# the previous run) but is not needed during search. Compile it now on CPU while both
+# T4 universes continue searching, hiding that setup cost behind useful GPU work.
+evaluator_compile_log_path = OUTPUT_ROOT / "bonsai_search_compile.log"
+evaluator_compile_log = evaluator_compile_log_path.open("w")
+evaluator_compile_proc = subprocess.Popen(evaluator_compile_cmd, cwd=WORK_ROOT,
+    stdout=evaluator_compile_log, stderr=subprocess.STDOUT, start_new_session=True)
+print(f"background evaluator compile pid={evaluator_compile_proc.pid}; T4 search continues concurrently")
 '''),
 code(r'''
 # CELL 10 — sparse health/utilization monitor + one-shot stale/GPU-idle watchdog
@@ -318,6 +346,19 @@ last_generation = {0: -1, 1: -1}
 last_progress_time = {0: time.monotonic(), 1: time.monotonic()}
 low_util_streak = {0: 0, 1: 0}
 WATCHDOG_STALE_SECONDS = float(cfg["watchdog_stale_seconds"])
+WATCHDOG_GENERATION_MULTIPLIER = float(cfg["watchdog_generation_multiplier"])
+WATCHDOG_GENERATION_MARGIN_SECONDS = float(cfg["watchdog_generation_margin_seconds"])
+EXPECTED_GENERATION_SECONDS = {
+    gpu: float(json.loads((OUTPUT_ROOT / f"island{gpu}/tuning.json").read_text())["estimated_production_core_generation_seconds"])
+    for gpu in (0, 1)
+}
+WATCHDOG_STALE_LIMIT = {
+    gpu: max(WATCHDOG_STALE_SECONDS,
+             EXPECTED_GENERATION_SECONDS[gpu] * WATCHDOG_GENERATION_MULTIPLIER + WATCHDOG_GENERATION_MARGIN_SECONDS)
+    for gpu in (0, 1)
+}
+print("watchdog expected generation seconds:", EXPECTED_GENERATION_SECONDS,
+      "adaptive stale limits:", WATCHDOG_STALE_LIMIT)
 WATCHDOG_LOW_GPU_UTIL_PCT = float(cfg["watchdog_low_gpu_util_pct"])
 WATCHDOG_LOW_GPU_SAMPLES = int(cfg["watchdog_low_gpu_samples"])
 WATCHDOG_RESTART_GRACE_SECONDS = float(cfg["watchdog_restart_grace_seconds"])
@@ -397,9 +438,18 @@ while time.monotonic() < SEARCH_STOP_DEADLINE:
             else:
                 low_util_streak[gpu] = 0
 
+    evaluator_rc = evaluator_compile_proc.poll()
+    sample["evaluator_compile_returncode"] = evaluator_rc
+    if evaluator_rc is not None and evaluator_rc != 0:
+        evaluator_compile_log.flush()
+        tail = evaluator_compile_log_path.read_text(errors="replace")[-8000:]
+        for item in campaigns.values(): terminate_campaign(item, WATCHDOG_RESTART_GRACE_SECONDS)
+        raise RuntimeError(f"background bonsai_search compile failed rc={evaluator_rc}:\n{tail}")
+
     samples.append(sample)
     (OUTPUT_ROOT / "utilization_samples.jsonl").write_text("".join(json.dumps(x) + "\n" for x in samples))
-    print(f"elapsed={(now-NOTEBOOK_STARTED)/3600:.2f}h generations={last_generation} effective_util={effective_util} low_streak={low_util_streak}\n{telemetry}")
+    print(f"elapsed={(now-NOTEBOOK_STARTED)/3600:.2f}h generations={last_generation} effective_util={effective_util} "
+          f"low_streak={low_util_streak} evaluator_compile_rc={evaluator_rc}\n{telemetry}")
 
     # Do not react to one transient 0% nvidia-smi sample. A watchdog event requires
     # either a full stale window with no checkpoint generation progress, or multiple
@@ -408,7 +458,7 @@ while time.monotonic() < SEARCH_STOP_DEADLINE:
         item = campaigns[gpu]
         if item["proc"].poll() is not None or item.get("watchdog_stopped"): continue
         stale_for = now - last_progress_time[gpu]
-        stale = stale_for >= WATCHDOG_STALE_SECONDS
+        stale = stale_for >= WATCHDOG_STALE_LIMIT[gpu]
         low = low_util_streak[gpu] >= WATCHDOG_LOW_GPU_SAMPLES
         if stale or low:
             reason = f"no_generation_progress={stale_for:.0f}s" if stale else f"low_gpu_util_streak={low_util_streak[gpu]} effective={effective_util[gpu]:.1f}%"
@@ -438,6 +488,26 @@ for gpu, item in campaigns.items():
     if not item["console"].closed: item["console"].close()
     print(f"GPU{gpu} supervisor rc={proc.returncode}")
 assert time.monotonic() < MERGE_START_DEADLINE + 5, "graceful shutdown consumed final-screen reserve"
+
+# The background evaluator compile should have finished hours ago. Give it only the
+# remaining orchestration reserve if it is unexpectedly still running.
+if evaluator_compile_proc.poll() is None:
+    remaining_compile = max(1.0, MERGE_START_DEADLINE - time.monotonic())
+    try:
+        evaluator_compile_proc.wait(timeout=remaining_compile)
+    except subprocess.TimeoutExpired:
+        try: os.killpg(evaluator_compile_proc.pid, signal.SIGTERM)
+        except ProcessLookupError: pass
+        time.sleep(2)
+        if evaluator_compile_proc.poll() is None:
+            try: os.killpg(evaluator_compile_proc.pid, signal.SIGKILL)
+            except ProcessLookupError: pass
+        evaluator_compile_proc.wait(timeout=10)
+evaluator_compile_log.close()
+if evaluator_compile_proc.returncode != 0 or not evaluator_bin.exists():
+    tail = evaluator_compile_log_path.read_text(errors="replace")[-8000:]
+    raise RuntimeError(f"final evaluator compile unavailable rc={evaluator_compile_proc.returncode}:\n{tail}")
+print("background final evaluator compile PASSED")
 '''),
 code(r'''
 # CELL 12 — canonical dedup inventory from sub-island, QD-niche and certified archives

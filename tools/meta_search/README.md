@@ -134,22 +134,22 @@ Local policy relaxation is discrete and GPU-side. A configurable prefix of each 
 
 ## VRAM policy
 
-`VRAM_TARGET` defaults to **0.95** of safely available memory, not 95% of nominal card bytes. Each resident engine:
+`VRAM_TARGET` defaults to **0.95** of safely available memory, not 95% of nominal card bytes. It is an upper safety bound, **not** a population-size target. Each resident engine:
 
 1. creates the CUDA context and immutable simulator lookup tables;
 2. loads development routes/corpus;
 3. queries live free VRAM;
 4. subtracts configurable emergency headroom (default 512 MiB);
-5. sizes the resident population against 95% of that safe remainder;
-6. backs off automatically if allocation fails.
+5. receives an explicit production population derived from measured exact games/sec and the target generation latency;
+6. verifies that population fits inside the safe VRAM budget and backs off only if allocation itself fails.
 
-The memory is used for resident genomes, decoded manager caches, double candidate populations, simulator states, reward buffers, per-family accumulators, RNG state, island state, QD archives and promotion/certification workspaces.
+The memory is used for resident genomes, decoded manager caches, double candidate populations, simulator states, reward buffers, per-family accumulators, RNG state, island state, QD archives and promotion/certification workspaces. Allocating unused VRAM is not a performance objective: once the T4 is compute-bound, excessively large resident populations only lengthen the evolutionary feedback loop and can defeat progress watchdogs.
 
-The notebook parses `RESIDENT_MEMORY` from each process and aborts the long run if the measured allocation is not near the safe target. Real T4 allocation and throughput values are reported only after the Kaggle run; local-GPU numbers are not substituted.
+The notebook parses `RESIDENT_MEMORY` from each process and aborts if the resident population differs from the per-GPU tuned production population or exceeds the safe memory bound. A separate utilization burst proves both T4s are actually compute-bound. Real T4 allocation and throughput values are reported only after the Kaggle run; local-GPU numbers are not substituted.
 
 ## T4 autotuning
 
-Each T4 is calibrated independently **and concurrently** before the primary search. `autotune.py` benchmarks one representative 8192-candidate / 32-sub-island exact core generation at each supported block size and selects the highest measured games/sec configuration. The 8192 batch is deliberately the smallest calibration population that preserves the production 32-island topology; production population itself is still live-VRAM autosized. Each calibration trial has a hard timeout. It records:
+Each T4 is calibrated independently **and concurrently** before the primary search. `autotune.py` benchmarks one representative 8192-candidate / 32-sub-island exact core generation at each supported block size and selects the highest measured games/sec configuration. The 8192 batch is deliberately the smallest calibration population that preserves the production 32-island topology. Production population is then derived from measured games/sec, the target generation latency, and a conservative safety factor, rounded to a 32×256 candidate quantum and capped by safe VRAM. Each calibration trial has a hard timeout. It records:
 
 - T4 model and free/total memory;
 - compute capability;
@@ -157,9 +157,11 @@ Each T4 is calibrated independently **and concurrently** before the primary sear
 - exact games/sec and candidates/sec;
 - 256-byte genome / manager / simulator sizes;
 - safe-memory budget;
-- estimated full-resident population and core-generation time.
+- estimated full-resident population and core-generation time;
+- throughput-targeted production population and its predicted core-generation time;
+- production allocation fraction of the safe VRAM budget.
 
-Production population remains live-VRAM autosized; small benchmark populations are only for launch-geometry throughput measurement.
+Small benchmark populations are only for launch-geometry throughput measurement. Production uses the explicit throughput-targeted population, not `population=0` full-VRAM autosizing. The watchdog derives a per-GPU stale limit from that predicted production generation time, with the configured stale window retained as a minimum floor.
 
 CUDA Graphs/persistent single-kernel execution are intentionally not assumed to be wins. The first optimized implementation already removes Python/host fitness orchestration and queues repeated CUDA work in compiled C++. Further graph/kernel fusion should be driven by real T4 profiling, register pressure and launch-overhead evidence rather than sophistication for its own sake.
 

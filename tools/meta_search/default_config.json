@@ -18,6 +18,7 @@
     256
   ],
   "autotune_target_generation_seconds": 240,
+  "production_generation_safety_factor": 0.8,
   "autotune_max_generation_seconds": 180,
   "exploit": {
     "stagnation_limit": 96,
@@ -37,7 +38,9 @@
   "final_screen_max_candidates": 256,
   "monitor_interval_seconds": 300,
   "watchdog_stale_seconds": 1200,
-  "notes": "Primary population search is GPU-resident on exact core12 cases using each tape's recorded source.seed. GPU0 reserves 12/32 sub-islands for engine-mechanics refinement; GPU1 reserves 20/32 for de-novo/adversarial engine search. QD elites alone are promoted to broader exact tiers. Final screen is recorded-seed, throughput-budgeted, and hard-deadline bounded. No fast math.",
+  "watchdog_generation_multiplier": 4.0,
+  "watchdog_generation_margin_seconds": 300,
+  "notes": "Primary population search is GPU-resident on exact core12 cases using each tape's recorded source.seed. Production population is throughput-targeted to bounded generation latency from live T4 calibration; safe VRAM is only a cap. GPU0 reserves 12/32 sub-islands for engine-mechanics refinement; GPU1 reserves 20/32 for de-novo/adversarial engine search. QD elites alone are promoted to broader exact tiers. Final screen is recorded-seed, throughput-budgeted, and hard-deadline bounded. No fast math.",
   "final_screen_probe_candidates_per_gpu": 64,
   "final_screen_probe_opponents": 8,
   "final_screen_probe_max_seconds": 180,

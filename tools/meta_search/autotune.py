@@ -55,6 +55,7 @@ def main() -> int:
     ap.add_argument("--vram-target", type=float, default=0.95)
     ap.add_argument("--reserve-mib", type=float, default=512.0)
     ap.add_argument("--target-generation-seconds", type=float, default=240.0)
+    ap.add_argument("--production-generation-safety-factor", type=float, default=0.80)
     ap.add_argument("--trial-timeout-seconds", type=float, default=180.0)
     args = ap.parse_args()
 
@@ -64,8 +65,9 @@ def main() -> int:
     tpbs = [int(x) for x in args.tpb.split(",") if x]
     trials: list[dict] = []
 
-    # Benchmark exact 24-case core generations. The production run does NOT use
-    # these small populations; it autosizes its resident pool from live safe VRAM.
+    # Benchmark exact 24-case core generations. These trials choose launch geometry
+    # and estimate throughput. Production population is then sized from measured
+    # games/sec to a bounded generation latency, with safe VRAM acting only as a cap.
     for population in pops:
         sub_islands = min(args.sub_islands, max(4, population // 256))
         for tpb in tpbs:
@@ -122,8 +124,32 @@ def main() -> int:
     per_candidate = next(x["per_candidate_bytes"] for x in good if x["per_candidate_bytes"])
     safe_budget = next(x["safe_budget_bytes"] for x in reversed(good) if x["safe_budget_bytes"])
     estimated_full_population = int(safe_budget // per_candidate)
+    core_games_per_candidate = 24.0
     estimated_full_generation_seconds = (
-        estimated_full_population * 24.0 / best["games_per_sec"] if best["games_per_sec"] > 0 else None
+        estimated_full_population * core_games_per_candidate / best["games_per_sec"]
+        if best["games_per_sec"] > 0 else None
+    )
+
+    if not (0.25 <= args.production_generation_safety_factor <= 1.0):
+        raise RuntimeError("--production-generation-safety-factor must be 0.25..1.0")
+    population_quantum = args.sub_islands * 256
+    full_aligned = (estimated_full_population // population_quantum) * population_quantum
+    target_raw = (
+        best["games_per_sec"] * args.target_generation_seconds
+        * args.production_generation_safety_factor / core_games_per_candidate
+    )
+    target_aligned = max(population_quantum, int(target_raw // population_quantum) * population_quantum)
+    production_population = min(target_aligned, full_aligned)
+    if production_population < population_quantum:
+        raise RuntimeError(
+            f"safe VRAM cannot support minimum representative production population: "
+            f"{production_population=} {population_quantum=} {estimated_full_population=}"
+        )
+    estimated_production_generation_seconds = (
+        production_population * core_games_per_candidate / best["games_per_sec"]
+    )
+    production_allocated_fraction_of_safe = (
+        production_population * per_candidate / safe_budget
     )
     result = {
         "cuda_visible_devices": os.environ.get("CUDA_VISIBLE_DEVICES"),
@@ -140,8 +166,12 @@ def main() -> int:
         "estimated_full_vram_population": estimated_full_population,
         "estimated_full_vram_core_generation_seconds": estimated_full_generation_seconds,
         "target_generation_seconds": args.target_generation_seconds,
-        "production_population": 0,
-        "production_population_semantics": "0 means resident engine autosizes to the live 95%-safe-VRAM budget",
+        "production_generation_safety_factor": args.production_generation_safety_factor,
+        "production_population_quantum": population_quantum,
+        "production_population": production_population,
+        "estimated_production_core_generation_seconds": estimated_production_generation_seconds,
+        "production_allocated_fraction_of_safe": production_allocated_fraction_of_safe,
+        "production_population_semantics": "throughput-targeted exact-core population; safe VRAM is an upper bound, not an allocation target",
         "trials": trials,
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
