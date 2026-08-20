@@ -209,25 +209,26 @@ def metrics(pred,labels,name):
     return out
 
 
-def save_checkpoint(path,params,opt_state=None,meta=None):
+def save_checkpoint(path,params,opt_state=None,meta=None,extra=None):
     _,_,_,_,ocp=stack_imports(); path=Path(path).resolve(); path.parent.mkdir(parents=True,exist_ok=True)
     ck=ocp.StandardCheckpointer(); state={"params":params}
     if opt_state is not None: state["opt_state"]=opt_state
+    if extra: state.update(extra)
     ck.save(path,state,force=True,custom_metadata=meta or {})
     ck.wait_until_finished()
     ck.close()
 
 
-def load_checkpoint(path,target=None):
-    _,_,_,_,ocp=stack_imports(); ck=ocp.StandardCheckpointer(); state=ck.restore(Path(path).resolve(),target=target); ck.close(); return state
+def load_checkpoint(path,target=None,strict=True):
+    _,_,_,_,ocp=stack_imports(); ck=ocp.StandardCheckpointer(); state=ck.restore(Path(path).resolve(),target=target,strict=strict); ck.close(); return state
 
 
 def cli_config(args):
     return {k:v for k,v in vars(args).items() if k!="fn" and isinstance(v,(str,int,float,bool,type(None)))}
 
 
-def checkpoint_meta(cfg,manifest,seed,phase,epoch,params,run_config=None):
-    return {**environment_info(),"model":asdict(cfg),"parameter_count":count_params(params),"seed":seed,"phase":phase,"epoch":epoch,"dataset_hashes":manifest.get("hashes",{}),"run_config":run_config or {}}
+def checkpoint_meta(cfg,manifest,seed,phase,epoch,params,run_config=None,updates=0):
+    return {**environment_info(),"model":asdict(cfg),"parameter_count":count_params(params),"seed":seed,"phase":phase,"epoch":epoch,"updates":int(updates),"dataset_hashes":manifest.get("hashes",{}),"run_config":run_config or {}}
 
 
 def cmd_stack(args):
@@ -288,8 +289,10 @@ def _train_phase(args,kind,epochs,phase,init_ckpt=None):
     batch0=batch_for(cache,np.asarray(train_ids[:min(args.batch_size,len(train_ids))])); model,params=init_model(cfg,batch0,args.seed)
     if init_ckpt: params=load_checkpoint(init_ckpt)["params"]
     labels=cache["labels"][train_ids]; weights=default_weights(labels,args); tx=make_tx(args.lr,args.weight_decay,args.clip); opt_state=tx.init(params)
+    resume_rng=None; resume_updates=0
     if getattr(args,"resume_state",False) and init_ckpt:
-        restored=load_checkpoint(init_ckpt,target={"params":params,"opt_state":opt_state}); params=restored["params"]; opt_state=restored.get("opt_state",opt_state)
+        target={"params":params,"opt_state":opt_state,"rng":jax.random.PRNGKey(args.seed+100),"updates":jax.numpy.asarray(0,jax.numpy.int32)}
+        restored=load_checkpoint(init_ckpt,target=target); params=restored["params"]; opt_state=restored["opt_state"]; resume_rng=restored["rng"]; resume_updates=int(np.asarray(restored["updates"]))
     numeric_keys=("tree_cat","tree_num","tree_mask","tree_parent","tree_depth","tree_rule","edit_cat","edit_num","edit_mask","case_features","case_mask","case_delta","heuristic","labels","group")
     device_data=to_jax({k:cache[k] for k in numeric_keys}); train_ids_jax=jax.numpy.asarray(train_ids,dtype=jax.numpy.int32); epoch_step=make_epoch_step(model,cfg,tx,weights,args.batch_size,args.effective_batch_size,len(train_ids))
     manifest=_full_manifest(); logdir=Path(args.out); logdir.mkdir(parents=True,exist_ok=True)
@@ -301,13 +304,13 @@ def _train_phase(args,kind,epochs,phase,init_ckpt=None):
     records=[]
     if phase=="historical":
         save_checkpoint(logdir/"untrained",params,None,checkpoint_meta(cfg,manifest,args.seed,phase,0,params,cli_config(args)));records.append(evaluate("untrained",0))
-    rng=jax.random.PRNGKey(args.seed+100); t0=time.perf_counter(); updates=0; updates_per_epoch=int(np.ceil(len(train_ids)/args.effective_batch_size))
+    rng=resume_rng if resume_rng is not None else jax.random.PRNGKey(args.seed+100); t0=time.perf_counter(); updates=resume_updates; updates_per_epoch=int(np.ceil(len(train_ids)/args.effective_batch_size))
     for ep in range(1,epochs+1):
         params,opt_state,rng,mean_loss,mean_gn=epoch_step(params,opt_state,device_data,train_ids_jax,rng); mean_loss.block_until_ready(); updates+=updates_per_epoch
         print(json.dumps({"phase":phase,"epoch":ep,"mean_loss":float(mean_loss),"mean_grad_norm":float(mean_gn),"updates":updates}),flush=True)
         if phase=="historical" and ep in (args.early_epoch,args.middle_epoch):
-            tag="early" if ep==args.early_epoch else "middle"; save_checkpoint(logdir/tag,params,None,checkpoint_meta(cfg,manifest,args.seed,phase,ep,params,cli_config(args)));records.append(evaluate(tag,ep))
-    tag="history_final" if kind=="historical" else "final"; save_checkpoint(logdir/tag,params,opt_state,checkpoint_meta(cfg,manifest,args.seed,phase,epochs,params,cli_config(args))); records.append(evaluate(tag,epochs))
+            tag="early" if ep==args.early_epoch else "middle"; save_checkpoint(logdir/tag,params,None,checkpoint_meta(cfg,manifest,args.seed,phase,ep,params,cli_config(args),updates));records.append(evaluate(tag,ep))
+    tag="history_final" if kind=="historical" else "final"; save_checkpoint(logdir/tag,params,opt_state,checkpoint_meta(cfg,manifest,args.seed,phase,epochs,params,cli_config(args),updates),extra={"rng":rng,"updates":jax.numpy.asarray(updates,jax.numpy.int32)}); records.append(evaluate(tag,epochs))
     result={"phase":phase,"epochs":epochs,"updates":updates,"seconds":time.perf_counter()-t0,"records":records,"checkpoint":str((logdir/tag).resolve()),"weights":weights,"model_config":asdict(cfg),"run_config":cli_config(args),"environment":environment_info(),"dataset_hashes":manifest["hashes"]}
     (logdir/f"{phase}_result.json").write_text(json.dumps(result,indent=2,sort_keys=True)+"\n"); print("RESULT",json.dumps(result,sort_keys=True))
 
