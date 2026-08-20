@@ -177,11 +177,21 @@ def _read_result(path: Path, expected_genomes: int, expected_cases: int) -> np.n
 
 def _historical_baseline_truth() -> np.ndarray:
     vals=[]
+    identities=set()
     for line in HIST40_CASES.read_text().splitlines():
-        if line.strip(): vals.append(int(round(float(line.split("\t")[-1]))))
+        if not line.strip():
+            continue
+        fields=line.split("\t")
+        vals.append(int(round(float(fields[-1]))))
+        base_tape=Path(fields[0])
+        record=json.loads(base_tape.read_text())
+        identity=(record.get("source") or {}).get("base0_identity")
+        if identity is None:
+            raise ValueError(f"historical base tape missing source.base0_identity: {base_tape}")
+        identities.add(str(identity))
     if len(vals)!=40: raise ValueError("historical combined40 benchmark changed")
-    ids={json.loads(x)["base0_identity"] for x in BASE0_CASES_JSONL.read_text().splitlines() if x.strip()}
-    if ids!={EXPECTED_BASE0_COMBINED}: raise ValueError(f"historical BASE_0 identity mismatch: {ids}")
+    if identities!={EXPECTED_BASE0_COMBINED}:
+        raise ValueError(f"historical BASE_0 identity mismatch: {identities}")
     return np.asarray(vals,np.int32)
 
 
