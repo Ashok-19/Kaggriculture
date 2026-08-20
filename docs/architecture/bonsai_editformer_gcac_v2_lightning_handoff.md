@@ -64,7 +64,7 @@ Path in bundle:
 
 The capture is the frozen 345-node champion legal public-state trajectory at steps 264..287. B371/candidate ModuleGenome activation is evaluated offline over those states. This is intentionally the same kind of frozen-state activation context used by the proven critic; it is **not** claimed to be a B371-mutated trajectory capture.
 
-- capture SHA-256: `0ccfc81366b56ee507905af54243366d97a0ac2f698a6cfda8889cd3ca8ad718`
+- capture SHA-256: `d6b74db20146784bfdf394fde018dd3026eb7181380e9fa58a3b690306738efc`
 - cases: 24
 - unique seeds: 6
 - both seats per seed: true
