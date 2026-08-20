@@ -24,11 +24,11 @@ from model import (
 
 
 class BonsaiEditActorCritic(nn.Module):
-    """BonsaiEditFormer critic plus a hierarchical typed editor.
+    """BonsaiEditFormer-GCAC-v2: frozen critic plus goal-conditioned typed editor.
 
     Critic/shared-encoder submodule names intentionally match BonsaiEditFormer so a
-    frozen 5M critic checkpoint can be merged into this parameter tree exactly.
-    Actor heads are additional and inexpensive relative to the shared encoder.
+    frozen 5M critic checkpoint can be merged exactly. Every new trainable adapter/head
+    is named ``actor_*`` and consumes stop-gradient copies of proven representations.
     """
 
     cfg: EditFormerConfig
@@ -108,27 +108,51 @@ class BonsaiEditActorCritic(nn.Module):
         case_delta = nn.Dense(1, dtype=jnp.float32, param_dtype=jnp.float32, name="case_delta")(cases.astype(jnp.float32))[..., 0]
         case_delta = jnp.tanh(case_delta)
 
-        # Hierarchical actor. The first pass can inspect op_logits/target_logits_all;
-        # the second pass supplies sampled actor_op/actor_target for semantic heads.
-        actor_h = nn.Dense(cfg.d_model, dtype=dtype, param_dtype=jnp.float32, name="actor_shared_h")(fused)
+        # GCAC-v2 goal path. Goal identity is never embedded: the mask selects actual
+        # legal-state case tokens and goal_spec only describes desired outcome/direction.
+        frozen_cases = jax.lax.stop_gradient(cases)
+        frozen_tree = jax.lax.stop_gradient(tree)
+        frozen_fused = jax.lax.stop_gradient(fused)
+        bsz = fused.shape[0]
+        goal_mask = batch.get("goal_mask", cm).astype(bool) & cm
+        has_goal = jnp.any(goal_mask, axis=1, keepdims=True)
+        goal_mask = jnp.where(has_goal, goal_mask, cm)
+        goal_spec = batch.get("goal_spec", jnp.zeros((bsz, 4), jnp.float32)).astype(jnp.float32)
+        goal_query = nn.Dense(cfg.d_model, dtype=dtype, param_dtype=jnp.float32, name="actor_goal_query")(goal_spec)
+        goal_key = nn.Dense(cfg.d_model, use_bias=False, dtype=dtype, param_dtype=jnp.float32, name="actor_goal_key")(frozen_cases)
+        goal_score = jnp.einsum("bd,btd->bt", goal_query.astype(jnp.float32), goal_key.astype(jnp.float32)) / jnp.sqrt(float(cfg.d_model))
+        goal_score = jnp.where(goal_mask, goal_score, jnp.asarray(-1e9, jnp.float32))
+        goal_weight = jax.nn.softmax(goal_score, axis=1) * goal_mask.astype(jnp.float32)
+        goal_weight = goal_weight / jnp.maximum(jnp.sum(goal_weight, axis=1, keepdims=True), 1e-6)
+        goal_pool = jnp.sum(frozen_cases.astype(jnp.float32) * goal_weight[..., None], axis=1)
+        goal_spec_h = nn.Dense(cfg.d_model, dtype=jnp.float32, param_dtype=jnp.float32, name="actor_goal_spec")(goal_spec)
+        goal = jnp.concatenate([goal_pool, goal_spec_h], axis=-1)
+        goal = nn.Dense(cfg.d_model, dtype=dtype, param_dtype=jnp.float32, name="actor_goal_fuse")(goal)
+        goal = nn.gelu(goal)
+        goal = nn.LayerNorm(dtype=jnp.float32, name="actor_goal_ln")(goal).astype(dtype)
+
+        # Hierarchical actor: goal conditions operation, pointer query, and all typed
+        # semantic arguments. The second pass supplies sampled actor_op/actor_target.
+        actor_input = jnp.concatenate([frozen_fused, goal], axis=-1)
+        actor_h = nn.Dense(cfg.d_model, dtype=dtype, param_dtype=jnp.float32, name="actor_shared_h")(actor_input)
         actor_h = nn.gelu(actor_h)
         op_logits = nn.Dense(N_OPS, dtype=jnp.float32, param_dtype=jnp.float32, name="actor_op")(actor_h.astype(jnp.float32))
 
         op_embed = self.param("actor_op_embed", nn.initializers.normal(stddev=0.02), (N_OPS, cfg.d_model), jnp.float32).astype(dtype)
-        ptr_key = nn.Dense(cfg.d_model, use_bias=False, dtype=dtype, param_dtype=jnp.float32, name="actor_ptr_key")(tree)
+        ptr_key = nn.Dense(cfg.d_model, use_bias=False, dtype=dtype, param_dtype=jnp.float32, name="actor_ptr_key")(frozen_tree)
         ptr_base = nn.Dense(cfg.d_model, use_bias=False, dtype=dtype, param_dtype=jnp.float32, name="actor_ptr_query")(actor_h)
-        ptr_q = ptr_base[:, None, :] + op_embed[None, :, :]
+        ptr_goal = nn.Dense(cfg.d_model, use_bias=False, dtype=dtype, param_dtype=jnp.float32, name="actor_ptr_goal")(goal)
+        ptr_q = ptr_base[:, None, :] + ptr_goal[:, None, :] + op_embed[None, :, :]
         target_logits_all = jnp.einsum("bod,btd->bot", ptr_q.astype(jnp.float32), ptr_key.astype(jnp.float32)) / jnp.sqrt(float(cfg.d_model))
         default_target_mask = jnp.broadcast_to(tm[:, None, :], target_logits_all.shape)
         target_mask = batch.get("actor_target_mask", default_target_mask).astype(bool)
         target_logits_all = jnp.where(target_mask, target_logits_all, jnp.asarray(-1e9, jnp.float32))
 
-        bsz = fused.shape[0]
         selected_op = jnp.clip(batch.get("actor_op", jnp.zeros((bsz,), jnp.int32)).astype(jnp.int32), 0, N_OPS - 1)
         selected_target = jnp.clip(batch.get("actor_target", jnp.zeros((bsz,), jnp.int32)).astype(jnp.int32), 0, cfg.tree_cap - 1)
-        selected_target_state = tree[jnp.arange(bsz), selected_target]
+        selected_target_state = frozen_tree[jnp.arange(bsz), selected_target]
         selected_op_embed = op_embed[selected_op]
-        sem = jnp.concatenate([fused, selected_target_state, selected_op_embed], axis=-1)
+        sem = jnp.concatenate([frozen_fused, goal, selected_target_state, selected_op_embed], axis=-1)
         sem = nn.Dense(cfg.d_model, dtype=dtype, param_dtype=jnp.float32, name="actor_sem_h")(sem)
         sem = nn.gelu(sem)
 
@@ -150,6 +174,19 @@ class BonsaiEditActorCritic(nn.Module):
         prefix_norm = jnp.tanh(nn.Dense(1, dtype=jnp.float32, param_dtype=jnp.float32, name="actor_prefix")(sem.astype(jnp.float32))[:, 0])
         proposal_quality_logit = nn.Dense(1, dtype=jnp.float32, param_dtype=jnp.float32, name="actor_quality")(sem.astype(jnp.float32))[:, 0]
 
+        # Append-only candidate-aware directional heads. The case representation already
+        # encodes the supplied baseline margin/outcome and candidate activation context.
+        # Selecting these outputs with goal_mask provides target-specific interpretation.
+        direction_goal = nn.Dense(cfg.d_model // 2, dtype=dtype, param_dtype=jnp.float32, name="actor_direction_goal")(goal)
+        direction_goal = jnp.broadcast_to(direction_goal[:, None, :], (bsz, cfg.case_cap, cfg.d_model // 2))
+        direction_input = jnp.concatenate([frozen_cases, direction_goal], axis=-1)
+        direction_h = nn.Dense(cfg.d_model // 2, dtype=dtype, param_dtype=jnp.float32, name="actor_direction_h")(direction_input)
+        direction_h = nn.gelu(direction_h)
+        direction_delta = jnp.tanh(nn.Dense(1, dtype=jnp.float32, param_dtype=jnp.float32, name="actor_direction_delta")(direction_h.astype(jnp.float32))[..., 0])
+        direction_improve = nn.Dense(1, dtype=jnp.float32, param_dtype=jnp.float32, name="actor_direction_improve")(direction_h.astype(jnp.float32))[..., 0]
+        direction_flip = nn.Dense(1, dtype=jnp.float32, param_dtype=jnp.float32, name="actor_direction_flip")(direction_h.astype(jnp.float32))[..., 0]
+        direction_regress = nn.Dense(1, dtype=jnp.float32, param_dtype=jnp.float32, name="actor_direction_regress")(direction_h.astype(jnp.float32))[..., 0]
+
         return {
             "regression_logit": regression_logit,
             "flip_logit": flip_logit,
@@ -158,6 +195,12 @@ class BonsaiEditActorCritic(nn.Module):
             "rank_residual": rank_residual,
             "rank": final_rank,
             "case_delta": case_delta,
+            "actor_goal_embedding": goal.astype(jnp.float32),
+            "actor_goal_attention": goal_weight.astype(jnp.float32),
+            "actor_direction_delta": direction_delta,
+            "actor_direction_improve_logit": direction_improve,
+            "actor_direction_flip_logit": direction_flip,
+            "actor_direction_regress_logit": direction_regress,
             "actor_op_logits": op_logits,
             "actor_target_logits_all": target_logits_all,
             "actor_feature_logits": feature_logits,
@@ -234,7 +277,7 @@ def critic_param_digest(params: Any) -> str:
 
 def actor_config_report(cfg: EditFormerConfig, params: Any) -> dict[str, Any]:
     return {
-        "architecture": "BonsaiEditFormer-ActorCritic-v1",
+        "architecture": "BonsaiEditFormer-GCAC-v2",
         "shared_encoder_config": asdict(cfg),
         "operations": list(EDIT_OPERATIONS),
         "parameters": count_params(params),

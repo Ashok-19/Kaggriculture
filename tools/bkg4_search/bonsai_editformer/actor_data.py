@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 from collections import defaultdict
 from dataclasses import asdict, dataclass
+from enum import IntEnum
 from pathlib import Path
 from typing import Iterable
 
@@ -24,6 +26,173 @@ from tools.bkg4_search.module_codec import ConditionGene, ModuleGenome, RuleGene
 
 ROUTE_INDEX = {r: i for i, r in enumerate(ROUTES)}
 ACTOR_DATA_DIR = OUT / "actor"
+
+
+class GoalClass(IntEnum):
+    """Lexicographic per-failure outcome class for goal-conditioned supervision."""
+
+    SEVERE_REGRESSION = -2
+    TARGET_HARM = -1
+    NO_EFFECT = 0
+    UNSAFE_IMPROVE = 1
+    SAFE_IMPROVE = 2
+    SAFE_FLIP = 3
+
+
+def classify_goal_outcome(*, parent_margin: int, child_margin: int, w2l: int, reg3: int) -> GoalClass:
+    """Classify one requested failure without allowing aggregate gains to hide regressions."""
+    delta = int(child_margin) - int(parent_margin)
+    unsafe = int(w2l) > 0 or int(reg3) > 0
+    if delta > 0:
+        if unsafe:
+            return GoalClass.UNSAFE_IMPROVE
+        return GoalClass.SAFE_FLIP if int(parent_margin) < 0 < int(child_margin) else GoalClass.SAFE_IMPROVE
+    if unsafe:
+        return GoalClass.SEVERE_REGRESSION
+    if delta < 0:
+        return GoalClass.TARGET_HARM
+    return GoalClass.NO_EFFECT
+
+
+def goal_example_weight(
+    goal_class: GoalClass | int,
+    *,
+    target_delta_raw: int,
+    beta: float = 2.0,
+    max_positive: float = 12.0,
+    max_negative: float = 8.0,
+) -> dict[str, float | bool]:
+    """Return bounded class-gated supervision weight; magnitude never overrides safety."""
+    cls = GoalClass(int(goal_class))
+    beta = max(1e-6, float(beta))
+    delta = int(target_delta_raw)
+    if cls in (GoalClass.SAFE_FLIP, GoalClass.SAFE_IMPROVE):
+        class_bonus = 4.0 if cls == GoalClass.SAFE_FLIP else 2.0
+        magnitude = min(4.0, max(0.0, delta / 5000.0))
+        advantage = class_bonus + magnitude
+        weight = min(float(max_positive), math.exp(advantage / beta))
+        return {"positive": True, "advantage": float(advantage), "weight": float(weight)}
+    if cls == GoalClass.UNSAFE_IMPROVE:
+        weight = 4.0 + min(2.0, max(0.0, delta / 5000.0))
+    elif cls == GoalClass.SEVERE_REGRESSION:
+        weight = 5.0 + min(2.0, abs(delta) / 5000.0)
+    elif cls == GoalClass.TARGET_HARM:
+        weight = 2.0 + min(2.0, abs(delta) / 5000.0)
+    else:
+        weight = 0.5
+    return {"positive": False, "advantage": 0.0, "weight": float(min(float(max_negative), weight))}
+
+
+def relabel_failure_goals(parent_margins: np.ndarray, child_margins: np.ndarray) -> tuple[list[dict], dict[str, int]]:
+    """Hindsight-relabel one exact mutation against every parent losing case."""
+    parent = np.asarray(parent_margins, np.int32)
+    child = np.asarray(child_margins, np.int32)
+    if parent.shape != child.shape:
+        raise ValueError(f"parent/child margin shape mismatch: {parent.shape} != {child.shape}")
+    delta = child - parent
+    parent_win = parent > 0
+    w2l = int(np.sum(parent_win & (child <= 0)))
+    reg3 = int(np.sum(parent_win & (delta < -3000)))
+    examples: list[dict] = []
+    for case_id in np.flatnonzero(parent < 0):
+        raw_delta = int(delta[case_id])
+        cls = classify_goal_outcome(
+            parent_margin=int(parent[case_id]), child_margin=int(child[case_id]), w2l=w2l, reg3=reg3,
+        )
+        examples.append({
+            "goal_case_id": int(case_id),
+            "goal_class": cls,
+            "parent_margin": int(parent[case_id]),
+            "child_margin": int(child[case_id]),
+            "target_delta_raw": raw_delta,
+            "target_delta_norm": float(math.tanh(raw_delta / 5000.0)),
+            "target_improve": bool(raw_delta > 0),
+            "target_flip": bool(parent[case_id] < 0 < child[case_id]),
+            "w2l": w2l,
+            "reg3": reg3,
+        })
+    return examples, {"w2l": w2l, "reg3": reg3}
+
+
+def operation_support_mask(operation_support: dict, *, min_safe_positive: int) -> np.ndarray:
+    """Return the learned-policy operation mask from exact safe-positive goal support."""
+    threshold = max(0, int(min_safe_positive))
+    return np.asarray([
+        int(operation_support.get(name, {}).get("safe_positive_examples", 0)) >= threshold
+        for name in EDIT_OPERATIONS
+    ], dtype=bool)
+
+
+def assert_no_relabel_leakage(transition_idx: np.ndarray, train_idx: np.ndarray, val_idx: np.ndarray) -> None:
+    """Require every relabel of one semantic mutation to stay on one split side."""
+    transition_idx = np.asarray(transition_idx, np.int64)
+    train_transitions = set(int(x) for x in transition_idx[np.asarray(train_idx, np.int64)])
+    val_transitions = set(int(x) for x in transition_idx[np.asarray(val_idx, np.int64)])
+    crossing = train_transitions & val_transitions
+    if crossing:
+        sample = sorted(crossing)[:8]
+        raise ValueError(f"relabel leakage across train/validation transition groups: {sample}")
+
+
+def _validation_class_counts(ids: np.ndarray, goal_class: np.ndarray, actor_op: np.ndarray) -> dict[str, int]:
+    cls = np.asarray(goal_class, np.int8)[ids]
+    ops = np.asarray(actor_op, np.int32)[ids]
+    return {
+        "n": int(len(ids)),
+        "target_positive": int(np.sum(np.isin(cls, [int(GoalClass.SAFE_FLIP), int(GoalClass.SAFE_IMPROVE)]))),
+        "target_harm": int(np.sum(cls == int(GoalClass.TARGET_HARM))),
+        "no_effect": int(np.sum(cls == int(GoalClass.NO_EFFECT))),
+        "severe_regression": int(np.sum(cls == int(GoalClass.SEVERE_REGRESSION))),
+        "unsafe_improve": int(np.sum(cls == int(GoalClass.UNSAFE_IMPROVE))),
+        "operation_families": int(len(set(int(x) for x in ops))),
+    }
+
+
+def stratified_validation_indices(
+    candidate_ids: np.ndarray,
+    goal_class: np.ndarray,
+    actor_op: np.ndarray,
+    *,
+    max_samples: int,
+) -> tuple[np.ndarray, dict[str, int]]:
+    """Deterministically select held-out examples across direction and operation strata."""
+    candidate_ids = np.asarray(candidate_ids, np.int32)
+    goal_class = np.asarray(goal_class, np.int8)
+    actor_op = np.asarray(actor_op, np.int32)
+    required = {
+        "target_positive": np.isin(goal_class[candidate_ids], [int(GoalClass.SAFE_FLIP), int(GoalClass.SAFE_IMPROVE)]),
+        "target_harm": goal_class[candidate_ids] == int(GoalClass.TARGET_HARM),
+        "no_effect": goal_class[candidate_ids] == int(GoalClass.NO_EFFECT),
+        "severe_regression": goal_class[candidate_ids] == int(GoalClass.SEVERE_REGRESSION),
+    }
+    missing = [name for name, mask in required.items() if not np.any(mask)]
+    if missing:
+        raise ValueError(f"required validation class absent: {', '.join(missing)}")
+    budget = min(max(1, int(max_samples)), len(candidate_ids))
+    # Round-robin over (direction class, operation) groups, preserving stable index order.
+    groups: dict[tuple[int, int], list[int]] = defaultdict(list)
+    for idx in sorted(int(x) for x in candidate_ids):
+        groups[(int(goal_class[idx]), int(actor_op[idx]))].append(idx)
+    keys = sorted(groups)
+    selected: list[int] = []
+    depth = 0
+    while len(selected) < budget:
+        added = False
+        for key in keys:
+            xs = groups[key]
+            if depth < len(xs):
+                selected.append(xs[depth]); added = True
+                if len(selected) >= budget:
+                    break
+        if not added:
+            break
+        depth += 1
+    ids = np.asarray(selected, np.int32)
+    counts = _validation_class_counts(ids, goal_class, actor_op)
+    selected_missing = [name for name in ("target_positive", "target_harm", "no_effect", "severe_regression") if counts[name] <= 0]
+    if selected_missing:
+        raise ValueError(f"required validation class missing after stratification: {', '.join(selected_missing)}")
+    return ids, counts
 
 
 @dataclass(frozen=True)
@@ -255,7 +424,7 @@ def _action_arrays(transitions: list[Transition], genomes: list[ModuleGenome], t
         "feature2": np.zeros(n, np.int32), "cmp2": np.zeros(n, np.int32), "index2": np.zeros(n, np.int32),
         "condition_count": np.zeros(n, np.int32), "priority": np.zeros(n, np.int32),
         "value_norm": np.zeros(n, np.float32), "value2_norm": np.zeros(n, np.float32), "prefix_norm": np.zeros(n, np.float32),
-        "positive": np.zeros(n, np.float32), "weight": np.zeros(n, np.float32), "advantage": np.zeros(n, np.float32),
+        "legacy_positive": np.zeros(n, np.float32), "legacy_weight": np.zeros(n, np.float32), "legacy_advantage": np.zeros(n, np.float32),
     }
     for i, t in enumerate(transitions):
         x = t.action; parent = genomes[t.parent]
@@ -266,31 +435,196 @@ def _action_arrays(transitions: list[Transition], genomes: list[ModuleGenome], t
         a["condition_count"][i] = max(0, min(1, x.condition_count - 1)); a["priority"][i] = max(0, min(7, x.priority))
         a["value_norm"][i] = normalize_value(x.feature, x.value); a["value2_norm"][i] = normalize_value(x.feature2, x.value2)
         a["prefix_norm"][i] = 2.0 * max(0, min(719, x.prefix_step)) / 719.0 - 1.0
-        a["positive"][i] = float(t.positive); a["weight"][i] = t.weight; a["advantage"][i] = t.advantage
+        a["legacy_positive"][i] = float(t.positive); a["legacy_weight"][i] = t.weight; a["legacy_advantage"][i] = t.advantage
     return a
 
 
-def prepare_actor_dataset(out: Path | None = None, *, limit_rows: int | None = None, max_transitions: int = 60_000) -> dict:
+def goal_supervision_arrays(
+    transitions: list[Transition],
+    rows: list,
+    *,
+    case_cap: int = 48,
+    awr_beta: float = 2.0,
+    max_positive_weight: float = 12.0,
+    max_negative_weight: float = 8.0,
+) -> tuple[dict[str, np.ndarray], dict[str, dict[str, int]]]:
+    """Build pair-relative labels once per mutation plus compact hindsight goal examples."""
+    nt = len(transitions)
+    pair_parent_margin = np.zeros((nt, case_cap), np.int32)
+    pair_child_margin = np.zeros((nt, case_cap), np.int32)
+    pair_case_delta_raw = np.zeros((nt, case_cap), np.int32)
+    pair_case_delta_norm = np.zeros((nt, case_cap), np.float16)
+    pair_case_mask = np.zeros((nt, case_cap), bool)
+    pair_case_improve = np.zeros((nt, case_cap), bool)
+    pair_case_flip = np.zeros((nt, case_cap), bool)
+    pair_case_regress = np.zeros((nt, case_cap), bool)
+    pair_case_reg3 = np.zeros((nt, case_cap), bool)
+
+    support: dict[str, dict[str, int]] = {
+        name: {
+            "transitions": 0,
+            "goal_examples": 0,
+            "target_positive_examples": 0,
+            "safe_positive_examples": 0,
+            "safe_l2w_examples": 0,
+            "target_harm_examples": 0,
+            "target_noop_examples": 0,
+            "harmful_examples": 0,
+            "severe_regression_examples": 0,
+        }
+        for name in EDIT_OPERATIONS
+    }
+    ex_transition: list[int] = []
+    ex_goal_case: list[int] = []
+    ex_goal_class: list[int] = []
+    ex_target_delta_raw: list[int] = []
+    ex_target_delta_norm: list[float] = []
+    ex_target_improve: list[bool] = []
+    ex_target_flip: list[bool] = []
+    ex_positive: list[float] = []
+    ex_weight: list[float] = []
+    ex_advantage: list[float] = []
+    ex_w2l: list[int] = []
+    ex_reg3: list[int] = []
+
+    for ti, t in enumerate(transitions):
+        parent = rows[t.parent]
+        child = rows[t.child]
+        nc = min(int(parent.nc) if hasattr(parent, "nc") else len(parent.margins),
+                 int(child.nc) if hasattr(child, "nc") else len(child.margins), case_cap)
+        if not np.array_equal(np.asarray(parent.baseline[:nc]), np.asarray(child.baseline[:nc])):
+            raise ValueError(f"transition {ti} parent/child baseline mismatch")
+        pm = np.asarray(parent.margins[:nc], np.int32)
+        cm = np.asarray(child.margins[:nc], np.int32)
+        delta = cm - pm
+        pair_parent_margin[ti, :nc] = pm
+        pair_child_margin[ti, :nc] = cm
+        pair_case_delta_raw[ti, :nc] = delta
+        pair_case_delta_norm[ti, :nc] = np.tanh(delta.astype(np.float64) / 5000.0).astype(np.float16)
+        pair_case_mask[ti, :nc] = True
+        pair_case_improve[ti, :nc] = delta > 0
+        pair_case_flip[ti, :nc] = (pm < 0) & (cm > 0)
+        pair_case_regress[ti, :nc] = (pm > 0) & (cm <= 0)
+        pair_case_reg3[ti, :nc] = (pm > 0) & (delta < -3000)
+
+        examples, summary = relabel_failure_goals(pm, cm)
+        op_support = support[t.action.operation]
+        op_support["transitions"] += 1
+        for ex in examples:
+            cls = GoalClass(int(ex["goal_class"]))
+            wt = goal_example_weight(
+                cls,
+                target_delta_raw=int(ex["target_delta_raw"]),
+                beta=awr_beta,
+                max_positive=max_positive_weight,
+                max_negative=max_negative_weight,
+            )
+            ex_transition.append(ti)
+            ex_goal_case.append(int(ex["goal_case_id"]))
+            ex_goal_class.append(int(cls))
+            ex_target_delta_raw.append(int(ex["target_delta_raw"]))
+            ex_target_delta_norm.append(float(ex["target_delta_norm"]))
+            ex_target_improve.append(bool(ex["target_improve"]))
+            ex_target_flip.append(bool(ex["target_flip"]))
+            ex_positive.append(float(bool(wt["positive"])))
+            ex_weight.append(float(wt["weight"]))
+            ex_advantage.append(float(wt["advantage"]))
+            ex_w2l.append(int(summary["w2l"]))
+            ex_reg3.append(int(summary["reg3"]))
+            op_support["goal_examples"] += 1
+            op_support["target_positive_examples"] += int(int(ex["target_delta_raw"]) > 0)
+            op_support["safe_positive_examples"] += int(cls in (GoalClass.SAFE_FLIP, GoalClass.SAFE_IMPROVE))
+            op_support["safe_l2w_examples"] += int(cls == GoalClass.SAFE_FLIP)
+            op_support["target_harm_examples"] += int(int(ex["target_delta_raw"]) < 0)
+            op_support["target_noop_examples"] += int(int(ex["target_delta_raw"]) == 0)
+            op_support["severe_regression_examples"] += int(summary["w2l"] > 0 or summary["reg3"] > 0)
+            op_support["harmful_examples"] += int(
+                int(ex["target_delta_raw"]) < 0 or summary["w2l"] > 0 or summary["reg3"] > 0
+            )
+
+    arrays = {
+        "pair_parent_margin": pair_parent_margin,
+        "pair_child_margin": pair_child_margin,
+        "pair_case_delta_raw": pair_case_delta_raw,
+        "pair_case_delta_norm": pair_case_delta_norm,
+        "pair_case_mask": pair_case_mask,
+        "pair_case_improve": pair_case_improve,
+        "pair_case_flip": pair_case_flip,
+        "pair_case_regress": pair_case_regress,
+        "pair_case_reg3": pair_case_reg3,
+        "transition_idx": np.asarray(ex_transition, np.int32),
+        "goal_case_id": np.asarray(ex_goal_case, np.int16),
+        "goal_class": np.asarray(ex_goal_class, np.int8),
+        "target_delta_raw": np.asarray(ex_target_delta_raw, np.int32),
+        "target_delta_norm": np.asarray(ex_target_delta_norm, np.float32),
+        "target_improve": np.asarray(ex_target_improve, bool),
+        "target_flip": np.asarray(ex_target_flip, bool),
+        "positive": np.asarray(ex_positive, np.float32),
+        "weight": np.asarray(ex_weight, np.float32),
+        "advantage": np.asarray(ex_advantage, np.float32),
+        "w2l": np.asarray(ex_w2l, np.int16),
+        "reg3": np.asarray(ex_reg3, np.int16),
+        "goal_mode": np.zeros(len(ex_transition), np.int8),  # 0=LOSS_REPAIR; 1 reserved for MARGIN_EXPANSION.
+        "desired_margin_floor": np.zeros(len(ex_transition), np.float32),
+    }
+    return arrays, support
+
+
+def prepare_actor_dataset(out: Path | None = None, *, limit_rows: int | None = None, max_transitions: int = 60_000,
+                          min_safe_positive: int = 32, awr_beta: float = 2.0,
+                          max_positive_weight: float = 12.0, max_negative_weight: float = 8.0) -> dict:
     out = Path(out or ACTOR_DATA_DIR / ("transitions_full.npz" if limit_rows is None else f"transitions_smoke{limit_rows}.npz"))
     out.parent.mkdir(parents=True, exist_ok=True)
     transitions, genomes, rows = build_transitions(limit_rows, max_transitions)
     arrays = _action_arrays(transitions, genomes)
-    train, val = split_transition_indices(transitions)
-    arrays["train_idx"] = train; arrays["val_idx"] = val
+    goal_arrays, operation_support = goal_supervision_arrays(
+        transitions, rows, case_cap=48, awr_beta=awr_beta,
+        max_positive_weight=max_positive_weight, max_negative_weight=max_negative_weight,
+    )
+    arrays.update(goal_arrays)
+    transition_train, transition_val = split_transition_indices(transitions)
+    transition_side = np.zeros(len(transitions), np.int8)
+    transition_side[transition_train] = 1
+    transition_side[transition_val] = 2
+    ex_side = transition_side[arrays["transition_idx"]]
+    train = np.flatnonzero(ex_side == 1).astype(np.int32)
+    val = np.flatnonzero(ex_side == 2).astype(np.int32)
+    assert_no_relabel_leakage(arrays["transition_idx"], train, val)
+    arrays["transition_train_idx"] = transition_train
+    arrays["transition_val_idx"] = transition_val
+    arrays["train_idx"] = train
+    arrays["val_idx"] = val
+    learned_mask = operation_support_mask(operation_support, min_safe_positive=min_safe_positive)
+    arrays["learned_operation_mask"] = learned_mask
     np.savez(out, **arrays)
     ops = {name: 0 for name in EDIT_OPERATIONS}
     positive_ops = {name: 0 for name in EDIT_OPERATIONS}
     for t in transitions:
         ops[t.action.operation] += 1
         positive_ops[t.action.operation] += int(t.positive)
+    goal_counts = {name: int(np.sum(arrays["goal_class"] == int(cls))) for name, cls in (
+        ("safe_flip", GoalClass.SAFE_FLIP), ("safe_improve", GoalClass.SAFE_IMPROVE),
+        ("unsafe_improve", GoalClass.UNSAFE_IMPROVE), ("no_effect", GoalClass.NO_EFFECT),
+        ("target_harm", GoalClass.TARGET_HARM), ("severe_regression", GoalClass.SEVERE_REGRESSION),
+    )}
     sha = hashlib.sha256(out.read_bytes()).hexdigest()
     manifest = {
-        "schema": 1, "dataset": str(out), "dataset_sha256": sha,
-        "rows": len(rows), "transitions": len(transitions), "train": len(train), "val": len(val),
-        "positive": sum(int(t.positive) for t in transitions), "negative": sum(int(not t.positive) for t in transitions),
-        "operations": ops, "positive_operations": positive_ops,
+        "schema": 2, "architecture": "BonsaiEditFormer-GCAC-v2", "dataset": str(out), "dataset_sha256": sha,
+        "rows": len(rows), "transitions": len(transitions), "goal_examples": len(arrays["transition_idx"]),
+        "train": len(train), "val": len(val),
+        "positive": int(np.sum(arrays["positive"] > 0)), "negative": int(np.sum(arrays["positive"] <= 0)),
+        "goal_classes": goal_counts,
+        "operations": ops, "legacy_positive_operations": positive_ops,
+        "operation_support": operation_support,
+        "min_safe_positive_support": int(min_safe_positive),
+        "learned_operation_mask": {name: bool(learned_mask[i]) for i, name in enumerate(EDIT_OPERATIONS)},
+        "awr": {"beta": float(awr_beta), "max_positive_weight": float(max_positive_weight), "max_negative_weight": float(max_negative_weight)},
+        "transition_train_hash": hashlib.sha256(transition_train.tobytes()).hexdigest(),
+        "transition_val_hash": hashlib.sha256(transition_val.tobytes()).hexdigest(),
         "train_hash": hashlib.sha256(train.tobytes()).hexdigest(), "val_hash": hashlib.sha256(val.tobytes()).hexdigest(),
-        "source": "historical exact-CUDA ModuleGenome parent-child transitions",
+        "relabel_leakage": 0,
+        "case_delta_normalization": "tanh(raw_margin_delta / 5000)",
+        "source": "historical exact-CUDA ModuleGenome parent-child transitions with hindsight failure-goal relabeling",
     }
     out.with_suffix(".manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
     return manifest

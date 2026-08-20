@@ -558,6 +558,41 @@ def _feature_arrays(rows: list[Row], cfg: EditFormerConfig, limit: int | None = 
     return arrays
 
 
+def feature_arrays_from_capture(rows: list[Row], cfg: EditFormerConfig, capture_path: str | Path,
+                                case_meta: list[dict]) -> dict[str, np.ndarray]:
+    """Build normal EditFormer features against an explicit frozen public-state capture.
+
+    This is used for fresh failure goals. `case_meta` contains bookkeeping/seat flags only;
+    opponent/team/seed identity is never embedded by `build_case_features`.
+    """
+    cache, arr = capture_matrix(Path(capture_path))
+    if cache.cases != len(case_meta):
+        raise ValueError(f"capture/case-meta mismatch: {cache.cases} != {len(case_meta)}")
+    if any(int(r.nc) != cache.cases for r in rows):
+        raise ValueError("every external-context row must span the full capture case panel")
+    lookup = _registry_lookup()
+    n = len(rows)
+    arrays = {
+      "tree_cat":np.zeros((n,cfg.tree_cap,TREE_CAT_COLS),np.int16),"tree_num":np.zeros((n,cfg.tree_cap,TREE_NUM_COLS),np.float16),
+      "tree_mask":np.zeros((n,cfg.tree_cap),bool),"tree_parent":np.full((n,cfg.tree_cap),-1,np.int16),"tree_depth":np.zeros((n,cfg.tree_cap),np.int8),"tree_rule":np.zeros((n,cfg.tree_cap),np.int8),
+      "edit_cat":np.zeros((n,cfg.edit_cap,EDIT_CAT_COLS),np.int16),"edit_num":np.zeros((n,cfg.edit_cap,EDIT_NUM_COLS),np.float16),"edit_mask":np.zeros((n,cfg.edit_cap),bool),
+      "case_features":np.zeros((n,cfg.case_cap,CASE_DIM),np.float16),"case_mask":np.zeros((n,cfg.case_cap),bool),"case_ids":np.full((n,cfg.case_cap),-1,np.int16),
+      "case_delta":np.zeros((n,cfg.case_cap),np.float16),"case_transition":np.zeros((n,cfg.case_cap),np.int8),
+      "heuristic":np.zeros(n,np.float32),"labels":np.zeros((n,9),np.float32),"group":np.zeros(n,np.int16),
+      "blob_sha":np.zeros(n,dtype="S64"),"semantic_id":np.zeros(n,dtype="S64"),"parent_kind":np.zeros(n,np.int8),
+    }
+    groups={name:i for i,name in enumerate(sorted({r.campaign for r in rows}))}
+    for i,r in enumerate(rows):
+        dec=decode_genome(r.blob)
+        tc,tn,tm,tp,td,tr=build_tree(dec,r.parent_kind,cfg);ec,en,em,heur=build_edit(dec,r,cfg)
+        cf,cm,cids,cd,ct=build_case_features(r,dec,cfg,cache,arr,case_meta,lookup)
+        arrays["tree_cat"][i]=tc;arrays["tree_num"][i]=tn;arrays["tree_mask"][i]=tm;arrays["tree_parent"][i]=tp;arrays["tree_depth"][i]=td;arrays["tree_rule"][i]=tr
+        arrays["edit_cat"][i]=ec;arrays["edit_num"][i]=en;arrays["edit_mask"][i]=em;arrays["case_features"][i]=cf;arrays["case_mask"][i]=cm;arrays["case_ids"][i]=cids;arrays["case_delta"][i]=cd;arrays["case_transition"][i]=ct
+        arrays["heuristic"][i]=heur;l=r.labels;arrays["labels"][i]=[l["regression"],l["flip"],l["margin_target"],l["worst_target"],l["rank_target"],l["safe"],l["l2w"],l["w2l"],l["mean_delta"]]
+        arrays["group"][i]=groups[r.campaign];arrays["blob_sha"][i]=r.blob_sha.encode();arrays["semantic_id"][i]=r.semantic_id.encode();arrays["parent_kind"][i]=r.parent_kind
+    return arrays
+
+
 def prepare_feature_caches(cfg: EditFormerConfig, *, limit: int | None = None, force: bool = False) -> dict:
     OUT.mkdir(parents=True,exist_ok=True); fdir=OUT/"features";fdir.mkdir(exist_ok=True)
     hist,raw=history_rows(); cur=current_rows(); ht,hv=stratified_split(hist);ct,cv=stratified_split(cur)

@@ -24,11 +24,12 @@ from actor_grammar import (
     valid_operation_mask,
 )
 from actor_model import BonsaiEditActorCritic
-from data import OUT, ROUTES, Row, _feature_arrays, current_rows, label_dict
+from data import OUT, ROUTES, Row, _feature_arrays, current_rows, feature_arrays_from_capture, label_dict
 from model import EditFormerConfig
 from tools.bkg4_search.campaign import mutate, random_condition
 from tools.bkg4_search.cuda_io import GENOME_SIZE, FILE_HEAD, pack_genomes
 from tools.bkg4_search.module_codec import ModuleGenome
+from gcac_context import case_meta_from_tsv
 
 
 @dataclass(frozen=True)
@@ -51,6 +52,16 @@ class GeneratedCandidate:
     probe_loss_target_cases: int | None = None
     probe_win_exposure_cases: int | None = None
     probe_effect_score: float | None = None
+    goal_case_ids: tuple[int, ...] | None = None
+    generated_goal_case_ids: tuple[int, ...] | None = None
+    goal_mode: str | None = None
+    critic_goal_delta_norm: float | None = None
+    critic_goal_delta_margin: float | None = None
+    critic_goal_improve_prob: float | None = None
+    critic_goal_flip_prob: float | None = None
+    critic_protected_regress_prob_max: float | None = None
+    critic_predicted_target_flips: int | None = None
+    critic_predicted_win_crossings: int | None = None
 
 
 def _repeat_batch(batch: dict, n: int) -> dict:
@@ -101,15 +112,29 @@ def _to_device(batch: dict) -> dict:
 
 def _sample_actions(model: BonsaiEditActorCritic, params, cfg: EditFormerConfig, parent: ModuleGenome, parent_batch: dict,
                     n: int, seed: int, temperature: float, topk: int, diversity_penalty: float,
-                    route_ids: Sequence[int]) -> list[tuple[EditAction, float]]:
+                    route_ids: Sequence[int], *, goal_mask: np.ndarray | None = None,
+                    goal_spec: np.ndarray | None = None, learned_operation_mask: np.ndarray | None = None) -> list[tuple[EditAction, float]]:
     rng = np.random.default_rng(seed)
     base = dict(parent_batch)
     base["actor_target_mask"] = np.asarray(target_masks(parent, cfg.tree_cap), bool)[None, ...]
     base["actor_op"] = np.zeros((1,), np.int32); base["actor_target"] = np.zeros((1,), np.int32)
+    if goal_mask is not None:
+        gm=np.asarray(goal_mask,bool).reshape(1,cfg.case_cap);base["goal_mask"]=gm
+    else:
+        base["goal_mask"]=np.asarray(base.get("case_mask",np.ones((1,cfg.case_cap),bool)),bool)
+    if goal_spec is not None:
+        base["goal_spec"]=np.asarray(goal_spec,np.float32).reshape(1,4)
+    else:
+        base["goal_spec"]=np.asarray([[1.0,0.0,1.0,0.0]],np.float32)
     first = model.apply({"params": params}, _to_device(base), train=False)
     op_logits = np.asarray(first["actor_op_logits"])[0]
     target_all = np.asarray(first["actor_target_logits_all"])[0]
     op_valid = np.asarray(valid_operation_mask(parent), bool)
+    if learned_operation_mask is not None:
+        lom=np.asarray(learned_operation_mask,bool)
+        if lom.shape!=(len(EDIT_OPERATIONS),):raise ValueError(f"learned operation mask shape {lom.shape}")
+        op_valid &= lom
+    if not np.any(op_valid):raise ValueError("no learned actor operation remains valid for parent")
     masks = np.asarray(target_masks(parent, cfg.tree_cap), bool)
     refs = node_refs(parent, cfg.tree_cap)
     op_counts = np.zeros(len(EDIT_OPERATIONS), np.float64)
@@ -163,12 +188,16 @@ def _sample_actions(model: BonsaiEditActorCritic, params, cfg: EditFormerConfig,
 
 def actor_generate(model, params, cfg: EditFormerConfig, parent: ModuleGenome, parent_batch: dict, *, n: int,
                    seed: int = 73, temperature: float = 0.9, topk: int = 8, diversity_penalty: float = 0.35,
-                   route_ids: Sequence[int] = ROUTES, max_rounds: int = 8) -> list[GeneratedCandidate]:
+                   route_ids: Sequence[int] = ROUTES, max_rounds: int = 8,
+                   goal_mask: np.ndarray | None = None, goal_spec: np.ndarray | None = None,
+                   goal_case_ids: Sequence[int] = (), goal_mode: str = "LOSS_REPAIR",
+                   learned_operation_mask: np.ndarray | None = None) -> list[GeneratedCandidate]:
     seen = {parent.semantic_id()}; result: list[GeneratedCandidate] = []
     for round_i in range(max_rounds):
         want = max(16, (n - len(result)) * 2)
         for action, logit in _sample_actions(model, params, cfg, parent, parent_batch, want, seed + round_i * 1009,
-                                             temperature, topk, diversity_penalty, route_ids):
+                                             temperature, topk, diversity_penalty, route_ids,
+                                             goal_mask=goal_mask,goal_spec=goal_spec,learned_operation_mask=learned_operation_mask):
             try:
                 g = apply_edit(parent, action, route_ids)
             except ValueError:
@@ -177,7 +206,8 @@ def actor_generate(model, params, cfg: EditFormerConfig, parent: ModuleGenome, p
             if sid in seen:
                 continue
             seen.add(sid)
-            result.append(GeneratedCandidate("actor", sid, parent.semantic_id(), asdict(action), g.canonical(), actor_logit=logit))
+            result.append(GeneratedCandidate("actor", sid, parent.semantic_id(), asdict(action), g.canonical(), actor_logit=logit,
+                                             goal_case_ids=tuple(int(x) for x in goal_case_ids),generated_goal_case_ids=tuple(int(x) for x in goal_case_ids),goal_mode=goal_mode))
             if len(result) >= n:
                 return result
     return result
@@ -218,9 +248,10 @@ def heuristic_generate(parent: ModuleGenome, *, n: int, seed: int) -> list[Gener
 
 
 def empirical_generate(parent: ModuleGenome, actor_data: dict[str, np.ndarray], *, n: int, seed: int) -> list[GeneratedCandidate]:
-    # Empirical operation-frequency baseline; semantics/targets remain typed-random so this
-    # cannot replay an exact historical candidate by construction.
-    rng = random.Random(seed); ops = np.asarray(actor_data["actor_op"], np.int32); pos = np.asarray(actor_data["positive"], bool)
+    # Empirical safe-positive operation-frequency baseline. Compact GCAC-v2 goal examples
+    # map back to transition-level operations and cannot replay exact historical semantics.
+    rng = random.Random(seed); tids=np.asarray(actor_data["transition_idx"],np.int32)
+    ops=np.asarray(actor_data["actor_op"],np.int32)[tids];pos=np.asarray(actor_data["positive"],bool)
     counts = np.bincount(ops[pos], minlength=len(EDIT_OPERATIONS)).astype(float) + 0.1
     valid = np.asarray(valid_operation_mask(parent), bool); counts *= valid; counts /= counts.sum()
     masks = target_masks(parent); seen = {parent.semantic_id()}; out = []
@@ -257,8 +288,30 @@ def current_candidate_features(genomes: Sequence[ModuleGenome], cfg: EditFormerC
     return _feature_arrays(rows, cfg)
 
 
+def context_candidate_features(genomes: Sequence[ModuleGenome], cfg: EditFormerConfig,
+                               context: dict) -> dict[str, np.ndarray]:
+    """Build candidate features on a guarded external legal-state capture."""
+    base = np.asarray(context["baseline_margins"], np.int32)
+    blobs = _genome_blobs(genomes); rows = []
+    for g, blob in zip(genomes, blobs):
+        sha = hashlib.sha256(blob).hexdigest()
+        rows.append(Row(len(base), blob, base.copy(), base.copy(), "gcac_goal_context", sha, g.semantic_id(),
+                        label_dict(base, base), {"heuristic_norm": 0.0, "heuristic_rank": 399}, 2))
+    return feature_arrays_from_capture(rows, cfg, context["capture"], case_meta_from_tsv(context["cases"]))
+
+
+def candidate_features(genomes: Sequence[ModuleGenome], cfg: EditFormerConfig,
+                       parent_margins: np.ndarray, context: dict | None = None) -> dict[str, np.ndarray]:
+    if context is None:
+        return current_candidate_features(genomes, cfg, baseline=parent_margins)
+    expected = np.asarray(context["baseline_margins"], np.int32)
+    if not np.array_equal(np.asarray(parent_margins, np.int32), expected):
+        raise ValueError("goal-context baseline margins do not match requested synthesis parent")
+    return context_candidate_features(genomes, cfg, context)
+
+
 def probe_effect_profiles(parent: ModuleGenome, genomes: Sequence[ModuleGenome], cfg: EditFormerConfig,
-                          parent_margins: np.ndarray) -> list[dict[str, float | int]]:
+                          parent_margins: np.ndarray, context: dict | None = None) -> list[dict[str, float | int]]:
     """Cheap legal-state effect proxy relative to the exact synthesis parent.
 
     This is intentionally not CUDA reward. It uses only frozen-parent public-state probes
@@ -267,8 +320,8 @@ def probe_effect_profiles(parent: ModuleGenome, genomes: Sequence[ModuleGenome],
     an activated branch that selects the same module route is often behaviorally inert.
     """
     parent_margins = np.asarray(parent_margins, np.int32)
-    cache = current_candidate_features(genomes, cfg, baseline=parent_margins)
-    parent_cache = current_candidate_features([parent], cfg, baseline=parent_margins)
+    cache = candidate_features(genomes, cfg, parent_margins, context)
+    parent_cache = candidate_features([parent], cfg, parent_margins, context)
     pmap = {
         int(cid): float(parent_cache["case_features"][0, j, 19])
         for j, cid in enumerate(parent_cache["case_ids"][0]) if int(cid) >= 0
@@ -337,6 +390,76 @@ def _diverse_order(candidates: Sequence[GeneratedCandidate], diversity_penalty: 
     return selected
 
 
+def directional_shortlist(
+    candidates: Sequence[GeneratedCandidate],
+    budget: int,
+    *,
+    min_improve_prob: float = 0.50,
+    max_regression_prob: float = 0.35,
+    max_protected_regress_prob: float = 0.35,
+    diversity_penalty: float = 0.25,
+) -> tuple[list[GeneratedCandidate], dict[str, int | float]]:
+    """LOSS_REPAIR shortlist: signed target direction first, absolute effect last."""
+    xs = list(candidates)
+    budget = max(0, min(int(budget), len(xs)))
+    def delta(c): return float(c.critic_goal_delta_norm if c.critic_goal_delta_norm is not None else -1e9)
+    def improve(c): return float(c.critic_goal_improve_prob if c.critic_goal_improve_prob is not None else 0.0)
+    def flip(c): return float(c.critic_goal_flip_prob if c.critic_goal_flip_prob is not None else 0.0)
+    def reg(c): return float(c.critic_regression_prob if c.critic_regression_prob is not None else 1.0)
+    def preg(c): return float(c.critic_protected_regress_prob_max if c.critic_protected_regress_prob_max is not None else 1.0)
+    def positive(c): return delta(c) > 0.0 and improve(c) >= float(min_improve_prob)
+    def safe(c): return reg(c) <= float(max_regression_prob) and preg(c) <= float(max_protected_regress_prob)
+    def likely_flip(c): return int(c.critic_predicted_target_flips or 0) > 0 or flip(c) >= 0.50
+
+    # A positive target direction is non-negotiable for the exploitation frontier.
+    # Within it, predicted flips and safety dominate magnitude. Absolute effect is last.
+    pools = [
+        [c for c in xs if positive(c) and likely_flip(c) and safe(c)],
+        [c for c in xs if positive(c) and safe(c) and not likely_flip(c)],
+        [c for c in xs if positive(c) and likely_flip(c) and not safe(c)],
+        [c for c in xs if positive(c) and not likely_flip(c) and not safe(c)],
+        [c for c in xs if not positive(c) and safe(c)],
+        [c for c in xs if not positive(c) and not safe(c)],
+    ]
+    selected: list[GeneratedCandidate] = []
+    used: set[str] = set()
+    op_counts: dict[str, int] = {}
+    for pool in pools:
+        remaining = list(pool)
+        while remaining and len(selected) < budget:
+            best_i = max(range(len(remaining)), key=lambda i: (
+                flip(remaining[i]),
+                delta(remaining[i]),
+                -reg(remaining[i]),
+                -preg(remaining[i]),
+                float(remaining[i].critic_worst_win_pred or 0.0),
+                float(remaining[i].critic_margin_pred or 0.0),
+                -diversity_penalty * op_counts.get(str(remaining[i].action.get("operation")), 0),
+                float(remaining[i].critic_effect_mean_abs or 0.0),
+                remaining[i].semantic_id,
+            ))
+            c = remaining.pop(best_i)
+            if c.semantic_id in used:
+                continue
+            selected.append(c); used.add(c.semantic_id)
+            op = str(c.action.get("operation")); op_counts[op] = op_counts.get(op, 0) + 1
+        if len(selected) >= budget:
+            break
+    diag = {
+        "input_candidates": len(xs), "budget": budget,
+        "positive_direction_available": sum(positive(c) for c in xs),
+        "safe_positive_direction_available": sum(positive(c) and safe(c) for c in xs),
+        "predicted_flip_available": sum(positive(c) and likely_flip(c) for c in xs),
+        "selected_positive_direction": sum(positive(c) for c in selected),
+        "selected_safe_positive_direction": sum(positive(c) and safe(c) for c in selected),
+        "selected_predicted_flip": sum(likely_flip(c) for c in selected),
+        "selected_negative_or_uncertain_direction": sum(not positive(c) for c in selected),
+        "mean_selected_goal_delta_norm": float(np.mean([delta(c) for c in selected])) if selected else 0.0,
+        "mean_selected_regression_prob": float(np.mean([reg(c) for c in selected])) if selected else 0.0,
+    }
+    return selected, diag
+
+
 def effect_aware_shortlist(candidates: Sequence[GeneratedCandidate], budget: int, *,
                            max_regression_prob: float = 0.35,
                            exploration_regression_prob: float = 0.75,
@@ -398,25 +521,51 @@ def effect_aware_shortlist(candidates: Sequence[GeneratedCandidate], budget: int
 
 def critic_score_candidates(model, params, cfg: EditFormerConfig, candidates: list[GeneratedCandidate], *,
                             parent: ModuleGenome, parent_margins: np.ndarray,
-                            batch_size: int = 256) -> list[GeneratedCandidate]:
+                            batch_size: int = 256, context: dict | None = None) -> list[GeneratedCandidate]:
     from tools.bkg4_search.module_codec import genome_from_json
     genomes = [genome_from_json(c.genome) for c in candidates]
-    cache = current_candidate_features(genomes, cfg, baseline=parent_margins)
-    profiles = probe_effect_profiles(parent, genomes, cfg, parent_margins)
+    parent_margins=np.asarray(parent_margins,np.int32)
+    cache = candidate_features(genomes, cfg, parent_margins, context)
+    profiles = probe_effect_profiles(parent, genomes, cfg, parent_margins, context)
     scores = []
     for s in range(0, len(candidates), batch_size):
         ids = np.arange(s, min(len(candidates), s + batch_size))
         b = {k: cache[k][ids] for k in ("tree_cat","tree_num","tree_mask","tree_parent","tree_depth","tree_rule","edit_cat","edit_num","edit_mask","case_features","case_mask","case_delta","heuristic","labels","group")}
         b["actor_op"] = np.zeros(len(ids), np.int32); b["actor_target"] = np.zeros(len(ids), np.int32)
         b["actor_target_mask"] = np.ones((len(ids), len(EDIT_OPERATIONS), cfg.tree_cap), bool)
+        goal_masks=[];goal_specs=[]
+        for ci in ids:
+            requested=tuple(int(x) for x in (candidates[int(ci)].goal_case_ids or ()))
+            if not requested:
+                requested=tuple(int(x) for x in np.flatnonzero(parent_margins<0))
+            mask=np.isin(np.asarray(cache["case_ids"][int(ci)],np.int32),np.asarray(requested,np.int32)) & np.asarray(cache["case_mask"][int(ci)],bool)
+            if int(np.sum(mask))!=len(set(requested)):
+                raise ValueError(f"goal case alignment failed for candidate {candidates[int(ci)].semantic_id}: requested={requested}")
+            goal_masks.append(mask)
+            mode=str(candidates[int(ci)].goal_mode or "LOSS_REPAIR")
+            goal_specs.append([1.0 if mode=="LOSS_REPAIR" else 0.0,1.0 if mode=="MARGIN_EXPANSION" else 0.0,1.0,0.0])
+        b["goal_mask"]=np.asarray(goal_masks,bool);b["goal_spec"]=np.asarray(goal_specs,np.float32)
         o = model.apply({"params": params}, _to_device(b), train=False)
         rank = np.asarray(o["rank_residual"]); reg = np.asarray(jax.nn.sigmoid(o["regression_logit"])); flip = np.asarray(jax.nn.sigmoid(o["flip_logit"]))
         margin = np.asarray(o["margin"]); worst = np.asarray(o["worst_win"]); case_delta = np.asarray(o["case_delta"], np.float32)
-        case_mask = np.asarray(cache["case_mask"][ids], bool)
+        improve=np.asarray(jax.nn.sigmoid(o["actor_direction_improve_logit"]),np.float32)
+        dflip=np.asarray(jax.nn.sigmoid(o["actor_direction_flip_logit"]),np.float32)
+        dreg=np.asarray(jax.nn.sigmoid(o["actor_direction_regress_logit"]),np.float32)
+        case_mask = np.asarray(cache["case_mask"][ids], bool);case_ids=np.asarray(cache["case_ids"][ids],np.int32);goal_mask=np.asarray(b["goal_mask"],bool)
         mean_abs = np.sum(np.abs(case_delta) * case_mask, axis=1) / np.maximum(1, np.sum(case_mask, axis=1))
         effect_cases = np.sum((np.abs(case_delta) >= 0.10) & case_mask, axis=1)
+        raw_delta=5000.0*np.arctanh(np.clip(case_delta,-0.999,0.999))
         for j in range(len(ids)):
-            scores.append((float(rank[j]), float(reg[j]), float(flip[j]), float(margin[j]), float(worst[j]), float(mean_abs[j]), int(effect_cases[j])))
+            gm=goal_mask[j]; valid=case_mask[j]
+            goal_norm=float(np.mean(case_delta[j][gm])) if np.any(gm) else -1.0
+            goal_raw=float(np.mean(raw_delta[j][gm])) if np.any(gm) else -1e9
+            goal_imp=float(np.mean(improve[j][gm])) if np.any(gm) else 0.0
+            goal_flip=float(np.mean(dflip[j][gm])) if np.any(gm) else 0.0
+            win_mask=np.asarray([(cid>=0 and parent_margins[cid]>0) for cid in case_ids[j]],bool)&valid
+            preg=float(np.max(dreg[j][win_mask])) if np.any(win_mask) else 0.0
+            target_flips=int(np.sum([(cid>=0 and gm[k] and parent_margins[cid]+raw_delta[j,k]>0) for k,cid in enumerate(case_ids[j])]))
+            win_cross=int(np.sum([(cid>=0 and win_mask[k] and parent_margins[cid]+raw_delta[j,k]<=0) for k,cid in enumerate(case_ids[j])]))
+            scores.append((float(rank[j]),float(reg[j]),float(flip[j]),float(margin[j]),float(worst[j]),float(mean_abs[j]),int(effect_cases[j]),goal_norm,goal_raw,goal_imp,goal_flip,preg,target_flips,win_cross))
     return [GeneratedCandidate(
         c.source, c.semantic_id, c.parent_semantic_id, c.action, c.genome, c.actor_logit,
         critic_score=sc[0], critic_regression_prob=sc[1], critic_flip_prob=sc[2],
@@ -426,6 +575,9 @@ def critic_score_candidates(model, params, cfg: EditFormerConfig, candidates: li
         probe_loss_target_cases=int(pr["loss_target_cases"]),
         probe_win_exposure_cases=int(pr["win_exposure_cases"]),
         probe_effect_score=float(pr["effect_score"]),
+        goal_case_ids=tuple(int(x) for x in (c.goal_case_ids or ())),generated_goal_case_ids=tuple(int(x) for x in (c.generated_goal_case_ids or c.goal_case_ids or ())),goal_mode=c.goal_mode,
+        critic_goal_delta_norm=sc[7],critic_goal_delta_margin=sc[8],critic_goal_improve_prob=sc[9],critic_goal_flip_prob=sc[10],
+        critic_protected_regress_prob_max=sc[11],critic_predicted_target_flips=sc[12],critic_predicted_win_crossings=sc[13],
     ) for c, sc, pr in zip(candidates, scores, profiles)]
 
 
