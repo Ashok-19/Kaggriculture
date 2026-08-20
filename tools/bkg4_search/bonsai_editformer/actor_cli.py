@@ -187,7 +187,7 @@ def cmd_smoke(args):
     after_critic=critic_param_digest(params); out=model.apply({"params":params},batch,train=False); m=actor_metrics(out,{k:np.asarray(v) for k,v in batch.items()})
     # Grammar/pack/compiler smoke: apply representative generated typed edits and pack them deterministically.
     parent=row_genome(history_rows()[0][int(ds["parent_idx"][train[0]])]); generated=random_typed_generate(parent,n=32,seed=args.seed)
-    genomes=[genome_from_json(x.genome) for x in generated]; pack=OUT/"actor/smoke_generated.b4gm";pack_genomes(genomes,pack);pack_sha=hashlib.sha256(pack.read_bytes()).hexdigest()
+    genomes=[genome_from_json(x.genome) for x in generated]; pack=OUT/"actor/smoke_generated.b4gm";pack.parent.mkdir(parents=True,exist_ok=True);pack_genomes(genomes,pack);pack_sha=hashlib.sha256(pack.read_bytes()).hexdigest()
     ck=OUT/"actor/smoke_actor_checkpoint";save_checkpoint(ck,params,state,{"architecture":ARCH,"smoke":True}); restored=load_checkpoint(ck)["params"]
     report={"architecture":actor_config_report(cfg,params),"merge":merge,"losses":losses,"loss_decreased":losses[-1]<losses[0],"finite_gradients":bool(np.isfinite(norms).all()),"gradient_norms":norms,
             "critic_frozen_exact":before_critic==after_critic,"checkpoint_roundtrip":params_digest(params)==params_digest(restored),"actor_metrics":m,
@@ -199,7 +199,8 @@ def cmd_smoke(args):
 def cmd_train(args):
     ds,cache,train,val,sample,cfg=_load_train_context(args);model,params=init_actor(cfg,sample,args.seed); init=load_checkpoint(args.checkpoint)
     # Checkpoint may be critic-initialized Actor-Critic or resumable actor state.
-    params=init["params"]; tx=make_actor_tx(params,args.lr,args.weight_decay,args.clip);state=tx.init(params); start_updates=0
+    from flax.core import freeze
+    params=freeze(init["params"]); tx=make_actor_tx(params,args.lr,args.weight_decay,args.clip);state=tx.init(params); start_updates=0
     if args.resume and "opt_state" in init: state=init["opt_state"]; start_updates=int(np.asarray(init.get("updates",0)))
     frozen_digest=critic_param_digest(params)
     import jax,optax
