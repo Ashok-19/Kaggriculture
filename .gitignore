@@ -29,3 +29,5 @@ rl/puffer_kaggriculture/logs/
 /bonsai_editformer*_v1_*.tar.gz
 /.dual-graph/
 /actor_comparison*_results.zip
+/run/
+/bonsai_actorcritic5m_v1_results.tar.gz
