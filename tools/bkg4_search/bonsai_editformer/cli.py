@@ -118,9 +118,11 @@ def loss_fn(outputs,batch,cfg,weights):
     return total,{"reg":lreg,"flip":lflip,"margin":lmargin,"worst":lworst,"rank":lrank,"case":lcase}
 
 
-def default_weights(labels):
+def default_weights(labels,args=None):
     reg=float(np.mean(labels[:,0])); flip=float(np.mean(labels[:,1]))
-    return {"reg":6.0,"flip":4.0,"margin":1.0,"worst":3.0,"rank":6.0,"case":1.5,"reg_pos":max(1.0,(1-reg)/max(reg,1e-4)),"flip_pos":max(1.0,(1-flip)/max(flip,1e-4))}
+    get=lambda name,default:float(getattr(args,name,default)) if args is not None else default
+    return {"reg":get("w_reg",6.0),"flip":get("w_flip",4.0),"margin":get("w_margin",1.0),"worst":get("w_worst",3.0),"rank":get("w_rank",6.0),"case":get("w_case",1.5),
+            "reg_pos":max(1.0,(1-reg)/max(reg,1e-4)),"flip_pos":max(1.0,(1-flip)/max(flip,1e-4))}
 
 
 def make_tx(lr,wd,clip):
@@ -285,7 +287,7 @@ def _train_phase(args,kind,epochs,phase,init_ckpt=None):
     cfg=cfg_for(args); cache=load_cache(kind,True); rows=history_rows()[0] if kind=="historical" else current_rows(); train_ids,val_ids=split_indices(kind,rows,args.split)
     batch0=batch_for(cache,np.asarray(train_ids[:min(args.batch_size,len(train_ids))])); model,params=init_model(cfg,batch0,args.seed)
     if init_ckpt: params=load_checkpoint(init_ckpt)["params"]
-    labels=cache["labels"][train_ids]; weights=default_weights(labels); tx=make_tx(args.lr,args.weight_decay,args.clip); opt_state=tx.init(params)
+    labels=cache["labels"][train_ids]; weights=default_weights(labels,args); tx=make_tx(args.lr,args.weight_decay,args.clip); opt_state=tx.init(params)
     if getattr(args,"resume_state",False) and init_ckpt:
         restored=load_checkpoint(init_ckpt,target={"params":params,"opt_state":opt_state}); params=restored["params"]; opt_state=restored.get("opt_state",opt_state)
     numeric_keys=("tree_cat","tree_num","tree_mask","tree_parent","tree_depth","tree_rule","edit_cat","edit_num","edit_mask","case_features","case_mask","case_delta","heuristic","labels","group")
@@ -377,7 +379,9 @@ def common(p):
 
 
 def train_args(p):
-    common(p);p.add_argument("--batch-size",type=int,default=32,help="GPU microbatch");p.add_argument("--effective-batch-size",type=int,default=1024,help="optimizer batch via gradient accumulation");p.add_argument("--eval-batch",type=int,default=128);p.add_argument("--lr",type=float,default=3e-4);p.add_argument("--weight-decay",type=float,default=1e-4);p.add_argument("--clip",type=float,default=2.0);p.add_argument("--split",choices=("primary","secondary"),default="primary");p.add_argument("--out",default=str(OUT/"runs/editformer5m"));p.add_argument("--dry-run",action="store_true")
+    common(p);p.add_argument("--batch-size",type=int,default=32,help="GPU microbatch");p.add_argument("--effective-batch-size",type=int,default=1024,help="optimizer batch via gradient accumulation");p.add_argument("--eval-batch",type=int,default=128);p.add_argument("--lr",type=float,default=3e-4);p.add_argument("--weight-decay",type=float,default=1e-4);p.add_argument("--clip",type=float,default=2.0);p.add_argument("--split",choices=("primary","secondary"),default="primary");
+    p.add_argument("--w-reg",type=float,default=6.0);p.add_argument("--w-flip",type=float,default=4.0);p.add_argument("--w-margin",type=float,default=1.0);p.add_argument("--w-worst",type=float,default=3.0);p.add_argument("--w-rank",type=float,default=6.0);p.add_argument("--w-case",type=float,default=1.5)
+    p.add_argument("--out",default=str(OUT/"runs/editformer5m"));p.add_argument("--dry-run",action="store_true")
 
 
 def parser():
