@@ -21,3 +21,6 @@ public-notebooks/
 .chatgpt/
 our-own-older-agents/*.tar.gz
 kaggle-environments-master/
+rl/puffer_kaggriculture/artifacts/
+rl/puffer_kaggriculture/checkpoints/
+rl/puffer_kaggriculture/logs/
