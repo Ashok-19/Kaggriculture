@@ -24,3 +24,8 @@ kaggle-environments-master/
 rl/puffer_kaggriculture/artifacts/
 rl/puffer_kaggriculture/checkpoints/
 rl/puffer_kaggriculture/logs/
+/bonsai_editformer*_results*/
+/bonsai_editformer*_results*.zip
+/bonsai_editformer*_v1_*.tar.gz
+/.dual-graph/
+/actor_comparison*_results.zip

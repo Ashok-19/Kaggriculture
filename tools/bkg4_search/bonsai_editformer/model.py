@@ -44,6 +44,33 @@ class EditFormerConfig:
         return self.d_model // self.heads
 
 
+MODEL_PRESETS = {
+    "5m": dict(d_model=288, heads=6, ffn_dim=960, tree_blocks=3, case_blocks=1, fusion_blocks=1),
+    "20m": dict(d_model=448, heads=7, ffn_dim=1664, tree_blocks=4, case_blocks=2, fusion_blocks=2),
+    "50m": dict(d_model=704, heads=11, ffn_dim=2560, tree_blocks=5, case_blocks=2, fusion_blocks=2),
+}
+
+MODEL_PARAM_TARGETS = {
+    "5m": (4_500_000, 5_500_000),
+    "20m": (18_000_000, 22_000_000),
+    "50m": (45_000_000, 55_000_000),
+}
+
+MODEL_EXPECTED_PARAMS = {
+    "5m": 4_991_412,
+    "20m": 19_742_698,
+    "50m": 53_558_719,
+}
+
+
+def config_for_size(model_size: str, *, attention_impl: str = "xla") -> EditFormerConfig:
+    try:
+        preset = MODEL_PRESETS[model_size]
+    except KeyError as exc:
+        raise ValueError(f"unknown BonsaiEditFormer size {model_size!r}") from exc
+    return EditFormerConfig(**preset, attention_impl=attention_impl)
+
+
 def _dtype(name: str):
     return jnp.bfloat16 if name == "bfloat16" else jnp.float32
 
