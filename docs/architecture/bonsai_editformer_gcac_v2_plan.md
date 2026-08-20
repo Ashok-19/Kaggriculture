@@ -4,7 +4,7 @@
 
 **Architecture:** Preserve every proven critic parameter/output exactly. Add small `actor_goal_*` adapters, goal-conditioned actor queries, append-only `actor_direction_*` per-case heads, compact exact-CUDA goal relabels, support-aware operation masks, deterministic balanced validation, fresh24 per-failure generation, and signed directional shortlisting. Exact CUDA remains the reward oracle.
 
-**Tech Stack:** Python 3.10, JAX/Flax/Optax/Orbax, NumPy, existing BKG4/CUDA binary formats, Bash/uv Lightning bundle workflow.
+**Tech Stack:** Python 3.13, JAX/Flax/Optax/Orbax, NumPy, existing BKG4/CUDA binary formats, Bash/uv Lightning bundle workflow.
 
 **Spec:** `docs/architecture/bonsai_editformer_gcac_v2_design.md`
 

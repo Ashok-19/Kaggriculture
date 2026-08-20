@@ -390,6 +390,61 @@ def _diverse_order(candidates: Sequence[GeneratedCandidate], diversity_penalty: 
     return selected
 
 
+def directional_case_score(*, parent_margins: np.ndarray, case_ids: np.ndarray, case_mask: np.ndarray,
+                           goal_mask: np.ndarray, direction_delta: np.ndarray,
+                           improve_prob: np.ndarray, flip_prob: np.ndarray,
+                           regress_prob: np.ndarray) -> dict[str, float | int]:
+    """Summarize pair-relative directional heads for one candidate/goal.
+
+    `direction_delta` is the append-only GCAC-v2 pair-relative head trained on
+    child-minus-parent exact CUDA deltas. The proven frozen `case_delta` head is
+    intentionally not an input here because its historical baseline semantics differ.
+    """
+    parent_margins = np.asarray(parent_margins, np.int32)
+    case_ids = np.asarray(case_ids, np.int32)
+    valid = np.asarray(case_mask, bool) & (case_ids >= 0)
+    goal = np.asarray(goal_mask, bool) & valid
+    dd = np.asarray(direction_delta, np.float32)
+    ip = np.asarray(improve_prob, np.float32)
+    fp = np.asarray(flip_prob, np.float32)
+    rp = np.asarray(regress_prob, np.float32)
+    if not np.any(goal):
+        return {
+            "goal_delta_norm": -1.0,
+            "goal_delta_margin": -1e9,
+            "goal_improve_prob": 0.0,
+            "goal_flip_prob": 0.0,
+            "protected_regress_prob_max": 1.0,
+            "predicted_target_flips": 0,
+            "predicted_win_crossings": 0,
+        }
+    raw = 5000.0 * np.arctanh(np.clip(dd, -0.999, 0.999))
+    win_mask = np.asarray([
+        bool(v and 0 <= int(cid) < len(parent_margins) and parent_margins[int(cid)] > 0)
+        for cid, v in zip(case_ids, valid)
+    ], bool)
+    target_flips = 0
+    win_crossings = 0
+    for k, cid0 in enumerate(case_ids):
+        cid = int(cid0)
+        if cid < 0 or cid >= len(parent_margins) or not valid[k]:
+            continue
+        pred_margin = float(parent_margins[cid]) + float(raw[k])
+        if goal[k] and parent_margins[cid] < 0 and pred_margin > 0:
+            target_flips += 1
+        if win_mask[k] and pred_margin <= 0:
+            win_crossings += 1
+    return {
+        "goal_delta_norm": float(np.mean(dd[goal])),
+        "goal_delta_margin": float(np.mean(raw[goal])),
+        "goal_improve_prob": float(np.mean(ip[goal])),
+        "goal_flip_prob": float(np.mean(fp[goal])),
+        "protected_regress_prob_max": float(np.max(rp[win_mask])) if np.any(win_mask) else 0.0,
+        "predicted_target_flips": int(target_flips),
+        "predicted_win_crossings": int(win_crossings),
+    }
+
+
 def directional_shortlist(
     candidates: Sequence[GeneratedCandidate],
     budget: int,
@@ -548,24 +603,27 @@ def critic_score_candidates(model, params, cfg: EditFormerConfig, candidates: li
         o = model.apply({"params": params}, _to_device(b), train=False)
         rank = np.asarray(o["rank_residual"]); reg = np.asarray(jax.nn.sigmoid(o["regression_logit"])); flip = np.asarray(jax.nn.sigmoid(o["flip_logit"]))
         margin = np.asarray(o["margin"]); worst = np.asarray(o["worst_win"]); case_delta = np.asarray(o["case_delta"], np.float32)
+        direction_delta=np.asarray(o["actor_direction_delta"],np.float32)
         improve=np.asarray(jax.nn.sigmoid(o["actor_direction_improve_logit"]),np.float32)
         dflip=np.asarray(jax.nn.sigmoid(o["actor_direction_flip_logit"]),np.float32)
         dreg=np.asarray(jax.nn.sigmoid(o["actor_direction_regress_logit"]),np.float32)
         case_mask = np.asarray(cache["case_mask"][ids], bool);case_ids=np.asarray(cache["case_ids"][ids],np.int32);goal_mask=np.asarray(b["goal_mask"],bool)
         mean_abs = np.sum(np.abs(case_delta) * case_mask, axis=1) / np.maximum(1, np.sum(case_mask, axis=1))
         effect_cases = np.sum((np.abs(case_delta) >= 0.10) & case_mask, axis=1)
-        raw_delta=5000.0*np.arctanh(np.clip(case_delta,-0.999,0.999))
         for j in range(len(ids)):
-            gm=goal_mask[j]; valid=case_mask[j]
-            goal_norm=float(np.mean(case_delta[j][gm])) if np.any(gm) else -1.0
-            goal_raw=float(np.mean(raw_delta[j][gm])) if np.any(gm) else -1e9
-            goal_imp=float(np.mean(improve[j][gm])) if np.any(gm) else 0.0
-            goal_flip=float(np.mean(dflip[j][gm])) if np.any(gm) else 0.0
-            win_mask=np.asarray([(cid>=0 and parent_margins[cid]>0) for cid in case_ids[j]],bool)&valid
-            preg=float(np.max(dreg[j][win_mask])) if np.any(win_mask) else 0.0
-            target_flips=int(np.sum([(cid>=0 and gm[k] and parent_margins[cid]+raw_delta[j,k]>0) for k,cid in enumerate(case_ids[j])]))
-            win_cross=int(np.sum([(cid>=0 and win_mask[k] and parent_margins[cid]+raw_delta[j,k]<=0) for k,cid in enumerate(case_ids[j])]))
-            scores.append((float(rank[j]),float(reg[j]),float(flip[j]),float(margin[j]),float(worst[j]),float(mean_abs[j]),int(effect_cases[j]),goal_norm,goal_raw,goal_imp,goal_flip,preg,target_flips,win_cross))
+            ds=directional_case_score(
+                parent_margins=parent_margins,
+                case_ids=case_ids[j],
+                case_mask=case_mask[j],
+                goal_mask=goal_mask[j],
+                direction_delta=direction_delta[j],
+                improve_prob=improve[j],
+                flip_prob=dflip[j],
+                regress_prob=dreg[j],
+            )
+            scores.append((float(rank[j]),float(reg[j]),float(flip[j]),float(margin[j]),float(worst[j]),float(mean_abs[j]),int(effect_cases[j]),
+                           float(ds["goal_delta_norm"]),float(ds["goal_delta_margin"]),float(ds["goal_improve_prob"]),float(ds["goal_flip_prob"]),
+                           float(ds["protected_regress_prob_max"]),int(ds["predicted_target_flips"]),int(ds["predicted_win_crossings"])))
     return [GeneratedCandidate(
         c.source, c.semantic_id, c.parent_semantic_id, c.action, c.genome, c.actor_logit,
         critic_score=sc[0], critic_regression_prob=sc[1], critic_flip_prob=sc[2],

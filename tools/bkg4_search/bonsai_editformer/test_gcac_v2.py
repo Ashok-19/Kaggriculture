@@ -20,7 +20,7 @@ from actor_grammar import EDIT_OPERATIONS, OP_INDEX
 from actor_model import BonsaiEditActorCritic, actor_param_mask
 from model import EditFormerConfig
 from actor_cli import cuda_goal_metrics, directional_loss
-from actor_generate import GeneratedCandidate, directional_shortlist
+from actor_generate import GeneratedCandidate, directional_case_score, directional_shortlist
 
 
 class GoalRelabelTests(unittest.TestCase):
@@ -177,6 +177,22 @@ class CudaGoalBookkeepingTests(unittest.TestCase):
 
 
 class DirectionalShortlistTests(unittest.TestCase):
+    def test_directional_case_score_uses_pair_relative_head_not_frozen_case_delta(self):
+        score = directional_case_score(
+            parent_margins=np.asarray([-1000, 5000], np.int32),
+            case_ids=np.asarray([0, 1], np.int32),
+            case_mask=np.asarray([True, True]),
+            goal_mask=np.asarray([True, False]),
+            direction_delta=np.asarray([-0.2, 0.1], np.float32),
+            improve_prob=np.asarray([0.2, 0.8], np.float32),
+            flip_prob=np.asarray([0.1, 0.0], np.float32),
+            regress_prob=np.asarray([0.0, 0.3], np.float32),
+        )
+        self.assertAlmostEqual(score["goal_delta_norm"], -0.2, places=5)
+        self.assertLess(score["goal_delta_margin"], 0.0)
+        self.assertEqual(score["predicted_target_flips"], 0)
+        self.assertEqual(score["predicted_win_crossings"], 0)
+
     def test_positive_target_direction_beats_large_destructive_absolute_effect(self):
         good = GeneratedCandidate(
             "actor", "good", "parent", {"operation": "CHANGE_THRESHOLD"}, {},

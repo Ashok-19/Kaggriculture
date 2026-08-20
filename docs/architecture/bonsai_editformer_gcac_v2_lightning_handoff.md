@@ -74,11 +74,11 @@ The capture is the frozen 345-node champion legal public-state trajectory at ste
 
 ## Local verification completed
 
-Focused GCAC-v2 unit suite: 13/13 pass.
+Focused GCAC-v2 unit suite: 14/14 pass after final pair-relative scoring regression coverage.
 
 Four-update bounded GPU smoke:
 
-- loss: `14.9734888 -> 2.5385842`
+- loss: `14.9733458 -> 2.5443902`
 - finite gradients: true
 - critic frozen exact: true
 - checkpoint roundtrip exact: true
@@ -185,6 +185,8 @@ and evaluates the same six fresh seeds / both seats.
 Expected package:
 
 `/teamspace/studios/this_studio/bonsai_gcac_v2/packages/bonsai_gcac_v2_results.tar.gz`
+
+The package retains the complete final GCAC-v2 checkpoint for reproducibility/resume; critic-initialization and intermediate checkpoints are reduced to metadata.
 
 ### I. Resume one additional Stage-B2 epoch
 

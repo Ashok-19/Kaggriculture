@@ -665,7 +665,14 @@ def cmd_package(args):
     (run/"SUMMARY.md").write_text("\n".join(lines)+"\n");package=Path(args.package);package.parent.mkdir(parents=True,exist_ok=True)
     with tarfile.open(package,"w:gz",compresslevel=6) as tf:
         for p in run.rglob('*'):
-            if p.is_file() and ('final/' not in str(p) or p.name.startswith('_CHECKPOINT')):tf.add(p,arcname=f"{run.name}/{p.relative_to(run)}")
+            if not p.is_file():
+                continue
+            rel=p.relative_to(run)
+            # Keep the final GCAC-v2 checkpoint fully reproducible. Intermediate and
+            # critic-initialization checkpoints keep metadata only to bound package size.
+            if rel.parts and rel.parts[0] in {"critic_initialized","early","middle"} and not p.name.startswith('_CHECKPOINT'):
+                continue
+            tf.add(p,arcname=f"{run.name}/{rel}")
     print(json.dumps({"package":str(package),"sha256":hashlib.sha256(package.read_bytes()).hexdigest(),"bytes":package.stat().st_size},indent=2))
 
 

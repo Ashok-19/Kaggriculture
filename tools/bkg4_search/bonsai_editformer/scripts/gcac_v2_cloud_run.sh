@@ -12,7 +12,8 @@ CRITIC="$ROOT/bonsai_editformer5m_results/final"
 INIT="$RUN/critic_initialized"
 CUDA_EXE="$ROOT/scratch/bkg4_editformer_jax/gcac_v2/bkg4_current_module_eval"
 CUDA_SRC="$ROOT/scratch/bkg4_rl_synthesis_aug20/bkg4_current_module_eval.cu"
-CASES="$ROOT/run/fresh24_cases.tsv"
+SOURCE_CASES="$ROOT/run/fresh24_cases.tsv"
+CASES="$RUN/fresh24_cases_cloud.tsv"
 CASES_MANIFEST="$ROOT/run/fresh24_cases.manifest.json"
 CHAMP="$ROOT/bonsai-kg/integrations/bkg4_champion/champions/w33_s172_expansion_v1"
 
@@ -37,6 +38,31 @@ init_critic() {
   fi
 }
 
+prepare_cuda_cases() {
+  uv run --project tools/bkg4_search/bonsai_editformer python -c '
+import json
+from pathlib import Path
+m=json.load(open("run/fresh24_cases.manifest.json"))
+rows=[x.split("\t") for x in Path("run/fresh24_cases.tsv").read_text().splitlines() if x.strip()]
+assert len(rows)==int(m["cases"]), (len(rows),m["cases"])
+seeds=sorted({int(x[2]) for x in rows})
+assert seeds==[int(x) for x in m["seeds"]], (seeds,m["seeds"])
+for seed in seeds:
+    assert {int(x[1]) for x in rows if int(x[2])==seed}=={0,1}, seed
+assert {int(x[3]) for x in rows}==set(int(v) for v in m["families"].values())
+print("fresh24_semantic_manifest_ok",len(rows),len(seeds))
+'
+  : > "$CASES"
+  while IFS=$'\t' read -r tape seat seed family protected own_history; do
+    [[ -n "$tape" ]] || continue
+    printf 'scratch/bkg4_search/fresh_promotion24/tapes/%s\t%s\t%s\t%s\t%s\t%s\n' \
+      "$(basename "$tape")" "$seat" "$seed" "$family" "$protected" "$own_history" >> "$CASES"
+  done < "$SOURCE_CASES"
+  while IFS=$'\t' read -r tape _; do
+    [[ -f "$ROOT/$tape" ]] || { echo "missing bundled fresh24 tape: $tape" >&2; return 2; }
+  done < "$CASES"
+}
+
 compile_cuda() {
   if [[ ! -x "$CUDA_EXE" || "$CUDA_SRC" -nt "$CUDA_EXE" ]]; then
     nvcc -O3 -std=c++17 -o "$CUDA_EXE" "$CUDA_SRC"
@@ -48,14 +74,17 @@ verify() {
   test -f "${DATASET%.npz}.manifest.json"
   test -f "$GOAL_CONTEXT"
   test -d "$CRITIC"
-  test -f "$CASES"
+  test -f "$SOURCE_CASES"
   test -f "$CASES_MANIFEST"
+  prepare_cuda_cases
   uv run --project tools/bkg4_search/bonsai_editformer python -c \
-    "from gcac_context import load_goal_context_manifest; m=load_goal_context_manifest('scratch/bkg4_editformer_jax/gcac_v2/fresh24_goal_context.json', expected_parent='b3714ce680b84a74233b053c5bc32f48a37e3c257b46b4e131a0f784b4534286'); print('goal_context_ok', m['loss_case_ids'], m['capture_sha256'])"
+    "from tools.bkg4_search.bonsai_editformer.gcac_context import load_goal_context_manifest; m=load_goal_context_manifest('scratch/bkg4_editformer_jax/gcac_v2/fresh24_goal_context.json', expected_parent='b3714ce680b84a74233b053c5bc32f48a37e3c257b46b4e131a0f784b4534286'); print('goal_context_ok', m['loss_case_ids'], m['capture_sha256'])"
   "${CRITIC_CLI[@]}" stack-check --model-size 5m --attention-impl cudnn | tee "$RUN/stack_check.log"
   init_critic
   compile_cuda
-  "$CUDA_EXE" >/dev/null 2>&1 || rc=$?; [[ "${rc:-2}" -eq 2 ]]
+  local rc=0
+  "$CUDA_EXE" >/dev/null 2>&1 || rc=$?
+  [[ "$rc" -eq 2 ]]
   printf 'verify_ok source_head=%s dataset=%s goal_context=%s\n' "${BONSAI_SOURCE_HEAD:-unknown}" "$DATASET" "$GOAL_CONTEXT"
 }
 
@@ -105,6 +134,7 @@ benchmark() {
 }
 
 cuda_campaign() {
+  prepare_cuda_cases
   compile_cuda
   "${ACTOR[@]}" cuda-campaign \
     --lanes "$RUN/generator_benchmark" \
