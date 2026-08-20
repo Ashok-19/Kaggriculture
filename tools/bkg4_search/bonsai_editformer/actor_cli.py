@@ -291,7 +291,10 @@ def cmd_cuda(args):
     cases_manifest=json.loads(Path(args.cases_manifest).read_text());
     if not cases_manifest.get("both_seats_per_seed") or int(cases_manifest.get("unique_seeds",0))<args.min_seeds:raise ValueError("refusing single-seat/low-seed CUDA reward manifest")
     out=Path(args.out);out.mkdir(parents=True,exist_ok=True);base=genome_from_json(json.loads(Path(args.base_parent).read_text()));report={"cases":cases_manifest,"lanes":{},"cuda_evaluator":str(Path(args.exe).resolve())}
-    for lane_file in sorted(Path(args.lanes).glob("*.jsonl")):
+    cuda_lane_names=("actor_raw","actor_critic","heuristic_raw","heuristic_critic","random_typed","empirical_ops")
+    for lane_name in cuda_lane_names:
+        lane_file=Path(args.lanes)/f"{lane_name}.jsonl"
+        if not lane_file.exists(): raise FileNotFoundError(f"missing CUDA comparison lane: {lane_file}")
         candidates=read_candidates(lane_file);genomes=[base]+[genome_from_json(c.genome) for c in candidates];gm=out/f"{lane_file.stem}.b4gm";rs=out/f"{lane_file.stem}.b4rs";pack_genomes(genomes,gm)
         env=os.environ.copy();env["CUDA_VISIBLE_DEVICES"]=str(args.gpu);cmd=[args.exe,"--controller",args.controller,"--routes",args.routes,"--legacy-routes",args.legacy_routes,"--cases",args.cases,"--genomes",str(gm),"--out",str(rs),"--feed-slot","5","--feed-count","13","--tpb","64"]
         p=subprocess.run(cmd,cwd=ROOT,env=env,text=True,capture_output=True,check=False);(out/f"{lane_file.stem}.cuda.log").write_text(p.stdout+p.stderr)
