@@ -40,9 +40,19 @@ def row_genome(row) -> ModuleGenome:
     d = decode_genome(row.blob)
     rules = []
     for rr in d.rules:
+        # Historical search corpora can contain repeated identical predicates in a
+        # conjunction. They are semantically redundant (A AND A == A) but the typed
+        # ModuleGenome grammar deliberately rejects duplicate conditions. Normalize
+        # only exact duplicates here, preserving first occurrence/order and therefore
+        # the evaluated policy semantics used by the attached CUDA labels.
         conds = []
+        seen = set()
         for fid, cmp_code, index, value in rr["conds"]:
-            conds.append(ConditionGene(FEATURE_NAME[fid], CMP_NAME[cmp_code], int(index), int(value)))
+            cond = ConditionGene(FEATURE_NAME[fid], CMP_NAME[cmp_code], int(index), int(value))
+            if cond in seen:
+                continue
+            seen.add(cond)
+            conds.append(cond)
         rules.append(RuleGene(tuple(conds), int(rr["route"])))
     g = ModuleGenome(int(d.prefix), tuple(rules))
     g.validate(ROUTES)
