@@ -416,13 +416,28 @@ def cmd_smoke(args):
     if not required: raise SystemExit(2)
 
 
+def resume_training_span(saved_epoch: int, total_epochs: int = 10) -> tuple[int, int]:
+    saved_epoch = int(saved_epoch); total_epochs = int(total_epochs)
+    if saved_epoch < 0 or total_epochs < 0 or saved_epoch > total_epochs:
+        raise ValueError(f"invalid resume epoch span: saved={saved_epoch} total={total_epochs}")
+    return saved_epoch, total_epochs - saved_epoch
+
+
+def _epoch_sampler_rng(seed: int, cumulative_epoch: int) -> np.random.Generator:
+    """Epoch-addressed RNG makes interrupted/resumed sampling equal to uninterrupted sampling."""
+    return np.random.default_rng(np.random.SeedSequence([int(seed), int(cumulative_epoch), 0x47434143]))
+
+
 def cmd_train(args):
     ds,cache,train,val,sample,cfg=_load_train_context(args);model,params=init_actor(cfg,sample,args.seed);init=load_checkpoint(args.checkpoint)
     from flax.core import freeze
     params=freeze(init["params"]);actual_count=count_params(params)
     if EXPECTED_PARAMS_5M and actual_count!=EXPECTED_PARAMS_5M:raise ValueError(f"parameter count {actual_count} != {EXPECTED_PARAMS_5M}")
-    tx=make_actor_tx(params,args.lr,args.weight_decay,args.clip);state=tx.init(params);start_updates=0
-    if args.resume and "opt_state" in init:state=init["opt_state"];start_updates=int(np.asarray(init.get("updates",0)))
+    tx=make_actor_tx(params,args.lr,args.weight_decay,args.clip);state=tx.init(params);start_updates=0;start_epoch=0
+    if args.resume:
+        missing=[k for k in ("opt_state","updates","epoch","rng") if k not in init]
+        if missing:raise ValueError(f"resume checkpoint missing state: {missing}")
+        state=init["opt_state"];start_updates=int(np.asarray(init["updates"]));start_epoch=int(np.asarray(init["epoch"]))
     frozen_digest=critic_param_digest(params)
     import jax,optax
     @jax.jit
@@ -433,7 +448,7 @@ def cmd_train(args):
             co=model.apply({"params":q},cb,train=True,rngs={"dropout":key2});dloss,dparts=directional_loss(co,cb)
             return aloss+args.direction_loss_weight*dloss,(aparts,dparts)
         (loss,parts),grads=jax.value_and_grad(obj,has_aux=True)(p);updates,s=tx.update(grads,s,p);p=optax.apply_updates(p,updates);return p,s,loss,parts,optax.global_norm(grads)
-    rng=np.random.default_rng(args.seed);key=jax.random.PRNGKey(args.seed+1000);outdir=Path(args.out);outdir.mkdir(parents=True,exist_ok=True);history=[];updates=start_updates;t0=time.perf_counter()
+    key=init["rng"] if args.resume else jax.random.PRNGKey(args.seed+1000);outdir=Path(args.out);outdir.mkdir(parents=True,exist_ok=True);history=[];updates=start_updates;t0=time.perf_counter()
     val_ids,val_counts=balanced_validation_examples(ds,val,min(args.eval_samples,len(val)))
     def evaluate(epoch,tag):
         pb=actor_batch(cache,ds,val_ids);cb=actor_batch(cache,ds,val_ids,child=True)
@@ -444,18 +459,23 @@ def cmd_train(args):
              "validation_class_counts":val_counts,"actor_metrics":actor_metrics(po,{k:np.asarray(v) for k,v in pb.items()}),
              "directional_metrics":directional_metrics(co,{k:np.asarray(v) for k,v in cb.items()})}
         print("METRIC",json.dumps(rec,sort_keys=True),flush=True);return rec
-    history.append(evaluate(0,"init"))
-    for ep in range(1,args.epochs+1):
-        order=sample_training_examples(ds,train,args.examples_per_epoch,rng);el=[];eg=[]
+    history.append(evaluate(start_epoch,"resume_init" if args.resume else "init"))
+    for local_ep in range(1,args.epochs+1):
+        epoch=start_epoch+local_ep
+        order=sample_training_examples(ds,train,args.examples_per_epoch,_epoch_sampler_rng(args.seed,epoch));el=[];eg=[]
         for s in range(0,len(order),args.batch_size):
             ids=order[s:s+args.batch_size]
             if len(ids)<args.batch_size:ids=np.resize(ids,args.batch_size)
             pb=actor_batch(cache,ds,ids);cb=actor_batch(cache,ds,ids,child=True);key,sk=jax.random.split(key);params,state,l,parts,gn=step(params,state,pb,cb,sk);l.block_until_ready();el.append(float(l));eg.append(float(gn));updates+=1
-        print(json.dumps({"phase":"goal_conditioned_actor_warmstart","epoch":ep,"loss":float(np.mean(el)),"grad_norm":float(np.mean(eg)),"updates":updates,"examples":len(order)}),flush=True)
-        if ep in (args.early_epoch,args.middle_epoch,args.epochs):
-            tag="early" if ep==args.early_epoch else "middle" if ep==args.middle_epoch else "final";history.append(evaluate(ep,tag));save_checkpoint(outdir/tag,params,state,{"architecture":ARCH,"epoch":ep,"updates":updates,"critic_frozen_digest":frozen_digest},extra={"updates":jax.numpy.asarray(updates,jax.numpy.int32),"rng":key})
+        print(json.dumps({"phase":"goal_conditioned_actor_warmstart","epoch":epoch,"local_epoch":local_ep,"loss":float(np.mean(el)),"grad_norm":float(np.mean(eg)),"updates":updates,"examples":len(order)}),flush=True)
+        checkpoint_tag=None
+        if epoch==args.early_epoch:checkpoint_tag="early"
+        elif epoch==args.middle_epoch:checkpoint_tag="middle"
+        elif local_ep==args.epochs:checkpoint_tag="final"
+        if checkpoint_tag is not None:
+            history.append(evaluate(epoch,checkpoint_tag));save_checkpoint(outdir/checkpoint_tag,params,state,{"architecture":ARCH,"epoch":epoch,"updates":updates,"critic_frozen_digest":frozen_digest},extra={"updates":jax.numpy.asarray(updates,jax.numpy.int32),"epoch":jax.numpy.asarray(epoch,jax.numpy.int32),"rng":key})
     if critic_param_digest(params)!=frozen_digest:raise ValueError("critic/shared encoder changed during frozen Stage-B2 warm-start")
-    result={"architecture":ARCH,"params":count_params(params),"epochs":args.epochs,"updates":updates,"seconds":time.perf_counter()-t0,"critic_frozen_exact":True,"critic_digest":frozen_digest,
+    result={"architecture":ARCH,"params":count_params(params),"epochs":args.epochs,"start_epoch":start_epoch,"end_epoch":start_epoch+args.epochs,"updates":updates,"seconds":time.perf_counter()-t0,"critic_frozen_exact":True,"critic_digest":frozen_digest,
             "dataset":str(Path(args.dataset).resolve()),"dataset_sha256":hashlib.sha256(Path(args.dataset).read_bytes()).hexdigest(),"validation_class_counts":val_counts,
             "history":history,"environment":environment_info(),"config":vars(args)|{"fn":None}}
     result["config"].pop("fn",None);(outdir/"actor_training_result.json").write_text(json.dumps(result,indent=2,sort_keys=True,default=str)+"\n");print("RESULT",json.dumps(result,sort_keys=True,default=str))

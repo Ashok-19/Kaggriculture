@@ -74,7 +74,7 @@ The capture is the frozen 345-node champion legal public-state trajectory at ste
 
 ## Local verification completed
 
-Focused GCAC-v2 unit suite: 14/14 pass after final pair-relative scoring regression coverage.
+Focused GCAC-v2 unit suite: 15/15 pass after final pair-relative scoring and exact-resume regression coverage.
 
 Four-update bounded GPU smoke:
 
@@ -188,13 +188,15 @@ Expected package:
 
 The package retains the complete final GCAC-v2 checkpoint for reproducibility/resume; critic-initialization and intermediate checkpoints are reduced to metadata.
 
-### I. Resume one additional Stage-B2 epoch
+### I. Resume an interrupted Stage-B2 run exactly
 
 Only use if a Stage-B2 run was interrupted or an explicitly justified extra frozen-actor epoch is needed:
 
 ```bash
 ./tools/bkg4_search/bonsai_editformer/scripts/gcac_v2_cloud_run.sh resume
 ```
+
+The runner selects the latest `final`, `middle`, or `early` checkpoint, restores optimizer/JAX RNG state, reads its cumulative epoch, and trains exactly the remainder of the 10-epoch budget. An epoch-10 checkpoint exits without extra training.
 
 Do not use resume to hide a failed directionality result.
 

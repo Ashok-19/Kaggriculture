@@ -151,9 +151,27 @@ package_results() {
 }
 
 resume() {
+  local checkpoint="" saved_epoch remaining
+  for name in final middle early; do
+    if [[ -f "$RUN/$name/_CHECKPOINT_METADATA" ]]; then checkpoint="$RUN/$name"; break; fi
+  done
+  [[ -n "$checkpoint" ]] || { echo "no resumable GCAC-v2 early/middle/final checkpoint found in $RUN" >&2; return 2; }
+  read -r saved_epoch remaining < <(uv run --project tools/bkg4_search/bonsai_editformer python -c '
+import sys, numpy as np
+sys.path.insert(0,"tools/bkg4_search/bonsai_editformer")
+from cli import load_checkpoint
+from actor_cli import resume_training_span
+s=load_checkpoint(sys.argv[1])
+print(*resume_training_span(int(np.asarray(s["epoch"])),10))
+' "$checkpoint")
+  if (( remaining == 0 )); then
+    printf 'resume_not_needed checkpoint=%s saved_epoch=%s\n' "$checkpoint" "$saved_epoch"
+    return 0
+  fi
+  printf 'resume_from=%s saved_epoch=%s remaining_epochs=%s\n' "$checkpoint" "$saved_epoch" "$remaining"
   "${ACTOR[@]}" train-actor \
     --dataset "$DATASET" --attention-impl cudnn --batch-size 1024 --seed 73 \
-    --checkpoint "$RUN/final" --out "$RUN" --epochs 1 --early-epoch 2 --middle-epoch 6 \
+    --checkpoint "$checkpoint" --out "$RUN" --epochs "$remaining" --early-epoch 999 --middle-epoch 999 \
     --eval-samples 1024 --examples-per-epoch 65536 --direction-loss-weight 0.5 \
     --lr 8e-4 --weight-decay 1e-4 --clip 2.0 --resume \
     2>&1 | tee "$RUN/resume.log"

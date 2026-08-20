@@ -19,7 +19,7 @@ from actor_data import (
 from actor_grammar import EDIT_OPERATIONS, OP_INDEX
 from actor_model import BonsaiEditActorCritic, actor_param_mask
 from model import EditFormerConfig
-from actor_cli import cuda_goal_metrics, directional_loss
+from actor_cli import cuda_goal_metrics, directional_loss, resume_training_span
 from actor_generate import GeneratedCandidate, directional_case_score, directional_shortlist
 
 
@@ -160,6 +160,16 @@ class GoalRelabelTests(unittest.TestCase):
             )
 
 
+
+
+class ResumePlanTests(unittest.TestCase):
+    def test_resume_training_span_finishes_exact_total_epoch_budget(self):
+        self.assertEqual(resume_training_span(0, 10), (0, 10))
+        self.assertEqual(resume_training_span(2, 10), (2, 8))
+        self.assertEqual(resume_training_span(6, 10), (6, 4))
+        self.assertEqual(resume_training_span(10, 10), (10, 0))
+        with self.assertRaises(ValueError):
+            resume_training_span(11, 10)
 
 
 class CudaGoalBookkeepingTests(unittest.TestCase):
