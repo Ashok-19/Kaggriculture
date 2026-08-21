@@ -88,18 +88,14 @@ def locate_archive_input():
 
 
 def locate_index_manifest():
-    # This dataset is a required notebook input so Kaggle can trigger the notebook on data updates.
-    candidates = [
-        Path("/kaggle/input/kaggriculture-episodes-index/manifest.csv"),
-        Path("/kaggle/input/datasets/kaggle/kaggriculture-episodes-index/manifest.csv"),
-    ]
-    for p in candidates:
-        if p.exists(): return p
-    hits = [p for p in Path("/kaggle/input").rglob("manifest.csv") if "kaggriculture-episodes-index" in str(p)]
-    if len(hits) == 1: return hits[0]
-    if len(hits) > 1:
-        raise RuntimeError(f"ambiguous attached episodes-index manifests: {hits}")
-    raise RuntimeError("kaggle/kaggriculture-episodes-index is not attached as a notebook input")
+    # Required attached input; this exact Kaggle mount path is also what drives the data-update schedule.
+    path = Path("/kaggle/input/datasets/kaggle/kaggriculture-episodes-index/manifest.csv")
+    if path.exists():
+        return path
+    raise RuntimeError(
+        "kaggle/kaggriculture-episodes-index is not attached as a notebook input; "
+        f"expected {path}"
+    )
 
 
 def csv_rows(path):

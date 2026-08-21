@@ -27,6 +27,8 @@ class NotebookBuilderTests(unittest.TestCase):
 
     def test_index_dataset_is_required_as_attached_input_without_download_fallback(self):
         text = render_notebook()
+        self.assertIn("/kaggle/input/datasets/kaggle/kaggriculture-episodes-index/manifest.csv", text)
+        self.assertNotIn("/kaggle/input/kaggriculture-episodes-index/manifest.csv", text)
         self.assertIn("episodes-index is not attached", text)
         self.assertNotIn('\"datasets\", \"download\", INDEX_DATASET', text)
 
