@@ -101,14 +101,13 @@ def stream_replay_shard_to_cases(
                 seen_instances.add(key)
                 instance_id = stable_identity("KAGGRICULTURE-TAPE-INSTANCE-V1", key[0], key[1])
                 path = out / f"{instance_id}.json"
+                # The CUDA engine needs only seat/seed from temporary tape metadata.
+                # Identity/date/team provenance remains in the compact corpus tables and
+                # is intentionally excluded here to keep the tape parser surface minimal.
                 payload = {
                     "source": {
-                        "episode_id": int(tape["prov_episode_id"]),
                         "seat": int(tape["source_seat"]),
-                        "team": str(tape["prov_team_name"]),
-                        "opponent": str(tape["prov_opponent_name"]),
                         "seed": int(tape["prov_seed"]),
-                        "date": str(tape["prov_date"]),
                     },
                     "actions": tape["actions"],
                 }

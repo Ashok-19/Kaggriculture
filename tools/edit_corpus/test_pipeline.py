@@ -44,6 +44,7 @@ class EditCorpusPipelineTests(unittest.TestCase):
                 obj = json.loads(Path(path).read_text())
                 self.assertIn("actions", obj)
                 self.assertIn("source", obj)
+                self.assertEqual(set(obj["source"]), {"seat", "seed"})
             self.assertEqual({c["seat"] for c in cases}, {0, 1})
 
     def test_build_edit_plan_is_deterministic_broad_and_parent_explicit(self):

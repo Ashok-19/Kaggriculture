@@ -36,17 +36,70 @@ def stable_identity(namespace: str, *parts: Any) -> str:
     return h.hexdigest()
 
 
+_UNIT_NOARG_OPS = frozenset({
+    "PASS", "NORTH", "SOUTH", "EAST", "WEST", "DROP", "WATER", "HARVEST",
+    "FERTILIZE", "DIG", "BUILD_COOP", "BUILD_PASTURE", "FEED",
+    "COLLECT_FERTILIZER", "CARE",
+})
+_UNIT_ITEM_OPS = frozenset({"PLANT"})
+_UNIT_ITEM_COUNT_OPS = frozenset({"PICKUP", "PLACE"})
+_MARKET_ATOMIC_OPS = frozenset({"HIRE", "BUY_LAND"})
+_MARKET_COUNT_OPS = frozenset({"BUY_SEED", "BUY_PRODUCT", "BUY_ANIMAL", "SELL"})
+
+
+def _official_int(value: Any) -> int | None:
+    """Mirror the official engine's int(value) coercion, but fail closed."""
+    try:
+        return int(value)
+    except (TypeError, ValueError, OverflowError):
+        return None
+
+
+def _normalize_unit_action(value: Any) -> list[Any]:
+    # Official _apply_unit_action silently no-ops non-list/empty/malformed actions.
+    if not isinstance(value, (list, tuple)) or not value or not isinstance(value[0], str):
+        return ["PASS"]
+    op = value[0]
+    if op in _UNIT_NOARG_OPS:
+        return [op]
+    if op in _UNIT_ITEM_OPS:
+        if len(value) < 2 or not isinstance(value[1], str):
+            return ["PASS"]
+        return [op, value[1]]
+    if op in _UNIT_ITEM_COUNT_OPS:
+        if len(value) < 2 or not isinstance(value[1], str):
+            return ["PASS"]
+        n = 1 if len(value) < 3 else _official_int(value[2])
+        if n is None:
+            return ["PASS"]
+        return [op, value[1], n]
+    return ["PASS"]
+
+
+def _normalize_market_order(value: Any) -> list[Any]:
+    # Official _parse_order ignores malformed/non-list/unknown market orders.
+    if not isinstance(value, (list, tuple)) or not value or not isinstance(value[0], str):
+        return []
+    op = value[0]
+    if op in _MARKET_ATOMIC_OPS:
+        return [op]
+    if op not in _MARKET_COUNT_OPS or len(value) < 3 or not isinstance(value[1], str):
+        return []
+    n = _official_int(value[2])
+    if n is None or n <= 0:
+        return []
+    return [op, value[1], n]
+
+
 def _normalize_action(value: Any) -> dict[str, Any]:
     if not isinstance(value, Mapping):
         return dict(PASS_ACTION)
-    farmer = value.get("farmer")
-    hands = value.get("hands")
-    market = value.get("market")
-    return {
-        "farmer": list(farmer) if isinstance(farmer, (list, tuple)) and farmer else ["PASS"],
-        "hands": [list(x) if isinstance(x, (list, tuple)) else ["PASS"] for x in hands] if isinstance(hands, list) else [],
-        "market": [list(x) if isinstance(x, (list, tuple)) else [] for x in market] if isinstance(market, list) else [],
-    }
+    farmer = _normalize_unit_action(value.get("farmer"))
+    hands_raw = value.get("hands")
+    market_raw = value.get("market")
+    hands = [_normalize_unit_action(x) for x in hands_raw] if isinstance(hands_raw, list) else []
+    market = [_normalize_market_order(x) for x in market_raw] if isinstance(market_raw, list) else []
+    return {"farmer": farmer, "hands": hands, "market": market}
 
 
 def replay_to_native_tapes(replay_json: str | Mapping[str, Any], provenance: Mapping[str, Any] | None = None) -> list[dict[str, Any]]:

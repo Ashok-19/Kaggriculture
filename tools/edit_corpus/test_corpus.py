@@ -36,6 +36,41 @@ class CorpusCoreTests(unittest.TestCase):
         self.assertEqual(a["prov_team_name"], "A")
         self.assertEqual(a["prov_daily_rank"], 1)
 
+    def test_replay_action_normalization_matches_official_engine_edge_cases(self):
+        replay = {
+            "info": {"EpisodeId": 43, "TeamNames": ["A", "B"], "seed": 9},
+            "steps": [
+                [{"action": None}, {"action": None}],
+                [
+                    {"action": {
+                        "farmer": "PLANT MELON",
+                        "hands": [["PICKUP", "WHEAT", 2.9], "NORTH"],
+                        "market": [
+                            ["BUY_SEED", "TOMATO", 20.0],
+                            ["SELL", "WHEAT", 2.9],
+                            ["BUY_PRODUCT", "WHEAT", 0.0],
+                            ["BUY_SEED", "TOMATO", "bad"],
+                            "HIRE",
+                        ],
+                    }},
+                    {"action": {"farmer": ["PLACE", "GOOSE", 3.0], "hands": [], "market": []}},
+                ],
+            ],
+        }
+        rows = self.c.replay_to_native_tapes(replay, {"date": "2026-07-30"})
+        a, b = rows
+        self.assertEqual(a["actions"][0]["farmer"], ["PASS"])
+        self.assertEqual(a["actions"][0]["hands"], [["PICKUP", "WHEAT", 2], ["PASS"]])
+        self.assertEqual(a["actions"][0]["market"], [
+            ["BUY_SEED", "TOMATO", 20],
+            ["SELL", "WHEAT", 2],
+            [],
+            [],
+            [],
+        ])
+        self.assertEqual(b["actions"][0]["farmer"], ["PLACE", "GOOSE", 3])
+
+
     def test_build_case_candidates_creates_both_candidate_seats_without_feature_identity_leakage(self):
         tape = {
             "source_seat": 0,
