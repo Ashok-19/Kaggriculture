@@ -252,6 +252,98 @@ struct Action {
     std::vector<MarketOrder> market;
 };
 
+#pragma pack(push, 1)
+struct TapeHeaderBin {
+    char magic[8];
+    uint32_t version;
+    int32_t source_seat;
+    uint64_t source_seed;
+    uint32_t action_count;
+};
+struct TapeActionHeaderBin {
+    uint8_t n_units;
+    uint8_t n_orders;
+    uint16_t reserved;
+};
+struct TapeUnitBin {
+    uint8_t op;
+    uint8_t arg;
+    int16_t n;
+};
+struct TapeOrderBin {
+    uint8_t op;
+    uint8_t item;
+    int16_t reserved;
+    int32_t n;
+};
+#pragma pack(pop)
+
+static_assert(sizeof(TapeHeaderBin) == 28, "B4TP1 header ABI drift");
+static_assert(sizeof(TapeActionHeaderBin) == 4, "B4TP1 action header ABI drift");
+static_assert(sizeof(TapeUnitBin) == 4, "B4TP1 unit ABI drift");
+static_assert(sizeof(TapeOrderBin) == 8, "B4TP1 order ABI drift");
+
+constexpr int MAX_TAPE_UNITS = 40;
+constexpr int MAX_TAPE_ORDERS = 16;
+
+uint8_t item_id(const std::string& s) {
+    static const std::array<const char*, 12> names = {
+        "WHEAT", "CARROT", "TOMATO", "STRAWBERRY", "MELON", "EGG",
+        "MILK", "WOOL", "FERTILIZER", "GOOSE", "COW", "SHEEP"
+    };
+    for (size_t i = 0; i < names.size(); ++i) if (s == names[i]) return static_cast<uint8_t>(i);
+    return 255;
+}
+uint8_t unit_op_id(const std::string& s) {
+    static const std::array<const char*, 18> names = {
+        "PASS", "NORTH", "SOUTH", "EAST", "WEST", "PICKUP", "DROP", "PLACE",
+        "PLANT", "WATER", "HARVEST", "FERTILIZE", "DIG", "BUILD_COOP", "BUILD_PASTURE",
+        "FEED", "COLLECT_FERTILIZER", "CARE"
+    };
+    for (size_t i = 0; i < names.size(); ++i) if (s == names[i]) return static_cast<uint8_t>(i);
+    return 18;
+}
+uint8_t market_op_id(const std::string& s) {
+    if (s == "HIRE") return 1;
+    if (s == "BUY_LAND") return 2;
+    if (s == "BUY_SEED") return 3;
+    if (s == "BUY_PRODUCT") return 4;
+    if (s == "BUY_ANIMAL") return 5;
+    if (s == "SELL") return 6;
+    return 0;
+}
+
+void write_binary_tape(const fs::path& path, int source_seat, int64_t source_seed, const std::vector<Action>& actions) {
+    std::ofstream out(path, std::ios::binary);
+    if (!out) throw std::runtime_error("cannot create tape file");
+    TapeHeaderBin h{{'B','4','T','P','1','\0','\0','\0'}, 1u, source_seat,
+                    static_cast<uint64_t>(source_seed), static_cast<uint32_t>(actions.size())};
+    out.write(reinterpret_cast<const char*>(&h), sizeof(h));
+    for (const auto& a : actions) {
+        const int hand_count = std::min<int>(static_cast<int>(a.hands.size()), MAX_TAPE_UNITS - 1);
+        const int order_count = std::min<int>(static_cast<int>(a.market.size()), MAX_TAPE_ORDERS);
+        TapeActionHeaderBin ah{static_cast<uint8_t>(1 + hand_count), static_cast<uint8_t>(order_count), 0};
+        out.write(reinterpret_cast<const char*>(&ah), sizeof(ah));
+        auto write_unit = [&](const UnitAction& u) {
+            TapeUnitBin b{unit_op_id(u.op), u.has_item ? item_id(u.item) : uint8_t{0}, static_cast<int16_t>(u.n)};
+            out.write(reinterpret_cast<const char*>(&b), sizeof(b));
+        };
+        write_unit(a.farmer);
+        for (int i = 0; i < hand_count; ++i) write_unit(a.hands[i]);
+        for (int i = 0; i < order_count; ++i) {
+            const auto& o = a.market[i];
+            TapeOrderBin b{};
+            if (o.valid) {
+                b.op = market_op_id(o.op);
+                b.item = o.has_item ? item_id(o.item) : uint8_t{0};
+                b.n = (o.op == "HIRE" || o.op == "BUY_LAND") ? 1 : static_cast<int32_t>(o.n);
+            }
+            out.write(reinterpret_cast<const char*>(&b), sizeof(b));
+        }
+    }
+    if (!out) throw std::runtime_error("failed writing B4TP1 tape");
+}
+
 bool unit_noarg(const std::string& op) {
     static const std::array<const char*, 15> ops = {
         "PASS","NORTH","SOUTH","EAST","WEST","DROP","WATER","HARVEST",
@@ -582,10 +674,8 @@ int main(int argc, char** argv) {
                 for (int seat = 0; seat < 2; ++seat) {
                     std::string actions = actions_json(replay.seats[seat]);
                     std::string tid = tape_semantic_id(actions);
-                    fs::path path = fs::absolute(args.out_dir / (std::to_string(episode_id) + "_" + std::to_string(seat) + ".json"));
-                    std::ofstream out(path, std::ios::binary);
-                    if (!out) throw std::runtime_error("cannot create tape file");
-                    out << "{\"source\":{\"seat\":" << seat << ",\"seed\":" << replay.seed << "},\"actions\":" << actions << "}\n";
+                    fs::path path = fs::absolute(args.out_dir / (std::to_string(episode_id) + "_" + std::to_string(seat) + ".b4tp"));
+                    write_binary_tape(path, seat, replay.seed, replay.seats[seat]);
                     meta << episode_id << '\t' << replay.seed << '\t' << seat << '\t' << tid << '\t' << path.string() << '\n';
                     ++tape_count;
                 }
@@ -596,7 +686,11 @@ int main(int argc, char** argv) {
         }
         meta.flush();
         std::cout << "REPLAY_CONVERT replays=" << replay_count << " tapes=" << tape_count << " skipped=" << skipped << '\n';
-        return tape_count ? 0 : 2;
+        // In multi-worker mode one converter may legitimately receive only malformed
+        // rows while a sibling worker produces the usable tapes. Treat consumed replay
+        // input as a successful worker transaction; the Python caller still rejects a
+        // day when the merged workers produce no cases at all.
+        return replay_count ? 0 : 2;
     } catch (const std::exception& e) {
         std::cerr << "ERROR: " << e.what() << '\n';
         return 2;

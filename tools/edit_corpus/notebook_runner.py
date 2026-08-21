@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 import hashlib
 import json
 import os
@@ -49,6 +50,41 @@ def run(cmd: Sequence[str | os.PathLike[str]], *, cwd: str | Path | None = None,
     if p.stderr.strip():
         print(p.stderr.strip(), flush=True)
     return p
+
+
+def discover_cuda_devices(*, max_devices: int = 2) -> tuple[int, ...]:
+    """Discover logical CUDA devices without importing a heavyweight ML framework."""
+    limit = max(1, int(max_devices))
+    try:
+        p = subprocess.run(
+            ["nvidia-smi", "--query-gpu=index", "--format=csv,noheader"],
+            text=True,
+            capture_output=True,
+            timeout=10,
+        )
+        if p.returncode == 0:
+            count = sum(1 for line in p.stdout.splitlines() if line.strip())
+            if count > 0:
+                return tuple(range(min(limit, count)))
+    except (OSError, subprocess.SubprocessError):
+        pass
+    return (0,)
+
+
+def adaptive_candidates_per_parent(
+    *,
+    selected_cases: int,
+    seed_parent_count: int,
+    cap: int,
+    target_games: int,
+) -> int:
+    cases = max(0, int(selected_cases))
+    if cases == 0:
+        return 0
+    generation_parents = max(1, 1 + int(seed_parent_count))
+    denom = cases * generation_parents
+    wanted = (max(1, int(target_games)) + denom - 1) // denom
+    return min(max(1, int(cap)), max(16, int(wanted)))
 
 
 def locate_dataset_root(preferred: str | Path, marker: str, *, search_root: str | Path = "/kaggle/input") -> Path | None:
@@ -170,13 +206,34 @@ def _evaluate_genomes(
     tmp_dir: Path,
     *,
     chunk_size: int,
+    cuda_devices: Sequence[int] | None = None,
+    memory_fraction: float = 0.70,
 ) -> dict[str, list[Any]]:
-    out: dict[str, list[Any]] = {}
-    for start in range(0, len(genomes), max(1, int(chunk_size))):
-        chunk = list(genomes[start:start + max(1, int(chunk_size))])
-        gp = tmp_dir / f"genomes_{start:05d}.b4gm"
-        rp = tmp_dir / f"results_{start:05d}.b4ec"
+    """Evaluate one genome set with one long-lived case load per GPU lane.
+
+    Python-side chunking is intentionally retired: the CUDA executable plans and
+    reuses its own memory-sized job buffers while keeping cases/tapes resident.
+    ``chunk_size`` remains accepted so old generated notebooks resume cleanly.
+    """
+    if not genomes:
+        return {}
+    _ = chunk_size
+    devices = tuple(int(x) for x in (cuda_devices or discover_cuda_devices(max_devices=2)))
+    if not devices:
+        devices = (0,)
+    lanes = min(len(devices), len(genomes))
+    lane_specs: list[tuple[int, int, list[ModuleGenome], Path, Path]] = []
+    for lane in range(lanes):
+        start = len(genomes) * lane // lanes
+        end = len(genomes) * (lane + 1) // lanes
+        chunk = list(genomes[start:end])
+        gp = tmp_dir / f"genomes_lane{lane}.b4gm"
+        rp = tmp_dir / f"results_lane{lane}.b4ec"
         pack_genomes(chunk, gp)
+        lane_specs.append((lane, devices[lane], chunk, gp, rp))
+
+    def launch(spec: tuple[int, int, list[ModuleGenome], Path, Path]) -> tuple[list[ModuleGenome], list[Any]]:
+        _lane, device, chunk, gp, rp = spec
         run([
             binary,
             "--controller", assets["controller"],
@@ -187,14 +244,29 @@ def _evaluate_genomes(
             "--out", rp,
             "--strategic-route-slot", str(assets["strategic_route_slot"]),
             "--tpb", "64",
+            "--device", str(device),
+            "--memory-fraction", f"{float(memory_fraction):.6f}",
         ])
         rows = load_edit_results(rp)
         if len(rows) != len(chunk):
             raise RuntimeError("CUDA result genome count mismatch")
-        for genome, case_results in zip(chunk, rows):
-            out[genome.semantic_id()] = case_results
-        gp.unlink(missing_ok=True)
-        rp.unlink(missing_ok=True)
+        return chunk, rows
+
+    out: dict[str, list[Any]] = {}
+    try:
+        if lanes == 1:
+            completed = [launch(lane_specs[0])]
+        else:
+            with ThreadPoolExecutor(max_workers=lanes, thread_name_prefix="edit-corpus-gpu") as pool:
+                futures = [pool.submit(launch, spec) for spec in lane_specs]
+                completed = [future.result() for future in futures]
+        for chunk, rows in completed:
+            for genome, case_results in zip(chunk, rows):
+                out[genome.semantic_id()] = case_results
+    finally:
+        for _lane, _device, _chunk, gp, rp in lane_specs:
+            gp.unlink(missing_ok=True)
+            rp.unlink(missing_ok=True)
     return out
 
 
@@ -205,6 +277,8 @@ def _capture_context(
     case_ids: Sequence[str],
     tmp_dir: Path,
     probes: Sequence[int],
+    *,
+    cuda_device: int = 0,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     probe_path = tmp_dir / "probes.txt"
     r0_path = tmp_dir / "public_r0.bin"
@@ -221,6 +295,7 @@ def _capture_context(
         "--truth-out", truth_path,
         "--strategic-route-slot", str(assets["strategic_route_slot"]),
         "--tpb", "64",
+        "--device", str(int(cuda_device)),
     ])
     # The capture binary emits hidden opponent holdings only for offline diagnostics.
     # Corpus construction never reads them; delete immediately before parsing R0.
@@ -281,6 +356,10 @@ def process_one_day(
     seed_parent_count: int,
     candidates_per_parent: int,
     eval_chunk_genomes: int,
+    replay_converter_workers: int,
+    cuda_devices: Sequence[int],
+    target_cuda_games: int,
+    eval_gpu_memory_fraction: float,
     probes: Sequence[int],
 ) -> dict[str, Any]:
     date = str(date_row["date"])
@@ -302,6 +381,7 @@ def process_one_day(
             max_replays=max_replays,
             converter_binary=binaries.get("replay_convert"),
             episode_metadata=episode_meta,
+            converter_workers=int(replay_converter_workers),
         )
         if not all_cases:
             raise RuntimeError(f"no valid replay-derived cases for {date}")
@@ -309,36 +389,51 @@ def process_one_day(
         write_cases_tsv(all_tsv, all_cases)
         empty = ModuleGenome(prefix_step=216, rules=())
         baseline_results = _evaluate_genomes(
-            binaries["edit_eval"], assets, all_tsv, [empty], day_tmp, chunk_size=1
+            binaries["edit_eval"], assets, all_tsv, [empty], day_tmp, chunk_size=1,
+            cuda_devices=cuda_devices, memory_fraction=float(eval_gpu_memory_fraction),
         )[empty.semantic_id()]
         if len(baseline_results) != len(all_cases):
             raise RuntimeError("baseline result/case mismatch")
-        baseline_by_case: dict[str, Any] = {}
         for case, result in zip(all_cases, baseline_results):
             case["baseline_margin"] = int(result.margin)
-            baseline_by_case[str(case["case_id"])] = result
         selected = select_representative_cases(all_cases, max_cases=min(int(max_cases), len(all_cases)))
         if not selected:
             raise RuntimeError(f"representative case selection empty for {date}")
         selected_tsv = day_tmp / "selected_cases.tsv"
         write_cases_tsv(selected_tsv, selected)
         contexts, observed = _capture_context(
-            binaries["capture"], assets, selected_tsv, [str(x["case_id"]) for x in selected], day_tmp, probes
+            binaries["capture"], assets, selected_tsv, [str(x["case_id"]) for x in selected], day_tmp, probes,
+            cuda_device=int(cuda_devices[0]),
         )
         final_cases = _safe_case_rows(selected, contexts)
 
         seed = int(hashlib.sha256((date + str(assets["base_id"])).encode()).hexdigest()[:16], 16)
+        effective_candidates_per_parent = adaptive_candidates_per_parent(
+            selected_cases=len(selected),
+            seed_parent_count=int(seed_parent_count),
+            cap=int(candidates_per_parent),
+            target_games=int(target_cuda_games),
+        )
         plan = build_edit_plan(
             str(assets["base_id"]),
             observed,
             seed=seed,
             seed_parent_count=int(seed_parent_count),
-            candidates_per_parent=int(candidates_per_parent),
+            candidates_per_parent=int(effective_candidates_per_parent),
             route_ids=assets["route_ids"],
         )
         genomes = [genome_from_json(json.loads(str(x["overlay_genome_json"]))) for x in plan["parents"]]
+        planned_gpu_games = len(genomes) * len(selected)
+        print({
+            "cuda_devices": list(cuda_devices),
+            "replay_converter_workers": int(replay_converter_workers),
+            "candidate_cap": int(candidates_per_parent),
+            "effective_candidates_per_parent": int(effective_candidates_per_parent),
+            "planned_gpu_games": int(planned_gpu_games),
+        }, flush=True)
         results_by_overlay = _evaluate_genomes(
-            binaries["edit_eval"], assets, selected_tsv, genomes, day_tmp, chunk_size=int(eval_chunk_genomes)
+            binaries["edit_eval"], assets, selected_tsv, genomes, day_tmp, chunk_size=int(eval_chunk_genomes),
+            cuda_devices=cuda_devices, memory_fraction=float(eval_gpu_memory_fraction),
         )
         labels, _day_targets = build_label_rows(plan["edits"], selected, results_by_overlay)
         # Semantic edit definitions are date-independent. Global utility targets are
@@ -370,6 +465,7 @@ def process_one_day(
             "cases": len(final_cases),
             "edits": len(edit_rows),
             "labels": len(labels),
+            "gpu_games": int(planned_gpu_games),
         }
     finally:
         shutil.rmtree(day_tmp, ignore_errors=True)
@@ -384,10 +480,14 @@ def run_builder(
     tmp_root: str | Path,
     max_dates: int | None = None,
     max_replays_per_day: int | None = None,
-    max_cases_per_day: int = 64,
-    seed_parent_count: int = 4,
-    candidates_per_parent: int = 64,
+    max_cases_per_day: int = 512,
+    seed_parent_count: int = 8,
+    candidates_per_parent: int = 768,
     eval_chunk_genomes: int = 512,
+    replay_converter_workers: int = 2,
+    max_cuda_devices: int = 2,
+    target_cuda_games: int = 1_500_000,
+    eval_gpu_memory_fraction: float = 0.70,
     probes: Sequence[int] = DEFAULT_PROBES,
 ) -> dict[str, Any]:
     archive = Path(archive_root)
@@ -417,6 +517,9 @@ def run_builder(
         pending = pending[:max(0, int(max_dates))]
     print("pending replay dates", [x["date"] for x in pending], flush=True)
     binaries = compile_cuda_tools(support, tmp / "bin") if pending else {}
+    cuda_devices = discover_cuda_devices(max_devices=max_cuda_devices) if pending else (0,)
+    if pending:
+        print("CUDA lanes", list(cuda_devices), "replay converter workers", int(replay_converter_workers), flush=True)
 
     processed_this_run = []
     for row in pending:
@@ -433,6 +536,10 @@ def run_builder(
             seed_parent_count=seed_parent_count,
             candidates_per_parent=candidates_per_parent,
             eval_chunk_genomes=eval_chunk_genomes,
+            replay_converter_workers=replay_converter_workers,
+            cuda_devices=cuda_devices,
+            target_cuda_games=target_cuda_games,
+            eval_gpu_memory_fraction=eval_gpu_memory_fraction,
             probes=probes,
         )
         processed_this_run.append(result)

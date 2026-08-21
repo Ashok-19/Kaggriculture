@@ -26,6 +26,13 @@ class EditCorpusCudaSourceTests(unittest.TestCase):
         self.assertNotIn("--use_fast_math", text)
         self.assertNotIn("__FAST_MATH__", text)
 
+    def test_inactive_overlay_tick_uses_single_final_action_materialization(self):
+        text = SOURCE.read_text(encoding="utf-8")
+        self.assertIn("if (override_route == 0xffffu)", text)
+        self.assertIn("candidate = baseline", text)
+        self.assertIn("legacy_cmp", text)
+        self.assertIn("exploit_cmp", text)
+
     def test_cuda_corpus_tools_cache_duplicate_native_tapes(self):
         edit = (ROOT / "cuda-engine/src/bkg4_edit_corpus_eval.cu").read_text(encoding="utf-8")
         capture = (ROOT / "cuda-engine/src/bkg4_information_state_capture.cu").read_text(encoding="utf-8")

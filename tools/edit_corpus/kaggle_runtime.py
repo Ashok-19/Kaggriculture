@@ -10,7 +10,15 @@ from typing import Any, Iterable, Mapping, Sequence
 
 import pandas as pd
 
-from tools.edit_corpus.corpus import SCHEMA_VERSION, assert_model_payload_safe, canonical_json, derive_case_label, derive_edit_labels
+from tools.edit_corpus.corpus import (
+    DEFAULT_FRAGILE_MARGIN,
+    DEFAULT_SEVERE_DELTA,
+    SCHEMA_VERSION,
+    assert_model_payload_safe,
+    canonical_json,
+    derive_case_label,
+    derive_edit_labels,
+)
 
 CORPUS_SCHEMA_VERSION = 1
 SHARD_SCHEMA_VERSION = 1
@@ -180,13 +188,17 @@ def _merge_shards(root: Path, pattern: str, key_cols: Sequence[str], out_name: s
         if missing:
             raise RuntimeError(f"{out_name} shard schema missing keys: {missing}")
         # Exact duplicate rows are harmless; conflicting duplicate identities are not.
-        serialized = df.apply(lambda row: canonical_json(_jsonable(row.to_dict())), axis=1)
-        temp = df.copy()
-        temp["__row_json"] = serialized
-        for key, grp in temp.groupby(list(key_cols), dropna=False, sort=False):
-            if grp["__row_json"].nunique() > 1:
-                raise RuntimeError(f"conflicting duplicate identity in {out_name}: {key}")
-        df = df.drop_duplicates(subset=list(key_cols), keep="first")
+        # Case IDs include their source date and label IDs include case_id, so the large
+        # case/label tables normally have no duplicate keys at all. Keep that common path
+        # fully vectorized and only canonicalize the small duplicate subset when needed.
+        duplicate_mask = df.duplicated(subset=list(key_cols), keep=False)
+        if bool(duplicate_mask.any()):
+            temp = df.loc[duplicate_mask].copy()
+            temp["__row_json"] = temp.apply(lambda row: canonical_json(_jsonable(row.to_dict())), axis=1)
+            for key, grp in temp.groupby(list(key_cols), dropna=False, sort=False):
+                if grp["__row_json"].nunique() > 1:
+                    raise RuntimeError(f"conflicting duplicate identity in {out_name}: {key}")
+            df = df.drop_duplicates(subset=list(key_cols), keep="first")
         df = df.sort_values(list(key_cols), kind="mergesort").reset_index(drop=True)
     tmp = root / (out_name + ".tmp")
     df.to_parquet(tmp, index=False, compression="zstd")
@@ -197,22 +209,117 @@ def _merge_shards(root: Path, pattern: str, key_cols: Sequence[str], out_name: s
 def _rebuild_global_targets(root: Path) -> int:
     path = root / "edit_case_labels.parquet"
     labels = pd.read_parquet(path) if path.exists() else pd.DataFrame()
-    rows: list[dict[str, Any]] = []
-    if len(labels):
-        if "edit_id" not in labels.columns:
-            raise RuntimeError("edit_case_labels.parquet lacks edit_id")
-        for edit_id, grp in labels.groupby("edit_id", sort=True, dropna=False):
-            normalized = []
-            for raw in grp.to_dict("records"):
-                if all(k in raw for k in ("margin_delta", "l2w", "w2l", "action_changes", "activations")):
-                    normalized.append(raw)
-                    continue
-                normalized.append(derive_case_label(
-                    int(raw["baseline_margin"]), int(raw["candidate_margin"]),
-                    int(raw.get("action_changes", 0)), int(raw.get("activations", 0)),
-                    protected=bool(raw.get("protected", True)),
-                ))
-            rows.append({"edit_id": str(edit_id), **derive_edit_labels(normalized)})
+    if not len(labels):
+        _write_parquet_atomic(root / "edit_targets.parquet", [], sort_cols=("edit_id",))
+        return 0
+
+    required = ("edit_id", "baseline_margin", "candidate_margin")
+    missing = [x for x in required if x not in labels.columns]
+    if missing:
+        raise RuntimeError(f"edit_case_labels.parquet lacks required columns: {missing}")
+
+    work = pd.DataFrame(index=labels.index)
+    work["edit_id"] = labels["edit_id"].astype(str)
+    work["baseline_margin"] = labels["baseline_margin"].astype("int64")
+    work["candidate_margin"] = labels["candidate_margin"].astype("int64")
+    work["margin_delta"] = (
+        labels["margin_delta"].astype("int64")
+        if "margin_delta" in labels.columns
+        else work["candidate_margin"] - work["baseline_margin"]
+    )
+    work["action_changes"] = (
+        labels["action_changes"].fillna(0).astype("int64")
+        if "action_changes" in labels.columns else 0
+    )
+    work["activations"] = (
+        labels["activations"].fillna(0).astype("int64")
+        if "activations" in labels.columns else 0
+    )
+
+    l2w_fallback = (work["baseline_margin"] < 0) & (work["candidate_margin"] > 0)
+    w2l_fallback = (work["baseline_margin"] > 0) & (work["candidate_margin"] <= 0)
+    trace_fallback = work["action_changes"] == 0
+    behavior_fallback = (work["margin_delta"] != 0) | (work["action_changes"] > 0)
+    if "l2w" in labels.columns:
+        work["l2w"] = labels["l2w"].where(labels["l2w"].notna(), l2w_fallback).astype(bool)
+    else:
+        work["l2w"] = l2w_fallback
+    if "w2l" in labels.columns:
+        work["w2l"] = labels["w2l"].where(labels["w2l"].notna(), w2l_fallback).astype(bool)
+    else:
+        work["w2l"] = w2l_fallback
+    if "protected" in labels.columns:
+        work["protected"] = labels["protected"].fillna(True).astype(bool)
+    else:
+        work["protected"] = True
+    if "action_trace_equal" in labels.columns:
+        work["action_trace_equal"] = labels["action_trace_equal"].where(
+            labels["action_trace_equal"].notna(), trace_fallback
+        ).astype(bool)
+    else:
+        work["action_trace_equal"] = trace_fallback
+    if "behavior_changing" in labels.columns:
+        work["behavior_changing"] = labels["behavior_changing"].where(
+            labels["behavior_changing"].notna(), behavior_fallback
+        ).astype(bool)
+    else:
+        work["behavior_changing"] = behavior_fallback
+
+    work["severe"] = (work["baseline_margin"] > 0) & (work["margin_delta"] < int(DEFAULT_SEVERE_DELTA))
+    work["loss_before"] = work["baseline_margin"] < 0
+    work["loss_after"] = work["candidate_margin"] < 0
+    work["fragile_before"] = (work["baseline_margin"] > 0) & (work["baseline_margin"] <= int(DEFAULT_FRAGILE_MARGIN))
+    work["fragile_after"] = (work["candidate_margin"] > 0) & (work["candidate_margin"] <= int(DEFAULT_FRAGILE_MARGIN))
+    work["exact_noop_row"] = (work["margin_delta"] == 0) & work["action_trace_equal"]
+
+    grouped = work.groupby("edit_id", sort=True, dropna=False)
+    targets = grouped.agg(
+        l2w_count=("l2w", "sum"),
+        w2l_count=("w2l", "sum"),
+        severe_regression_count=("severe", "sum"),
+        losses_before=("loss_before", "sum"),
+        losses_after=("loss_after", "sum"),
+        fragile_wins_before=("fragile_before", "sum"),
+        fragile_wins_after=("fragile_after", "sum"),
+        mean_margin_delta=("margin_delta", "mean"),
+        worst_candidate_margin=("candidate_margin", "min"),
+        action_change_total=("action_changes", "sum"),
+        activation_total=("activations", "sum"),
+        behavior_changing=("behavior_changing", "max"),
+        exact_noop=("exact_noop_row", "min"),
+    )
+    protected = work[work["protected"] & (work["baseline_margin"] > 0)]
+    if len(protected):
+        protected_min = protected.groupby("edit_id", sort=False)["margin_delta"].min()
+        targets["worst_protected_win_delta"] = protected_min.reindex(targets.index).fillna(0).astype("int64")
+    else:
+        targets["worst_protected_win_delta"] = 0
+
+    targets["strict_safe"] = (
+        (targets["w2l_count"] == 0)
+        & (targets["severe_regression_count"] == 0)
+        & (targets["losses_after"] <= targets["losses_before"])
+    )
+    targets["lex_losses_after"] = targets["losses_after"]
+    targets["lex_new_losses"] = targets["w2l_count"]
+    targets["lex_fragile_wins_after"] = targets["fragile_wins_after"]
+    targets["lex_worst_margin"] = targets["worst_candidate_margin"]
+    targets["lex_mean_margin_delta"] = targets["mean_margin_delta"]
+
+    int_cols = (
+        "l2w_count", "w2l_count", "severe_regression_count", "losses_before", "losses_after",
+        "fragile_wins_before", "fragile_wins_after", "worst_protected_win_delta", "worst_candidate_margin",
+        "action_change_total", "activation_total", "lex_losses_after", "lex_new_losses",
+        "lex_fragile_wins_after", "lex_worst_margin",
+    )
+    for col in int_cols:
+        targets[col] = targets[col].astype("int64")
+    for col in ("strict_safe", "exact_noop", "behavior_changing"):
+        targets[col] = targets[col].astype(bool)
+    targets["mean_margin_delta"] = targets["mean_margin_delta"].astype(float)
+    targets["lex_mean_margin_delta"] = targets["lex_mean_margin_delta"].astype(float)
+
+    rows = targets.reset_index().to_dict("records")
     _write_parquet_atomic(root / "edit_targets.parquet", rows, sort_cols=("edit_id",))
     return len(rows)
 

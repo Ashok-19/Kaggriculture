@@ -97,6 +97,56 @@ class EditCorpusPipelineTests(unittest.TestCase):
             self.assertEqual(len(paths), 2)
             self.assertEqual({t["prov_team_name"] for t in tapes}, {"A", "B"})
 
+    def test_compiled_converter_can_fan_out_across_two_cpu_workers(self):
+        import os
+        import stat
+
+        replays = []
+        for episode_id in range(100, 104):
+            replay = {
+                "info": {"seed": episode_id},
+                "steps": [
+                    [{"action": None}, {"action": None}],
+                    [{"action": {"farmer": ["NORTH"]}}, {"action": {"farmer": ["SOUTH"]}}],
+                ],
+            }
+            replays.append({"episode_id": episode_id, "replay_json": json.dumps(replay)})
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            shard = root / "replays.parquet"
+            pd.DataFrame(replays).to_parquet(shard, index=False)
+            converter = root / "fake_converter.py"
+            converter.write_text(
+                "#!/usr/bin/env python3\n"
+                "import argparse, pathlib, struct\n"
+                "p=argparse.ArgumentParser(); p.add_argument('--stdin',action='store_true'); p.add_argument('--out-dir'); p.add_argument('--metadata'); a=p.parse_args()\n"
+                "o=pathlib.Path(a.out_dir); o.mkdir(parents=True, exist_ok=True)\n"
+                "raw=__import__('sys').stdin.buffer; assert raw.read(8)==b'B4RSP01\\x00'\n"
+                "rows=[]\n"
+                "while True:\n"
+                "  h=raw.read(16)\n"
+                "  if not h: break\n"
+                "  eid,n=struct.unpack('<qQ',h); raw.read(n)\n"
+                "  for seat in (0,1):\n"
+                "    fp=o/f'{eid}_{seat}.json'; fp.write_text('{\\\"source\\\":{\\\"seat\\\":%d,\\\"seed\\\":%d},\\\"actions\\\":[{\\\"farmer\\\":[\\\"PASS\\\"],\\\"hands\\\":[],\\\"market\\\":[]}]}\\n' % (seat,eid))\n"
+                "    rows.append(f'{eid}\\t{eid}\\t{seat}\\ttid-{eid}-{seat}\\t{fp.resolve()}')\n"
+                "pathlib.Path(a.metadata).write_text('episode_id\\tseed\\tsource_seat\\ttape_semantic_id\\ttape_path\\n'+'\\n'.join(rows)+'\\n')\n"
+                "print('worker', o.name, 'rows', len(rows))\n"
+            )
+            converter.chmod(converter.stat().st_mode | stat.S_IXUSR)
+            tapes, cases, paths = self.p.stream_replay_shard_to_cases(
+                shard,
+                date="2026-08-20",
+                out_dir=root / "tapes",
+                converter_binary=converter,
+                converter_workers=2,
+            )
+            self.assertEqual(len(tapes), 8)
+            self.assertEqual(len(cases), 16)
+            self.assertEqual(len(paths), 8)
+            worker_dirs = {Path(p).parent.name for p in paths.values()}
+            self.assertEqual(worker_dirs, {"worker_0", "worker_1"})
+
     def test_build_edit_plan_is_deterministic_broad_and_parent_explicit(self):
         context = [
             {"feature": "OWN_MONEY", "index": 0, "value": 2500},

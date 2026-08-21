@@ -2,6 +2,7 @@
 #include "sim.cuh"
 #include <cctype>
 #include <cstdint>
+#include <cstring>
 #include <fstream>
 #include <stdexcept>
 #include <string>
@@ -255,6 +256,82 @@ struct NativeTape {
     int source_seat = -1;
 };
 
+#pragma pack(push, 1)
+struct NativeTapeBinaryHeader {
+    char magic[8];
+    uint32_t version;
+    int32_t source_seat;
+    uint64_t source_seed;
+    uint32_t action_count;
+};
+struct NativeTapeBinaryActionHeader {
+    uint8_t n_units;
+    uint8_t n_orders;
+    uint16_t reserved;
+};
+struct NativeTapeBinaryUnit {
+    uint8_t op;
+    uint8_t arg;
+    int16_t n;
+};
+struct NativeTapeBinaryOrder {
+    uint8_t op;
+    uint8_t item;
+    int16_t reserved;
+    int32_t n;
+};
+#pragma pack(pop)
+
+static_assert(sizeof(NativeTapeBinaryHeader) == 28, "B4TP1 header ABI drift");
+static_assert(sizeof(NativeTapeBinaryActionHeader) == 4, "B4TP1 action header ABI drift");
+static_assert(sizeof(NativeTapeBinaryUnit) == 4, "B4TP1 unit ABI drift");
+static_assert(sizeof(NativeTapeBinaryOrder) == 8, "B4TP1 order ABI drift");
+
+inline NativeTape load_native_tape_binary(const std::string& path) {
+    std::ifstream in(path, std::ios::binary);
+    if (!in) throw std::runtime_error("cannot open tape: " + path);
+    NativeTapeBinaryHeader h{};
+    in.read(reinterpret_cast<char*>(&h), sizeof(h));
+    const char magic[8] = {'B','4','T','P','1','\0','\0','\0'};
+    if (!in || std::memcmp(h.magic, magic, sizeof(magic)) != 0 || h.version != 1u)
+        throw std::runtime_error("invalid B4TP1 tape header: " + path);
+    if (h.source_seat < 0 || h.source_seat > 1 || h.action_count == 0 || h.action_count > 720u)
+        throw std::runtime_error("invalid B4TP1 tape metadata: " + path);
+    NativeTape out;
+    out.source_seed = h.source_seed;
+    out.source_seat = h.source_seat;
+    out.actions.resize(h.action_count);
+    for (uint32_t ai = 0; ai < h.action_count; ++ai) {
+        NativeTapeBinaryActionHeader ah{};
+        in.read(reinterpret_cast<char*>(&ah), sizeof(ah));
+        if (!in || ah.reserved != 0 || ah.n_units < 1 || ah.n_units > MAX_UNITS || ah.n_orders > MAX_ORDERS)
+            throw std::runtime_error("invalid B4TP1 action header: " + path);
+        Action& a = out.actions[ai];
+        a.n_units = ah.n_units;
+        a.n_orders = ah.n_orders;
+        for (int ui = 0; ui < a.n_units; ++ui) {
+            NativeTapeBinaryUnit u{};
+            in.read(reinterpret_cast<char*>(&u), sizeof(u));
+            if (!in) throw std::runtime_error("truncated B4TP1 unit payload: " + path);
+            a.units[ui].op = u.op;
+            a.units[ui].arg = u.arg;
+            a.units[ui].n = u.n;
+        }
+        for (int oi = 0; oi < a.n_orders; ++oi) {
+            NativeTapeBinaryOrder o{};
+            in.read(reinterpret_cast<char*>(&o), sizeof(o));
+            if (!in || o.reserved != 0) throw std::runtime_error("invalid B4TP1 order payload: " + path);
+            a.orders[oi].op = o.op;
+            a.orders[oi].item = o.item;
+            a.orders[oi].n = o.n;
+        }
+    }
+    char extra = 0;
+    if (in.read(&extra, 1)) throw std::runtime_error("trailing B4TP1 tape payload: " + path);
+    if (!in.eof()) throw std::runtime_error("failed reading B4TP1 tape payload: " + path);
+    return out;
+}
+
 inline NativeTape load_native_tape_json(const std::string& path) {
     std::ifstream in(path, std::ios::binary);
     if (!in) throw std::runtime_error("cannot open tape: " + path);
@@ -319,6 +396,18 @@ inline NativeTape load_native_tape_json(const std::string& path) {
     }
     if (out.actions.empty()) throw std::runtime_error("tape actions must not be empty: " + path);
     return out;
+}
+
+
+inline NativeTape load_native_tape(const std::string& path) {
+    std::ifstream in(path, std::ios::binary);
+    if (!in) throw std::runtime_error("cannot open tape: " + path);
+    char magic[8]{};
+    in.read(magic, sizeof(magic));
+    if (in.gcount() == static_cast<std::streamsize>(sizeof(magic)) &&
+        std::memcmp(magic, "B4TP1\0\0\0", sizeof(magic)) == 0)
+        return load_native_tape_binary(path);
+    return load_native_tape_json(path);
 }
 
 }  // namespace kagcuda

@@ -9,6 +9,7 @@
 #include "../include/tape_io.hpp"
 
 #include <cuda_runtime.h>
+#include <algorithm>
 #include <cstdint>
 #include <cstring>
 #include <fstream>
@@ -357,22 +358,32 @@ __global__ void eval_kernel(
         auto status = bonsaikg4::tick4(policy, st, obs4, 0, ignored, nullptr);
         if (meta[job].fault || status != bonsaikg4::SUCCESS) { flags |= 1; break; }
 
-        auto legacy_cmp = legacy;
-        auto exploit_cmp = exploit;
-        Action baseline{};
-        if (!build_final_action(raw, base_pack, legacy_pack, legacy_cmp, exploit_cmp, st.blackboard,
-                                feed_slot, feed_count, strategic_route_slot, 0xffffu, baseline)) {
-            flags |= 2; break;
-        }
-
         uint16_t override_route = module_route(genome, raw);
-        if (override_route != 0xffffu && activations != 0xffffu) ++activations;
+        Action baseline{};
         Action candidate{};
-        if (!build_final_action(raw, base_pack, legacy_pack, legacy, exploit, st.blackboard,
-                                feed_slot, feed_count, strategic_route_slot, override_route, candidate)) {
-            flags |= 2; break;
+        if (override_route == 0xffffu) {
+            // With no active overlay route, baseline and candidate are identical. Run the
+            // stateful legacy/exploit materialization only once on the real candidate
+            // state instead of once on a throwaway copy plus once on the real state.
+            if (!build_final_action(raw, base_pack, legacy_pack, legacy, exploit, st.blackboard,
+                                    feed_slot, feed_count, strategic_route_slot, 0xffffu, baseline)) {
+                flags |= 2; break;
+            }
+            candidate = baseline;
+        } else {
+            if (activations != 0xffffu) ++activations;
+            auto legacy_cmp = legacy;
+            auto exploit_cmp = exploit;
+            if (!build_final_action(raw, base_pack, legacy_pack, legacy_cmp, exploit_cmp, st.blackboard,
+                                    feed_slot, feed_count, strategic_route_slot, 0xffffu, baseline)) {
+                flags |= 2; break;
+            }
+            if (!build_final_action(raw, base_pack, legacy_pack, legacy, exploit, st.blackboard,
+                                    feed_slot, feed_count, strategic_route_slot, override_route, candidate)) {
+                flags |= 2; break;
+            }
+            if (!same_action(candidate, baseline) && action_changes != 0xffffu) ++action_changes;
         }
-        if (!same_action(candidate, baseline) && action_changes != 0xffffu) ++action_changes;
         trace_hash = action_trace_hash(trace_hash, sim.st.step, candidate);
 
         Action opponent{};
@@ -412,7 +423,8 @@ static void write_results(const std::string& path, const std::vector<ResultBin>&
 int main(int argc, char** argv) {
     try {
         std::string controller, routes, legacy, cases_path, genomes_path, out_path;
-        int feed_slot = 5, feed_count = 13, strategic_route_slot = 19, tpb = 64;
+        int feed_slot = 5, feed_count = 13, strategic_route_slot = 19, tpb = 64, device = -1;
+        double memory_fraction = 0.70;
         for (int i = 1; i < argc; ++i) {
             std::string a = argv[i];
             auto need = [&]() {
@@ -429,12 +441,16 @@ int main(int argc, char** argv) {
             else if (a == "--feed-count") feed_count = std::stoi(need());
             else if (a == "--strategic-route-slot") strategic_route_slot = std::stoi(need());
             else if (a == "--tpb") tpb = std::stoi(need());
+            else if (a == "--memory-fraction") memory_fraction = std::stod(need());
+            else if (a == "--device") device = std::stoi(need());
             else throw std::runtime_error("unknown argument " + a);
         }
         if (controller.empty() || routes.empty() || legacy.empty() || cases_path.empty() || genomes_path.empty() || out_path.empty())
             throw std::runtime_error("required: --controller --routes --legacy-routes --cases --genomes --out");
-        if (feed_slot < 0 || feed_count < 0 || strategic_route_slot < -1 || tpb <= 0)
+        if (feed_slot < 0 || feed_count < 0 || strategic_route_slot < -1 || tpb <= 0 || device < -1 ||
+            !(memory_fraction >= 0.10 && memory_fraction <= 0.90))
             throw std::runtime_error("invalid evaluator numeric argument");
+        if (device >= 0) KAGCUDA_CHECK(cudaSetDevice(device));
 
         auto owned = bonsaikg4::load_compiled4(controller);
         auto hp = owned.view();
@@ -467,7 +483,7 @@ int main(int argc, char** argv) {
             if (it != tape_cache.end()) {
                 tape_index = it->second;
             } else {
-                auto tape = load_native_tape_json(c.path);
+                auto tape = load_native_tape(c.path);
                 int off = (int)host_opp_actions.size();
                 host_opp_actions.insert(host_opp_actions.end(), tape.actions.begin(), tape.actions.end());
                 tape_index = (int)host_opp_desc.size();
@@ -481,36 +497,64 @@ int main(int argc, char** argv) {
         auto* d_opp_desc = cp(host_opp_desc);
         auto* d_cases = cp(host_case_dev);
         auto* d_genomes = cp(host_genomes);
-        size_t jobs = (size_t)host_cases.size() * host_genomes.size();
+
+        configure_device();
+        TablesOwner tables;
+        size_t free_bytes = 0, total_bytes = 0;
+        KAGCUDA_CHECK(cudaMemGetInfo(&free_bytes, &total_bytes));
+        const size_t per_job_bytes =
+            (size_t)hp.n_bb * sizeof(int32_t) +
+            (size_t)hp.n_state * sizeof(bonsaikg4::NodeState4) +
+            sizeof(bonsaikg4::RuntimeMeta4) + sizeof(Sim) + sizeof(ResultBin);
+        const size_t memory_budget = static_cast<size_t>(static_cast<double>(free_bytes) * memory_fraction);
+        size_t max_jobs = memory_budget / per_job_bytes;
+        const size_t ncases = host_cases.size();
+        if (max_jobs < ncases)
+            throw std::runtime_error("case pool exceeds evaluator GPU memory budget");
+        size_t chunk_genomes = max_jobs / ncases;
+        if (chunk_genomes < 1) chunk_genomes = 1;
+        if (chunk_genomes > host_genomes.size()) chunk_genomes = host_genomes.size();
+        const size_t capacity_jobs = ncases * chunk_genomes;
+        const size_t jobs = ncases * host_genomes.size();
+
         int32_t* d_bb = nullptr;
         bonsaikg4::NodeState4* d_ns = nullptr;
         bonsaikg4::RuntimeMeta4* d_meta = nullptr;
         Sim* d_sims = nullptr;
         ResultBin* d_out = nullptr;
-        if (hp.n_bb) KAGCUDA_CHECK(cudaMalloc((void**)&d_bb, jobs * hp.n_bb * sizeof(int32_t)));
-        if (hp.n_state) KAGCUDA_CHECK(cudaMalloc((void**)&d_ns, jobs * hp.n_state * sizeof(bonsaikg4::NodeState4)));
-        KAGCUDA_CHECK(cudaMalloc((void**)&d_meta, jobs * sizeof(*d_meta)));
-        KAGCUDA_CHECK(cudaMalloc((void**)&d_sims, jobs * sizeof(*d_sims)));
-        KAGCUDA_CHECK(cudaMalloc((void**)&d_out, jobs * sizeof(*d_out)));
+        if (hp.n_bb) KAGCUDA_CHECK(cudaMalloc((void**)&d_bb, capacity_jobs * hp.n_bb * sizeof(int32_t)));
+        if (hp.n_state) KAGCUDA_CHECK(cudaMalloc((void**)&d_ns, capacity_jobs * hp.n_state * sizeof(bonsaikg4::NodeState4)));
+        KAGCUDA_CHECK(cudaMalloc((void**)&d_meta, capacity_jobs * sizeof(*d_meta)));
+        KAGCUDA_CHECK(cudaMalloc((void**)&d_sims, capacity_jobs * sizeof(*d_sims)));
+        KAGCUDA_CHECK(cudaMalloc((void**)&d_out, capacity_jobs * sizeof(*d_out)));
 
-        configure_device();
-        TablesOwner tables;
         Config cfg;
         cfg.episode_steps = 720;
         cudaEvent_t e0, e1;
         KAGCUDA_CHECK(cudaEventCreate(&e0)); KAGCUDA_CHECK(cudaEventCreate(&e1));
-        KAGCUDA_CHECK(cudaEventRecord(e0));
-        eval_kernel<<<(jobs + tpb - 1) / tpb, tpb>>>(
-            cfg, tables.dev, dp, base_pack, legacy_pack,
-            d_opp_actions, d_opp_desc, d_cases, (int)host_cases.size(),
-            d_genomes, (int)host_genomes.size(), feed_slot, feed_count, strategic_route_slot,
-            d_bb, d_ns, d_meta, d_sims, d_out);
-        KAGCUDA_CHECK(cudaGetLastError());
-        KAGCUDA_CHECK(cudaEventRecord(e1)); KAGCUDA_CHECK(cudaEventSynchronize(e1));
-        float ms = 0;
-        KAGCUDA_CHECK(cudaEventElapsedTime(&ms, e0, e1));
         std::vector<ResultBin> host_out(jobs);
-        KAGCUDA_CHECK(cudaMemcpy(host_out.data(), d_out, jobs * sizeof(ResultBin), cudaMemcpyDeviceToHost));
+        double gpu_ms = 0.0;
+        size_t chunks = 0;
+        size_t max_chunk_games = 0;
+        for (size_t start = 0; start < host_genomes.size(); start += chunk_genomes) {
+            const size_t ngenomes = std::min(chunk_genomes, host_genomes.size() - start);
+            const size_t chunk_jobs = ncases * ngenomes;
+            max_chunk_games = std::max(max_chunk_games, chunk_jobs);
+            KAGCUDA_CHECK(cudaEventRecord(e0));
+            eval_kernel<<<(chunk_jobs + tpb - 1) / tpb, tpb>>>(
+                cfg, tables.dev, dp, base_pack, legacy_pack,
+                d_opp_actions, d_opp_desc, d_cases, (int)ncases,
+                d_genomes + start, (int)ngenomes, feed_slot, feed_count, strategic_route_slot,
+                d_bb, d_ns, d_meta, d_sims, d_out);
+            KAGCUDA_CHECK(cudaGetLastError());
+            KAGCUDA_CHECK(cudaEventRecord(e1)); KAGCUDA_CHECK(cudaEventSynchronize(e1));
+            float chunk_ms = 0.0f;
+            KAGCUDA_CHECK(cudaEventElapsedTime(&chunk_ms, e0, e1));
+            gpu_ms += chunk_ms;
+            KAGCUDA_CHECK(cudaMemcpy(host_out.data() + start * ncases, d_out,
+                                     chunk_jobs * sizeof(ResultBin), cudaMemcpyDeviceToHost));
+            ++chunks;
+        }
         write_results(out_path, host_out, (int)host_genomes.size(), (int)host_cases.size());
         int bad = 0;
         unsigned long long changes = 0, activations = 0;
@@ -519,8 +563,14 @@ int main(int argc, char** argv) {
                   << " genomes=" << host_genomes.size()
                   << " cases=" << host_cases.size()
                   << " games=" << jobs
-                  << " gpu_ms=" << ms
-                  << " games_s=" << (jobs / (ms / 1000.0))
+                  << " gpu_ms=" << gpu_ms
+                  << " games_s=" << (jobs / (gpu_ms / 1000.0))
+                  << " chunks=" << chunks
+                  << " chunk_genomes=" << chunk_genomes
+                  << " max_chunk_games=" << max_chunk_games
+                  << " per_job_bytes=" << per_job_bytes
+                  << " memory_fraction=" << memory_fraction
+                  << " free_plan_MiB=" << (free_bytes / (1024.0 * 1024.0))
                   << " action_changes=" << changes
                   << " activations=" << activations
                   << " bad=" << bad << "\n";

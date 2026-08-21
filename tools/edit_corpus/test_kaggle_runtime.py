@@ -133,6 +133,54 @@ class KaggleRuntimeTests(unittest.TestCase):
             self.assertEqual(m["counts"]["dedup_counts"]["semantic_edit_rows_removed"], 1)
             self.assertEqual(m["counts"]["label_counts"]["behavior_changing"], 1)
 
+    def test_merge_shards_skips_python_row_serialization_when_keys_are_unique(self):
+        from unittest import mock
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            shards = root / "shards"
+            shards.mkdir(parents=True)
+            pd.DataFrame([{"edit_id": "e1", "case_id": "c1", "value": 1}]).to_parquet(shards / "labels_a.parquet", index=False)
+            pd.DataFrame([{"edit_id": "e2", "case_id": "c2", "value": 2}]).to_parquet(shards / "labels_b.parquet", index=False)
+            calls = 0
+            real = self.r.canonical_json
+
+            def counted(value):
+                nonlocal calls
+                calls += 1
+                return real(value)
+
+            with mock.patch.object(self.r, "canonical_json", side_effect=counted):
+                rows = self.r._merge_shards(root, "labels_*.parquet", ("edit_id", "case_id"), "labels.parquet")
+            self.assertEqual(rows, 2)
+            self.assertEqual(calls, 0)
+
+    def test_global_target_rebuild_is_vectorized_not_scalar_group_loop(self):
+        from tools.edit_corpus.corpus import derive_case_label
+        from unittest import mock
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            rows = []
+            for edit_id, values in {
+                "e1": [(-5, 3, 2, 1, 11, 12), (10, 12, 0, 0, 20, 20)],
+                "e2": [(8, -2, 4, 3, 31, 32), (2, 4, 1, 2, 41, 42)],
+            }.items():
+                for i, (b, c, changes, acts, ph, ch) in enumerate(values):
+                    row = derive_case_label(
+                        b, c, changes, acts,
+                        parent_action_trace_hash=ph,
+                        candidate_action_trace_hash=ch,
+                    )
+                    row.update({"edit_id": edit_id, "case_id": f"{edit_id}-{i}"})
+                    rows.append(row)
+            pd.DataFrame(rows).to_parquet(root / "edit_case_labels.parquet", index=False)
+            with mock.patch.object(self.r, "derive_edit_labels", side_effect=AssertionError("scalar aggregate loop used")):
+                count = self.r._rebuild_global_targets(root)
+            self.assertEqual(count, 2)
+            targets = pd.read_parquet(root / "edit_targets.parquet").set_index("edit_id")
+            self.assertEqual(int(targets.loc["e1", "l2w_count"]), 1)
+            self.assertEqual(int(targets.loc["e2", "w2l_count"]), 1)
+            self.assertFalse(bool(targets.loc["e2", "strict_safe"]))
+
     def test_manifest_validation_detects_tampered_consolidated_file(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
