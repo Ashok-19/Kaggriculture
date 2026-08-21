@@ -40,7 +40,8 @@ class EditCorpusNotebookBuilderTests(unittest.TestCase):
         })
 
     def test_notebook_mounts_support_and_runs_incremental_gpu_builder(self):
-        text = self.render_notebook()
+        nb = json.loads(self.render_notebook())
+        text = "\n".join("".join(cell["source"]) for cell in nb["cells"] if cell["cell_type"] == "code")
         for needle in (
             "support_manifest.json",
             "archive_manifest.json",
@@ -50,6 +51,10 @@ class EditCorpusNotebookBuilderTests(unittest.TestCase):
             "candidates_per_parent",
             "eval_chunk_genomes",
             "processed_this_run",
+            "support_bundle.tar",
+            'SUPPORT_INPUT / "support_bundle"',
+            "shutil.copytree",
+            "kaggriculture_edit_corpus_support_runtime",
         ):
             self.assertIn(needle, text)
         self.assertNotIn("kaggle_environments", text)

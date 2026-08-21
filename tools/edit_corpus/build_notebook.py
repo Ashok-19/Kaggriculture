@@ -74,32 +74,52 @@ SUPPORT_INPUT = locate_input("ashok205/kaggriculture-edit-corpus-support", "supp
 ARCHIVE = locate_input("ashok205/kaggriculture-top10-replay-archive", "archive_manifest.json")
 
 support_manifest = json.loads((SUPPORT_INPUT / "support_manifest.json").read_text())
-bundle = SUPPORT_INPUT / str(support_manifest.get("bundle_file", "support_bundle.tar"))
-if not bundle.is_file():
-    raise RuntimeError(f"support dataset is missing {bundle.name}; rebuild/publish the support dataset")
-if bundle.stat().st_size != int(support_manifest["bundle_bytes"]):
-    raise RuntimeError("support bundle size mismatch")
-h = hashlib.sha256()
-with bundle.open("rb") as f:
-    for chunk in iter(lambda: f.read(1 << 20), b""):
-        h.update(chunk)
-if h.hexdigest() != str(support_manifest["bundle_sha256"]):
-    raise RuntimeError("support bundle SHA256 mismatch")
-
 SUPPORT = Path("/kaggle/working/kaggriculture_edit_corpus_support_runtime")
 if SUPPORT.exists():
     shutil.rmtree(SUPPORT)
-SUPPORT.mkdir(parents=True)
-root_resolved = SUPPORT.resolve()
-with tarfile.open(bundle, "r") as tf:
-    for member in tf.getmembers():
-        target = (SUPPORT / member.name).resolve()
-        if root_resolved != target and root_resolved not in target.parents:
-            raise RuntimeError(f"unsafe support bundle member: {member.name}")
-        if not member.isfile():
-            raise RuntimeError(f"unexpected non-file support bundle member: {member.name}")
-    tf.extractall(SUPPORT)
+
+# Kaggle expands uploaded archives into a directory named after the archive.
+expanded = SUPPORT_INPUT / "support_bundle"
+bundle = SUPPORT_INPUT / str(support_manifest.get("bundle_file", "support_bundle.tar"))
+if expanded.is_dir():
+    shutil.copytree(expanded, SUPPORT)
+elif bundle.is_file():
+    if bundle.stat().st_size != int(support_manifest["bundle_bytes"]):
+        raise RuntimeError("support bundle size mismatch")
+    h = hashlib.sha256()
+    with bundle.open("rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    if h.hexdigest() != str(support_manifest["bundle_sha256"]):
+        raise RuntimeError("support bundle SHA256 mismatch")
+    SUPPORT.mkdir(parents=True)
+    root_resolved = SUPPORT.resolve()
+    with tarfile.open(bundle, "r") as tf:
+        for member in tf.getmembers():
+            target = (SUPPORT / member.name).resolve()
+            if root_resolved != target and root_resolved not in target.parents:
+                raise RuntimeError(f"unsafe support bundle member: {member.name}")
+            if not member.isfile():
+                raise RuntimeError(f"unexpected non-file support bundle member: {member.name}")
+        tf.extractall(SUPPORT)
+else:
+    raise RuntimeError("support dataset has neither support_bundle/ nor support_bundle.tar")
+
+# Verify every runtime file against the support manifest after materialization.
+for rel, meta in support_manifest["files"].items():
+    fp = SUPPORT / rel
+    if not fp.is_file():
+        raise RuntimeError(f"support runtime missing {rel}")
+    if fp.stat().st_size != int(meta["bytes"]):
+        raise RuntimeError(f"support runtime size mismatch: {rel}")
+    h = hashlib.sha256()
+    with fp.open("rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    if h.hexdigest() != str(meta["sha256"]):
+        raise RuntimeError(f"support runtime SHA256 mismatch: {rel}")
 shutil.copy2(SUPPORT_INPUT / "support_manifest.json", SUPPORT / "support_manifest.json")
+
 # The seed corpus dataset may not contain corpus_manifest.json on the first build.
 _prior_candidates = [
     Path("/kaggle/input/datasets/ashok205/kaggriculture-bonsai-edit-corpus"),
