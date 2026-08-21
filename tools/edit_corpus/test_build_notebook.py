@@ -28,6 +28,8 @@ class EditCorpusNotebookBuilderTests(unittest.TestCase):
     def test_kernel_metadata_uses_gpu_and_exact_three_dataset_inputs(self):
         meta = json.loads(self.render_kernel_metadata())
         self.assertTrue(meta["enable_gpu"])
+        self.assertEqual(meta["title"], "Kaggriculture Bonsai Edit Corpus Builder")
+        self.assertTrue(meta["id"].endswith("/kaggriculture-bonsai-edit-corpus-builder"))
         self.assertTrue(meta["enable_internet"])
         self.assertTrue(meta["is_private"])
         self.assertEqual(meta["competition_sources"], [])

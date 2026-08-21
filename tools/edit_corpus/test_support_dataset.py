@@ -59,11 +59,20 @@ class SupportDatasetTests(unittest.TestCase):
             )
             self.assertEqual(copied, list(self.b.REQUIRED_PATHS))
             self.assertEqual(json.loads((out / "dataset-metadata.json").read_text())["id"], self.b.SUPPORT_DATASET)
+            meta = json.loads((out / "dataset-metadata.json").read_text())
+            self.assertTrue(20 <= len(meta["subtitle"]) <= 80)
             persisted = json.loads((out / "support_manifest.json").read_text())
             self.assertEqual(persisted, manifest)
             self.assertGreater(manifest["total_bytes"], 0)
             self.assertEqual(manifest["bkg4_abi"], 4)
             self.assertEqual(manifest["edit_grammar"], "bonsai_edit_actor_grammar_v1")
+
+
+    def test_corpus_seed_metadata_satisfies_kaggle_limits(self):
+        meta_path = self.b.ROOT / "tools/edit_corpus/corpus_dataset_seed/dataset-metadata.json"
+        meta = json.loads(meta_path.read_text())
+        self.assertTrue(20 <= len(meta["subtitle"]) <= 80)
+
 
 
 if __name__ == "__main__":

@@ -390,7 +390,7 @@ def run_builder(
         "title": CORPUS_TITLE,
         "id": CORPUS_DATASET,
         "licenses": [{"name": "CC0-1.0"}],
-        "subtitle": "Compact exact-CUDA structured supervision for generalized BonsaiEditFormer ranking",
+        "subtitle": "Exact CUDA supervision for generalized BonsaiEditFormer ranking",
         "description": "Incremental replay-derived parent/edit/legal-context corpus. Outcome labels come only from the exact Kaggriculture CUDA engine; team/opponent/replay/seed identifiers are provenance only.",
     }
     (stage / "dataset-metadata.json").write_text(json.dumps(dataset_metadata, indent=2, sort_keys=True) + "\n", encoding="utf-8")

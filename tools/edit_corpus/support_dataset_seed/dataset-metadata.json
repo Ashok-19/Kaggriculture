@@ -1,7 +1,11 @@
 {
-  "title": "Kaggriculture Bonsai Edit Corpus CUDA Support",
+  "description": "Private versioned source/assets bundle used by the Kaggriculture GPU edit-corpus builder notebook. Rebuild it whenever any included CUDA, BKG4, edit-grammar, codec, or corpus-runtime file changes.",
   "id": "ashok205/kaggriculture-edit-corpus-support",
-  "licenses": [{"name": "CC0-1.0"}],
-  "subtitle": "Minimal exact-CUDA and typed BKG4 support bundle for replay-to-EditFormer corpus construction",
-  "description": "Private versioned source/assets bundle used by the Kaggriculture GPU edit-corpus builder notebook. Rebuild it whenever any included CUDA, BKG4, edit-grammar, codec, or corpus-runtime file changes."
+  "licenses": [
+    {
+      "name": "CC0-1.0"
+    }
+  ],
+  "subtitle": "BKG4 CUDA support for replay-to-EditFormer corpus building",
+  "title": "Kaggriculture Bonsai Edit Corpus CUDA Support"
 }

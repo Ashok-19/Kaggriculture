@@ -77,7 +77,7 @@ def dataset_metadata() -> dict[str, Any]:
         "title": SUPPORT_TITLE,
         "id": SUPPORT_DATASET,
         "licenses": [{"name": "CC0-1.0"}],
-        "subtitle": "Minimal exact-CUDA and typed BKG4 support bundle for replay-to-EditFormer corpus construction",
+        "subtitle": "BKG4 CUDA support for replay-to-EditFormer corpus building",
         "description": "Private versioned source/assets bundle used by the Kaggriculture GPU edit-corpus builder notebook. Contains only the current BKG4 parent, exact CUDA evaluators, typed edit grammar/codecs, and corpus runtime dependencies.",
     }
 

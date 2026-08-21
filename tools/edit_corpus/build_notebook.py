@@ -174,7 +174,7 @@ print(json.dumps({
 def render_kernel_metadata() -> str:
     meta = {
         "id": "ashok205/kaggriculture-bonsai-edit-corpus-builder",
-        "title": "Kaggriculture BonsaiEditFormer CUDA Edit Corpus Builder",
+        "title": "Kaggriculture Bonsai Edit Corpus Builder",
         "code_file": "kaggriculture_edit_corpus_builder.ipynb",
         "language": "python",
         "kernel_type": "notebook",
