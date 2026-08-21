@@ -4,9 +4,9 @@
 
 **Goal:** Build a deterministic, resumable Kaggle notebook that archives only official daily episodes involving that day's reconstructed top-10 Kaggriculture teams.
 
-**Architecture:** A small tested Python helper owns pure ranking/state/provenance logic and runtime Kaggle operations. A notebook builder embeds that helper into a standalone Kaggle notebook. The notebook uses official daily episode IDs for source discovery/selection, refreshes full public episode histories for discovered candidate teams, ranks teams from chronological `updatedScore` history using the best of their two newest submissions at each UTC day boundary, writes immutable Zstd Parquet replay shards, preserves previous archive state, and versions one private Kaggle Dataset.
+**Architecture:** A small tested Python helper owns pure ranking/state/provenance logic and runtime Kaggle operations. A notebook builder embeds that helper into a standalone Kaggle notebook. The notebook uses official daily episode IDs for source discovery/selection, streams the attached Meta Kaggle Teams/Submissions/Episodes/EpisodeAgents tables for exact chronological `UpdatedScore` history, ranks teams using the best of their two newest submissions at each UTC day boundary, writes immutable Zstd Parquet replay shards, preserves previous archive state, and versions one private Kaggle Dataset.
 
-**Tech Stack:** Python standard library, pandas, pyarrow, Kaggle CLI, requests/kaggle-environments EpisodeService metadata inside Kaggle.
+**Tech Stack:** Python standard library, pandas, pyarrow, Kaggle CLI, attached `kaggle/meta-kaggle` CSV tables, and attached `kaggle/kaggriculture-episodes-index`.
 
 **Spec:** `docs/superpowers/specs/2026-08-21-kaggriculture-top10-replay-archive-design.md`
 

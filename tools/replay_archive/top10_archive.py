@@ -8,7 +8,7 @@ import os
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 def _get(mapping: Mapping[str, Any], *names: str, default: Any = None) -> Any:
@@ -90,33 +90,108 @@ def merge_episode_metadata(*sources: Iterable[Mapping[str, Any]]) -> list[dict[s
     return sorted(by_id.values(), key=lambda e: (str(e.get("end_time") or e.get("create_time") or ""), int(e["episode_id"])))
 
 
-def apply_episode_updates(state: dict[str, Any], episodes: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
-    """Apply chronological skill-rating updates in place and return ``state``."""
-    for ep in sorted(episodes, key=lambda e: (str(e.get("end_time") or e.get("create_time") or ""), int(e["episode_id"]))):
-        ts = str(ep.get("end_time") or ep.get("create_time") or "")
-        for agent in ep["agents"]:
-            team_id = int(agent["team_id"])
-            submission_id = int(agent["submission_id"])
-            team_key = str(team_id)
-            team = state.setdefault(team_key, {"team_id": team_id, "team_name": agent.get("team_name", ""), "submissions": {}})
-            if agent.get("team_name"):
-                team["team_name"] = str(agent["team_name"])
-            submissions = team.setdefault("submissions", {})
-            sub_key = str(submission_id)
-            sub = submissions.get(sub_key)
-            if sub is None:
-                submissions[sub_key] = {
-                    "submission_id": submission_id,
-                    "first_seen": ts,
-                    "last_seen": ts,
-                    "score": float(agent["updated_score"]),
-                    "last_episode_id": int(ep["episode_id"]),
-                }
-            else:
-                sub["last_seen"] = ts
-                sub["score"] = float(agent["updated_score"])
-                sub["last_episode_id"] = int(ep["episode_id"])
+def apply_rating_rows(state: dict[str, Any], rows: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
+    """Apply flattened chronological rating rows to leaderboard state."""
+    ordered = sorted(
+        (dict(r) for r in rows),
+        key=lambda r: (
+            str(r.get("end_time") or r.get("create_time") or ""),
+            int(r["episode_id"]),
+            int(r.get("seat", r.get("index", 0)) or 0),
+        ),
+    )
+    for row in ordered:
+        ts = str(row.get("end_time") or row.get("create_time") or "")
+        team_id = int(row["team_id"])
+        submission_id = int(row["submission_id"])
+        submitted_at = str(row.get("submission_date") or ts)
+        team_key = str(team_id)
+        team = state.setdefault(
+            team_key,
+            {"team_id": team_id, "team_name": row.get("team_name", ""), "submissions": {}},
+        )
+        if row.get("team_name"):
+            team["team_name"] = str(row["team_name"])
+        submissions = team.setdefault("submissions", {})
+        sub_key = str(submission_id)
+        sub = submissions.get(sub_key)
+        if sub is None:
+            submissions[sub_key] = {
+                "submission_id": submission_id,
+                "first_seen": submitted_at,
+                "last_seen": ts,
+                "score": float(row["updated_score"]),
+                "last_episode_id": int(row["episode_id"]),
+            }
+        else:
+            if submitted_at and (not sub.get("first_seen") or submitted_at < str(sub["first_seen"])):
+                sub["first_seen"] = submitted_at
+            sub["last_seen"] = ts
+            sub["score"] = float(row["updated_score"])
+            sub["last_episode_id"] = int(row["episode_id"])
     return state
+
+
+def apply_episode_updates(state: dict[str, Any], episodes: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
+    """Apply nested episode metadata using the same rating-state semantics."""
+    rows: list[dict[str, Any]] = []
+    for ep in episodes:
+        for agent in ep["agents"]:
+            rows.append(
+                {
+                    "episode_id": int(ep["episode_id"]),
+                    "create_time": str(ep.get("create_time") or ""),
+                    "end_time": str(ep.get("end_time") or ep.get("create_time") or ""),
+                    "seat": int(agent.get("index", 0) or 0),
+                    "team_id": int(agent["team_id"]),
+                    "team_name": str(agent.get("team_name", "")),
+                    "submission_id": int(agent["submission_id"]),
+                    "submission_date": str(agent.get("submission_date") or ""),
+                    "updated_score": float(agent["updated_score"]),
+                }
+            )
+    return apply_rating_rows(state, rows)
+
+
+def rating_rows_to_episode_metadata(rows: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]:
+    """Group flattened Meta Kaggle rating rows into deterministic episode metadata."""
+    grouped: dict[int, dict[str, Any]] = {}
+    for raw in sorted(
+        (dict(r) for r in rows),
+        key=lambda r: (int(r["episode_id"]), int(r.get("seat", r.get("index", 0)) or 0)),
+    ):
+        episode_id = int(raw["episode_id"])
+        create_time = str(raw.get("create_time") or "")
+        end_time = str(raw.get("end_time") or create_time)
+        episode_type = raw.get("episode_type", raw.get("type"))
+        ep = grouped.setdefault(
+            episode_id,
+            {
+                "episode_id": episode_id,
+                "create_time": create_time,
+                "end_time": end_time,
+                "state": None,
+                "type": episode_type,
+                "agents": [],
+            },
+        )
+        if ep["create_time"] != create_time or ep["end_time"] != end_time or ep["type"] != episode_type:
+            raise RuntimeError(f"conflicting flattened metadata for episode {episode_id}")
+        ep["agents"].append(
+            {
+                "team_id": int(raw["team_id"]),
+                "team_name": str(raw.get("team_name", "")),
+                "submission_id": int(raw["submission_id"]),
+                "submission_date": str(raw.get("submission_date") or ""),
+                "initial_score": None if raw.get("initial_score") is None else float(raw["initial_score"]),
+                "updated_score": float(raw["updated_score"]),
+                "reward": raw.get("reward"),
+                "index": int(raw.get("seat", raw.get("index", 0)) or 0),
+            }
+        )
+    episodes = list(grouped.values())
+    episodes.sort(key=lambda e: (e["end_time"] or e["create_time"], e["episode_id"]))
+    return episodes
 
 
 def daily_top_teams(state: Mapping[str, Any], n: int = 10) -> list[dict[str, Any]]:
@@ -227,6 +302,10 @@ def validate_archive(root: Path) -> dict[str, Any]:
     if not path.exists():
         raise RuntimeError(f"archive manifest missing: {path}")
     manifest = json.loads(path.read_text(encoding="utf-8"))
+    if int(manifest.get("schema_version", -1)) != SCHEMA_VERSION:
+        raise RuntimeError(
+            f"archive schema mismatch: expected {SCHEMA_VERSION}, got {manifest.get('schema_version')}"
+        )
     expected_manifest_sha = str(manifest.get("manifest_sha256", ""))
     actual_manifest_sha = hashlib.sha256(_manifest_payload(manifest)).hexdigest()
     if expected_manifest_sha != actual_manifest_sha:

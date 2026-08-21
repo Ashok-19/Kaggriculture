@@ -2,58 +2,67 @@
 
 ## Goal
 
-Maintain one compact Kaggle Dataset containing all official daily replay episodes involving the teams that finish each UTC source day in the Kaggriculture top 10, with deterministic provenance and incremental updates.
+Maintain one compact Kaggle Dataset containing official daily replay episodes involving teams that rank in the reconstructed Kaggriculture top 10 for each source day, with deterministic provenance and incremental updates.
 
 ## Ranking source
 
-Do **not** infer player rank from the order of files or rows in the daily replay dataset. The daily replay archive is only the source episode universe.
+Do **not** infer rank from daily replay ordering, `avg_score`, reward, or final money.
 
-For each source day, read only its small `manifest.csv` to discover source episode IDs and candidate teams. Resolve candidate teams' **full public episode histories** through Kaggle simulation episode metadata. That metadata exposes `teamId`, `submissionId`, `initialScore`, and `updatedScore`; `updatedScore` is the skill rating after that match. Replay all public rating updates chronologically through each UTC day boundary. Kaggriculture tracks a team's newest two submissions and shows the better-scoring one on the leaderboard, so the reconstructed daily team score is the maximum latest rating among the two newest submissions observed for that team as of the end of that UTC day. Rank by score descending, then stable `team_id` tie-break. Current leaderboard rows are used only to widen candidate discovery, never as historical snapshots.
+The Episodes Index provides only the daily episode universe. Historical leaderboard state is reconstructed from attached `kaggle/meta-kaggle` tables:
 
-The archive fails closed if score-bearing episode metadata is unavailable or fewer than ten ranked teams can be established; it never silently substitutes episode order, average episode score, reward, or final money for leaderboard rank.
+- `Teams.csv`: Kaggriculture team identity.
+- `Submissions.csv`: submission→team mapping and `SubmissionDate`.
+- `Episodes.csv`: episode timestamps.
+- `EpisodeAgents.csv`: per-agent `InitialScore` and `UpdatedScore`.
+
+The notebook streams these CSVs in bounded chunks, filters to competition ID `147734`, and materializes only compact rating events for the unprocessed date range. Rating events are applied chronologically through each UTC source-day boundary. A team's leaderboard score is the better score among its two newest submissions as of that boundary. Teams are ranked by score descending with a stable team-ID tie break.
+
+If Meta Kaggle does not yet contain complete metadata for every episode ID in a pending source-day manifest, the notebook fails closed and publishes nothing.
 
 ## Source discovery
 
-The official index is `kaggle/kaggriculture-episodes-index`. Its `manifest.csv` supplies `date`, `daily_dataset_slug`, URL, episode count, bytes, and score-summary provenance. Each daily dataset is accessed only for `manifest.csv`; the ~20 GiB expanded replay dataset is never extracted wholesale.
+The required schedule-trigger input is `kaggle/kaggriculture-episodes-index`, mounted at:
+
+`/kaggle/input/datasets/kaggle/kaggriculture-episodes-index/manifest.csv`
+
+Each daily replay dataset is accessed only for `manifest.csv`; large replay datasets are never bulk extracted.
+
+Meta Kaggle is a second required attached input under:
+
+`/kaggle/input/datasets/kaggle/meta-kaggle/`
 
 ## Replay selection
 
-After reconstructing the end-of-day top 10, select every episode ID in that day's official daily manifest whose metadata contains at least one of those ten team IDs. Deduplicate by integer episode ID. Download replay JSON only for selected IDs using the Kaggle simulation replay command/API available inside the notebook.
+After reconstructing a day's top 10, select every episode ID in that day's official manifest whose Meta Kaggle agent metadata contains at least one top-10 team ID. Deduplicate deterministically by integer episode ID. Only then download full replay JSON for selected IDs.
 
 ## Archive layout
 
-The custom dataset contains:
+- `archive_manifest.json`: schema version, source index, counts, per-file hashes/sizes, processed dates, ranking source, generation timestamp.
+- `rating_state.json`: latest per-team/per-submission rating state through the latest processed day.
+- `meta_kaggle_provenance.json`: Meta Kaggle source-file sizes/mtimes and filtered extraction counts.
+- `processed_days.json`: source-row digest, daily-manifest digest, source slug, selected counts, ranking source, completion state, replay-shard hash.
+- `top10_history.parquet`: date/rank, team ID/name, reconstructed score, selected submission, ranking basis.
+- `episodes.parquet`: archived participation metadata with opponent/source/replay provenance.
+- `replays_YYYY-MM-DD.parquet`: Zstd-compressed selected replay JSON.
 
-- `archive_manifest.json`: schema version, source index, run timestamp, corpus counts, file hashes, processed date range, and provenance.
-- `rating_state.json`: latest per-submission score/team/first-seen/last-seen state through the latest processed day.
-- `rating_episodes.parquet`: compact normalized full public episode metadata used to reconstruct/audit ranking history.
-- `processed_days.json`: source day, source slug, source index-row digest, daily-manifest digest, episode counts, selected counts, and completion status.
-- `top10_history.parquet`: one row per date/rank with team ID/name, reconstructed leaderboard score, and selected active submission ID.
-- `episodes.parquet`: one row per archived episode with date, episode ID, selected top-10 team(s), ranks, opponent(s), source daily slug, source manifest metrics, replay SHA-256, and shard path.
-- `replays_YYYY-MM-DD.parquet`: Zstd-compressed rows containing `episode_id` and raw replay JSON.
-
-Parquet replay shards use Zstd compression. Daily immutable shards avoid rewriting replay contents during a normal incremental run. The archive is flat so Kaggle dataset version uploads do not depend on directory-upload modes.
+Full Meta Kaggle files remain read-only inputs and are never copied into notebook working storage. Temporary filtered rating shards are bounded to Kaggriculture and the pending date interval.
 
 ## Incremental update
 
-The notebook mounts the latest version of the custom archive when available, validates its manifest/hashes/state, and copies it to a staging output. It downloads the latest official index manifest and compares source-row digests with `processed_days.json`.
+The notebook validates the latest custom archive, compares index-row digests against `processed_days.json`, and processes unseen dates chronologically. Existing completed identical rows are skipped; mutation of a completed source row aborts.
 
-- already processed + identical digest: skip;
-- already processed + changed digest: fail closed rather than silently mixing provenance;
-- unseen date: process chronologically.
+For an incremental run, `rating_state.json` resumes from the latest completed date and only rating events after that date through the newest pending source date are applied. A date is marked complete only after ranking, replay download, hashing, shard verification, and atomic metadata/state writes succeed.
 
-A date is marked complete only after metadata resolution, top-10 ranking, replay download, replay hashing, Parquet shard write, and shard verification succeed. State/metadata files are written to temporary paths and atomically replaced after the day succeeds. Therefore a partial failure leaves the previous completed archive usable and the failed date pending on rerun.
+## Publication and recovery
 
-## Publication
+All prior compact archive files plus new day shards are staged before publishing a new version of the same custom dataset. If any pending date fails, no dataset version is published, so the next run restarts from the last valid archive and retries all pending dates.
 
-Every successful run publishes a new version of the **same** custom Kaggle Dataset. Because Kaggle dataset versions replace the visible file set, the notebook stages all prior compact archive files plus new immutable day shards before `kaggle datasets version`. It never drops previous days.
+No explicit Kaggle authentication call is used inside the notebook.
 
-No explicit `api.authenticate()` call is used; Kaggle notebook API access is assumed as requested.
+## Scheduling
 
-## Validation
-
-Local tests cover score-state/ranking, two-newest-submission leaderboard semantics, deterministic episode selection, processed-day source mutation rejection, and idempotent manifest merge. The generated notebook contains a dry-run self-check before any publication path and verifies that applying the same day twice creates no new episode IDs.
+Keep the Episodes Index attached and use Kaggle's **Data updates (once daily)** schedule trigger. Meta Kaggle and the custom archive dataset stay attached as required inputs; Episodes Index remains the trigger.
 
 ## Non-goals
 
-No BonsaiEditFormer training, ranker training, BKG4 edit generation, policy optimization, CUDA search, or submission work occurs in this notebook.
+No BonsaiEditFormer/ranker training, BKG4 editing, policy optimization, CUDA search, or competition submission work occurs here.

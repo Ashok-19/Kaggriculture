@@ -22,6 +22,7 @@ class NotebookBuilderTests(unittest.TestCase):
         self.assertTrue(meta["enable_internet"])
         self.assertTrue(meta["is_private"])
         self.assertIn("kaggle/kaggriculture-episodes-index", meta["dataset_sources"])
+        self.assertIn("kaggle/meta-kaggle", meta["dataset_sources"])
         self.assertIn("ashok205/kaggriculture-top10-replay-archive", meta["dataset_sources"])
         self.assertEqual(meta["competition_sources"], ["kaggriculture"])
 
@@ -30,7 +31,20 @@ class NotebookBuilderTests(unittest.TestCase):
         self.assertIn("/kaggle/input/datasets/kaggle/kaggriculture-episodes-index/manifest.csv", text)
         self.assertNotIn("/kaggle/input/kaggriculture-episodes-index/manifest.csv", text)
         self.assertIn("episodes-index is not attached", text)
-        self.assertNotIn('\"datasets\", \"download\", INDEX_DATASET', text)
+        self.assertNotIn('\\"datasets\\", \\"download\\", INDEX_DATASET', text)
+
+    def test_meta_kaggle_is_required_and_internal_episode_service_is_not_used(self):
+        text = render_notebook()
+        meta = json.loads(render_kernel_metadata())
+        self.assertIn("kaggle/meta-kaggle", meta["dataset_sources"])
+        self.assertIn("/kaggle/input/datasets/kaggle/meta-kaggle", text)
+        self.assertIn("EpisodeAgents.csv", text)
+        self.assertIn("Episodes.csv", text)
+        self.assertIn("Submissions.csv", text)
+        self.assertIn("Teams.csv", text)
+        self.assertNotIn("kaggle_environments", text)
+        self.assertNotIn("EpisodeService", text)
+        self.assertNotIn("list_episodes(", text)
 
 
 if __name__ == "__main__":

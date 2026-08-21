@@ -30,29 +30,26 @@ def render_notebook() -> str:
         md("""
 # Kaggriculture Daily Top-10 Replay Archive Maintainer
 
-This notebook has one job: maintain a compact, append-only archive of official Kaggriculture episodes involving the teams that finish each UTC source day in the reconstructed top 10. It never ranks teams from daily replay ordering or final game rewards. Ranking uses per-agent simulation skill-rating `updatedScore` metadata, and the notebook fails closed if that metadata is unavailable.
+This notebook has one job: maintain a compact, append-only archive of official Kaggriculture episodes involving the teams that finish each UTC source day in the reconstructed top 10. It never ranks teams from daily replay ordering or final game rewards. Ranking is reconstructed from the attached Meta Kaggle `EpisodeAgents.UpdatedScore` history joined through `Submissions`, `Teams`, and `Episodes`; the notebook fails closed if Meta Kaggle has not caught up to the attached Episodes Index.
 """),
         code(r'''
 # Configuration. Kaggle notebook credentials/API access are used implicitly; no explicit authentication call.
 from pathlib import Path
-from copy import deepcopy
-from datetime import datetime, timezone
-import csv, hashlib, io, json, os, shutil, subprocess, tempfile, time
+from datetime import datetime, timezone, timedelta
+import csv, hashlib, json, os, shutil, subprocess
 
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 
 COMPETITION = "kaggriculture"
+COMPETITION_ID = 147734
 INDEX_DATASET = "kaggle/kaggriculture-episodes-index"
+META_KAGGLE_DATASET = "kaggle/meta-kaggle"
 ARCHIVE_DATASET = "ashok205/kaggriculture-top10-replay-archive"
 ARCHIVE_TITLE = "Kaggriculture Daily Top-10 Replay Archive"
 TOP_N = 10
-EPISODE_METADATA_BATCH = 40
-METADATA_PAUSE_SECONDS = 0.35
-TEAM_HISTORY_PAUSE_SECONDS = 0.75
-MAX_METADATA_RETRIES = 5
-LEADERBOARD_CANDIDATES = 50
+META_CSV_CHUNK_ROWS = 500_000
 PUBLISH = True
 
 STAGE = Path("/kaggle/working/kaggriculture_top10_replay_archive")
@@ -61,7 +58,7 @@ for p in (STAGE, TMP):
     if p.exists(): shutil.rmtree(p)
     p.mkdir(parents=True, exist_ok=True)
 
-print({"index": INDEX_DATASET, "archive": ARCHIVE_DATASET, "top_n": TOP_N, "publish": PUBLISH})
+print({"index": INDEX_DATASET, "ranking_source": META_KAGGLE_DATASET, "archive": ARCHIVE_DATASET, "top_n": TOP_N, "publish": PUBLISH})
 '''),
         code(helper_source),
         code(r'''
@@ -113,65 +110,204 @@ def download_daily_manifest(slug, date):
     return path, csv_rows(path)
 
 
-def resolve_episode_metadata(episode_ids):
-    # Kaggle's simulation EpisodeService carries initialScore/updatedScore. Never fall back to replay ordering.
-    from kaggle_environments import api as episode_api
-    wanted = [int(x) for x in episode_ids]
-    out = []
-    for start in range(0, len(wanted), EPISODE_METADATA_BATCH):
-        batch = wanted[start:start + EPISODE_METADATA_BATCH]
-        last_error = None
-        for attempt in range(MAX_METADATA_RETRIES):
-            try:
-                payload = episode_api.list_episodes(batch)
-                rows = normalize_episode_payload(payload)
-                got = {int(r["episode_id"]) for r in rows}
-                if got != set(batch):
-                    raise RuntimeError(f"EpisodeService returned {len(got)}/{len(batch)} requested IDs")
-                out.extend(rows)
-                last_error = None
-                break
-            except Exception as e:
-                last_error = e
-                time.sleep(min(8.0, 0.75 * (2 ** attempt)))
-        if last_error is not None:
-            raise RuntimeError(f"could not resolve score-bearing episode metadata for IDs {batch[:3]}...: {last_error}")
-        time.sleep(METADATA_PAUSE_SECONDS)
-    return sorted(out, key=lambda e: (e["end_time"] or e["create_time"], e["episode_id"]))
+def locate_meta_kaggle_input():
+    root = Path("/kaggle/input/datasets/kaggle/meta-kaggle")
+    required = ["Teams.csv", "Submissions.csv", "Episodes.csv", "EpisodeAgents.csv"]
+    missing = [name for name in required if not (root / name).exists()]
+    if missing:
+        raise RuntimeError(
+            "kaggle/meta-kaggle is not attached as a notebook input or is incomplete; "
+            f"missing {missing} under {root}"
+        )
+    return root
 
 
-def resolve_team_history(team_id):
-    # Full public episode history is the ranking source. Daily replay ordering is never used for rank.
-    from kaggle_environments import api as episode_api
-    last_error = None
-    for attempt in range(MAX_METADATA_RETRIES):
-        try:
-            rows = normalize_episode_payload(episode_api.list_episodes_for_team(int(team_id)))
-            rows = [e for e in rows if "VALIDATION" not in str(e.get("type") or "").upper()]
-            last_error = None
-            time.sleep(TEAM_HISTORY_PAUSE_SECONDS)
-            return rows
-        except Exception as e:
-            last_error = e
-            time.sleep(min(12.0, 1.0 * (2 ** attempt)))
-    raise RuntimeError(f"could not resolve full score history for team {team_id}: {last_error}")
+def _csv_chunks(path, usecols):
+    return pd.read_csv(
+        path,
+        usecols=usecols,
+        chunksize=META_CSV_CHUNK_ROWS,
+        low_memory=False,
+    )
 
 
-def current_leaderboard_team_ids(limit=LEADERBOARD_CANDIDATES):
-    # Current leaderboard is only a discovery guard for new teams, not a historical-rank substitute.
-    p = run(["kaggle", "competitions", "leaderboard", COMPETITION, "-v"])
-    rows = list(csv.DictReader(io.StringIO(p.stdout)))
-    out = []
-    for r in rows:
-        raw = r.get("teamId") or r.get("TeamId") or r.get("team_id")
-        if raw not in (None, ""):
-            out.append(int(raw))
-        if len(out) >= limit:
-            break
-    if not out:
-        raise RuntimeError("could not read team IDs from Kaggriculture leaderboard")
-    return out
+def _numeric(series):
+    return pd.to_numeric(series, errors="coerce")
 
+
+def extract_meta_kaggle_rating_rows(meta_root, *, min_date, max_date, source_episode_ids):
+    """Stream Meta Kaggle and materialize only Kaggriculture rating rows for the requested date range."""
+    print(f"Meta Kaggle extraction {min_date}..{max_date}", flush=True)
+
+    team_names = {}
+    for chunk in _csv_chunks(meta_root / "Teams.csv", ["Id", "CompetitionId", "TeamName"]):
+        comp = _numeric(chunk["CompetitionId"])
+        part = chunk.loc[comp.eq(COMPETITION_ID), ["Id", "TeamName"]]
+        for row in part.itertuples(index=False):
+            if pd.isna(row.Id):
+                continue
+            team_names[int(row.Id)] = "" if pd.isna(row.TeamName) else str(row.TeamName)
+    if not team_names:
+        raise RuntimeError(f"Meta Kaggle contains no teams for Kaggriculture competition id {COMPETITION_ID}")
+    team_ids = set(team_names)
+    print(f"  teams: {len(team_ids)}", flush=True)
+
+    submission_team = {}
+    submission_date = {}
+    for chunk in _csv_chunks(meta_root / "Submissions.csv", ["Id", "TeamId", "SubmissionDate"]):
+        tids = _numeric(chunk["TeamId"])
+        mask = tids.isin(team_ids)
+        if not mask.any():
+            continue
+        part = chunk.loc[mask, ["Id", "TeamId", "SubmissionDate"]].copy()
+        part["team_id_num"] = tids.loc[mask].astype("int64")
+        for row in part.itertuples(index=False):
+            if pd.isna(row.Id):
+                continue
+            sid = int(row.Id)
+            submission_team[sid] = int(row.team_id_num)
+            submission_date[sid] = "" if pd.isna(row.SubmissionDate) else str(row.SubmissionDate)
+    if not submission_team:
+        raise RuntimeError("Meta Kaggle contains no Kaggriculture submissions")
+    submission_ids = set(submission_team)
+    print(f"  submissions: {len(submission_ids)}", flush=True)
+
+    episode_info = {}
+    for chunk in _csv_chunks(meta_root / "Episodes.csv", ["Id", "Type", "CompetitionId", "CreateTime", "EndTime"]):
+        comp = _numeric(chunk["CompetitionId"])
+        ids_numeric = _numeric(chunk["Id"])
+        create = chunk["CreateTime"].fillna("").astype(str)
+        end = chunk["EndTime"].fillna(create).astype(str)
+        dates = end.str.slice(0, 10)
+        ranking_range = dates.ge(min_date) & dates.le(max_date)
+        source_membership = ids_numeric.isin(source_episode_ids)
+        mask = comp.eq(COMPETITION_ID) & (ranking_range | source_membership)
+        if not mask.any():
+            continue
+        part = chunk.loc[mask, ["Id", "Type"]].copy()
+        part["create_time_norm"] = create.loc[mask]
+        part["end_time_norm"] = end.loc[mask]
+        for row in part.itertuples(index=False):
+            if pd.isna(row.Id):
+                continue
+            episode_info[int(row.Id)] = {
+                "create_time": str(row.create_time_norm),
+                "end_time": str(row.end_time_norm),
+                "episode_type": "" if pd.isna(row.Type) else str(row.Type),
+            }
+    if not episode_info:
+        raise RuntimeError(f"Meta Kaggle has no Kaggriculture episodes in {min_date}..{max_date}")
+    episode_ids = set(episode_info)
+    print(f"  episodes in date range: {len(episode_ids)}", flush=True)
+
+    event_schema = pa.schema([
+        ("episode_id", pa.int64()),
+        ("create_time", pa.string()),
+        ("end_time", pa.string()),
+        ("episode_type", pa.string()),
+        ("seat", pa.int32()),
+        ("reward", pa.float64()),
+        ("agent_state", pa.string()),
+        ("submission_id", pa.int64()),
+        ("submission_date", pa.string()),
+        ("team_id", pa.int64()),
+        ("team_name", pa.string()),
+        ("initial_score", pa.float64()),
+        ("updated_score", pa.float64()),
+    ])
+    event_columns = [f.name for f in event_schema]
+    writers = {}
+    shard_paths = {}
+    source_parts = []
+    total_event_rows = 0
+
+    sub_team = submission_team
+    sub_date = submission_date
+    ep_create = {k: v["create_time"] for k, v in episode_info.items()}
+    ep_end = {k: v["end_time"] for k, v in episode_info.items()}
+    ep_type = {k: v["episode_type"] for k, v in episode_info.items()}
+
+    try:
+        for chunk in _csv_chunks(
+            meta_root / "EpisodeAgents.csv",
+            ["EpisodeId", "Index", "Reward", "State", "SubmissionId", "InitialScore", "UpdatedScore"],
+        ):
+            eids = _numeric(chunk["EpisodeId"])
+            sids = _numeric(chunk["SubmissionId"])
+            mask = eids.isin(episode_ids) & sids.isin(submission_ids)
+            if not mask.any():
+                continue
+            part = chunk.loc[mask].copy()
+            part["episode_id"] = eids.loc[mask].astype("int64")
+            part["submission_id"] = sids.loc[mask].astype("int64")
+            part["seat"] = _numeric(part["Index"]).fillna(0).astype("int32")
+            part["reward"] = _numeric(part["Reward"]).astype("float64")
+            part["initial_score"] = _numeric(part["InitialScore"]).astype("float64")
+            part["updated_score"] = _numeric(part["UpdatedScore"]).astype("float64")
+            part = part.loc[part["updated_score"].notna()].copy()
+            if part.empty:
+                continue
+            part["team_id"] = part["submission_id"].map(sub_team).astype("int64")
+            part["team_name"] = part["team_id"].map(team_names).fillna("").astype(str)
+            part["submission_date"] = part["submission_id"].map(sub_date).fillna("").astype(str)
+            part["create_time"] = part["episode_id"].map(ep_create).astype(str)
+            part["end_time"] = part["episode_id"].map(ep_end).astype(str)
+            part["episode_type"] = part["episode_id"].map(ep_type).fillna("").astype(str)
+            part["agent_state"] = part["State"].fillna("").astype(str)
+            out = part[event_columns].copy()
+            out["event_date"] = out["end_time"].str.slice(0, 10)
+
+            for event_date, group in out.groupby("event_date", sort=False):
+                if not (min_date <= str(event_date) <= max_date):
+                    continue
+                if event_date not in writers:
+                    path = TMP / f"meta_rating_events_{event_date}.parquet"
+                    shard_paths[event_date] = path
+                    writers[event_date] = pq.ParquetWriter(path, event_schema, compression="zstd", compression_level=6)
+                table = pa.Table.from_pandas(group[event_columns], schema=event_schema, preserve_index=False, safe=False)
+                writers[event_date].write_table(table)
+                total_event_rows += len(group)
+
+            selected = out.loc[out["episode_id"].isin(source_episode_ids), event_columns]
+            if not selected.empty:
+                source_parts.append(selected.copy())
+    finally:
+        for writer in writers.values():
+            writer.close()
+
+    if total_event_rows == 0:
+        raise RuntimeError("Meta Kaggle extraction produced zero score-bearing Kaggriculture rating rows")
+
+    if source_parts:
+        source_df = pd.concat(source_parts, ignore_index=True)
+    else:
+        source_df = pd.DataFrame(columns=event_columns)
+    found_source_ids = set(map(int, source_df["episode_id"].tolist())) if len(source_df) else set()
+    missing_source_ids = sorted(set(map(int, source_episode_ids)) - found_source_ids)
+    counts = source_df.groupby("episode_id").size().to_dict() if len(source_df) else {}
+    bad_counts = sorted((int(eid), int(count)) for eid, count in counts.items() if int(count) != 2)
+    if missing_source_ids or bad_counts:
+        raise RuntimeError(
+            "Meta Kaggle has not caught up to the attached episodes index; refusing an incomplete daily archive. "
+            f"missing episode IDs={missing_source_ids[:10]} bad_agent_counts={bad_counts[:10]}"
+        )
+
+    provenance = {
+        "dataset": META_KAGGLE_DATASET,
+        "competition_id": COMPETITION_ID,
+        "min_date": min_date,
+        "max_date": max_date,
+        "team_count": len(team_ids),
+        "submission_count": len(submission_ids),
+        "episode_metadata_count": len(episode_ids),
+        "rating_event_row_count": int(total_event_rows),
+        "source_episode_count": len(source_episode_ids),
+        "files": {
+            name: {"bytes": int((meta_root / name).stat().st_size), "mtime_ns": int((meta_root / name).stat().st_mtime_ns)}
+            for name in ("Teams.csv", "Submissions.csv", "Episodes.csv", "EpisodeAgents.csv")
+        },
+    }
+    return shard_paths, source_df, provenance
 
 def episode_date(ep):
     ts = str(ep.get("end_time") or ep.get("create_time") or "")
@@ -179,21 +315,6 @@ def episode_date(ep):
         raise RuntimeError(f"episode {ep.get('episode_id')} has no usable timestamp")
     return ts[:10]
 
-
-def read_rating_history(path):
-    path = Path(path)
-    if not path.exists(): return []
-    df = pd.read_parquet(path, columns=["metadata_json"])
-    return [json.loads(x) for x in df["metadata_json"].tolist()]
-
-
-def write_rating_history(path, episodes):
-    rows = [{
-        "episode_id": int(e["episode_id"]),
-        "end_time": str(e.get("end_time") or e.get("create_time") or ""),
-        "metadata_json": json.dumps(e, sort_keys=True, ensure_ascii=False, separators=(",", ":")),
-    } for e in episodes]
-    write_rows_parquet_atomic(path, rows, ["end_time", "episode_id"])
 
 
 def download_replay(episode_id, out_dir):
@@ -280,12 +401,11 @@ rating_state_path = STAGE / "rating_state.json"
 processed_path = STAGE / "processed_days.json"
 top10_path = STAGE / "top10_history.parquet"
 episodes_path = STAGE / "episodes.parquet"
-rating_history_path = STAGE / "rating_episodes.parquet"
+meta_provenance_path = STAGE / "meta_kaggle_provenance.json"
 rating_state = json.loads(rating_state_path.read_text()) if rating_state_path.exists() else {}
 processed = json.loads(processed_path.read_text()) if processed_path.exists() else {}
 top10_rows = read_parquet_rows(top10_path)
 episode_rows = read_parquet_rows(episodes_path)
-rating_history = read_rating_history(rating_history_path)
 
 index_path = locate_index_manifest()
 index_rows = csv_rows(index_path)
@@ -295,52 +415,73 @@ print(f"official index: {len(index_rows)} days sha256={index_sha256}")
 print("pending dates:", [r["date"] for r in pending])
 '''),
         code(r'''
-# Pre-resolve small source manifests/episode metadata for all pending dates, then reconstruct rankings
-# from full team histories. Source dataset row order is never a ranking input.
+# Download only tiny daily manifest.csv files first. Meta Kaggle supplies team identity and rating history;
+# daily replay ordering is never used as a ranking signal.
 pending_sources = {}
-candidate_team_ids = {int(k) for k in rating_state.keys()}
+source_episode_ids = set()
 for source_row in pending:
     date = str(source_row["date"]); slug = str(source_row["daily_dataset_slug"])
     daily_manifest_path, daily_rows = download_daily_manifest(slug, date)
     daily_manifest_sha = sha256_file(daily_manifest_path)
     ids = [int(r["episode_id"]) for r in daily_rows]
-    if len(ids) != len(set(ids)): raise RuntimeError(f"duplicate episode IDs in source daily manifest {date}")
-    metadata = resolve_episode_metadata(ids)
-    for ep in metadata:
-        for a in ep["agents"]: candidate_team_ids.add(int(a["team_id"]))
+    if len(ids) != len(set(ids)):
+        raise RuntimeError(f"duplicate episode IDs in source daily manifest {date}")
+    source_episode_ids.update(ids)
     pending_sources[date] = {
-        "source_row": source_row, "slug": slug, "daily_rows": daily_rows,
-        "daily_manifest_sha": daily_manifest_sha, "metadata": metadata,
+        "source_row": source_row,
+        "slug": slug,
+        "daily_rows": daily_rows,
+        "daily_manifest_sha": daily_manifest_sha,
+        "episode_ids": ids,
     }
 
-if pending:
-    candidate_team_ids.update(current_leaderboard_team_ids())
-    print(f"ranking candidate teams: {len(candidate_team_ids)}")
-    for i, team_id in enumerate(sorted(candidate_team_ids), 1):
-        rating_history = merge_episode_metadata(rating_history, resolve_team_history(team_id))
-        if i % 25 == 0: print(f"  team histories {i}/{len(candidate_team_ids)}", flush=True)
-    write_rating_history(rating_history_path, rating_history)
-    print(f"full rating-history episodes cached: {len(rating_history)}")
-
-# Apply every full-history public rating update through each UTC day boundary before ranking the top 10.
 processed_this_run = []
-last_processed = max(processed) if processed else ""
-max_pending = max((str(r["date"]) for r in pending), default="")
-ranking_events = [e for e in rating_history if (not last_processed or episode_date(e) > last_processed) and (not max_pending or episode_date(e) <= max_pending)]
-ranking_events.sort(key=lambda e: (e["end_time"] or e["create_time"], e["episode_id"]))
-ranking_cursor = 0
+meta_by_id = {}
+event_shards = {}
+if pending:
+    meta_root = locate_meta_kaggle_input()
+    last_processed = max(processed) if processed else ""
+    if last_processed:
+        event_min_date = (datetime.strptime(last_processed, "%Y-%m-%d").date() + timedelta(days=1)).isoformat()
+    else:
+        event_min_date = min(str(r["date"]) for r in index_rows)
+    max_pending = max(str(r["date"]) for r in pending)
+    if event_min_date > min(str(r["date"]) for r in pending):
+        raise RuntimeError("archive has a non-contiguous processed-date state; refusing to reconstruct ranking from a gap")
 
+    event_shards, source_rating_rows, meta_provenance = extract_meta_kaggle_rating_rows(
+        meta_root,
+        min_date=event_min_date,
+        max_date=max_pending,
+        source_episode_ids=source_episode_ids,
+    )
+    atomic_write_json(meta_provenance_path, meta_provenance)
+    source_metadata = rating_rows_to_episode_metadata(source_rating_rows.to_dict("records"))
+    meta_by_id = {int(e["episode_id"]): e for e in source_metadata}
+    missing = sorted(source_episode_ids - set(meta_by_id))
+    if missing:
+        raise RuntimeError(f"Meta Kaggle source metadata missing indexed episode IDs: {missing[:10]}")
+
+# Apply every Meta Kaggle UpdatedScore event through each UTC source-day boundary.
+event_dates = sorted(event_shards)
+event_cursor = 0
 for source_row in pending:
     date = str(source_row["date"]); src = pending_sources[date]; slug = src["slug"]
     print(f"\n=== {date} {slug} ===", flush=True)
-    while ranking_cursor < len(ranking_events) and episode_date(ranking_events[ranking_cursor]) <= date:
-        apply_episode_updates(rating_state, [ranking_events[ranking_cursor]])
-        ranking_cursor += 1
+    while event_cursor < len(event_dates) and event_dates[event_cursor] <= date:
+        event_date = event_dates[event_cursor]
+        day_events = pd.read_parquet(event_shards[event_date])
+        apply_rating_rows(rating_state, day_events.to_dict("records"))
+        print(f"  applied {len(day_events)} rating rows from {event_date}", flush=True)
+        event_cursor += 1
 
     top = daily_top_teams(rating_state, TOP_N)
-    if len(top) != TOP_N: raise RuntimeError(f"only {len(top)} ranked teams available for {date}; refusing partial top-10")
-    top_ids = {int(r["team_id"]) for r in top}; rank_by_team = {int(r["team_id"]): int(r["rank"]) for r in top}
-    metadata = src["metadata"]; meta_by_id = {int(e["episode_id"]): e for e in metadata}
+    if len(top) != TOP_N:
+        raise RuntimeError(f"only {len(top)} ranked teams available for {date}; refusing partial top-10")
+    top_ids = {int(r["team_id"]) for r in top}
+    rank_by_team = {int(r["team_id"]): int(r["rank"]) for r in top}
+    metadata = [meta_by_id[eid] for eid in src["episode_ids"]]
+    daily_meta_by_id = {int(e["episode_id"]): e for e in metadata}
     selected_ids = select_episode_ids(metadata, top_ids)
     print("top10:", [(r["rank"], r["team_name"], round(r["score"], 1)) for r in top])
     print(f"selected {len(selected_ids)}/{len(metadata)} source episodes involving those teams")
@@ -349,35 +490,58 @@ for source_row in pending:
     source_manifest_by_id = {int(r["episode_id"]): r for r in src["daily_rows"]}
     incoming_episode_rows = []
     for episode_id in selected_ids:
-        ep = meta_by_id[episode_id]; agents = ep["agents"]
+        ep = daily_meta_by_id[episode_id]; agents = ep["agents"]
         for agent in agents:
             tid = int(agent["team_id"])
-            if tid not in top_ids: continue
+            if tid not in top_ids:
+                continue
             opponents = [a for a in agents if int(a["team_id"]) != tid or int(a["submission_id"]) != int(agent["submission_id"])]
             opp = opponents[0] if opponents else {}; sm = source_manifest_by_id[episode_id]
             incoming_episode_rows.append({
-                "date": date, "episode_id": episode_id, "team_id": tid, "team_name": agent.get("team_name", ""),
-                "daily_rank": rank_by_team[tid], "submission_id": int(agent["submission_id"]), "seat": int(agent.get("index", 0)),
-                "opponent_team_id": int(opp["team_id"]) if opp else None, "opponent": opp.get("team_name", "") if opp else "",
-                "source_daily_dataset_slug": slug, "source_index_row_sha256": source_row_digest(source_row),
-                "source_daily_manifest_sha256": src["daily_manifest_sha"], "source_avg_score": float(sm["avg_score"]),
-                "source_min_score": float(sm["min_score"]), "source_sum_score": float(sm["sum_score"]),
-                "replay_sha256": replay_hashes[episode_id], "replay_shard": shard.name,
+                "date": date,
+                "episode_id": episode_id,
+                "team_id": tid,
+                "team_name": agent.get("team_name", ""),
+                "daily_rank": rank_by_team[tid],
+                "submission_id": int(agent["submission_id"]),
+                "seat": int(agent.get("index", 0)),
+                "opponent_team_id": int(opp["team_id"]) if opp else None,
+                "opponent": opp.get("team_name", "") if opp else "",
+                "source_daily_dataset_slug": slug,
+                "source_index_row_sha256": source_row_digest(source_row),
+                "source_daily_manifest_sha256": src["daily_manifest_sha"],
+                "source_avg_score": float(sm["avg_score"]),
+                "source_min_score": float(sm["min_score"]),
+                "source_sum_score": float(sm["sum_score"]),
+                "replay_sha256": replay_hashes[episode_id],
+                "replay_shard": shard.name,
             })
 
-    incoming_top = [dict(r, date=date, ranking_basis="full public episode updatedScore history; best of newest two submissions") for r in top]
+    incoming_top = [dict(
+        r,
+        date=date,
+        ranking_basis="Meta Kaggle EpisodeAgents.UpdatedScore at UTC day boundary; best of newest two Submissions.SubmissionDate",
+    ) for r in top]
     top10_rows = top10_rows + incoming_top
     episode_rows = episode_rows + incoming_episode_rows
     top_keys = [(r["date"], int(r["rank"])) for r in top10_rows]
-    if len(top_keys) != len(set(top_keys)): raise RuntimeError("duplicate date/rank in top10 history")
+    if len(top_keys) != len(set(top_keys)):
+        raise RuntimeError("duplicate date/rank in top10 history")
     ep_keys = [(r["date"], int(r["episode_id"]), int(r["team_id"])) for r in episode_rows]
-    if len(ep_keys) != len(set(ep_keys)): raise RuntimeError("duplicate episode/team metadata row")
+    if len(ep_keys) != len(set(ep_keys)):
+        raise RuntimeError("duplicate episode/team metadata row")
 
     processed[date] = {
-        "status": "complete", "source_row_sha256": source_row_digest(source_row), "daily_dataset_slug": slug,
-        "daily_manifest_sha256": src["daily_manifest_sha"], "daily_manifest_episode_count": len(src["daily_rows"]),
-        "selected_episode_count": len(selected_ids), "ranking_candidate_team_count": len(candidate_team_ids),
-        "replay_shard": shard.name, "replay_shard_sha256": sha256_file(shard),
+        "status": "complete",
+        "source_row_sha256": source_row_digest(source_row),
+        "daily_dataset_slug": slug,
+        "daily_manifest_sha256": src["daily_manifest_sha"],
+        "daily_manifest_episode_count": len(src["daily_rows"]),
+        "selected_episode_count": len(selected_ids),
+        "ranking_team_count": len(rating_state),
+        "ranking_source": META_KAGGLE_DATASET,
+        "replay_shard": shard.name,
+        "replay_shard_sha256": sha256_file(shard),
     }
     write_rows_parquet_atomic(top10_path, top10_rows, ["date", "rank"])
     write_rows_parquet_atomic(episodes_path, episode_rows, ["date", "episode_id", "team_id"])
@@ -393,7 +557,7 @@ manifest = write_archive_manifest(
     top10_row_count=len(top10_rows),
 )
 manifest["source_index_manifest_sha256"] = index_sha256
-manifest["ranking_history_episode_count"] = len(rating_history)
+manifest["ranking_source"] = META_KAGGLE_DATASET
 manifest["generated_utc"] = datetime.now(timezone.utc).isoformat()
 manifest["manifest_sha256"] = hashlib.sha256(_manifest_payload(manifest)).hexdigest()
 atomic_write_json(STAGE / "archive_manifest.json", manifest)
@@ -407,7 +571,7 @@ metadata = {
     "id": ARCHIVE_DATASET,
     "licenses": [{"name": "CC0-1.0"}],
     "subtitle": "Compact daily top-10 Kaggriculture replay corpus with exact provenance",
-    "description": "Maintained by a scheduled notebook from kaggle/kaggriculture-episodes-index. Ranking uses simulation skill-rating updatedScore metadata, not replay ordering.",
+    "description": "Maintained from kaggle/kaggriculture-episodes-index with historical leaderboard reconstruction from kaggle/meta-kaggle EpisodeAgents.UpdatedScore; replay ordering is never used as rank.",
 }
 (STAGE / "dataset-metadata.json").write_text(json.dumps(metadata, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 if PUBLISH and processed_this_run:
@@ -452,7 +616,7 @@ def render_kernel_metadata() -> str:
         "enable_gpu": False,
         "enable_tpu": False,
         "enable_internet": True,
-        "dataset_sources": ["kaggle/kaggriculture-episodes-index", "ashok205/kaggriculture-top10-replay-archive"],
+        "dataset_sources": ["kaggle/kaggriculture-episodes-index", "kaggle/meta-kaggle", "ashok205/kaggriculture-top10-replay-archive"],
         "kernel_sources": [],
         "competition_sources": ["kaggriculture"],
         "model_sources": [],

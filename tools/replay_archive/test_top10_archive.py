@@ -5,12 +5,14 @@ from pathlib import Path
 
 from tools.replay_archive.top10_archive import (
     apply_episode_updates,
+    apply_rating_rows,
     atomic_write_json,
     daily_top_teams,
     merge_episode_metadata,
     merge_episode_rows,
     normalize_episode_payload,
     pending_source_days,
+    rating_rows_to_episode_metadata,
     select_episode_ids,
     source_row_digest,
     validate_archive,
@@ -76,6 +78,30 @@ class ReplayArchiveCoreTests(unittest.TestCase):
         self.assertEqual(by_team[1]["score"], 1900.0)
         self.assertEqual(by_team[1]["submission_id"], 12)
         self.assertEqual([r["team_id"] for r in ranked], [2, 3, 1, 4])
+
+
+    def test_rating_rows_use_submission_date_for_newest_two(self):
+        state = {}
+        rows = [
+            {"episode_id": 1, "end_time": "2026-08-02T01:00:00Z", "seat": 0, "team_id": 1, "team_name": "A", "submission_id": 101, "submission_date": "2026-08-01T12:00:00Z", "updated_score": 2200.0},
+            {"episode_id": 2, "end_time": "2026-08-01T23:00:00Z", "seat": 0, "team_id": 1, "team_name": "A", "submission_id": 102, "submission_date": "2026-08-02T00:00:00Z", "updated_score": 1900.0},
+            {"episode_id": 3, "end_time": "2026-08-03T01:00:00Z", "seat": 0, "team_id": 1, "team_name": "A", "submission_id": 103, "submission_date": "2026-08-03T00:00:00Z", "updated_score": 1800.0},
+        ]
+        apply_rating_rows(state, rows)
+        ranked = daily_top_teams(state, n=1)
+        self.assertEqual(ranked[0]["submission_id"], 102)
+        self.assertEqual(ranked[0]["score"], 1900.0)
+
+    def test_rating_rows_group_into_episode_metadata(self):
+        rows = [
+            {"episode_id": 7, "create_time": "2026-08-01T00:00:00Z", "end_time": "2026-08-01T00:01:00Z", "episode_type": "PUBLIC", "seat": 1, "reward": 9, "team_id": 2, "team_name": "B", "submission_id": 22, "submission_date": "2026-07-31T00:00:00Z", "initial_score": 1500.0, "updated_score": 1490.0},
+            {"episode_id": 7, "create_time": "2026-08-01T00:00:00Z", "end_time": "2026-08-01T00:01:00Z", "episode_type": "PUBLIC", "seat": 0, "reward": 10, "team_id": 1, "team_name": "A", "submission_id": 11, "submission_date": "2026-07-31T00:00:00Z", "initial_score": 1500.0, "updated_score": 1510.0},
+        ]
+        episodes = rating_rows_to_episode_metadata(rows)
+        self.assertEqual(len(episodes), 1)
+        self.assertEqual(episodes[0]["episode_id"], 7)
+        self.assertEqual([a["team_id"] for a in episodes[0]["agents"]], [1, 2])
+        self.assertEqual(episodes[0]["agents"][0]["submission_date"], "2026-07-31T00:00:00Z")
 
     def test_select_episode_ids_is_unique_and_sorted(self):
         episodes = [
