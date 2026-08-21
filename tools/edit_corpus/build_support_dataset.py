@@ -38,6 +38,7 @@ REQUIRED_PATHS = tuple(sorted((
     "bonsai-kg/integrations/stateful_v6/cuda_runtime.cuh",
     "bonsai-kg/integrations/stateful_v6/engine_exploits.cuh",
     "bonsai-kg/integrations/stateful_v6/route_pack.hpp",
+    "bonsai-kg/python/bonsai_kg.py",
     "bonsai-kg/python/bonsai_kg_v4.py",
     "cuda-engine/include/observation.cuh",
     "cuda-engine/include/pyrandom.cuh",

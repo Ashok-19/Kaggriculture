@@ -1,6 +1,10 @@
 from __future__ import annotations
 
 import json
+import os
+import subprocess
+import sys
+import tarfile
 import tempfile
 import unittest
 from pathlib import Path
@@ -42,6 +46,36 @@ class SupportDatasetTests(unittest.TestCase):
         self.assertTrue(required.issubset(set(paths)))
         self.assertFalse(any(p.startswith("scratch/") for p in paths))
         self.assertFalse(any(p.startswith("notebooks/") for p in paths))
+        self.assertIn("bonsai-kg/python/bonsai_kg.py", paths)
+
+    def test_packaged_python_runtime_imports_without_repo_on_sys_path(self):
+        with tempfile.TemporaryDirectory() as td:
+            td = Path(td)
+            built = td / "built"
+            manifest = self.b.build_bundle(built)
+            runtime = td / "runtime"
+            runtime.mkdir()
+            with tarfile.open(built / manifest["bundle_file"], "r") as tf:
+                tf.extractall(runtime)
+            code = (
+                "import sys; "
+                f"sys.path.insert(0, {str(runtime)!r}); "
+                "from tools.edit_corpus.notebook_runner import run_builder; "
+                "from tools.bkg4_search.cuda_io import pack_genomes; "
+                "import bonsai_kg_v4, bonsai_kg; "
+                "print('PACKAGED_IMPORT_OK')"
+            )
+            env = dict(os.environ)
+            env.pop("PYTHONPATH", None)
+            proc = subprocess.run(
+                [sys.executable, "-c", code],
+                cwd=td,
+                env=env,
+                text=True,
+                capture_output=True,
+            )
+            self.assertEqual(proc.returncode, 0, proc.stdout + "\n" + proc.stderr)
+            self.assertIn("PACKAGED_IMPORT_OK", proc.stdout)
 
     def test_build_bundle_copies_only_allowlist_and_writes_manifest(self):
         with tempfile.TemporaryDirectory() as td:
