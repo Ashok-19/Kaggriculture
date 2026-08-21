@@ -55,7 +55,7 @@ class SupportDatasetTests(unittest.TestCase):
             copied = sorted(
                 p.relative_to(out).as_posix()
                 for p in out.rglob("*")
-                if p.is_file() and p.name not in {"support_manifest.json", "dataset-metadata.json"}
+                if p.is_file() and p.name not in {"support_manifest.json", "dataset-metadata.json", "support_bundle.tar"}
             )
             self.assertEqual(copied, list(self.b.REQUIRED_PATHS))
             self.assertEqual(json.loads((out / "dataset-metadata.json").read_text())["id"], self.b.SUPPORT_DATASET)
@@ -63,6 +63,14 @@ class SupportDatasetTests(unittest.TestCase):
             self.assertTrue(20 <= len(meta["subtitle"]) <= 80)
             persisted = json.loads((out / "support_manifest.json").read_text())
             self.assertEqual(persisted, manifest)
+            bundle = out / manifest["bundle_file"]
+            self.assertTrue(bundle.is_file())
+            self.assertEqual(bundle.stat().st_size, manifest["bundle_bytes"])
+            self.assertEqual(self.b.sha256_file(bundle), manifest["bundle_sha256"])
+            import tarfile
+            with tarfile.open(bundle, "r") as tf:
+                members = sorted(m.name for m in tf.getmembers() if m.isfile())
+            self.assertEqual(members, list(self.b.REQUIRED_PATHS))
             self.assertGreater(manifest["total_bytes"], 0)
             self.assertEqual(manifest["bkg4_abi"], 4)
             self.assertEqual(manifest["edit_grammar"], "bonsai_edit_actor_grammar_v1")

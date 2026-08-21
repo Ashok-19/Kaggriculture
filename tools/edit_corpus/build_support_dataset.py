@@ -6,6 +6,7 @@ import hashlib
 import json
 import shutil
 import subprocess
+import tarfile
 from pathlib import Path
 from typing import Any
 
@@ -110,6 +111,19 @@ def build_bundle(output: str | Path, *, force: bool = False) -> dict[str, Any]:
         total_bytes += size
         files[rel] = {"bytes": size, "sha256": sha256_file(dst)}
 
+    bundle_path = out / "support_bundle.tar"
+    with tarfile.open(bundle_path, "w", format=tarfile.PAX_FORMAT) as tf:
+        for rel in REQUIRED_PATHS:
+            src = out / rel
+            info = tf.gettarinfo(str(src), arcname=rel)
+            info.uid = 0
+            info.gid = 0
+            info.uname = ""
+            info.gname = ""
+            info.mtime = 0
+            with src.open("rb") as f:
+                tf.addfile(info, f)
+
     parent_identity = json.loads((ROOT / CURRENT_PARENT / "identity.json").read_text(encoding="utf-8"))
     manifest = {
         "schema_version": SUPPORT_SCHEMA_VERSION,
@@ -129,6 +143,9 @@ def build_bundle(output: str | Path, *, force: bool = False) -> dict[str, Any]:
         "candidate_generator": "edit_corpus_typed_generator_v1",
         "cuda_result_abi": "B4EC1/v1",
         "fast_math": False,
+        "bundle_file": bundle_path.name,
+        "bundle_bytes": int(bundle_path.stat().st_size),
+        "bundle_sha256": sha256_file(bundle_path),
     }
     (out / "support_manifest.json").write_text(json.dumps(manifest, sort_keys=True, indent=2) + "\n", encoding="utf-8")
     (out / "dataset-metadata.json").write_text(json.dumps(dataset_metadata(), sort_keys=True, indent=2) + "\n", encoding="utf-8")

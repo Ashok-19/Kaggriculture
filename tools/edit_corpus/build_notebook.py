@@ -38,7 +38,7 @@ It **does not train a ranker**, modify/promote the champion, or submit to the co
 '''),
         code(r'''
 from pathlib import Path
-import json, shutil, sys
+import hashlib, json, shutil, sys, tarfile
 
 ARCHIVE_DATASET = "ashok205/kaggriculture-top10-replay-archive"
 SUPPORT_DATASET = "ashok205/kaggriculture-edit-corpus-support"
@@ -70,8 +70,36 @@ def locate_input(slug, marker):
         raise RuntimeError(f"cannot uniquely locate {slug} via {marker}: {hits}")
     return hits[0]
 
-SUPPORT = locate_input("ashok205/kaggriculture-edit-corpus-support", "support_manifest.json")
+SUPPORT_INPUT = locate_input("ashok205/kaggriculture-edit-corpus-support", "support_manifest.json")
 ARCHIVE = locate_input("ashok205/kaggriculture-top10-replay-archive", "archive_manifest.json")
+
+support_manifest = json.loads((SUPPORT_INPUT / "support_manifest.json").read_text())
+bundle = SUPPORT_INPUT / str(support_manifest.get("bundle_file", "support_bundle.tar"))
+if not bundle.is_file():
+    raise RuntimeError(f"support dataset is missing {bundle.name}; rebuild/publish the support dataset")
+if bundle.stat().st_size != int(support_manifest["bundle_bytes"]):
+    raise RuntimeError("support bundle size mismatch")
+h = hashlib.sha256()
+with bundle.open("rb") as f:
+    for chunk in iter(lambda: f.read(1 << 20), b""):
+        h.update(chunk)
+if h.hexdigest() != str(support_manifest["bundle_sha256"]):
+    raise RuntimeError("support bundle SHA256 mismatch")
+
+SUPPORT = Path("/kaggle/working/kaggriculture_edit_corpus_support_runtime")
+if SUPPORT.exists():
+    shutil.rmtree(SUPPORT)
+SUPPORT.mkdir(parents=True)
+root_resolved = SUPPORT.resolve()
+with tarfile.open(bundle, "r") as tf:
+    for member in tf.getmembers():
+        target = (SUPPORT / member.name).resolve()
+        if root_resolved != target and root_resolved not in target.parents:
+            raise RuntimeError(f"unsafe support bundle member: {member.name}")
+        if not member.isfile():
+            raise RuntimeError(f"unexpected non-file support bundle member: {member.name}")
+    tf.extractall(SUPPORT)
+shutil.copy2(SUPPORT_INPUT / "support_manifest.json", SUPPORT / "support_manifest.json")
 # The seed corpus dataset may not contain corpus_manifest.json on the first build.
 _prior_candidates = [
     Path("/kaggle/input/datasets/ashok205/kaggriculture-bonsai-edit-corpus"),
