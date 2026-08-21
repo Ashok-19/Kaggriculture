@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import csv
 import json
+import struct
+import subprocess
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
 
@@ -58,6 +61,125 @@ def _edit_row(base_id: str, generated: GeneratedEdit) -> dict[str, Any]:
     return row
 
 
+def _write_replay_stream(shard: Path, sink: Any, max_replays: int | None) -> int:
+    """Stream raw replay JSON strings without decoding them into Python objects."""
+    import pyarrow.parquet as pq
+
+    count = 0
+    sink.write(b"B4RSP01\0")
+    pf = pq.ParquetFile(shard)
+    for batch in pf.iter_batches(batch_size=32, columns=["episode_id", "replay_json"]):
+        ids = batch.column(0)
+        payloads = batch.column(1)
+        for i in range(len(batch)):
+            if max_replays is not None and count >= int(max_replays):
+                return count
+            episode_id = int(ids[i].as_py())
+            replay_json = payloads[i].as_py()
+            if not isinstance(replay_json, str):
+                continue
+            raw = replay_json.encode("utf-8")
+            sink.write(struct.pack("<qQ", episode_id, len(raw)))
+            sink.write(raw)
+            count += 1
+    return count
+
+
+def _write_replay_spool(shard: Path, spool: Path, max_replays: int | None) -> int:
+    """Compatibility helper used only by tests/tools that explicitly need a spool file."""
+    with spool.open("wb") as f:
+        return _write_replay_stream(shard, f, max_replays)
+
+
+def _stream_replay_shard_compiled(
+    shard: Path,
+    *,
+    date: str,
+    out: Path,
+    converter_binary: str | Path,
+    episode_metadata: Mapping[int, Mapping[int, Mapping[str, Any]]] | None,
+    daily_rank_by_team: Mapping[str, int],
+    max_replays: int | None,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], dict[tuple[str, int], str]]:
+    out.mkdir(parents=True, exist_ok=True)
+    metadata_path = out.parent / "converted_tapes.tsv"
+    cmd = [str(converter_binary), "--stdin", "--out-dir", str(out), "--metadata", str(metadata_path)]
+    log_path = out.parent / "replay_convert.log"
+    with log_path.open("w+b") as log:
+        proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=log, stderr=subprocess.STDOUT)
+        try:
+            if proc.stdin is None:
+                raise RuntimeError("compiled replay converter stdin pipe unavailable")
+            n = _write_replay_stream(shard, proc.stdin, max_replays)
+            proc.stdin.close()
+            proc.stdin = None
+            proc.wait(timeout=3600)
+        except Exception:
+            proc.kill()
+            try:
+                proc.wait(timeout=5)
+            except Exception:
+                pass
+            raise
+        log.flush()
+        log.seek(0)
+        output = log.read().decode("utf-8", errors="replace")
+    log_path.unlink(missing_ok=True)
+    if n <= 0:
+        metadata_path.unlink(missing_ok=True)
+        return [], [], {}
+    if proc.returncode != 0:
+        raise RuntimeError(f"compiled replay converter failed ({proc.returncode}): {' '.join(cmd)}\n{output}")
+    if output.strip():
+        print(output.strip(), flush=True)
+
+    ranks = {str(k): int(v) for k, v in daily_rank_by_team.items()}
+    prov = episode_metadata or {}
+    tapes: list[dict[str, Any]] = []
+    tape_paths: dict[tuple[str, int], str] = {}
+    seen_instances: set[tuple[str, int]] = set()
+    with metadata_path.open("r", encoding="utf-8", newline="") as f:
+        for raw in csv.DictReader(f, delimiter="\t"):
+            episode_id = int(raw["episode_id"])
+            seed = int(raw["seed"])
+            seat = int(raw["source_seat"])
+            tape_id = str(raw["tape_semantic_id"])
+            key = (tape_id, seed)
+            if key in seen_instances:
+                continue
+            seen_instances.add(key)
+            seat_meta = dict(prov.get(episode_id, {}).get(seat, {}))
+            team = str(seat_meta.get("team_name", f"seat{seat}"))
+            opponent = str(seat_meta.get("opponent_name", f"seat{1-seat}"))
+            rank = int(seat_meta.get("daily_rank", ranks.get(team, 999)))
+            tape = {
+                "source_seat": seat,
+                "tape_semantic_id": tape_id,
+                "prov_episode_id": episode_id,
+                "prov_team_name": team,
+                "prov_opponent_name": opponent,
+                "prov_seed": seed,
+                "prov_date": str(date),
+                "prov_daily_rank": rank,
+                "prov_reward": None,
+                "prov_opponent_reward": None,
+            }
+            path = str(raw["tape_path"])
+            if not Path(path).is_file():
+                raise RuntimeError(f"compiled replay converter did not create tape: {path}")
+            tape_paths[key] = path
+            tapes.append(tape)
+    metadata_path.unlink(missing_ok=True)
+
+    cases = build_case_candidates(tapes)
+    for case in cases:
+        key = (str(case["tape_semantic_id"]), int(case["prov_seed"]))
+        if key not in tape_paths:
+            raise RuntimeError(f"missing compiled tape path for case {case['case_id']}")
+        case["runtime_tape_path"] = tape_paths[key]
+    return tapes, cases, tape_paths
+
+
 def stream_replay_shard_to_cases(
     shard_path: str | Path,
     *,
@@ -65,6 +187,8 @@ def stream_replay_shard_to_cases(
     out_dir: str | Path,
     daily_rank_by_team: Mapping[str, int] | None = None,
     max_replays: int | None = None,
+    converter_binary: str | Path | None = None,
+    episode_metadata: Mapping[int, Mapping[int, Mapping[str, Any]]] | None = None,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], dict[tuple[str, int], str]]:
     """Stream one replay Parquet shard and materialize only temporary native tapes.
 
@@ -77,6 +201,16 @@ def stream_replay_shard_to_cases(
 
     shard = Path(shard_path)
     out = Path(out_dir)
+    if converter_binary is not None:
+        return _stream_replay_shard_compiled(
+            shard,
+            date=str(date),
+            out=out,
+            converter_binary=converter_binary,
+            episode_metadata=episode_metadata,
+            daily_rank_by_team=daily_rank_by_team or {},
+            max_replays=max_replays,
+        )
     out.mkdir(parents=True, exist_ok=True)
     ranks = {str(k): int(v) for k, v in (daily_rank_by_team or {}).items()}
     tapes: list[dict[str, Any]] = []

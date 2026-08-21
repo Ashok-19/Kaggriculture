@@ -25,6 +25,7 @@ class SupportDatasetTests(unittest.TestCase):
         required = {
             "cuda-engine/src/bkg4_edit_corpus_eval.cu",
             "cuda-engine/src/bkg4_information_state_capture.cu",
+            "cuda-engine/src/replay_to_native_tapes.cpp",
             "cuda-engine/include/runtime.cuh",
             "cuda-engine/include/tape_io.hpp",
             "bonsai-kg/include/bonsai_kg_v4.hpp",

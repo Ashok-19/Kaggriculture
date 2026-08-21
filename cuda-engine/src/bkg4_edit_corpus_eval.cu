@@ -15,6 +15,7 @@
 #include <iostream>
 #include <stdexcept>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 using namespace kagcuda;
@@ -459,12 +460,21 @@ int main(int argc, char** argv) {
         std::vector<Action> host_opp_actions;
         std::vector<OppDesc> host_opp_desc;
         std::vector<CaseDev> host_case_dev;
+        std::unordered_map<std::string, int> tape_cache;
         for (const auto& c : host_cases) {
-            auto tape = load_native_tape_json(c.path);
-            int off = (int)host_opp_actions.size();
-            host_opp_actions.insert(host_opp_actions.end(), tape.actions.begin(), tape.actions.end());
-            host_opp_desc.push_back({off, (int)tape.actions.size()});
-            host_case_dev.push_back({(int)host_opp_desc.size() - 1, c.seat, c.seed, c.family, c.protected_flag, c.own_history, c.role});
+            int tape_index = -1;
+            auto it = tape_cache.find(c.path);
+            if (it != tape_cache.end()) {
+                tape_index = it->second;
+            } else {
+                auto tape = load_native_tape_json(c.path);
+                int off = (int)host_opp_actions.size();
+                host_opp_actions.insert(host_opp_actions.end(), tape.actions.begin(), tape.actions.end());
+                tape_index = (int)host_opp_desc.size();
+                host_opp_desc.push_back({off, (int)tape.actions.size()});
+                tape_cache.emplace(c.path, tape_index);
+            }
+            host_case_dev.push_back({tape_index, c.seat, c.seed, c.family, c.protected_flag, c.own_history, c.role});
         }
 
         auto* d_opp_actions = cp(host_opp_actions);

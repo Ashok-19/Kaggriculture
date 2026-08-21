@@ -79,7 +79,56 @@ def compile_cuda_tools(support_root: str | Path, bin_dir: str | Path) -> dict[st
         binary = out / name
         run(["nvcc", "-O3", "-std=c++17", "-lineinfo", "-o", binary, source], timeout=1800)
         binaries[name] = binary
+    converter_source = support / "cuda-engine/src/replay_to_native_tapes.cpp"
+    if not converter_source.is_file():
+        raise FileNotFoundError(converter_source)
+    converter = out / "replay_convert"
+    run([
+        "g++", "-O3", "-std=c++17",
+        "-I", support / "bonsai-kg/include",
+        "-o", converter, converter_source,
+    ], timeout=300)
+    binaries["replay_convert"] = converter
     return binaries
+
+
+def _daily_episode_metadata(archive_root: Path, date: str) -> dict[int, dict[int, dict[str, Any]]]:
+    path = archive_root / "episodes.parquet"
+    if not path.is_file():
+        return {}
+    cols = ["episode_id", "team_name", "daily_rank", "opponent", "participants_json"]
+    try:
+        df = pd.read_parquet(path, filters=[("date", "=", str(date))], columns=cols)
+    except Exception:
+        df = pd.read_parquet(path, columns=["date", *cols])
+        df = df[df["date"].astype(str) == str(date)]
+    grouped: dict[int, dict[str, Any]] = {}
+    for r in df.itertuples(index=False):
+        eid = int(r.episode_id)
+        g = grouped.setdefault(eid, {"participants": None, "ranks": {}})
+        g["ranks"][str(r.team_name)] = int(r.daily_rank)
+        if g["participants"] is None:
+            try:
+                participants = json.loads(str(r.participants_json))
+            except Exception:
+                participants = None
+            if isinstance(participants, list) and len(participants) == 2:
+                g["participants"] = [str(participants[0]), str(participants[1])]
+    out: dict[int, dict[int, dict[str, Any]]] = {}
+    for eid, g in grouped.items():
+        participants = g["participants"]
+        if not participants:
+            continue
+        ranks = g["ranks"]
+        out[eid] = {
+            seat: {
+                "team_name": participants[seat],
+                "opponent_name": participants[1 - seat],
+                "daily_rank": int(ranks.get(participants[seat], 999)),
+            }
+            for seat in (0, 1)
+        }
+    return out
 
 
 def _parent_assets(support_root: Path, support_manifest: Mapping[str, Any]) -> dict[str, Path | int | str]:
@@ -244,12 +293,15 @@ def process_one_day(
     print(f"\n=== EDIT CORPUS {date} {shard.name} ===", flush=True)
     try:
         ranks = _daily_rank_map(archive_root, date)
+        episode_meta = _daily_episode_metadata(archive_root, date)
         _, all_cases, _ = stream_replay_shard_to_cases(
             shard,
             date=date,
             out_dir=day_tmp / "tapes",
             daily_rank_by_team=ranks,
             max_replays=max_replays,
+            converter_binary=binaries.get("replay_convert"),
+            episode_metadata=episode_meta,
         )
         if not all_cases:
             raise RuntimeError(f"no valid replay-derived cases for {date}")

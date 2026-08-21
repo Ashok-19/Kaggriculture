@@ -47,6 +47,56 @@ class EditCorpusPipelineTests(unittest.TestCase):
                 self.assertEqual(set(obj["source"]), {"seat", "seed"})
             self.assertEqual({c["seat"] for c in cases}, {0, 1})
 
+    def test_compiled_converter_fast_path_bypasses_python_replay_decode(self):
+        import os
+        import stat
+        from unittest import mock
+
+        replay = {
+            "info": {"EpisodeId": 101, "TeamNames": ["A", "B"], "seed": 77},
+            "steps": [
+                [{"action": None}, {"action": None}],
+                [{"action": {"farmer": ["NORTH"]}}, {"action": {"farmer": ["SOUTH"]}}],
+            ],
+        }
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            shard = root / "replays_2026-08-20.parquet"
+            pd.DataFrame([{"episode_id": 101, "replay_json": json.dumps(replay)}]).to_parquet(shard, index=False)
+            converter = root / "fake_converter.py"
+            converter.write_text(
+                "#!/usr/bin/env python3\n"
+                "import argparse, hashlib, pathlib\n"
+                "p=argparse.ArgumentParser(); p.add_argument('--stdin',action='store_true'); p.add_argument('--spool'); p.add_argument('--out-dir'); p.add_argument('--metadata'); a=p.parse_args()\n"
+                "assert a.stdin and a.spool is None, 'fast path must stream over stdin'\n"
+                "o=pathlib.Path(a.out_dir); o.mkdir(parents=True, exist_ok=True)\n"
+                "rows=[]\n"
+                "for seat in (0,1):\n"
+                "  actions='[{\\\"farmer\\\":[\\\"PASS\\\"],\\\"hands\\\":[],\\\"market\\\":[]}]'\n"
+                "  tid=hashlib.sha256((str(seat)+actions).encode()).hexdigest()\n"
+                "  fp=o/f'101_{seat}.json'; fp.write_text('{\\\"source\\\":{\\\"seat\\\":%d,\\\"seed\\\":77},\\\"actions\\\":%s}\\n' % (seat,actions))\n"
+                "  rows.append(f'101\\t77\\t{seat}\\t{tid}\\t{fp.resolve()}')\n"
+                "pathlib.Path(a.metadata).write_text('episode_id\\tseed\\tsource_seat\\ttape_semantic_id\\ttape_path\\n'+'\\n'.join(rows)+'\\n')\n"
+            )
+            converter.chmod(converter.stat().st_mode | stat.S_IXUSR)
+            episode_meta = {101: {
+                0: {"team_name": "A", "opponent_name": "B", "daily_rank": 1},
+                1: {"team_name": "B", "opponent_name": "A", "daily_rank": 2},
+            }}
+            with mock.patch("tools.edit_corpus.pipeline.replay_to_native_tapes", side_effect=AssertionError("slow decoder used")):
+                tapes, cases, paths = self.p.stream_replay_shard_to_cases(
+                    shard,
+                    date="2026-08-20",
+                    out_dir=root / "tapes",
+                    daily_rank_by_team={"A": 1, "B": 2},
+                    converter_binary=converter,
+                    episode_metadata=episode_meta,
+                )
+            self.assertEqual(len(tapes), 2)
+            self.assertEqual(len(cases), 4)
+            self.assertEqual(len(paths), 2)
+            self.assertEqual({t["prov_team_name"] for t in tapes}, {"A", "B"})
+
     def test_build_edit_plan_is_deterministic_broad_and_parent_explicit(self):
         context = [
             {"feature": "OWN_MONEY", "index": 0, "value": 2500},

@@ -47,6 +47,7 @@ REQUIRED_PATHS = tuple(sorted((
     "cuda-engine/include/tape_io.hpp",
     "cuda-engine/src/bkg4_edit_corpus_eval.cu",
     "cuda-engine/src/bkg4_information_state_capture.cu",
+    "cuda-engine/src/replay_to_native_tapes.cpp",
     "tools/bkg4_search/__init__.py",
     "tools/bkg4_search/bonsai_editformer/__init__.py",
     "tools/bkg4_search/bonsai_editformer/actor_grammar.py",

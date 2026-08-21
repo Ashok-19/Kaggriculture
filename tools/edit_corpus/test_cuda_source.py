@@ -26,6 +26,12 @@ class EditCorpusCudaSourceTests(unittest.TestCase):
         self.assertNotIn("--use_fast_math", text)
         self.assertNotIn("__FAST_MATH__", text)
 
+    def test_cuda_corpus_tools_cache_duplicate_native_tapes(self):
+        edit = (ROOT / "cuda-engine/src/bkg4_edit_corpus_eval.cu").read_text(encoding="utf-8")
+        capture = (ROOT / "cuda-engine/src/bkg4_information_state_capture.cu").read_text(encoding="utf-8")
+        self.assertIn("tape_cache", edit)
+        self.assertIn("tape_cache", capture)
+
 
 if __name__ == "__main__":
     unittest.main()
