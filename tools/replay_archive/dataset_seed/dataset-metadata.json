@@ -1,0 +1,7 @@
+{
+  "title": "Kaggriculture Daily Top-10 Replay Archive",
+  "id": "ashok205/kaggriculture-top10-replay-archive",
+  "licenses": [{"name": "CC0-1.0"}],
+  "subtitle": "Compact daily top-10 Kaggriculture replay corpus with exact provenance",
+  "description": "Private maintained corpus of Kaggriculture episodes involving each source day's top-10 teams. Updated by a scheduled notebook from kaggle/kaggriculture-episodes-index."
+}
