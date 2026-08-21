@@ -20,6 +20,15 @@ class ReplayArchiveCoreTests(unittest.TestCase):
         prefix = b'{"id":1,"info":{"EpisodeId":1,"TeamNames":["Alpha","Beta"],"x":1},"steps":['
         self.assertEqual(extract_team_names_from_prefix(prefix), ("Alpha", "Beta"))
 
+    def test_extract_team_names_handles_json_metacharacters_inside_names(self):
+        names = ["Alpha ] bracket", 'Beta "quote" \ slash カ']
+        prefix = (
+            '{"id":1,"info":{"EpisodeId":1,"TeamNames":'
+            + json.dumps(names, ensure_ascii=False)
+            + ',"x":1},"steps":['
+        ).encode("utf-8")
+        self.assertEqual(extract_team_names_from_prefix(prefix), tuple(names))
+
     def test_extract_team_names_rejects_missing_header(self):
         with self.assertRaisesRegex(RuntimeError, "TeamNames"):
             extract_team_names_from_prefix(b'{"info":{"EpisodeId":1}}')

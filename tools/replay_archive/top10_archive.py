@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping
 
 SCHEMA_VERSION = 3
-_TEAM_NAMES_RE = re.compile(rb'"TeamNames"\s*:\s*(\[[^\]]*\])')
+_TEAM_NAMES_KEY_RE = re.compile(rb'"TeamNames"\s*:\s*')
 
 
 def extract_team_names_from_prefix(prefix: bytes | str) -> tuple[str, ...]:
@@ -20,11 +20,16 @@ def extract_team_names_from_prefix(prefix: bytes | str) -> tuple[str, ...]:
     array, so reading only the first few KiB is sufficient for participant discovery.
     """
     raw = prefix.encode("utf-8") if isinstance(prefix, str) else bytes(prefix)
-    match = _TEAM_NAMES_RE.search(raw)
+    match = _TEAM_NAMES_KEY_RE.search(raw)
     if match is None:
         raise RuntimeError("replay prefix does not contain TeamNames")
     try:
-        names = json.loads(match.group(1).decode("utf-8"))
+        # Decode from the value start and let the JSON parser determine where the
+        # array ends. A regex cannot safely find the closing bracket because `]`
+        # is legal inside a quoted team name. Ignore only a potentially truncated
+        # UTF-8 code point at the far end of the replay prefix.
+        tail = raw[match.end():].decode("utf-8", errors="ignore")
+        names, _ = json.JSONDecoder().raw_decode(tail)
     except Exception as exc:
         raise RuntimeError(f"invalid TeamNames header: {exc}") from exc
     if not isinstance(names, list) or len(names) < 2 or any(not isinstance(x, str) or not x for x in names):
