@@ -232,6 +232,20 @@ def select_representative_cases(
     return sorted(selected, key=lambda r: str(r["case_id"]))
 
 
+def select_screening_cases(
+    final_rows: Sequence[Mapping[str, Any]],
+    *,
+    max_cases: int,
+) -> list[dict[str, Any]]:
+    """Choose a deterministic representative screening subset of the final panel."""
+    if max_cases <= 0 or not final_rows:
+        return []
+    return select_representative_cases(
+        final_rows,
+        max_cases=min(int(max_cases), len(final_rows)),
+    )
+
+
 def canonical_edit_identity(parent_id: str, action: Mapping[str, Any], child_id: str) -> str:
     return stable_identity(
         "BONSAI-EDIT-CORPUS-EDIT-V1",

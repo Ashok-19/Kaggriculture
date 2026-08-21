@@ -94,6 +94,27 @@ class NotebookRunnerPerformanceTests(unittest.TestCase):
             163,
         )
 
+    def test_production_funnel_defaults_target_tens_of_thousands_of_screened_edits(self):
+        import inspect
+        sig = inspect.signature(self.r.run_builder)
+        self.assertEqual(sig.parameters["max_cases_per_day"].default, 512)
+        self.assertEqual(sig.parameters["screen_cases_per_day"].default, 128)
+        self.assertEqual(sig.parameters["candidates_per_parent"].default, 4096)
+        self.assertEqual(sig.parameters["screen_target_cuda_games"].default, 4_000_000)
+        self.assertEqual(sig.parameters["final_retained_edits_per_day"].default, 4_096)
+        self.assertEqual(
+            self.r.adaptive_candidates_per_parent(
+                selected_cases=128,
+                seed_parent_count=8,
+                cap=4096,
+                target_games=4_000_000,
+            ),
+            3473,
+        )
+        approximate_screened = 9 * 3473
+        self.assertGreaterEqual(approximate_screened, 20_000)
+        self.assertLessEqual(approximate_screened, 100_000)
+
     def test_cuda_source_has_memory_derived_in_process_chunking(self):
         source = Path("cuda-engine/src/bkg4_edit_corpus_eval.cu").read_text(encoding="utf-8")
         self.assertIn("cudaMemGetInfo", source)

@@ -46,7 +46,7 @@ class KaggleRuntimeTests(unittest.TestCase):
             second_labels = [{"edit_id": "e2", "case_id": "c2", "date": "2026-08-20", "baseline_margin": 5, "candidate_margin": 6}]
             self.assertTrue(self.r.commit_day(root, date="2026-08-20", source_sha="sha-b", cases=second_cases, edits=second_edits, labels=second_labels))
             counts = self.r.consolidate_corpus(root)
-            self.assertEqual(counts, {"cases": 2, "edits": 2, "labels": 2})
+            self.assertEqual(counts, {"cases": 2, "edits": 2, "labels": 2, "screening": 0})
             self.assertEqual(set(pd.read_parquet(root / "cases.parquet")["case_id"]), {"c1", "c2"})
             self.assertEqual(set(pd.read_parquet(root / "edits.parquet")["edit_id"]), {"e1", "e2"})
 
@@ -180,6 +180,57 @@ class KaggleRuntimeTests(unittest.TestCase):
             self.assertEqual(int(targets.loc["e1", "l2w_count"]), 1)
             self.assertEqual(int(targets.loc["e2", "w2l_count"]), 1)
             self.assertFalse(bool(targets.loc["e2", "strict_safe"]))
+
+    def test_screening_shards_are_separate_backward_compatible_and_idempotent(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            self.r.initialize_empty_corpus(root)
+            # Old one-stage day: no screening shard supplied.
+            self.r.commit_day(
+                root,
+                date="2026-08-19",
+                source_sha="old",
+                cases=[{"case_id": "c0", "model_context_json": '{"seat":0}'}],
+                edits=[{"edit_id": "e0", "parent_id": "p", "child_id": "q"}],
+                labels=[{"edit_id": "e0", "case_id": "c0", "baseline_margin": 1, "candidate_margin": 2}],
+            )
+            screening = [
+                {"edit_id": "e1", "date": "2026-08-20", "screening_case_count": 128, "screening_rank": 1, "screening_bucket": "exploitation", "screening_retained": True},
+                {"edit_id": "e2", "date": "2026-08-20", "screening_case_count": 128, "screening_rank": 2, "screening_bucket": "rejected", "screening_retained": False},
+            ]
+            self.assertTrue(self.r.commit_day(
+                root,
+                date="2026-08-20",
+                source_sha="new",
+                cases=[{"case_id": "c1", "model_context_json": '{"seat":1}'}],
+                edits=[{"edit_id": "e1", "parent_id": "p", "child_id": "r"}],
+                labels=[{"edit_id": "e1", "case_id": "c1", "baseline_margin": 3, "candidate_margin": 5}],
+                screening=screening,
+            ))
+            first = self.r.consolidate_corpus(root)
+            second = self.r.consolidate_corpus(root)
+            self.assertEqual(first, second)
+            self.assertEqual(first["screening"], 2)
+            got = pd.read_parquet(root / "edit_screening.parquet")
+            self.assertEqual(set(got["edit_id"]), {"e1", "e2"})
+            self.assertEqual(len(pd.read_parquet(root / "edit_case_labels.parquet")), 2)
+            processed = json.loads((root / "processed_shards.json").read_text())
+            self.assertNotIn("screening_shard", processed["2026-08-19"])
+            self.assertEqual(processed["2026-08-20"]["screening_rows"], 2)
+
+    def test_global_target_rebuild_ignores_screening_prefixed_columns(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            pd.DataFrame([{
+                "edit_id": "e1", "case_id": "c1", "baseline_margin": 10,
+                "candidate_margin": 12, "margin_delta": 2,
+                "screening_mean_delta": -999999.0,
+                "screening_losses_after": 99,
+            }]).to_parquet(root / "edit_case_labels.parquet", index=False)
+            self.r._rebuild_global_targets(root)
+            row = pd.read_parquet(root / "edit_targets.parquet").iloc[0]
+            self.assertEqual(float(row["mean_margin_delta"]), 2.0)
+            self.assertEqual(int(row["losses_after"]), 0)
 
     def test_manifest_validation_detects_tampered_consolidated_file(self):
         with tempfile.TemporaryDirectory() as td:

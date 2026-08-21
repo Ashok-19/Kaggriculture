@@ -485,3 +485,235 @@ def build_label_rows(
     labels.sort(key=lambda x: (str(x["edit_id"]), str(x["case_id"])))
     targets.sort(key=lambda x: str(x["edit_id"]))
     return labels, targets
+
+
+
+def build_screening_rows(
+    edits: Sequence[Mapping[str, Any]],
+    cases: Sequence[Mapping[str, Any]],
+    results_by_overlay: Mapping[str, Sequence[EditCudaResult]],
+    *,
+    date: str = "",
+) -> list[dict[str, Any]]:
+    """Aggregate exact subpanel outcomes without materializing screening labels."""
+    rows: list[dict[str, Any]] = []
+    for edit in sorted((dict(x) for x in edits), key=lambda x: str(x["edit_id"])):
+        parent_results = results_by_overlay[str(edit["parent_overlay_semantic_id"])]
+        child_results = results_by_overlay[str(edit["child_overlay_semantic_id"])]
+        if len(parent_results) != len(cases) or len(child_results) != len(cases):
+            raise ValueError(f"screening CUDA result/case count mismatch for edit {edit['edit_id']}")
+        case_rows: list[dict[str, Any]] = []
+        min_delta: int | None = None
+        for parent, child in zip(parent_results, child_results):
+            case_row = derive_case_label(
+                parent.margin,
+                child.margin,
+                child.action_changes,
+                child.activations,
+                protected=True,
+                parent_action_trace_hash=parent.action_trace_hash,
+                candidate_action_trace_hash=child.action_trace_hash,
+            )
+            delta = int(case_row["margin_delta"])
+            min_delta = delta if min_delta is None else min(min_delta, delta)
+            case_rows.append(case_row)
+        agg = derive_edit_labels(case_rows)
+        rows.append({
+            "edit_id": str(edit["edit_id"]),
+            "date": str(date),
+            "screening_case_count": int(len(cases)),
+            "screening_losses_before": int(agg["losses_before"]),
+            "screening_losses_after": int(agg["losses_after"]),
+            "screening_l2w": int(agg["l2w_count"]),
+            "screening_w2l": int(agg["w2l_count"]),
+            "screening_severe_regressions": int(agg["severe_regression_count"]),
+            "screening_fragile_wins_after": int(agg["fragile_wins_after"]),
+            "screening_mean_delta": float(agg["mean_margin_delta"]),
+            "screening_min_delta": int(min_delta or 0),
+            "screening_worst_candidate_margin": int(agg["worst_candidate_margin"]),
+            "screening_worst_protected_win_delta": int(agg["worst_protected_win_delta"]),
+            "screening_strict_safe": bool(agg["strict_safe"]),
+            "screening_exact_noop": bool(agg["exact_noop"]),
+            "screening_behavior_changing": bool(agg["behavior_changing"]),
+            "screening_action_changes": int(agg["action_change_total"]),
+            "screening_activations": int(agg["activation_total"]),
+        })
+    return rows
+
+
+def _screen_exploitation_key(row: Mapping[str, Any]) -> tuple[Any, ...]:
+    return (
+        int(row["screening_losses_after"]),
+        int(row["screening_w2l"]),
+        int(row["screening_severe_regressions"]),
+        int(row["screening_fragile_wins_after"]),
+        -int(row["screening_worst_candidate_margin"]),
+        -float(row["screening_mean_delta"]),
+        1 if bool(row["screening_exact_noop"]) else 0,
+        str(row["edit_id"]),
+    )
+
+
+def _screen_round_robin(
+    ranked: Sequence[dict[str, Any]],
+    count: int,
+    *,
+    selected: set[str],
+    group_fields: Sequence[str],
+) -> list[dict[str, Any]]:
+    groups: dict[tuple[Any, ...], list[dict[str, Any]]] = {}
+    for row in ranked:
+        edit_id = str(row["edit_id"])
+        if edit_id in selected:
+            continue
+        key = tuple(row[field] for field in group_fields)
+        groups.setdefault(key, []).append(row)
+    keys = list(groups)
+    out: list[dict[str, Any]] = []
+    depth = 0
+    while len(out) < max(0, int(count)):
+        added = False
+        for key in keys:
+            items = groups[key]
+            if depth >= len(items):
+                continue
+            row = items[depth]
+            edit_id = str(row["edit_id"])
+            if edit_id in selected:
+                continue
+            selected.add(edit_id)
+            out.append(row)
+            added = True
+            if len(out) >= int(count):
+                break
+        if not added:
+            break
+        depth += 1
+    return out
+
+
+def select_screened_candidates(
+    edits: Sequence[Mapping[str, Any]],
+    screening_rows: Sequence[Mapping[str, Any]],
+    *,
+    target_count: int,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Deterministically retain useful positives, boundary cases, negatives, and diversity."""
+    edit_by_id = {str(x["edit_id"]): dict(x) for x in edits}
+    if len(edit_by_id) != len(edits):
+        raise ValueError("duplicate edit_id in screening candidates")
+    screen_by_id = {str(x["edit_id"]): dict(x) for x in screening_rows}
+    if set(screen_by_id) != set(edit_by_id):
+        missing = sorted(set(edit_by_id) - set(screen_by_id))
+        extra = sorted(set(screen_by_id) - set(edit_by_id))
+        raise ValueError(f"screening/edit identity mismatch missing={missing[:3]} extra={extra[:3]}")
+    target = min(max(0, int(target_count)), len(edit_by_id))
+    annotated: list[dict[str, Any]] = []
+    for edit_id in sorted(edit_by_id):
+        edit = edit_by_id[edit_id]
+        row = dict(screen_by_id[edit_id])
+        row["screening_parent_overlay_semantic_id"] = str(edit["parent_overlay_semantic_id"])
+        row["screening_operation"] = str(edit.get("operation", "unknown"))
+        row["screening_target_kind"] = str(edit.get("target_kind", "unknown"))
+        row["screening_target_node"] = int(edit.get("target_node", -1))
+        row["screening_retained"] = False
+        row["screening_bucket"] = "rejected"
+        annotated.append(row)
+
+    ranked = sorted(annotated, key=_screen_exploitation_key)
+    for rank, row in enumerate(ranked, 1):
+        row["screening_rank"] = int(rank)
+
+    selected: set[str] = set()
+    selected_rows: list[dict[str, Any]] = []
+    exploitation_n = (target * 2 + 4) // 5
+    boundary_n = target // 5
+    negative_n = target // 5
+    diversity_n = target - exploitation_n - boundary_n - negative_n
+    balance_fields = ("screening_parent_overlay_semantic_id", "screening_operation")
+
+    exploitation = [
+        row for row in ranked
+        if bool(row["screening_strict_safe"])
+        and bool(row["screening_behavior_changing"])
+        and not bool(row["screening_exact_noop"])
+    ]
+    for row in _screen_round_robin(exploitation, exploitation_n, selected=selected, group_fields=balance_fields):
+        row["screening_bucket"] = "exploitation"
+        selected_rows.append(row)
+
+    boundary = sorted(
+        (row for row in annotated if str(row["edit_id"]) not in selected and bool(row["screening_behavior_changing"])),
+        key=lambda row: (
+            abs(float(row["screening_mean_delta"])),
+            int(row["screening_w2l"]),
+            int(row["screening_severe_regressions"]),
+            _screen_exploitation_key(row),
+        ),
+    )
+    for row in _screen_round_robin(boundary, boundary_n, selected=selected, group_fields=balance_fields):
+        row["screening_bucket"] = "boundary"
+        selected_rows.append(row)
+
+    negative = [
+        row for row in annotated
+        if str(row["edit_id"]) not in selected
+        and (
+            int(row["screening_w2l"]) > 0
+            or int(row["screening_severe_regressions"]) > 0
+            or int(row["screening_losses_after"]) > int(row["screening_losses_before"])
+            or float(row["screening_mean_delta"]) < 0.0
+            or bool(row["screening_exact_noop"])
+        )
+    ]
+    negative.sort(key=lambda row: (
+        0 if (int(row["screening_w2l"]) > 0 or int(row["screening_severe_regressions"]) > 0) else 1,
+        abs(float(row["screening_mean_delta"])),
+        _screen_exploitation_key(row),
+    ))
+    for row in _screen_round_robin(
+        negative,
+        negative_n,
+        selected=selected,
+        group_fields=("screening_parent_overlay_semantic_id", "screening_operation", "screening_exact_noop"),
+    ):
+        row["screening_bucket"] = "negative"
+        selected_rows.append(row)
+
+    diverse = sorted(
+        (row for row in annotated if str(row["edit_id"]) not in selected),
+        key=lambda row: (
+            str(row["screening_parent_overlay_semantic_id"]),
+            str(row["screening_operation"]),
+            str(row["screening_target_kind"]),
+            int(row["screening_target_node"]),
+            _screen_exploitation_key(row),
+        ),
+    )
+    for row in _screen_round_robin(
+        diverse,
+        diversity_n,
+        selected=selected,
+        group_fields=(
+            "screening_parent_overlay_semantic_id",
+            "screening_operation",
+            "screening_target_kind",
+            "screening_target_node",
+        ),
+    ):
+        row["screening_bucket"] = "diversity"
+        selected_rows.append(row)
+
+    if len(selected) < target:
+        remaining = sorted(
+            (row for row in ranked if str(row["edit_id"]) not in selected),
+            key=_screen_exploitation_key,
+        )
+        for row in _screen_round_robin(remaining, target - len(selected), selected=selected, group_fields=balance_fields):
+            row["screening_bucket"] = "diversity"
+            selected_rows.append(row)
+
+    for row in selected_rows:
+        row["screening_retained"] = True
+    kept = [edit_by_id[edit_id] for edit_id in sorted(selected)]
+    return kept, sorted(annotated, key=lambda row: str(row["edit_id"]))

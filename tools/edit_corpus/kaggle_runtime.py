@@ -135,6 +135,7 @@ def commit_day(
     edits: Sequence[Mapping[str, Any]],
     labels: Sequence[Mapping[str, Any]],
     source_shard: str | None = None,
+    screening: Sequence[Mapping[str, Any]] | None = None,
 ) -> bool:
     root = initialize_empty_corpus(root)
     date = str(date)
@@ -149,14 +150,30 @@ def commit_day(
     for label in labels:
         if "edit_id" not in label or "case_id" not in label:
             raise ValueError("every label row requires edit_id and case_id")
+    if screening is not None:
+        for row in screening:
+            if "edit_id" not in row or "date" not in row:
+                raise ValueError("every screening row requires edit_id and date")
+            unexpected = [
+                key for key in row
+                if key not in {"edit_id", "date"} and not str(key).startswith("screening_")
+            ]
+            if unexpected:
+                raise ValueError(f"screening metadata must be namespaced: {unexpected}")
     case_path = root / "shards" / f"cases_{date}.parquet"
     edit_path = root / "shards" / f"edits_{date}.parquet"
     label_path = root / "shards" / f"labels_{date}.parquet"
-    if any(p.exists() for p in (case_path, edit_path, label_path)):
+    screening_path = root / "shards" / f"screening_{date}.parquet"
+    shard_paths = [case_path, edit_path, label_path]
+    if screening is not None:
+        shard_paths.append(screening_path)
+    if any(p.exists() for p in shard_paths):
         raise RuntimeError(f"uncommitted shard files already exist for {date}")
     _write_parquet_atomic(case_path, cases, sort_cols=("case_id",))
     _write_parquet_atomic(edit_path, edits, sort_cols=("edit_id",))
     _write_parquet_atomic(label_path, labels, sort_cols=("edit_id", "case_id"))
+    if screening is not None:
+        _write_parquet_atomic(screening_path, screening, sort_cols=("edit_id",))
     processed[date] = {
         "status": "complete",
         "source_replay_shard": str(source_shard or f"replays_{date}.parquet"),
@@ -171,6 +188,12 @@ def commit_day(
         "edit_shard_sha256": sha256_file(edit_path),
         "label_shard_sha256": sha256_file(label_path),
     }
+    if screening is not None:
+        processed[date].update({
+            "screening_rows": len(screening),
+            "screening_shard": screening_path.relative_to(root).as_posix(),
+            "screening_shard_sha256": sha256_file(screening_path),
+        })
     _atomic_json(root / "processed_shards.json", processed)
     return True
 
@@ -330,6 +353,7 @@ def consolidate_corpus(root: str | Path) -> dict[str, int]:
         "cases": _merge_shards(root, "cases_*.parquet", ("case_id",), "cases.parquet"),
         "edits": _merge_shards(root, "edits_*.parquet", ("edit_id",), "edits.parquet"),
         "labels": _merge_shards(root, "labels_*.parquet", ("edit_id", "case_id"), "edit_case_labels.parquet"),
+        "screening": _merge_shards(root, "screening_*.parquet", ("date", "edit_id"), "edit_screening.parquet"),
     }
     _rebuild_global_targets(root)
     return counts
@@ -368,6 +392,7 @@ def _counts_from_tables(root: Path) -> dict[str, Any]:
     edits = pd.read_parquet(root / "edits.parquet") if (root / "edits.parquet").exists() else pd.DataFrame()
     labels = pd.read_parquet(root / "edit_case_labels.parquet") if (root / "edit_case_labels.parquet").exists() else pd.DataFrame()
     targets = pd.read_parquet(root / "edit_targets.parquet") if (root / "edit_targets.parquet").exists() else pd.DataFrame()
+    screening = pd.read_parquet(root / "edit_screening.parquet") if (root / "edit_screening.parquet").exists() else pd.DataFrame()
     op_counts = Counter(str(x) for x in edits["operation"].tolist()) if "operation" in edits.columns else Counter()
     label_counts = {}
     for col in ("l2w_count", "w2l_count", "severe_regression_count"):
@@ -383,6 +408,8 @@ def _counts_from_tables(root: Path) -> dict[str, Any]:
         "edit_rows": int(len(edits)),
         "edit_target_rows": int(len(targets)),
         "edit_case_rows": int(len(labels)),
+        "screening_rows": int(len(screening)),
+        "screening_retained_rows": int(screening["screening_retained"].astype(bool).sum()) if "screening_retained" in screening.columns and len(screening) else 0,
         "operation_counts": dict(sorted(op_counts.items())),
         "label_counts": label_counts,
         "dedup_counts": {

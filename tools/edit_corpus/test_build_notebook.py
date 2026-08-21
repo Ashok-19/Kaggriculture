@@ -48,10 +48,12 @@ class EditCorpusNotebookBuilderTests(unittest.TestCase):
             "corpus_manifest.json",
             "run_builder(",
             "max_cases_per_day",
+            "screen_cases_per_day",
             "candidates_per_parent",
             "replay_converter_workers",
             "max_cuda_devices",
-            "target_cuda_games",
+            "screen_target_cuda_games",
+            "final_retained_edits_per_day",
             "eval_gpu_memory_fraction",
             "processed_this_run",
             "support_bundle.tar",
@@ -77,12 +79,14 @@ class EditCorpusNotebookBuilderTests(unittest.TestCase):
         self.assertIn("SMOKE_ONLY = False", text)
         self.assertIn("MAX_DATES = 1 if SMOKE_ONLY else None", text)
         self.assertIn("MAX_REPLAYS_PER_DAY = 4 if SMOKE_ONLY else None", text)
-        self.assertIn("MAX_CASES_PER_DAY = 8 if SMOKE_ONLY else 512", text)
+        self.assertIn("FINAL_CASES_PER_DAY = 8 if SMOKE_ONLY else 512", text)
+        self.assertIn("SCREEN_CASES_PER_DAY = 4 if SMOKE_ONLY else 128", text)
         self.assertIn("SEED_PARENT_COUNT = 2 if SMOKE_ONLY else 8", text)
-        self.assertIn("CANDIDATES_PER_PARENT = 32 if SMOKE_ONLY else 768", text)
+        self.assertIn("CANDIDATES_PER_PARENT = 32 if SMOKE_ONLY else 4_096", text)
         self.assertIn("REPLAY_CONVERTER_WORKERS = 1 if SMOKE_ONLY else 2", text)
         self.assertIn("MAX_CUDA_DEVICES = 1 if SMOKE_ONLY else 2", text)
-        self.assertIn("TARGET_CUDA_GAMES = 2_048 if SMOKE_ONLY else 1_500_000", text)
+        self.assertIn("SCREEN_TARGET_CUDA_GAMES = 512 if SMOKE_ONLY else 4_000_000", text)
+        self.assertIn("FINAL_RETAINED_EDITS_PER_DAY = 8 if SMOKE_ONLY else 4_096", text)
         self.assertNotIn("EVAL_CHUNK_GENOMES =", text)
 
 

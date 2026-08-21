@@ -32,7 +32,7 @@ This GPU notebook has one job: incrementally convert the persistent top-10 repla
 
 Pipeline:
 
-`top-10 replay archive -> replay-derived cases -> legal typed BKG4 edits -> exact CUDA outcomes -> persistent edit corpus`
+`top-10 replay archive -> final 512-case panel -> 128-case CUDA screen -> stratified retention -> exact 512-case CUDA labels -> persistent edit corpus`
 
 It **does not train a ranker**, modify/promote the champion, or submit to the competition. Team/opponent names, replay IDs and seeds are stored only as provenance; model context contains only legal/public state plus BKG4 structure/edit semantics and exact CUDA supervision.
 '''),
@@ -48,12 +48,14 @@ PUBLISH = True
 SMOKE_ONLY = False
 MAX_DATES = 1 if SMOKE_ONLY else None
 MAX_REPLAYS_PER_DAY = 4 if SMOKE_ONLY else None
-MAX_CASES_PER_DAY = 8 if SMOKE_ONLY else 512
+FINAL_CASES_PER_DAY = 8 if SMOKE_ONLY else 512
+SCREEN_CASES_PER_DAY = 4 if SMOKE_ONLY else 128
 SEED_PARENT_COUNT = 2 if SMOKE_ONLY else 8
-CANDIDATES_PER_PARENT = 32 if SMOKE_ONLY else 768
+CANDIDATES_PER_PARENT = 32 if SMOKE_ONLY else 4_096
 REPLAY_CONVERTER_WORKERS = 1 if SMOKE_ONLY else 2
 MAX_CUDA_DEVICES = 1 if SMOKE_ONLY else 2
-TARGET_CUDA_GAMES = 2_048 if SMOKE_ONLY else 1_500_000
+SCREEN_TARGET_CUDA_GAMES = 512 if SMOKE_ONLY else 4_000_000
+FINAL_RETAINED_EDITS_PER_DAY = 8 if SMOKE_ONLY else 4_096
 EVAL_GPU_MEMORY_FRACTION = 0.50 if SMOKE_ONLY else 0.70
 
 STAGE = Path("/kaggle/working/kaggriculture_bonsai_edit_corpus")
@@ -169,12 +171,14 @@ result = run_builder(
     tmp_root=TMP,
     max_dates=MAX_DATES,
     max_replays_per_day=MAX_REPLAYS_PER_DAY,
-    max_cases_per_day=MAX_CASES_PER_DAY,
+    max_cases_per_day=FINAL_CASES_PER_DAY,
+    screen_cases_per_day=SCREEN_CASES_PER_DAY,
     seed_parent_count=SEED_PARENT_COUNT,
     candidates_per_parent=CANDIDATES_PER_PARENT,
     replay_converter_workers=REPLAY_CONVERTER_WORKERS,
     max_cuda_devices=MAX_CUDA_DEVICES,
-    target_cuda_games=TARGET_CUDA_GAMES,
+    screen_target_cuda_games=SCREEN_TARGET_CUDA_GAMES,
+    final_retained_edits_per_day=FINAL_RETAINED_EDITS_PER_DAY,
     eval_gpu_memory_fraction=EVAL_GPU_MEMORY_FRACTION,
 )
 processed_this_run = result["processed_this_run"]

@@ -14,7 +14,7 @@ import pandas as pd
 
 from tools.bkg4_search.cuda_io import pack_genomes
 from tools.bkg4_search.module_codec import ModuleGenome, genome_from_json
-from tools.edit_corpus.corpus import canonical_json, pending_replay_shards, select_representative_cases, stable_identity
+from tools.edit_corpus.corpus import canonical_json, pending_replay_shards, select_representative_cases, select_screening_cases, stable_identity
 from tools.edit_corpus.cuda_results import load_edit_results
 from tools.edit_corpus.kaggle_runtime import (
     consolidate_corpus,
@@ -29,7 +29,9 @@ from tools.edit_corpus.kaggle_runtime import (
 from tools.edit_corpus.pipeline import (
     build_edit_plan,
     build_label_rows,
+    build_screening_rows,
     load_public_context,
+    select_screened_candidates,
     stream_replay_shard_to_cases,
     write_cases_tsv,
 )
@@ -353,12 +355,14 @@ def process_one_day(
     tmp_root: Path,
     max_replays: int | None,
     max_cases: int,
+    screen_cases: int,
     seed_parent_count: int,
     candidates_per_parent: int,
     eval_chunk_genomes: int,
     replay_converter_workers: int,
     cuda_devices: Sequence[int],
-    target_cuda_games: int,
+    screen_target_cuda_games: int,
+    final_retained_edits: int,
     eval_gpu_memory_fraction: float,
     probes: Sequence[int],
 ) -> dict[str, Any]:
@@ -401,6 +405,14 @@ def process_one_day(
             raise RuntimeError(f"representative case selection empty for {date}")
         selected_tsv = day_tmp / "selected_cases.tsv"
         write_cases_tsv(selected_tsv, selected)
+        screening_cases = select_screening_cases(
+            selected,
+            max_cases=min(int(screen_cases), len(selected)),
+        )
+        if not screening_cases:
+            raise RuntimeError(f"screening case selection empty for {date}")
+        screening_tsv = day_tmp / "screening_cases.tsv"
+        write_cases_tsv(screening_tsv, screening_cases)
         contexts, observed = _capture_context(
             binaries["capture"], assets, selected_tsv, [str(x["case_id"]) for x in selected], day_tmp, probes,
             cuda_device=int(cuda_devices[0]),
@@ -409,10 +421,10 @@ def process_one_day(
 
         seed = int(hashlib.sha256((date + str(assets["base_id"])).encode()).hexdigest()[:16], 16)
         effective_candidates_per_parent = adaptive_candidates_per_parent(
-            selected_cases=len(selected),
+            selected_cases=len(screening_cases),
             seed_parent_count=int(seed_parent_count),
             cap=int(candidates_per_parent),
-            target_games=int(target_cuda_games),
+            target_games=int(screen_target_cuda_games),
         )
         plan = build_edit_plan(
             str(assets["base_id"]),
@@ -422,25 +434,54 @@ def process_one_day(
             candidates_per_parent=int(effective_candidates_per_parent),
             route_ids=assets["route_ids"],
         )
-        genomes = [genome_from_json(json.loads(str(x["overlay_genome_json"]))) for x in plan["parents"]]
-        planned_gpu_games = len(genomes) * len(selected)
+        genome_by_overlay = {
+            str(row["overlay_semantic_id"]): genome_from_json(json.loads(str(row["overlay_genome_json"])))
+            for row in plan["parents"]
+        }
+        screening_genomes = [genome_by_overlay[key] for key in sorted(genome_by_overlay)]
+        screening_gpu_games = len(screening_genomes) * len(screening_cases)
         print({
             "cuda_devices": list(cuda_devices),
             "replay_converter_workers": int(replay_converter_workers),
             "candidate_cap": int(candidates_per_parent),
             "effective_candidates_per_parent": int(effective_candidates_per_parent),
-            "planned_gpu_games": int(planned_gpu_games),
+            "screening_cases": len(screening_cases),
+            "screening_candidates": len(plan["edits"]),
+            "screening_gpu_games": int(screening_gpu_games),
         }, flush=True)
-        results_by_overlay = _evaluate_genomes(
-            binaries["edit_eval"], assets, selected_tsv, genomes, day_tmp, chunk_size=int(eval_chunk_genomes),
+        screening_results = _evaluate_genomes(
+            binaries["edit_eval"], assets, screening_tsv, screening_genomes, day_tmp, chunk_size=int(eval_chunk_genomes),
             cuda_devices=cuda_devices, memory_fraction=float(eval_gpu_memory_fraction),
         )
-        labels, _day_targets = build_label_rows(plan["edits"], selected, results_by_overlay)
+        screening_rows = build_screening_rows(
+            plan["edits"], screening_cases, screening_results, date=date,
+        )
+        retained_edits, screening_rows = select_screened_candidates(
+            plan["edits"], screening_rows, target_count=int(final_retained_edits),
+        )
+        if not retained_edits:
+            raise RuntimeError(f"screening funnel retained no edits for {date}")
+        final_overlay_ids = {
+            str(edit[key])
+            for edit in retained_edits
+            for key in ("parent_overlay_semantic_id", "child_overlay_semantic_id")
+        }
+        final_genomes = [genome_by_overlay[key] for key in sorted(final_overlay_ids)]
+        final_gpu_games = len(final_genomes) * len(selected)
+        final_results = _evaluate_genomes(
+            binaries["edit_eval"], assets, selected_tsv, final_genomes, day_tmp, chunk_size=int(eval_chunk_genomes),
+            cuda_devices=cuda_devices, memory_fraction=float(eval_gpu_memory_fraction),
+        )
+        labels, _day_targets = build_label_rows(retained_edits, selected, final_results)
         # Semantic edit definitions are date-independent. Global utility targets are
-        # recomputed from all accumulated exact per-case labels during consolidation.
-        edit_rows = [dict(x) for x in plan["edits"]]
+        # recomputed from authoritative full-panel labels during consolidation.
+        edit_rows = [dict(x) for x in retained_edits]
+        retained_parent_rows = [
+            dict(row) for row in plan["parents"]
+            if str(row["overlay_semantic_id"]) in final_overlay_ids
+        ]
 
-        upsert_structures(stage_root, [_base_structure_row(assets, support_manifest)], plan["parents"])
+        upsert_structures(stage_root, [_base_structure_row(assets, support_manifest)], retained_parent_rows)
         committed = commit_day(
             stage_root,
             date=date,
@@ -449,6 +490,7 @@ def process_one_day(
             cases=final_cases,
             edits=edit_rows,
             labels=labels,
+            screening=screening_rows,
         )
         if not committed:
             raise RuntimeError(f"unexpected already-committed day inside pending loop: {date}")
@@ -456,16 +498,24 @@ def process_one_day(
             "date": date,
             "archive_cases": len(all_cases),
             "selected_cases": len(final_cases),
-            "parents": len(plan["parents"]),
-            "semantic_edits": len(edit_rows),
+            "screening_cases": len(screening_cases),
+            "screened_edits": len(plan["edits"]),
+            "retained_edits": len(edit_rows),
             "exact_cuda_labels": len(labels),
+            "screening_gpu_games": int(screening_gpu_games),
+            "final_gpu_games": int(final_gpu_games),
         }, flush=True)
         return {
             "date": date,
             "cases": len(final_cases),
+            "screening_cases": len(screening_cases),
+            "screened_edits": len(plan["edits"]),
+            "retained_edits": len(edit_rows),
             "edits": len(edit_rows),
             "labels": len(labels),
-            "gpu_games": int(planned_gpu_games),
+            "screening_gpu_games": int(screening_gpu_games),
+            "final_gpu_games": int(final_gpu_games),
+            "gpu_games": int(screening_gpu_games + final_gpu_games),
         }
     finally:
         shutil.rmtree(day_tmp, ignore_errors=True)
@@ -481,12 +531,14 @@ def run_builder(
     max_dates: int | None = None,
     max_replays_per_day: int | None = None,
     max_cases_per_day: int = 512,
+    screen_cases_per_day: int = 128,
     seed_parent_count: int = 8,
-    candidates_per_parent: int = 768,
+    candidates_per_parent: int = 4096,
     eval_chunk_genomes: int = 512,
     replay_converter_workers: int = 2,
     max_cuda_devices: int = 2,
-    target_cuda_games: int = 1_500_000,
+    screen_target_cuda_games: int = 4_000_000,
+    final_retained_edits_per_day: int = 4_096,
     eval_gpu_memory_fraction: float = 0.70,
     probes: Sequence[int] = DEFAULT_PROBES,
 ) -> dict[str, Any]:
@@ -499,6 +551,12 @@ def run_builder(
     tmp.mkdir(parents=True)
     support_manifest = json.loads((support / "support_manifest.json").read_text(encoding="utf-8"))
     archive_manifest = json.loads((archive / "archive_manifest.json").read_text(encoding="utf-8"))
+    if int(max_cases_per_day) <= 0:
+        raise ValueError("max_cases_per_day must be positive")
+    if int(screen_cases_per_day) <= 0 or int(screen_cases_per_day) > int(max_cases_per_day):
+        raise ValueError("screen_cases_per_day must be positive and no larger than max_cases_per_day")
+    if int(final_retained_edits_per_day) <= 0:
+        raise ValueError("final_retained_edits_per_day must be positive")
 
     if prior_corpus_root is not None and (Path(prior_corpus_root) / "corpus_manifest.json").is_file():
         prior_manifest = copy_prior_corpus(prior_corpus_root, stage)
@@ -533,12 +591,14 @@ def run_builder(
             tmp_root=tmp,
             max_replays=max_replays_per_day,
             max_cases=max_cases_per_day,
+            screen_cases=screen_cases_per_day,
             seed_parent_count=seed_parent_count,
             candidates_per_parent=candidates_per_parent,
             eval_chunk_genomes=eval_chunk_genomes,
             replay_converter_workers=replay_converter_workers,
             cuda_devices=cuda_devices,
-            target_cuda_games=target_cuda_games,
+            screen_target_cuda_games=screen_target_cuda_games,
+            final_retained_edits=final_retained_edits_per_day,
             eval_gpu_memory_fraction=eval_gpu_memory_fraction,
             probes=probes,
         )
