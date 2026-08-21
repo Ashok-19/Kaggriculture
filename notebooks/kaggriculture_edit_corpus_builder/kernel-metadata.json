@@ -1,0 +1,19 @@
+{
+  "code_file": "kaggriculture_edit_corpus_builder.ipynb",
+  "competition_sources": [],
+  "dataset_sources": [
+    "ashok205/kaggriculture-top10-replay-archive",
+    "ashok205/kaggriculture-edit-corpus-support",
+    "ashok205/kaggriculture-bonsai-edit-corpus"
+  ],
+  "enable_gpu": true,
+  "enable_internet": true,
+  "enable_tpu": false,
+  "id": "ashok205/kaggriculture-bonsai-edit-corpus-builder",
+  "is_private": true,
+  "kernel_sources": [],
+  "kernel_type": "notebook",
+  "language": "python",
+  "model_sources": [],
+  "title": "Kaggriculture BonsaiEditFormer CUDA Edit Corpus Builder"
+}

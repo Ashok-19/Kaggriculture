@@ -1,0 +1,7 @@
+{
+  "title": "Kaggriculture BonsaiEditFormer CUDA Edit Corpus",
+  "id": "ashok205/kaggriculture-bonsai-edit-corpus",
+  "licenses": [{"name": "CC0-1.0"}],
+  "subtitle": "Persistent compact exact-CUDA supervision for generalized BonsaiEditFormer ranking",
+  "description": "Private persistent dataset built incrementally from the Kaggriculture top-10 replay archive. The seed version is intentionally empty; the GPU builder notebook publishes canonical parent/edit/legal-context/exact-CUDA rows as later versions."
+}
