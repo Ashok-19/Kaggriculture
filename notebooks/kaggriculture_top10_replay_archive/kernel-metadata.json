@@ -5,7 +5,6 @@
   ],
   "dataset_sources": [
     "kaggle/kaggriculture-episodes-index",
-    "kaggle/meta-kaggle",
     "ashok205/kaggriculture-top10-replay-archive"
   ],
   "enable_gpu": false,

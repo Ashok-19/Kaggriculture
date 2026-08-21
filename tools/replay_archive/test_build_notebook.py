@@ -16,35 +16,40 @@ class NotebookBuilderTests(unittest.TestCase):
             if cell["cell_type"] == "code":
                 compile("".join(cell["source"]), "<notebook-cell>", "exec")
 
-    def test_kernel_metadata_is_private_cpu_and_has_required_sources(self):
+    def test_kernel_metadata_is_private_cpu_and_minimal(self):
         meta = json.loads(render_kernel_metadata())
         self.assertFalse(meta["enable_gpu"])
         self.assertTrue(meta["enable_internet"])
         self.assertTrue(meta["is_private"])
         self.assertIn("kaggle/kaggriculture-episodes-index", meta["dataset_sources"])
-        self.assertIn("kaggle/meta-kaggle", meta["dataset_sources"])
         self.assertIn("ashok205/kaggriculture-top10-replay-archive", meta["dataset_sources"])
+        self.assertNotIn("kaggle/meta-kaggle", meta["dataset_sources"])
         self.assertEqual(meta["competition_sources"], ["kaggriculture"])
 
-    def test_index_dataset_is_required_as_attached_input_without_download_fallback(self):
+    def test_index_dataset_uses_exact_attached_mount(self):
         text = render_notebook()
         self.assertIn("/kaggle/input/datasets/kaggle/kaggriculture-episodes-index/manifest.csv", text)
         self.assertNotIn("/kaggle/input/kaggriculture-episodes-index/manifest.csv", text)
         self.assertIn("episodes-index is not attached", text)
-        self.assertNotIn('\\"datasets\\", \\"download\\", INDEX_DATASET', text)
 
-    def test_meta_kaggle_is_required_and_internal_episode_service_is_not_used(self):
+    def test_broken_metadata_dependencies_are_removed(self):
         text = render_notebook()
-        meta = json.loads(render_kernel_metadata())
-        self.assertIn("kaggle/meta-kaggle", meta["dataset_sources"])
-        self.assertIn("/kaggle/input/datasets/kaggle/meta-kaggle", text)
-        self.assertIn("EpisodeAgents.csv", text)
-        self.assertIn("Episodes.csv", text)
-        self.assertIn("Submissions.csv", text)
-        self.assertIn("Teams.csv", text)
-        self.assertNotIn("kaggle_environments", text)
+        self.assertNotIn("meta-kaggle", text.lower())
+        self.assertNotIn("EpisodeAgents.csv", text)
         self.assertNotIn("EpisodeService", text)
+        self.assertNotIn("kaggle_environments", text)
         self.assertNotIn("list_episodes(", text)
+
+    def test_notebook_uses_daily_zip_header_scan_and_deletes_temp_day(self):
+        nb = json.loads(render_notebook())
+        text = "\n".join("".join(cell["source"]) for cell in nb["cells"] if cell["cell_type"] == "code")
+        self.assertIn("zipfile.ZipFile", text)
+        self.assertIn("HEADER_SCAN_BYTES", text)
+        self.assertIn("extract_team_names_from_prefix", text)
+        self.assertIn("write_replay_shard_from_zip", text)
+        self.assertIn("shutil.rmtree(day_tmp", text)
+        self.assertIn('["kaggle", "datasets", "download", f"kaggle/{slug}"', text)
+        self.assertNotIn('"--unzip"', text)
 
 
 if __name__ == "__main__":

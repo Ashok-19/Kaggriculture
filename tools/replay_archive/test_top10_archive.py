@@ -4,16 +4,11 @@ import unittest
 from pathlib import Path
 
 from tools.replay_archive.top10_archive import (
-    apply_episode_updates,
-    apply_rating_rows,
     atomic_write_json,
-    daily_top_teams,
-    merge_episode_metadata,
-    merge_episode_rows,
-    normalize_episode_payload,
+    extract_team_names_from_prefix,
     pending_source_days,
-    rating_rows_to_episode_metadata,
-    select_episode_ids,
+    rank_daily_teams,
+    select_episode_ids_by_team_names,
     source_row_digest,
     validate_archive,
     write_archive_manifest,
@@ -21,98 +16,48 @@ from tools.replay_archive.top10_archive import (
 
 
 class ReplayArchiveCoreTests(unittest.TestCase):
-    def _episode(self, episode_id=101):
-        return {
-            "id": episode_id,
-            "createTime": "2026-08-01T01:00:00Z",
-            "endTime": "2026-08-01T01:03:00Z",
-            "agents": [
-                {"teamId": 7, "teamName": "Alpha", "submissionId": 7001, "initialScore": 1500.0, "updatedScore": 1512.5, "reward": 10},
-                {"teamId": 8, "teamName": "Beta", "submissionId": 8001, "initialScore": 1500.0, "updatedScore": 1487.5, "reward": 5},
-            ],
+    def test_extract_team_names_from_small_replay_prefix(self):
+        prefix = b'{"id":1,"info":{"EpisodeId":1,"TeamNames":["Alpha","Beta"],"x":1},"steps":['
+        self.assertEqual(extract_team_names_from_prefix(prefix), ("Alpha", "Beta"))
+
+    def test_extract_team_names_rejects_missing_header(self):
+        with self.assertRaisesRegex(RuntimeError, "TeamNames"):
+            extract_team_names_from_prefix(b'{"info":{"EpisodeId":1}}')
+
+    def test_daily_rank_uses_team_score_evidence_not_manifest_order(self):
+        rows = [
+            {"episode_id": "3", "avg_score": "1000", "min_score": "900"},
+            {"episode_id": "1", "avg_score": "1300", "min_score": "1250"},
+            {"episode_id": "2", "avg_score": "1200", "min_score": "1180"},
+        ]
+        names = {
+            1: ("A", "B"),
+            2: ("C", "D"),
+            3: ("E", "F"),
         }
+        ranked = rank_daily_teams(rows, names, n=4)
+        self.assertEqual([r["team_name"] for r in ranked], ["A", "B", "C", "D"])
+        self.assertEqual(ranked[0]["score_proxy"], 1300.0)
+        self.assertIn("max observed avg_score", ranked[0]["ranking_basis"])
 
-    def test_normalize_episode_payload_preserves_skill_ratings(self):
-        rows = normalize_episode_payload({"episodes": [self._episode()]})
-        self.assertEqual(rows[0]["episode_id"], 101)
-        self.assertEqual(rows[0]["agents"][0]["updated_score"], 1512.5)
-        self.assertEqual(rows[0]["agents"][0]["team_id"], 7)
-
-    def test_normalize_episode_payload_accepts_nested_result(self):
-        rows = normalize_episode_payload({"result": {"episodes": [self._episode(102)]}})
-        self.assertEqual(rows[0]["episode_id"], 102)
-
-    def test_merge_episode_metadata_deduplicates_team_histories(self):
-        a = normalize_episode_payload({"episodes": [self._episode(201)]})
-        b = normalize_episode_payload({"episodes": [self._episode(201), self._episode(202)]})
-        merged = merge_episode_metadata(a, b)
-        self.assertEqual([x["episode_id"] for x in merged], [201, 202])
-
-    def test_merge_episode_metadata_rejects_conflict(self):
-        a = normalize_episode_payload({"episodes": [self._episode(201)]})
-        changed = self._episode(201)
-        changed["agents"][0]["updatedScore"] = 9999
-        b = normalize_episode_payload({"episodes": [changed]})
-        with self.assertRaisesRegex(RuntimeError, "conflicting episode metadata"):
-            merge_episode_metadata(a, b)
-
-    def test_daily_rank_uses_best_of_two_newest_submissions(self):
-        state = {}
-        episodes = normalize_episode_payload({"episodes": [
-            {"id": 1, "endTime": "2026-08-01T01:00:00Z", "agents": [
-                {"teamId": 1, "teamName": "A", "submissionId": 11, "updatedScore": 2100.0},
-                {"teamId": 2, "teamName": "B", "submissionId": 21, "updatedScore": 2050.0},
-            ]},
-            {"id": 2, "endTime": "2026-08-02T01:00:00Z", "agents": [
-                {"teamId": 1, "teamName": "A", "submissionId": 12, "updatedScore": 1900.0},
-                {"teamId": 3, "teamName": "C", "submissionId": 31, "updatedScore": 2000.0},
-            ]},
-            {"id": 3, "endTime": "2026-08-03T01:00:00Z", "agents": [
-                {"teamId": 1, "teamName": "A", "submissionId": 13, "updatedScore": 1800.0},
-                {"teamId": 4, "teamName": "D", "submissionId": 41, "updatedScore": 1700.0},
-            ]},
-        ]})
-        apply_episode_updates(state, episodes)
-        ranked = daily_top_teams(state, n=4)
-        by_team = {r["team_id"]: r for r in ranked}
-        self.assertEqual(by_team[1]["score"], 1900.0)
-        self.assertEqual(by_team[1]["submission_id"], 12)
-        self.assertEqual([r["team_id"] for r in ranked], [2, 3, 1, 4])
-
-
-    def test_rating_rows_use_submission_date_for_newest_two(self):
-        state = {}
+    def test_daily_rank_uses_best_observation_for_team(self):
         rows = [
-            {"episode_id": 1, "end_time": "2026-08-02T01:00:00Z", "seat": 0, "team_id": 1, "team_name": "A", "submission_id": 101, "submission_date": "2026-08-01T12:00:00Z", "updated_score": 2200.0},
-            {"episode_id": 2, "end_time": "2026-08-01T23:00:00Z", "seat": 0, "team_id": 1, "team_name": "A", "submission_id": 102, "submission_date": "2026-08-02T00:00:00Z", "updated_score": 1900.0},
-            {"episode_id": 3, "end_time": "2026-08-03T01:00:00Z", "seat": 0, "team_id": 1, "team_name": "A", "submission_id": 103, "submission_date": "2026-08-03T00:00:00Z", "updated_score": 1800.0},
+            {"episode_id": "1", "avg_score": "1000", "min_score": "900"},
+            {"episode_id": "2", "avg_score": "1400", "min_score": "1350"},
+            {"episode_id": "3", "avg_score": "1300", "min_score": "1290"},
         ]
-        apply_rating_rows(state, rows)
-        ranked = daily_top_teams(state, n=1)
-        self.assertEqual(ranked[0]["submission_id"], 102)
-        self.assertEqual(ranked[0]["score"], 1900.0)
+        names = {1: ("A", "B"), 2: ("A", "C"), 3: ("D", "E")}
+        ranked = rank_daily_teams(rows, names, n=5)
+        a = next(r for r in ranked if r["team_name"] == "A")
+        self.assertEqual(a["score_proxy"], 1400.0)
+        self.assertEqual(a["evidence_episode_id"], 2)
+        self.assertEqual(a["appearances"], 2)
 
-    def test_rating_rows_group_into_episode_metadata(self):
-        rows = [
-            {"episode_id": 7, "create_time": "2026-08-01T00:00:00Z", "end_time": "2026-08-01T00:01:00Z", "episode_type": "PUBLIC", "seat": 1, "reward": 9, "team_id": 2, "team_name": "B", "submission_id": 22, "submission_date": "2026-07-31T00:00:00Z", "initial_score": 1500.0, "updated_score": 1490.0},
-            {"episode_id": 7, "create_time": "2026-08-01T00:00:00Z", "end_time": "2026-08-01T00:01:00Z", "episode_type": "PUBLIC", "seat": 0, "reward": 10, "team_id": 1, "team_name": "A", "submission_id": 11, "submission_date": "2026-07-31T00:00:00Z", "initial_score": 1500.0, "updated_score": 1510.0},
-        ]
-        episodes = rating_rows_to_episode_metadata(rows)
-        self.assertEqual(len(episodes), 1)
-        self.assertEqual(episodes[0]["episode_id"], 7)
-        self.assertEqual([a["team_id"] for a in episodes[0]["agents"]], [1, 2])
-        self.assertEqual(episodes[0]["agents"][0]["submission_date"], "2026-07-31T00:00:00Z")
+    def test_selection_is_unique_and_sorted(self):
+        names = {7: ("A", "B"), 5: ("C", "A"), 8: ("D", "E")}
+        self.assertEqual(select_episode_ids_by_team_names(names, {"A"}), [5, 7])
 
-    def test_select_episode_ids_is_unique_and_sorted(self):
-        episodes = [
-            {"episode_id": 7, "agents": [{"team_id": 1}, {"team_id": 2}]},
-            {"episode_id": 5, "agents": [{"team_id": 9}, {"team_id": 1}]},
-            {"episode_id": 7, "agents": [{"team_id": 1}, {"team_id": 2}]},
-            {"episode_id": 8, "agents": [{"team_id": 9}, {"team_id": 10}]},
-        ]
-        self.assertEqual(select_episode_ids(episodes, {1, 2}), [5, 7])
-
-    def test_pending_source_days_skips_exact_rows_and_rejects_mutation(self):
+    def test_pending_source_days_is_idempotent_and_rejects_mutation(self):
         rows = [
             {"date": "2026-08-01", "daily_dataset_slug": "d1", "episode_count": "10"},
             {"date": "2026-08-02", "daily_dataset_slug": "d2", "episode_count": "12"},
@@ -123,39 +68,38 @@ class ReplayArchiveCoreTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "changed after processing"):
             pending_source_days(changed, processed)
 
-    def test_episode_manifest_merge_is_idempotent(self):
-        existing = [
-            {"episode_id": 1, "date": "2026-08-01", "replay_sha256": "aaa"},
-            {"episode_id": 2, "date": "2026-08-01", "replay_sha256": "bbb"},
-        ]
-        incoming = [
-            {"episode_id": 2, "date": "2026-08-01", "replay_sha256": "bbb"},
-            {"episode_id": 3, "date": "2026-08-02", "replay_sha256": "ccc"},
-        ]
-        once = merge_episode_rows(existing, incoming)
-        twice = merge_episode_rows(once, incoming)
-        self.assertEqual([r["episode_id"] for r in once], [1, 2, 3])
-        self.assertEqual(once, twice)
-
-    def test_episode_manifest_merge_rejects_conflicting_duplicate(self):
-        existing = [{"episode_id": 1, "date": "2026-08-01", "replay_sha256": "aaa"}]
-        incoming = [{"episode_id": 1, "date": "2026-08-01", "replay_sha256": "DIFFERENT"}]
-        with self.assertRaisesRegex(RuntimeError, "conflicting episode metadata"):
-            merge_episode_rows(existing, incoming)
-
     def test_archive_manifest_detects_tampering(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
-            (root / "state").mkdir()
-            atomic_write_json(root / "state/rating_state.json", {"1": {"team_id": 1}})
-            atomic_write_json(root / "state/processed_days.json", {})
-            manifest = write_archive_manifest(root, processed_dates=[], episode_count=0, top10_row_count=0)
+            atomic_write_json(root / "processed_days.json", {})
+            manifest = write_archive_manifest(
+                root,
+                processed_dates=[],
+                episode_count=0,
+                top10_row_count=0,
+                source_index_manifest_sha256="abc",
+            )
             self.assertEqual(validate_archive(root)["manifest_sha256"], manifest["manifest_sha256"])
-            (root / "state/rating_state.json").write_text('{"tampered":true}\n', encoding="utf-8")
+            (root / "processed_days.json").write_text('{"tampered":true}\n', encoding="utf-8")
             with self.assertRaisesRegex(RuntimeError, "hash mismatch"):
                 validate_archive(root)
 
-    def test_atomic_json_is_canonical_and_reproducible(self):
+    def test_dataset_metadata_is_not_corpus_hashed(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            atomic_write_json(root / "processed_days.json", {})
+            (root / "dataset-metadata.json").write_text('{"title":"x"}\n', encoding="utf-8")
+            write_archive_manifest(
+                root,
+                processed_dates=[],
+                episode_count=0,
+                top10_row_count=0,
+                source_index_manifest_sha256="abc",
+            )
+            (root / "dataset-metadata.json").write_text('{"title":"y"}\n', encoding="utf-8")
+            validate_archive(root)
+
+    def test_atomic_json_is_canonical(self):
         with tempfile.TemporaryDirectory() as td:
             path = Path(td) / "x.json"
             atomic_write_json(path, {"b": 2, "a": 1})

@@ -5,218 +5,114 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
+_TEAM_NAMES_RE = re.compile(rb'"TeamNames"\s*:\s*(\[[^\]]*\])')
 
 
-def _get(mapping: Mapping[str, Any], *names: str, default: Any = None) -> Any:
-    for name in names:
-        if name in mapping:
-            return mapping[name]
-    return default
+def extract_team_names_from_prefix(prefix: bytes | str) -> tuple[str, ...]:
+    """Extract replay info.TeamNames from a small JSON prefix.
+
+    Kaggriculture replay files place TeamNames in the header before the large steps
+    array, so reading only the first few KiB is sufficient for participant discovery.
+    """
+    raw = prefix.encode("utf-8") if isinstance(prefix, str) else bytes(prefix)
+    match = _TEAM_NAMES_RE.search(raw)
+    if match is None:
+        raise RuntimeError("replay prefix does not contain TeamNames")
+    try:
+        names = json.loads(match.group(1).decode("utf-8"))
+    except Exception as exc:
+        raise RuntimeError(f"invalid TeamNames header: {exc}") from exc
+    if not isinstance(names, list) or len(names) < 2 or any(not isinstance(x, str) or not x for x in names):
+        raise RuntimeError(f"invalid TeamNames value: {names!r}")
+    return tuple(names)
 
 
-def _require(mapping: Mapping[str, Any], *names: str) -> Any:
-    value = _get(mapping, *names, default=None)
-    if value is None:
-        raise RuntimeError(f"missing required field: {'/'.join(names)}")
-    return value
+def rank_daily_teams(
+    manifest_rows: Iterable[Mapping[str, Any]],
+    team_names_by_episode: Mapping[int, Iterable[str]],
+    n: int = 10,
+) -> list[dict[str, Any]]:
+    """Rank teams from official daily replay score evidence.
 
-
-def normalize_episode_payload(payload: Mapping[str, Any]) -> list[dict[str, Any]]:
-    container: Mapping[str, Any] = payload
-    nested = _get(payload, "result", "Result", default=None)
-    if isinstance(nested, Mapping):
-        container = nested
-    raw_episodes = _get(container, "episodes", "Episodes", default=[])
-    if not isinstance(raw_episodes, list):
-        raise RuntimeError("episode payload must contain an episodes list")
-    out: list[dict[str, Any]] = []
-    for raw in raw_episodes:
-        if not isinstance(raw, Mapping):
-            raise RuntimeError("episode entry must be an object")
-        agents_raw = _get(raw, "agents", "Agents", default=[])
-        if not isinstance(agents_raw, list) or not agents_raw:
-            raise RuntimeError("episode entry has no agents")
-        agents: list[dict[str, Any]] = []
-        for i, a in enumerate(agents_raw):
-            if not isinstance(a, Mapping):
-                raise RuntimeError("episode agent must be an object")
-            updated = _get(a, "updatedScore", "UpdatedScore", "updated_score", default=None)
-            if updated is None:
-                raise RuntimeError("episode metadata lacks updatedScore; refusing to infer leaderboard rank")
-            index = _get(a, "index", "Index", default=i)
-            agents.append(
+    The daily manifest gives the exact pairwise post-episode rating evidence as
+    avg_score/min_score.  We do not assume replay ordering is a player ranking.
+    Instead, every team is discovered from replay headers and ranked by its strongest
+    observed average-agent-rating episode that day.  min_score and the implied upper
+    agent score are deterministic tie-break/evidence fields.
+    """
+    if n < 1:
+        raise ValueError("n must be positive")
+    stats: dict[str, dict[str, Any]] = {}
+    seen_episode_ids: set[int] = set()
+    for raw in manifest_rows:
+        episode_id = int(raw["episode_id"])
+        if episode_id in seen_episode_ids:
+            raise RuntimeError(f"duplicate episode id in daily manifest: {episode_id}")
+        seen_episode_ids.add(episode_id)
+        if episode_id not in team_names_by_episode:
+            raise RuntimeError(f"missing TeamNames for episode {episode_id}")
+        avg_score = float(raw["avg_score"])
+        min_score = float(raw["min_score"])
+        upper_score = 2.0 * avg_score - min_score
+        names = tuple(dict.fromkeys(str(x) for x in team_names_by_episode[episode_id]))
+        for name in names:
+            row = stats.setdefault(
+                name,
                 {
-                    "team_id": int(_require(a, "teamId", "TeamId", "team_id")),
-                    "team_name": str(_get(a, "teamName", "TeamName", "team_name", default="")),
-                    "submission_id": int(_require(a, "submissionId", "SubmissionId", "submission_id")),
-                    "initial_score": None if _get(a, "initialScore", "InitialScore", "initial_score", default=None) is None else float(_get(a, "initialScore", "InitialScore", "initial_score")),
-                    "updated_score": float(updated),
-                    "reward": _get(a, "reward", "Reward", default=None),
-                    "index": int(index) if index is not None else i,
-                }
+                    "team_name": name,
+                    "appearances": 0,
+                    "score_proxy": float("-inf"),
+                    "max_min_score": float("-inf"),
+                    "max_agent_score_upper": float("-inf"),
+                    "evidence_episode_id": None,
+                },
             )
-        episode_id = int(_require(raw, "id", "Id", "episodeId", "EpisodeId", "episode_id"))
-        create_time = str(_get(raw, "createTime", "CreateTime", "create_time", default=""))
-        end_time = str(_get(raw, "endTime", "EndTime", "end_time", default=create_time))
-        out.append(
-            {
-                "episode_id": episode_id,
-                "create_time": create_time,
-                "end_time": end_time,
-                "state": _get(raw, "state", "State", default=None),
-                "type": _get(raw, "type", "Type", default=None),
-                "agents": agents,
-            }
-        )
-    out.sort(key=lambda e: (e["end_time"] or e["create_time"], e["episode_id"]))
+            row["appearances"] += 1
+            candidate = (avg_score, min_score, upper_score, -episode_id)
+            incumbent = (
+                float(row["score_proxy"]),
+                float(row["max_min_score"]),
+                float(row["max_agent_score_upper"]),
+                -int(row["evidence_episode_id"]) if row["evidence_episode_id"] is not None else float("-inf"),
+            )
+            if candidate > incumbent:
+                row["score_proxy"] = avg_score
+                row["max_min_score"] = min_score
+                row["max_agent_score_upper"] = upper_score
+                row["evidence_episode_id"] = episode_id
+
+    ranked = sorted(
+        stats.values(),
+        key=lambda r: (
+            -float(r["score_proxy"]),
+            -float(r["max_min_score"]),
+            -float(r["max_agent_score_upper"]),
+            str(r["team_name"]),
+        ),
+    )
+    out: list[dict[str, Any]] = []
+    for rank, row in enumerate(ranked[:n], 1):
+        item = dict(row)
+        item["rank"] = rank
+        item["ranking_basis"] = "official daily replay score evidence: max observed avg_score by team"
+        out.append(item)
     return out
 
 
-def merge_episode_metadata(*sources: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]:
-    """Merge normalized episode metadata by episode id, rejecting disagreements."""
-    by_id: dict[int, dict[str, Any]] = {}
-    for source in sources:
-        for raw in source:
-            row = dict(raw)
-            episode_id = int(row["episode_id"])
-            previous = by_id.get(episode_id)
-            if previous is not None and previous != row:
-                raise RuntimeError(f"conflicting episode metadata for episode {episode_id}")
-            by_id[episode_id] = row
-    return sorted(by_id.values(), key=lambda e: (str(e.get("end_time") or e.get("create_time") or ""), int(e["episode_id"])))
-
-
-def apply_rating_rows(state: dict[str, Any], rows: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
-    """Apply flattened chronological rating rows to leaderboard state."""
-    ordered = sorted(
-        (dict(r) for r in rows),
-        key=lambda r: (
-            str(r.get("end_time") or r.get("create_time") or ""),
-            int(r["episode_id"]),
-            int(r.get("seat", r.get("index", 0)) or 0),
-        ),
-    )
-    for row in ordered:
-        ts = str(row.get("end_time") or row.get("create_time") or "")
-        team_id = int(row["team_id"])
-        submission_id = int(row["submission_id"])
-        submitted_at = str(row.get("submission_date") or ts)
-        team_key = str(team_id)
-        team = state.setdefault(
-            team_key,
-            {"team_id": team_id, "team_name": row.get("team_name", ""), "submissions": {}},
-        )
-        if row.get("team_name"):
-            team["team_name"] = str(row["team_name"])
-        submissions = team.setdefault("submissions", {})
-        sub_key = str(submission_id)
-        sub = submissions.get(sub_key)
-        if sub is None:
-            submissions[sub_key] = {
-                "submission_id": submission_id,
-                "first_seen": submitted_at,
-                "last_seen": ts,
-                "score": float(row["updated_score"]),
-                "last_episode_id": int(row["episode_id"]),
-            }
-        else:
-            if submitted_at and (not sub.get("first_seen") or submitted_at < str(sub["first_seen"])):
-                sub["first_seen"] = submitted_at
-            sub["last_seen"] = ts
-            sub["score"] = float(row["updated_score"])
-            sub["last_episode_id"] = int(row["episode_id"])
-    return state
-
-
-def apply_episode_updates(state: dict[str, Any], episodes: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
-    """Apply nested episode metadata using the same rating-state semantics."""
-    rows: list[dict[str, Any]] = []
-    for ep in episodes:
-        for agent in ep["agents"]:
-            rows.append(
-                {
-                    "episode_id": int(ep["episode_id"]),
-                    "create_time": str(ep.get("create_time") or ""),
-                    "end_time": str(ep.get("end_time") or ep.get("create_time") or ""),
-                    "seat": int(agent.get("index", 0) or 0),
-                    "team_id": int(agent["team_id"]),
-                    "team_name": str(agent.get("team_name", "")),
-                    "submission_id": int(agent["submission_id"]),
-                    "submission_date": str(agent.get("submission_date") or ""),
-                    "updated_score": float(agent["updated_score"]),
-                }
-            )
-    return apply_rating_rows(state, rows)
-
-
-def rating_rows_to_episode_metadata(rows: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]:
-    """Group flattened Meta Kaggle rating rows into deterministic episode metadata."""
-    grouped: dict[int, dict[str, Any]] = {}
-    for raw in sorted(
-        (dict(r) for r in rows),
-        key=lambda r: (int(r["episode_id"]), int(r.get("seat", r.get("index", 0)) or 0)),
-    ):
-        episode_id = int(raw["episode_id"])
-        create_time = str(raw.get("create_time") or "")
-        end_time = str(raw.get("end_time") or create_time)
-        episode_type = raw.get("episode_type", raw.get("type"))
-        ep = grouped.setdefault(
-            episode_id,
-            {
-                "episode_id": episode_id,
-                "create_time": create_time,
-                "end_time": end_time,
-                "state": None,
-                "type": episode_type,
-                "agents": [],
-            },
-        )
-        if ep["create_time"] != create_time or ep["end_time"] != end_time or ep["type"] != episode_type:
-            raise RuntimeError(f"conflicting flattened metadata for episode {episode_id}")
-        ep["agents"].append(
-            {
-                "team_id": int(raw["team_id"]),
-                "team_name": str(raw.get("team_name", "")),
-                "submission_id": int(raw["submission_id"]),
-                "submission_date": str(raw.get("submission_date") or ""),
-                "initial_score": None if raw.get("initial_score") is None else float(raw["initial_score"]),
-                "updated_score": float(raw["updated_score"]),
-                "reward": raw.get("reward"),
-                "index": int(raw.get("seat", raw.get("index", 0)) or 0),
-            }
-        )
-    episodes = list(grouped.values())
-    episodes.sort(key=lambda e: (e["end_time"] or e["create_time"], e["episode_id"]))
-    return episodes
-
-
-def daily_top_teams(state: Mapping[str, Any], n: int = 10) -> list[dict[str, Any]]:
-    if n < 1:
-        raise ValueError("n must be positive")
-    ranked: list[dict[str, Any]] = []
-    for team in state.values():
-        submissions = list((team.get("submissions") or {}).values())
-        if not submissions:
-            continue
-        newest_two = sorted(submissions, key=lambda s: (str(s.get("first_seen", "")), int(s["submission_id"])), reverse=True)[:2]
-        best = max(newest_two, key=lambda s: (float(s["score"]), -int(s["submission_id"])))
-        ranked.append({"team_id": int(team["team_id"]), "team_name": str(team.get("team_name", "")), "submission_id": int(best["submission_id"]), "score": float(best["score"])})
-    ranked.sort(key=lambda r: (-r["score"], r["team_id"]))
-    for rank, row in enumerate(ranked[:n], 1):
-        row["rank"] = rank
-    return ranked[:n]
-
-
-def select_episode_ids(episodes: Iterable[Mapping[str, Any]], top_team_ids: set[int]) -> list[int]:
-    selected: set[int] = set()
-    for ep in episodes:
-        if any(int(a["team_id"]) in top_team_ids for a in ep["agents"]):
-            selected.add(int(ep["episode_id"]))
-    return sorted(selected)
+def select_episode_ids_by_team_names(
+    team_names_by_episode: Mapping[int, Iterable[str]],
+    selected_team_names: set[str],
+) -> list[int]:
+    selected: list[int] = []
+    for episode_id, names in team_names_by_episode.items():
+        if selected_team_names.intersection(str(x) for x in names):
+            selected.append(int(episode_id))
+    return sorted(set(selected))
 
 
 def source_row_digest(row: Mapping[str, Any]) -> str:
@@ -240,17 +136,8 @@ def pending_source_days(index_rows: Iterable[Mapping[str, Any]], processed: Mapp
     return pending
 
 
-def merge_episode_rows(existing: Iterable[Mapping[str, Any]], incoming: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]:
-    by_id: dict[int, dict[str, Any]] = {}
-    for source in (existing, incoming):
-        for raw in source:
-            row = dict(raw)
-            episode_id = int(row["episode_id"])
-            previous = by_id.get(episode_id)
-            if previous is not None and previous != row:
-                raise RuntimeError(f"conflicting episode metadata for episode {episode_id}")
-            by_id[episode_id] = row
-    return [by_id[k] for k in sorted(by_id)]
+def sha256_bytes(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
 
 
 def sha256_file(path: Path) -> str:
@@ -277,19 +164,28 @@ def _manifest_payload(manifest: Mapping[str, Any]) -> bytes:
     return json.dumps(body, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
 
 
-def write_archive_manifest(root: Path, *, processed_dates: list[str], episode_count: int, top10_row_count: int) -> dict[str, Any]:
+def write_archive_manifest(
+    root: Path,
+    *,
+    processed_dates: list[str],
+    episode_count: int,
+    top10_row_count: int,
+    source_index_manifest_sha256: str,
+) -> dict[str, Any]:
     files: dict[str, Any] = {}
     for path in sorted(root.rglob("*")):
-        if not path.is_file() or path.name.endswith(".tmp") or path.name == "archive_manifest.json":
+        if not path.is_file() or path.name.endswith(".tmp") or path.name in {"archive_manifest.json", "dataset-metadata.json"}:
             continue
         rel = path.relative_to(root).as_posix()
         files[rel] = {"sha256": sha256_file(path), "bytes": path.stat().st_size}
     manifest: dict[str, Any] = {
         "schema_version": SCHEMA_VERSION,
         "source_index": "kaggle/kaggriculture-episodes-index",
+        "ranking_source": "official daily replay ZIP headers + manifest score evidence",
         "processed_dates": sorted(processed_dates),
         "episode_count": int(episode_count),
         "top10_row_count": int(top10_row_count),
+        "source_index_manifest_sha256": source_index_manifest_sha256,
         "files": files,
     }
     manifest["manifest_sha256"] = hashlib.sha256(_manifest_payload(manifest)).hexdigest()
@@ -303,9 +199,7 @@ def validate_archive(root: Path) -> dict[str, Any]:
         raise RuntimeError(f"archive manifest missing: {path}")
     manifest = json.loads(path.read_text(encoding="utf-8"))
     if int(manifest.get("schema_version", -1)) != SCHEMA_VERSION:
-        raise RuntimeError(
-            f"archive schema mismatch: expected {SCHEMA_VERSION}, got {manifest.get('schema_version')}"
-        )
+        raise RuntimeError(f"archive schema mismatch: expected {SCHEMA_VERSION}, got {manifest.get('schema_version')}")
     expected_manifest_sha = str(manifest.get("manifest_sha256", ""))
     actual_manifest_sha = hashlib.sha256(_manifest_payload(manifest)).hexdigest()
     if expected_manifest_sha != actual_manifest_sha:
