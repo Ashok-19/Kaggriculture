@@ -51,6 +51,18 @@ class NotebookBuilderTests(unittest.TestCase):
         self.assertIn('["kaggle", "datasets", "download", f"kaggle/{slug}"', text)
         self.assertNotIn('"--unzip"', text)
 
+    def test_notebook_skips_unavailable_replays_and_records_counts(self):
+        nb = json.loads(render_notebook())
+        text = "\n".join("".join(cell["source"]) for cell in nb["cells"] if cell["cell_type"] == "code")
+        self.assertIn("scan_team_names_from_zip", text)
+        self.assertIn("read_replay_bytes_from_zip", text)
+        self.assertIn("header_skips", text)
+        self.assertIn("body_skips", text)
+        self.assertIn("archived_ids", text)
+        self.assertIn("source_unavailable_episode_count", text)
+        self.assertNotIn("daily ZIP missing replay JSON for episode", text)
+        self.assertNotIn("selected replay {episode_id} missing from ZIP", text)
+
 
 if __name__ == "__main__":
     unittest.main()

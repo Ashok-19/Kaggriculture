@@ -1,6 +1,7 @@
 import json
 import tempfile
 import unittest
+import zipfile
 from pathlib import Path
 
 from tools.replay_archive.top10_archive import (
@@ -8,6 +9,8 @@ from tools.replay_archive.top10_archive import (
     extract_team_names_from_prefix,
     pending_source_days,
     rank_daily_teams,
+    read_replay_bytes_from_zip,
+    scan_team_names_from_zip,
     select_episode_ids_by_team_names,
     source_row_digest,
     validate_archive,
@@ -32,6 +35,59 @@ class ReplayArchiveCoreTests(unittest.TestCase):
     def test_extract_team_names_rejects_missing_header(self):
         with self.assertRaisesRegex(RuntimeError, "TeamNames"):
             extract_team_names_from_prefix(b'{"info":{"EpisodeId":1}}')
+
+    def test_scan_zip_skips_missing_and_malformed_replay_members(self):
+        rows = [
+            {"episode_id": "1", "avg_score": "1300", "min_score": "1250"},
+            {"episode_id": "2", "avg_score": "1200", "min_score": "1180"},
+            {"episode_id": "3", "avg_score": "1100", "min_score": "1080"},
+        ]
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "day.zip"
+            with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+                zf.writestr("1.json", '{"info":{"TeamNames":["A","B"]},"steps":[]}')
+                zf.writestr("2.json", '{"info":{"EpisodeId":2},"steps":[]}')
+                # 3.json is intentionally absent although episode 3 is in the manifest.
+            with zipfile.ZipFile(path) as zf:
+                entries, names, skipped = scan_team_names_from_zip(zf, rows, header_scan_bytes=4096)
+
+        self.assertEqual(set(entries), {1, 2})
+        self.assertEqual(names, {1: ("A", "B")})
+        self.assertEqual(
+            skipped,
+            [
+                {"episode_id": 2, "reason": "invalid_header"},
+                {"episode_id": 3, "reason": "missing_member"},
+            ],
+        )
+
+    def test_daily_rank_skips_unavailable_and_invalid_score_rows(self):
+        rows = [
+            {"episode_id": "1", "avg_score": "1300", "min_score": "1250"},
+            {"episode_id": "2", "avg_score": "1200", "min_score": "1180"},
+            {"episode_id": "3", "avg_score": "not-a-number", "min_score": "1000"},
+        ]
+        names = {1: ("A", "B"), 3: ("C", "D")}
+        ranked = rank_daily_teams(rows, names, n=10)
+        self.assertEqual([r["team_name"] for r in ranked], ["A", "B"])
+
+    def test_read_replay_bytes_skips_missing_and_non_utf8_members(self):
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "day.zip"
+            with zipfile.ZipFile(path, "w") as zf:
+                zf.writestr("1.json", b'{"info":{"TeamNames":["A","B"]},"steps":[]}')
+                zf.writestr("2.json", b'\xff\xfe\xfd')
+            with zipfile.ZipFile(path) as zf:
+                entries = {int(Path(i.filename).stem): i for i in zf.infolist()}
+                raw, reason = read_replay_bytes_from_zip(zf, entries, 1)
+                self.assertIsNone(reason)
+                self.assertIn(b'"TeamNames"', raw)
+                raw, reason = read_replay_bytes_from_zip(zf, entries, 2)
+                self.assertIsNone(raw)
+                self.assertEqual(reason, "invalid_utf8")
+                raw, reason = read_replay_bytes_from_zip(zf, entries, 3)
+                self.assertIsNone(raw)
+                self.assertEqual(reason, "missing_member")
 
     def test_daily_rank_uses_team_score_evidence_not_manifest_order(self):
         rows = [

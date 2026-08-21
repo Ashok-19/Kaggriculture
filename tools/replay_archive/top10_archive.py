@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import os
 import re
 from pathlib import Path
@@ -37,6 +38,72 @@ def extract_team_names_from_prefix(prefix: bytes | str) -> tuple[str, ...]:
     return tuple(names)
 
 
+def replay_entry_map(zf) -> dict[int, Any]:
+    """Map numeric replay JSON filenames to ZIP members, keeping the first duplicate."""
+    out: dict[int, Any] = {}
+    for info in zf.infolist():
+        name = Path(info.filename).name
+        if not name.endswith(".json"):
+            continue
+        stem = name[:-5]
+        if stem.isdigit():
+            out.setdefault(int(stem), info)
+    return out
+
+
+def scan_team_names_from_zip(
+    zf,
+    manifest_rows: Iterable[Mapping[str, Any]],
+    *,
+    header_scan_bytes: int = 64 * 1024,
+) -> tuple[dict[int, Any], dict[int, tuple[str, ...]], list[dict[str, Any]]]:
+    """Scan replay headers, skipping source rows whose replay member is unavailable/bad."""
+    entries = replay_entry_map(zf)
+    names_by_episode: dict[int, tuple[str, ...]] = {}
+    skipped: list[dict[str, Any]] = []
+    for row in manifest_rows:
+        try:
+            episode_id = int(row["episode_id"])
+        except Exception:
+            continue
+        info = entries.get(episode_id)
+        if info is None:
+            skipped.append({"episode_id": episode_id, "reason": "missing_member"})
+            continue
+        try:
+            with zf.open(info) as f:
+                prefix = f.read(int(header_scan_bytes))
+        except Exception:
+            skipped.append({"episode_id": episode_id, "reason": "unreadable_header"})
+            continue
+        try:
+            names_by_episode[episode_id] = extract_team_names_from_prefix(prefix)
+        except Exception:
+            skipped.append({"episode_id": episode_id, "reason": "invalid_header"})
+    return entries, names_by_episode, skipped
+
+
+def read_replay_bytes_from_zip(
+    zf,
+    entries: Mapping[int, Any],
+    episode_id: int,
+) -> tuple[bytes | None, str | None]:
+    """Read a selected replay body without letting one bad ZIP member abort the day."""
+    episode_id = int(episode_id)
+    info = entries.get(episode_id)
+    if info is None:
+        return None, "missing_member"
+    try:
+        raw = zf.read(info)
+    except Exception:
+        return None, "unreadable_member"
+    try:
+        raw.decode("utf-8")
+    except UnicodeDecodeError:
+        return None, "invalid_utf8"
+    return raw, None
+
+
 def rank_daily_teams(
     manifest_rows: Iterable[Mapping[str, Any]],
     team_names_by_episode: Mapping[int, Iterable[str]],
@@ -60,11 +127,18 @@ def rank_daily_teams(
             raise RuntimeError(f"duplicate episode id in daily manifest: {episode_id}")
         seen_episode_ids.add(episode_id)
         if episode_id not in team_names_by_episode:
-            raise RuntimeError(f"missing TeamNames for episode {episode_id}")
-        avg_score = float(raw["avg_score"])
-        min_score = float(raw["min_score"])
+            continue
+        try:
+            avg_score = float(raw["avg_score"])
+            min_score = float(raw["min_score"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if not math.isfinite(avg_score) or not math.isfinite(min_score):
+            continue
         upper_score = 2.0 * avg_score - min_score
-        names = tuple(dict.fromkeys(str(x) for x in team_names_by_episode[episode_id]))
+        names = tuple(dict.fromkeys(str(x) for x in team_names_by_episode[episode_id] if str(x)))
+        if not names:
+            continue
         for name in names:
             row = stats.setdefault(
                 name,

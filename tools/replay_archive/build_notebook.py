@@ -139,32 +139,12 @@ def download_daily_zip(slug, date):
     return day_tmp, zips[0]
 
 
-def replay_entry_map(zf):
-    out = {}
-    for info in zf.infolist():
-        name = Path(info.filename).name
-        if not name.endswith(".json"):
-            continue
-        stem = name[:-5]
-        if stem.isdigit():
-            out[int(stem)] = info
-    return out
-
-
-def scan_team_names(zf, manifest_rows):
-    entries = replay_entry_map(zf)
-    names_by_episode = {}
-    for i, row in enumerate(manifest_rows, 1):
-        episode_id = int(row["episode_id"])
-        info = entries.get(episode_id)
-        if info is None:
-            raise RuntimeError(f"daily ZIP missing replay JSON for episode {episode_id}")
-        with zf.open(info) as f:
-            prefix = f.read(HEADER_SCAN_BYTES)
-        names_by_episode[episode_id] = extract_team_names_from_prefix(prefix)
-        if i % 200 == 0:
-            print(f"  headers {i}/{len(manifest_rows)}", flush=True)
-    return entries, names_by_episode
+def optional_float(value):
+    try:
+        x = float(value)
+    except (TypeError, ValueError):
+        return None
+    return x if math.isfinite(x) else None
 
 
 def write_replay_shard_from_zip(date, zf, entries, selected_ids):
@@ -175,27 +155,33 @@ def write_replay_shard_from_zip(date, zf, entries, selected_ids):
     schema = pa.schema([("episode_id", pa.int64()), ("replay_json", pa.large_string())])
     writer = pq.ParquetWriter(tmp, schema, compression="zstd", compression_level=10)
     replay_hashes = {}
+    archived_ids = []
+    body_skips = []
     ordered = sorted(set(map(int, selected_ids)))
     try:
         for i, episode_id in enumerate(ordered, 1):
-            info = entries.get(episode_id)
-            if info is None:
-                raise RuntimeError(f"selected replay {episode_id} missing from ZIP")
-            raw = zf.read(info)
+            raw, reason = read_replay_bytes_from_zip(zf, entries, episode_id)
+            if raw is None:
+                body_skips.append({"episode_id": episode_id, "reason": reason or "unreadable_member"})
+                continue
             replay_hashes[episode_id] = hashlib.sha256(raw).hexdigest()
             writer.write_table(pa.Table.from_arrays([
                 pa.array([episode_id], type=pa.int64()),
                 pa.array([raw.decode("utf-8")], type=pa.large_string()),
             ], schema=schema))
+            archived_ids.append(episode_id)
             if i % 25 == 0:
                 print(f"  stored replays {i}/{len(ordered)}", flush=True)
     finally:
         writer.close()
+    if not archived_ids:
+        tmp.unlink(missing_ok=True)
+        raise RuntimeError(f"no readable selected replay bodies remain for {date}")
     os.replace(tmp, final)
     check = pq.read_table(final, columns=["episode_id"]).column("episode_id").to_pylist()
-    if check != ordered:
+    if check != archived_ids:
         raise RuntimeError(f"day shard verification failed for {date}")
-    return final, replay_hashes
+    return final, replay_hashes, archived_ids, body_skips
 '''),
         code(r'''
 # Tiny deterministic smoke test before touching Kaggle sources.
@@ -253,15 +239,36 @@ for source_row in pending:
                 raise RuntimeError(f"daily ZIP {date} has no manifest.csv")
             daily_manifest_raw = zf.read("manifest.csv")
             daily_manifest_sha = sha256_bytes(daily_manifest_raw)
-            daily_rows = csv_rows_from_bytes(daily_manifest_raw)
+            raw_daily_rows = csv_rows_from_bytes(daily_manifest_raw)
             expected_count = int(source_row["episode_count"])
-            if len(daily_rows) != expected_count:
-                raise RuntimeError(f"daily manifest count mismatch for {date}: index={expected_count} zip={len(daily_rows)}")
-            ids = [int(r["episode_id"]) for r in daily_rows]
-            if len(ids) != len(set(ids)):
-                raise RuntimeError(f"duplicate episode IDs in source daily manifest {date}")
+            manifest_count_mismatch = len(raw_daily_rows) != expected_count
 
-            entries, names_by_episode = scan_team_names(zf, daily_rows)
+            # Be tolerant of isolated malformed/duplicate source rows. Keep the first
+            # valid row for each episode id and record only aggregate skip counts.
+            daily_rows = []
+            seen_manifest_ids = set()
+            invalid_manifest_row_count = 0
+            duplicate_manifest_row_count = 0
+            for row in raw_daily_rows:
+                try:
+                    episode_id = int(row["episode_id"])
+                except Exception:
+                    invalid_manifest_row_count += 1
+                    continue
+                if episode_id in seen_manifest_ids:
+                    duplicate_manifest_row_count += 1
+                    continue
+                seen_manifest_ids.add(episode_id)
+                daily_rows.append(row)
+
+            entries, names_by_episode, header_skips = scan_team_names_from_zip(
+                zf, daily_rows, header_scan_bytes=HEADER_SCAN_BYTES
+            )
+            if header_skips:
+                reason_counts = {}
+                for item in header_skips:
+                    reason_counts[item["reason"]] = reason_counts.get(item["reason"], 0) + 1
+                print(f"  skipped {len(header_skips)} unavailable/bad replay headers: {reason_counts}")
             top = rank_daily_teams(daily_rows, names_by_episode, TOP_N)
             if len(top) != TOP_N:
                 raise RuntimeError(f"only {len(top)} teams found in {date}; refusing partial top-10")
@@ -275,15 +282,24 @@ for source_row in pending:
             print("top10:", [(r["rank"], r["team_name"], round(float(r["score_proxy"]), 1)) for r in top])
             print(f"selected {len(selected_ids)}/{len(daily_rows)} source episodes")
 
-            shard, replay_hashes = write_replay_shard_from_zip(date, zf, entries, selected_ids)
+            shard, replay_hashes, archived_ids, body_skips = write_replay_shard_from_zip(
+                date, zf, entries, selected_ids
+            )
+            if body_skips:
+                reason_counts = {}
+                for item in body_skips:
+                    reason_counts[item["reason"]] = reason_counts.get(item["reason"], 0) + 1
+                print(f"  skipped {len(body_skips)} unreadable selected replay bodies: {reason_counts}")
+
             manifest_by_id = {int(r["episode_id"]): r for r in daily_rows}
             incoming_episode_rows = []
-            for episode_id in selected_ids:
+            for episode_id in archived_ids:
                 participants = tuple(names_by_episode[episode_id])
                 matched = list(dict.fromkeys(name for name in participants if name in top_names))
                 sm = manifest_by_id[episode_id]
-                avg_score = float(sm["avg_score"])
-                min_score = float(sm["min_score"])
+                avg_score = optional_float(sm.get("avg_score"))
+                min_score = optional_float(sm.get("min_score"))
+                upper_score = None if avg_score is None or min_score is None else 2.0 * avg_score - min_score
                 for team_name in matched:
                     opponents = [name for name in participants if name != team_name]
                     evidence = top_by_name[team_name]
@@ -300,8 +316,8 @@ for source_row in pending:
                         "source_daily_manifest_sha256": daily_manifest_sha,
                         "source_avg_score": avg_score,
                         "source_min_score": min_score,
-                        "source_agent_score_upper": 2.0 * avg_score - min_score,
-                        "source_sum_score": float(sm["sum_score"]) if sm.get("sum_score") not in (None, "") else None,
+                        "source_agent_score_upper": upper_score,
+                        "source_sum_score": optional_float(sm.get("sum_score")),
                         "replay_sha256": replay_hashes[episode_id],
                         "replay_shard": shard.name,
                     })
@@ -322,8 +338,23 @@ for source_row in pending:
                 "source_row_sha256": source_row_digest(source_row),
                 "daily_dataset_slug": slug,
                 "daily_manifest_sha256": daily_manifest_sha,
-                "daily_manifest_episode_count": len(daily_rows),
-                "selected_episode_count": len(selected_ids),
+                "daily_manifest_episode_count": len(raw_daily_rows),
+                "usable_manifest_episode_count": len(daily_rows),
+                "manifest_count_mismatch": bool(manifest_count_mismatch),
+                "invalid_manifest_row_count": int(invalid_manifest_row_count),
+                "duplicate_manifest_row_count": int(duplicate_manifest_row_count),
+                "source_unavailable_episode_count": len(header_skips),
+                "source_unavailable_episode_reasons": {
+                    reason: sum(1 for item in header_skips if item["reason"] == reason)
+                    for reason in sorted({item["reason"] for item in header_skips})
+                },
+                "candidate_selected_episode_count": len(selected_ids),
+                "selected_episode_count": len(archived_ids),
+                "selected_unavailable_episode_count": len(body_skips),
+                "selected_unavailable_episode_reasons": {
+                    reason: sum(1 for item in body_skips if item["reason"] == reason)
+                    for reason in sorted({item["reason"] for item in body_skips})
+                },
                 "ranking_basis": "official daily replay score evidence: max observed avg_score by team",
                 "temporary_zip_bytes": int(zip_bytes),
                 "replay_shard": shard.name,
