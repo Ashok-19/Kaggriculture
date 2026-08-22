@@ -1,0 +1,128 @@
+from __future__ import annotations
+
+import unittest
+
+from tools.bkg4_search.module_codec import ConditionGene, ModuleGenome, RuleGene
+
+ROUTES = (22, 23, 29, 32, 34, 46, 63, 64, 70, 77, 79, 211, 212, 213, 214)
+
+
+def parent0(prefix=37):
+    return ModuleGenome(prefix, ())
+
+
+def parent2(prefix=144):
+    return ModuleGenome(prefix, (
+        RuleGene((ConditionGene("SHOP_AT", "EQ", 0, 4), ConditionGene("OWN_MONEY", "LE", 0, 3000)), 213),
+        RuleGene((ConditionGene("MARKET_PRICE", "GE", 3, 120),), 214),
+    ))
+
+
+def donor3():
+    return ModuleGenome(144, (
+        RuleGene((ConditionGene("DAY", "GE", 0, 4),), 22),
+        RuleGene((ConditionGene("OPP_MONEY", "GE", 0, 5000),), 70),
+        RuleGene((ConditionGene("MARKET_INVENTORY", "LE", 3, 20),), 77),
+    ))
+
+
+class EditSearchEmitterTests(unittest.TestCase):
+    def context(self, donors=()):
+        from tools.bkg4_search.edit_search.emitters import EmitterContext
+        rows = [
+            {"feature": "OWN_MONEY", "index": 0, "value": x} for x in (500, 1000, 2500, 5000, 9000)
+        ] + [
+            {"feature": "MARKET_PRICE", "index": 3, "value": x} for x in (30, 81, 120, 172, 240)
+        ] + [{"feature": "OPP_UNITS", "index": 0, "value": x} for x in (2, 4, 8, 12)]
+        return EmitterContext.from_observations(ROUTES, rows, donor_genomes=donors, generation_depth=4, escalation_level=0)
+
+    def test_systematic_searches_what_where_how_and_two_rule_priority(self):
+        from tools.bkg4_search.edit_search.emitters import SystematicEmitter
+        p = parent2()
+        xs = SystematicEmitter().propose(p, n=256, seed=11, context=self.context())
+        ops = {x.atoms[0].operation for x in xs}
+        self.assertIn("CHANGE_PRIORITY", ops)
+        self.assertIn("CHANGE_THRESHOLD", ops)
+        self.assertIn("CHANGE_ROUTE", ops)
+        self.assertIn("CHANGE_WINDOW", ops)
+        self.assertIn("ADD_CONDITION", ops)
+        self.assertGreaterEqual(len({(x.atoms[0].operation, x.atoms[0].target_node) for x in xs}), 8)
+        self.assertTrue(any(x.reconstruct(p, ROUTES).prefix_step != p.prefix_step for x in xs))
+        self.assertTrue(any(dict(x.atoms[0].action).get("value") in {500, 1000, 2500, 5000, 9000} for x in xs))
+
+    def test_zero_rule_parent_is_searchable_and_not_forced_to_prefix_216(self):
+        from tools.bkg4_search.edit_search.emitters import SystematicEmitter, RandomTypedEmitter
+        p = parent0(37)
+        xs = SystematicEmitter().propose(p, n=64, seed=2, context=self.context())
+        ys = RandomTypedEmitter().propose(p, n=64, seed=3, context=self.context())
+        self.assertTrue(xs and ys)
+        for program in xs + ys:
+            program.reconstruct(p, ROUTES)
+        self.assertTrue(any(x.child_semantic_id != p.semantic_id() for x in xs))
+        self.assertTrue(any(x.reconstruct(p, ROUTES).prefix_step != 216 for x in xs))
+
+    def test_local_and_structural_emitters_use_evolved_parent(self):
+        from tools.bkg4_search.edit_search.emitters import LocalRefinementEmitter, StructuralEmitter
+        p = donor3()
+        for emitter in (LocalRefinementEmitter(), StructuralEmitter()):
+            xs = emitter.propose(p, n=96, seed=7, context=self.context())
+            self.assertTrue(xs, emitter.name)
+            self.assertTrue(all(x.source_parent_semantic_id == p.semantic_id() for x in xs))
+            self.assertTrue(all(x.reconstruct(p, ROUTES).semantic_id() == x.child_semantic_id for x in xs))
+        self.assertTrue(any(len(x.reconstruct(p, ROUTES).rules) >= 3 for x in StructuralEmitter().propose(p, n=96, seed=8, context=self.context())))
+
+    def test_semantic_recombination_and_lns_make_reconstructable_multiedit_jumps(self):
+        from tools.bkg4_search.edit_search.emitters import RecombinationEmitter, LargeNeighborhoodEmitter
+        p = parent2()
+        ctx = self.context(donors=(donor3(),))
+        recombined = RecombinationEmitter().propose(p, n=32, seed=13, context=ctx)
+        lns = LargeNeighborhoodEmitter().propose(p, n=32, seed=14, context=ctx)
+        self.assertTrue(recombined)
+        self.assertTrue(lns)
+        self.assertTrue(any(x.program_length >= 2 for x in recombined + lns))
+        for program in recombined + lns:
+            self.assertEqual(program.reconstruct(p, ROUTES).semantic_id(), program.child_semantic_id)
+
+    def test_mcts_emitter_explores_bounded_multistep_derivations(self):
+        from tools.bkg4_search.edit_search.emitters import EvolvabilityMCTSEmitter
+        p = parent2()
+        xs = EvolvabilityMCTSEmitter(max_depth=3).propose(p, n=24, seed=31, context=self.context())
+        self.assertTrue(xs)
+        self.assertTrue(any(x.program_length >= 2 for x in xs))
+        self.assertLessEqual(max(x.program_length for x in xs), 3)
+        self.assertGreater(len({x.child_semantic_id for x in xs}), 12)
+
+    def test_motif_emitter_reinstantiates_template_against_compatible_future_parent(self):
+        from tools.bkg4_search.edit_search.emitters import EmitterContext, MotifEmitter
+        p = parent2(prefix=311)
+        motif = {
+            "motif_id": "motif:test",
+            "safe_useful_hits": 5,
+            "l2w_total": 3,
+            "template": {
+                "program_length": 1,
+                "atoms": [{
+                    "operation": "ADD_CONDITION",
+                    "target_kind": "rule",
+                    "target_rule_index_hint": 0,
+                    "target_condition_index_hint": -1,
+                    "action": {
+                        "operation": "ADD_CONDITION", "feature": "OPP_MONEY", "cmp": "GE", "index": 0,
+                        "value": 4000, "route": 0, "feature2": "DAY", "cmp2": "GE", "index2": 0,
+                        "value2": 0, "condition_count": 1, "priority": 0, "prefix_step": 216,
+                    },
+                }],
+            },
+        }
+        ctx = EmitterContext.from_observations(ROUTES, self.context().context_rows, motifs=(motif,), generation_depth=9)
+        xs = MotifEmitter().propose(p, n=8, seed=44, context=ctx)
+        self.assertTrue(xs)
+        self.assertTrue(all(x.emitter == "motif" for x in xs))
+        self.assertGreaterEqual(len({x.atoms[0].target_node for x in xs}), 2)
+        for program in xs:
+            self.assertEqual(program.reconstruct(p, ROUTES).semantic_id(), program.child_semantic_id)
+            self.assertEqual(program.source_parent_semantic_id, p.semantic_id())
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)

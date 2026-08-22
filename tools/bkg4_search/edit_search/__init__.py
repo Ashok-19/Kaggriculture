@@ -1,0 +1,8 @@
+"""Permanent recursive typed BKG4 edit-search infrastructure."""
+
+SEARCH_STATE_SCHEMA_VERSION = 1
+EDIT_PROGRAM_SCHEMA_VERSION = 1
+GRAMMAR_ID = "bkg4_module_genome_edit_v1"
+EMITTER_REGISTRY_VERSION = 1
+QD_DESCRIPTOR_SCHEMA_VERSION = 1
+CORPUS_SCHEMA_VERSION = 1

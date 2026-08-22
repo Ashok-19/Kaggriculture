@@ -40,5 +40,12 @@ class EditCorpusCudaSourceTests(unittest.TestCase):
         self.assertIn("tape_cache", capture)
 
 
+    def test_cuda_makefile_exposes_reproducible_b4ec1_build_target(self):
+        makefile = (ROOT / "cuda-engine/Makefile").read_text(encoding="utf-8")
+        self.assertIn("$(BUILD_DIR)/bkg4_edit_corpus_eval:", makefile)
+        self.assertIn("bkg4-edit-corpus-eval:", makefile)
+        self.assertIn("src/bkg4_edit_corpus_eval.cu", makefile)
+
+
 if __name__ == "__main__":
     unittest.main()
