@@ -289,6 +289,7 @@ def derive_case_label(
         "candidate_outcome": _outcome(c),
         "l2w": bool(b < 0 and c > 0),
         "w2l": bool(b > 0 and c <= 0),
+        "new_loss": bool(b >= 0 and c < 0),
         "protected": bool(protected),
         "action_changes": changes,
         "activations": acts,
@@ -312,8 +313,9 @@ def derive_edit_labels(
         for key in ("baseline_margin", "candidate_margin", "margin_delta", "action_changes", "activations"):
             if key not in row:
                 raise ValueError(f"missing exact CUDA label field {key}")
-    l2w = sum(bool(r.get("l2w")) for r in rows)
-    w2l = sum(bool(r.get("w2l")) for r in rows)
+    l2w = sum(bool(r.get("l2w", int(r["baseline_margin"]) < 0 and int(r["candidate_margin"]) > 0)) for r in rows)
+    w2l = sum(bool(r.get("w2l", int(r["baseline_margin"]) > 0 and int(r["candidate_margin"]) <= 0)) for r in rows)
+    new_losses = sum(bool(r.get("new_loss", int(r["baseline_margin"]) >= 0 and int(r["candidate_margin"]) < 0)) for r in rows)
     severe = sum(int(r["baseline_margin"]) > 0 and int(r["margin_delta"]) < int(severe_delta) for r in rows)
     losses_before = sum(int(r["baseline_margin"]) < 0 for r in rows)
     losses_after = sum(int(r["candidate_margin"]) < 0 for r in rows)
@@ -335,10 +337,13 @@ def derive_edit_labels(
     mean_delta = sum(deltas) / len(deltas)
     worst_candidate_margin = min(int(r["candidate_margin"]) for r in rows)
     worst_protected_win_delta = min(protected_deltas) if protected_deltas else 0
-    strict_safe = w2l == 0 and severe == 0 and losses_after <= losses_before
+    # Existing W→T/W→L conservatism is preserved, but safety also blocks T→L.
+    # Net loss counts are not sufficient: one repaired loss may never compensate for a newly created loss.
+    strict_safe = new_losses == 0 and w2l == 0 and severe == 0
     return {
         "l2w_count": int(l2w),
         "w2l_count": int(w2l),
+        "new_loss_count": int(new_losses),
         "severe_regression_count": int(severe),
         "losses_before": int(losses_before),
         "losses_after": int(losses_after),
@@ -353,7 +358,8 @@ def derive_edit_labels(
         "action_change_total": int(action_change_total),
         "activation_total": int(activation_total),
         "lex_losses_after": int(losses_after),
-        "lex_new_losses": int(w2l),
+        "lex_new_losses": int(new_losses),
+        "lex_w2l": int(w2l),
         "lex_fragile_wins_after": int(fragile_after),
         "lex_worst_margin": int(worst_candidate_margin),
         "lex_mean_margin_delta": float(mean_delta),

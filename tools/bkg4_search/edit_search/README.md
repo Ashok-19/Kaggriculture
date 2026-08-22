@@ -25,8 +25,9 @@ The permanent package is split into narrow components:
 - `fitness.py` — exact parent→child labels and safety-first lexicographic fitness.
 - `evaluator.py` — one batched B4GM1→B4EC1 exact CUDA invocation per state batch; no fallback.
 - `search.py` — recursive parent selection, lexicase specialists, multi-fidelity Stage 1/Stage 2 evaluation and anti-stagnation escalation.
-- `corpus.py` — append-only exact Parquet export plus fail-closed reconstruction/referential/label validation.
-- `benchmark.py` — equal-budget proposer comparison and anti-saturation harness.
+- `corpus.py` — explicit-schema, transactional exact Parquet export plus fail-closed reconstruction/referential/per-case/aggregate/category validation and recursively allowlisted model-input boundaries.
+- `benchmark.py` — same-parent equal-budget proposer comparison and anti-saturation harness.
+- `parity.py` — bounded non-empty B4GM1 CPU C++ ↔ B4EC1 CUDA translation/parity harness using shared normalized B4TP1 tapes.
 - `cli.py` — persistent lifecycle and validation commands.
 
 The default fixed emitter scheduler is deliberate. An adaptive UCB allocator was not retained because no fixed-vs-adaptive ablation demonstrated a benefit. Exploration floors therefore remain explicit and reproducible.
@@ -136,7 +137,7 @@ python3 -m tools.bkg4_search.edit_search.cli benchmark \
   --require-material-improvement
 ```
 
-`--require-material-improvement` returns nonzero unless permanent recursive search beats the old shallow path on at least two structural/search dimensions, does not reduce safe-useful yield, and does not worsen top-candidate W→L rate.
+Every arm must report the same root semantic identity; the benchmark fails before child evaluation if that invariant is violated. `--require-material-improvement` returns nonzero unless catastrophic safety is no worse than old shallow, safe-useful and strict-safe repair yield remain materially competitive (the current gate is at least 80% of old shallow), recursive search is genuinely deeper and multi-parent, and useful structural diversity or parent-rule coverage expands. The final validation uses three deterministic 64×16 exact-CUDA seeds rather than one lucky seed.
 
 ## Anti-saturation harness
 
@@ -156,7 +157,23 @@ python3 -m tools.bkg4_search.edit_search.cli anti-saturation \
   --require-escalation
 ```
 
-Escalation levels expand the search regime in order: wider scalar/window/route neighborhoods; broader QD parents/structural edits; semantic recombination; large-neighborhood destroy/repair; deeper evolvability/MCTS; then novelty/rare-niche/hard-case refresh. A permanent random-typed floor remains nonzero.
+Escalation levels expand the search regime in order: wider scalar/window/route neighborhoods; broader QD parents/structural edits; semantic recombination; large-neighborhood destroy/repair; deeper evolvability/MCTS; then novelty/rare-niche/hard-case refresh. A permanent random-typed floor remains nonzero. `--require-escalation` is appropriate for an intentionally saturated/plateau validation fixture; a healthy production probe may correctly exit nonzero under that flag because no stagnation condition occurred. Do not manufacture escalation when unique throughput, novelty, and archive growth remain healthy.
+
+## Non-empty CPU C++ ↔ CUDA parity
+
+Before treating a searched ModuleGenome as portable, run the bounded non-empty parity harness. It feeds the same normalized B4TP1 opponent actions and the same B4GM1 overlays to the authoritative CPU C++ BKG4 stack and B4EC1 CUDA path, then compares final money and full action-trace hashes.
+
+```bash
+python3 -m tools.bkg4_search.edit_search.parity \
+  --parent-dir bonsai-kg/integrations/bkg4_champion/champions/w33_s172_expansion_v1 \
+  --cases-tsv scratch/bkg4_edit_search_validation/heldout16_cases7.tsv \
+  --cuda-evaluator scratch/cuda-engine-build/bkg4_edit_corpus_eval \
+  --work-dir scratch/bkg4_edit_search_validation/nonempty_parity \
+  --case-count 4 \
+  --report scratch/bkg4_edit_search_validation/nonempty_parity/report.json
+```
+
+The harness uses real non-empty threshold/route/multi-rule overlays and fails on any CPU fault, CUDA fault, money mismatch, or action-trace mismatch. It is a small translation gate, not a replacement for the official 64/128-game promotion canary.
 
 ## New-parent procedure
 

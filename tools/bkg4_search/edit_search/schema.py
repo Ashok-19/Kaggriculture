@@ -182,7 +182,7 @@ class EditProgram:
             "atoms": [x.canonical() for x in atoms],
             "intermediate_semantic_ids": intermediate,
         }
-        program_id = stable_identity("BKG4-EDIT-PROGRAM-V1", canonical_body)
+        program_id = stable_identity("BKG4-EDIT-PROGRAM-V2", canonical_body)
         return cls(
             schema_version=EDIT_PROGRAM_SCHEMA_VERSION,
             grammar_id=GRAMMAR_ID,
@@ -258,7 +258,7 @@ class EditProgram:
             "atoms": [a.canonical() for a in atoms],
             "intermediate_semantic_ids": [str(x) for x in obj["intermediate_semantic_ids"]],
         }
-        expected_id = stable_identity("BKG4-EDIT-PROGRAM-V1", body)
+        expected_id = stable_identity("BKG4-EDIT-PROGRAM-V2", body)
         supplied = str(obj.get("program_id") or expected_id)
         if supplied != expected_id:
             raise ValueError("EditProgram canonical identity mismatch")

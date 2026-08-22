@@ -24,6 +24,14 @@ class StateEvaluation:
             raise ValueError("StateEvaluation vectors must be non-empty and aligned")
         if len(set(self.case_ids)) != n:
             raise ValueError("StateEvaluation case IDs must be unique")
+        if any(not -(1 << 63) <= int(x) < (1 << 63) for x in self.margins):
+            raise ValueError("StateEvaluation margin must fit signed int64")
+        if any(not 0 <= int(x) <= 0xFFFF for x in self.action_changes):
+            raise ValueError("StateEvaluation action_changes must fit B4EC1 uint16")
+        if any(not 0 <= int(x) <= 0xFFFF for x in self.activations):
+            raise ValueError("StateEvaluation activations must fit B4EC1 uint16")
+        if any(not 0 <= int(x) < (1 << 64) for x in self.trace_hashes):
+            raise ValueError("StateEvaluation trace hash must fit B4EC1 uint64")
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -92,6 +100,10 @@ class PairEvaluation:
             aggregate=agg,
         )
 
+    def certified_aggregate(self) -> dict[str, Any]:
+        """Recompute aggregate truth from exact per-case rows; persisted/cached aggregates are never authoritative."""
+        return derive_edit_labels(self.case_rows)
+
     @property
     def changed_case_ids(self) -> tuple[str, ...]:
         return tuple(str(r["case_id"]) for r in self.case_rows if bool(r["behavior_changing"]))
@@ -118,6 +130,7 @@ class LexicographicFitness:
     """Production ordering. Aggregate gains can never compensate for safety failures."""
 
     new_losses: int
+    w2l: int
     severe_regressions: int
     losses_after: int
     l2w: int
@@ -129,9 +142,10 @@ class LexicographicFitness:
 
     @classmethod
     def from_pair(cls, pair: PairEvaluation, *, complexity: int = 0) -> "LexicographicFitness":
-        a = pair.aggregate
+        a = pair.certified_aggregate()
         return cls(
-            new_losses=int(a["w2l_count"]),
+            new_losses=int(a["new_loss_count"]),
+            w2l=int(a["w2l_count"]),
             severe_regressions=int(a["severe_regression_count"]),
             losses_after=int(a["losses_after"]),
             l2w=int(a["l2w_count"]),
@@ -144,11 +158,12 @@ class LexicographicFitness:
 
     @property
     def strict_safe(self) -> bool:
-        return self.new_losses == 0 and self.severe_regressions == 0
+        return self.new_losses == 0 and self.w2l == 0 and self.severe_regressions == 0
 
     def key(self) -> tuple[float, ...]:
         return (
             self.new_losses,
+            self.w2l,
             self.severe_regressions,
             self.losses_after,
             -self.l2w,

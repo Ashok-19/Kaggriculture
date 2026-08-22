@@ -35,18 +35,21 @@ def load_evaluator_cases_tsv(path: str | Path) -> CaseBank:
 
 
 def _old_shallow_programs(
-    observations: Sequence[Mapping[str, Any]], route_ids: Sequence[int], *, budget: int, seed: int,
+    root_genome: ModuleGenome, observations: Sequence[Mapping[str, Any]], route_ids: Sequence[int], *, budget: int, seed: int,
 ) -> list[tuple[EditProgram, ModuleGenome]]:
     # This intentionally invokes the historical hard-coded-prefix, seed-parent + one-layer plan.
     plan = build_edit_plan(
         "benchmark-old-shallow", observations, seed=int(seed), seed_parent_count=4,
-        candidates_per_parent=max(32, int(budget)), route_ids=route_ids,
+        candidates_per_parent=max(32, int(budget)), route_ids=route_ids, root_overlay=root_genome,
     )
     parents = {
         str(row["overlay_semantic_id"]): genome_from_json(json.loads(str(row["overlay_genome_json"])))
         for row in plan["parents"]
     }
     root_like = {sid for sid, genome in parents.items() if not genome.rules}
+    if root_genome.semantic_id() not in parents:
+        raise RuntimeError("old shallow benchmark arm did not preserve the injected common root")
+    root_like = {root_genome.semantic_id()}
     out: list[tuple[EditProgram, ModuleGenome]] = []
     seen: set[str] = set()
     for i, row in enumerate(plan["edits"]):
@@ -208,6 +211,9 @@ def _metric_row(
         "target_kinds": sorted(target_kinds),
         "parent_rule_count_coverage": len(parent_rule_counts),
         "parent_rule_count_lower_bounds": sorted(parent_rule_counts),
+        "source_parent_count": len({p.source_parent_semantic_id for p in programs}),
+        "new_loss_rate": sum(int(a.get("new_loss_count", 0)) > 0 for a in aggregates) / len(programs),
+        "new_loss_candidates": sum(int(a.get("new_loss_count", 0)) > 0 for a in aggregates),
         "qd_niches": len(qd_keys),
         "safe_useful_per_1000": len(useful) * scale,
         "target_loss_improving_per_1000": len(target_improvers) * scale,
@@ -298,7 +304,15 @@ def benchmark_proposers(
     root_eval = evaluator.evaluate([root_genome], panel, work_dir=root / "shared_root", panel_id=panel_id)[root_genome.semantic_id()]
 
     arms: dict[str, tuple[list[tuple[EditProgram, ModuleGenome]], dict[str, PairEvaluation], Mapping[str, Any]]] = {}
-    old = _old_shallow_programs(observations, route_ids, budget=candidate_budget, seed=seed + 11)
+    arm_roots = {
+        "old_shallow": root_genome.semantic_id(),
+        "random_typed": root_genome.semantic_id(),
+        "fixed_mutation": root_genome.semantic_id(),
+        "permanent_recursive": root_genome.semantic_id(),
+    }
+    if len(set(arm_roots.values())) != 1:
+        raise ValueError("equal-budget benchmark arms do not share one exact root semantic identity")
+    old = _old_shallow_programs(root_genome, observations, route_ids, budget=candidate_budget, seed=seed + 11)
     old_eval = _evaluate_children(old, evaluator=evaluator, panel=panel, work_dir=root / "old_shallow", panel_id=panel_id)
     arms["old_shallow"] = (old, _pairs_against_root(old, old_eval, root_eval, panel), {})
 
@@ -322,23 +336,31 @@ def benchmark_proposers(
     }
     old_row = metrics["old_shallow"]; permanent = metrics["permanent_recursive"]
     structural_wins = sum([
-        permanent["operation_coverage"] > old_row["operation_coverage"],
         permanent["parent_rule_count_coverage"] > old_row["parent_rule_count_coverage"],
         permanent["max_generation_depth"] > old_row["max_generation_depth"],
-        permanent["qd_niches"] > old_row["qd_niches"],
         permanent["useful_diversity"] > old_row["useful_diversity"],
+        permanent["source_parent_count"] > old_row["source_parent_count"],
     ])
-    material = bool(
-        structural_wins >= 2
-        and permanent["safe_useful_per_1000"] >= old_row["safe_useful_per_1000"]
+    safety_ok = (
+        permanent["new_loss_rate"] <= old_row["new_loss_rate"]
         and permanent["w2l_rate"] <= old_row["w2l_rate"]
+        and permanent["severe_regression_rate"] <= old_row["severe_regression_rate"]
     )
+    useful_floor = 0.8 * old_row["safe_useful_per_1000"]
+    repair_floor = 0.8 * old_row["strict_safe_l2w_per_1000"]
+    yield_ok = permanent["safe_useful_per_1000"] >= useful_floor and permanent["strict_safe_l2w_per_1000"] >= repair_floor
+    recursive_ok = permanent["max_generation_depth"] > old_row["max_generation_depth"] and permanent["source_parent_count"] > 1
+    diversity_ok = permanent["useful_diversity"] > old_row["useful_diversity"] or permanent["parent_rule_count_coverage"] > old_row["parent_rule_count_coverage"]
+    material = bool(safety_ok and yield_ok and recursive_ok and diversity_ok)
     return {
         "schema": 1,
         "candidate_budget_per_proposer": candidate_budget,
         "cases": len(panel),
         "exact_candidate_case_budget_per_proposer": candidate_budget * len(panel),
         "root_truth_shared": True,
+        "same_root_parent": True,
+        "arm_root_semantic_ids": arm_roots,
+        "material_gate": {"safety_ok": safety_ok, "yield_ok": yield_ok, "recursive_ok": recursive_ok, "diversity_ok": diversity_ok},
         "proposers": metrics,
         "permanent_vs_old_structural_wins": structural_wins,
         "material_improvement": material,

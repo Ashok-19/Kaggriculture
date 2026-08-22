@@ -27,7 +27,7 @@ class EditSearchSchemaTests(unittest.TestCase):
         from tools.bkg4_search.edit_search.schema import EditProgram
         p = parent2()
         actions = (
-            EditAction("CHANGE_THRESHOLD", 5, value=150),
+            EditAction("CHANGE_THRESHOLD", 5, feature="OWN_MONEY", cmp="LE", index=0, value=150),
             EditAction("CHANGE_PRIORITY", 6, priority=0),
             EditAction("CHANGE_ROUTE", 3, route=70),
         )
@@ -56,7 +56,7 @@ class EditSearchSchemaTests(unittest.TestCase):
         actions = {
             "ADD_SPECIALIST": EditAction("ADD_SPECIALIST", 0, feature="DAY", cmp="GE", value=4, route=22),
             "ADD_CONDITION": EditAction("ADD_CONDITION", 3, feature="OPP_MONEY", cmp="GE", value=5000),
-            "CHANGE_THRESHOLD": EditAction("CHANGE_THRESHOLD", 4, value=5),
+            "CHANGE_THRESHOLD": EditAction("CHANGE_THRESHOLD", 4, feature="SHOP_AT", cmp="EQ", index=0, value=5),
             "CHANGE_ROUTE": EditAction("CHANGE_ROUTE", 3, route=70),
             "CHANGE_PRIORITY": EditAction("CHANGE_PRIORITY", 3, priority=1),
             "CHANGE_WINDOW": EditAction("CHANGE_WINDOW", 0, prefix_step=200),
@@ -72,6 +72,21 @@ class EditSearchSchemaTests(unittest.TestCase):
                 program = EditProgram.build(p, (action,), ROUTES, emitter="test", seed=3)
                 self.assertEqual(program.reconstruct(p, ROUTES).semantic_id(), program.child_semantic_id)
                 self.assertEqual(program.atoms[0].operation, name)
+
+    def test_canonical_edit_actions_reject_malformed_typed_fields_instead_of_normalizing(self):
+        from tools.bkg4_search.edit_search.schema import EditProgram
+        p = parent2()
+        bad = (
+            EditAction("ADD_SPECIALIST", 0, feature="MARKET_PRICE", cmp="GE", index=99, value=120, route=22),
+            EditAction("CHANGE_PRIORITY", 3, priority=99),
+            EditAction("CHANGE_WINDOW", 0, prefix_step=999),
+            EditAction("ADD_SPECIALIST", 0, feature="OWN_MONEY", cmp="GE", index=0, value=1000, route=22, condition_count=3),
+            EditAction("CHANGE_THRESHOLD", 4, feature="MARKET_PRICE", cmp="GE", index=99, value=150),
+        )
+        for action in bad:
+            with self.subTest(action=action):
+                with self.assertRaises(ValueError):
+                    EditProgram.build(p, (action,), ROUTES, emitter="malformed", seed=1)
 
     def test_parent_profile_loads_champion_assets_without_hardcoding_current_identity(self):
         from tools.bkg4_search.edit_search.schema import ParentProfile

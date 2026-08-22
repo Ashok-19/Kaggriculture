@@ -1,221 +1,317 @@
-# Permanent BKG4 Edit Search Validation
+# Permanent BKG4 Edit Search — Post-Independent-Validation Evidence
 
 Date: 2026-08-22
 
-## Scope
+Status of this document: **post-hardening validation evidence** for the permanent BKG4 edit-search infrastructure. This task does not promote a champion, submit to Kaggle, or train BonsaiEditFormer.
 
-This validation covers the permanent recursive edit-search infrastructure only. It does **not** promote or modify the BKG4 champion, submit to Kaggle, train BonsaiEditFormer, or run a large local search campaign.
+The independent review of commit `9e6e5d6e5b3dddd15cfc798ff3edc061ba125d43` returned `PERMANENT EDIT SEARCH NOT VALIDATED` despite the core recursive/CUDA architecture being real. The failures were correctness and validation failures around persistence, corpus integrity, safety semantics, benchmarking, escalation, typed input validation, MCTS wiring, and non-empty CPU↔CUDA translation.
 
-The objective of the bounded validation is to prove:
+All twelve blocker classes were hardened in place. The recursive/QD architecture, exact-CUDA evaluation path, CEGIS, lexicase selection, motif transfer, batching, and permanent random exploration floor were preserved.
 
-- canonical typed EditPrograms reconstruct exactly,
-- persistent QD state and hard cases survive resume,
-- recursive search can use evaluated descendants as future parents,
-- exact CUDA is the only production evaluation path,
-- broader-panel failures become counterexamples,
-- exported corpus rows reconstruct/recompute exactly,
-- the permanent proposer materially improves search yield over the old shallow generator at equal exact-CUDA budget,
-- increasing duplicate pressure causes actual search-regime escalation instead of silent neighborhood exhaustion.
+## Blocker closure
 
-## Exact evaluator build
+| # | Independent blocker | Closure |
+| --- | --- | --- |
+| 1 | uint64 trace hashes / non-transactional Stage-2 corpus export | Explicit Arrow schemas use `uint64` for B4EC1 trace hashes and correct unsigned ABI types. Generation shards are staged, validated, atomically published, and the manifest is updated last. Orphans/missing shards fail validation. |
+| 2 | tie→loss could enter production QD | Safety semantics now count any parent non-loss → child loss as a new loss. `LexicographicFitness` and archive insertion both enforce the invariant. |
+| 3 | persisted corpus aggregates were trusted | Validator recomputes per-case labels, every persisted aggregate, `strict_safe`, exact-noop/behavior flags, and deterministic sample category from exact label rows. Any mismatch fails. |
+| 4 | future-truth/model-feature leakage | The model boundary is a recursively enforced allowlist. Unknown declared model columns or unknown nested context keys fail. Outcome/search/provenance fields remain bookkeeping-only. |
+| 5 | checkpoint/resume lost stagnation/search regime | `SearchRuntimeState` persists generation/export markers, proposal history, last proposal stats, stagnation counters/level, archive/QD/novelty/motifs/hard cases/certifications. Deterministic next-proposal equivalence is regression-tested. |
+| 6 | old-vs-permanent benchmark used different roots | Historical shallow generation receives a benchmark-local injected `ModuleGenome` root. All arms assert the same semantic root before evaluation and report `same_root_parent=true`. |
+| 7 | convergent EditPrograms inflated QD | Production QD, exploration QD, and novelty occupancy are keyed by resulting semantic policy state. Alternate program lineage may remain metadata but cannot create duplicate policy occupancy. |
+| 8 | escalation level 1 was decorative | Level 1 reserves real wider threshold/window/route neighborhoods. Controlled identical-seed tests show changed proposals and greater window reach. |
+| 9 | dangling QD references loaded | Archive load performs fail-closed referential/version/semantic integrity checks across QD, novelty, certifications, lineage, motifs, root/parent identity, grammar, and descriptor schema. |
+| 10 | malformed typed feature indices were normalized | Canonical external EditPrograms and `ConditionGene`s reject illegal feature-specific indices, priority, route/prefix, target and condition-count semantics. Semantic validation never clips/modulos illegal input. |
+| 11 | production MCTS quality map was empty | `SearchEngine` now derives MCTS quality only from compatible exact full-panel state certifications and passes it into production `EmitterContext`. Incompatible/stale panels are excluded; no-quality fallback remains exploratory. |
+| 12 | only empty-overlay CPU↔CUDA parity existed | A permanent non-empty parity harness now feeds the same B4GM1 overlays and B4TP1 opponent tapes through B4EC1 CUDA and an authoritative CPU C++ BKG4/route/legacy/exploit/feed stack, comparing final money and action-trace hashes. |
 
-Local machine:
+Schema/grammar versions were bumped to prevent silently interpreting incompatible pre-hardening persisted state:
 
 ```text
-GPU: NVIDIA GeForce RTX 3050 Laptop GPU (sm_86)
-CUDA compiler: nvcc 11.5
+SEARCH_STATE_SCHEMA_VERSION = 2
+EDIT_PROGRAM_SCHEMA_VERSION  = 2
+GRAMMAR_ID                   = bkg4_module_genome_edit_v2
+EMITTER_REGISTRY_VERSION     = 2
+QD_DESCRIPTOR_SCHEMA_VERSION = 2
+CORPUS_SCHEMA_VERSION        = 2
 ```
 
-The system default GCC 11 is incompatible with this local nvcc release for the current C++ standard-library headers. The Makefile target therefore supports an explicit host compiler. The exact local validation build was:
+## Fresh real two-generation exact-CUDA lifecycle
 
-```bash
-make -C cuda-engine -B bkg4-edit-corpus-eval \
-  B4EC_HOST_CXX=g++-9 \
-  B4EC_NVCCFLAGS='-O3 -std=c++17 -lineinfo -arch=sm_86'
+Fresh scratch root:
+
+```text
+scratch/bkg4_edit_search_validation/final_lifecycle_424260/
 ```
-
-Result: successful build of `scratch/cuda-engine-build/bkg4_edit_corpus_eval`.
-
-The evaluator source/ABI is unchanged; this Makefile addition only makes the existing B4EC1 evaluator a reproducible target and exposes host/compiler flags.
-
-## Exact CUDA empty-overlay smoke
 
 Parent:
 
 ```text
-combined identity: 6359ab400f9d128945cdbba5df7178a33b88c643ddd9b488299d66e14daa6925
-controller hash:   8c5d7cd0e32574cbe349d5964946a9e2d6e7a75d766708f5d82308cd8507a034
-BKG4 ABI:          4
-feature registry:  1
+combined identity:
+6359ab400f9d128945cdbba5df7178a33b88c643ddd9b488299d66e14daa6925
+
+controller semantic hash:
+8c5d7cd0e32574cbe349d5964946a9e2d6e7a75d766708f5d82308cd8507a034
+
+root ModuleGenome semantic id:
+766224c843a42274275e2e0ac332c2512ab1a85377365b8dd093309e11b81cf2
 ```
 
-Four-case bounded smoke:
+The fresh lifecycle used 16 real tape/seed/seat cases, legal allowlisted public model context, the standalone exact evaluator at `scratch/cuda-engine-build/bkg4_edit_corpus_eval`, 16 proposals/generation, a 4-case Stage-1 screen, 8-case full panel, and six exact Stage-2 finalists.
+
+Generation 1:
 
 ```text
-B4EC1 genomes=1 cases=4 games=4
-gpu_ms=268.37
-games_s=14.9048
-action_changes=0
-activations=0
-bad=0
+proposed:             16 / 16 unique
+source parents:        1
+operation families:    4
+Stage-2 programs:      6
+production niches:     4
+exploration niches:    5
+exact certifications:  7
+exported generations: [1]
 ```
 
-Empty-overlay margins exactly reproduced the previously established fixture:
+Immediate corpus validation after G1:
 
 ```text
-[13116, 3422, 19729, 14006]
+export_valid:                  true
+complete_generation_layout:    true
+uint64_trace_schema:           true
+aggregates_recomputed:         true
+model_boundary_allowlisted:    true
+programs:                      6
+labels:                       48
+reconstruction_failures:       0
+referential_integrity_failures:0
 ```
 
-The current 140-case bank root scan also completed with exact CUDA:
+The process-style resume then loaded the archive with `resumable=true`, restored G1's proposal/runtime state and exact certifications, and continued at generation 2.
+
+Generation 2:
 
 ```text
-B4EC1 genomes=1 cases=140 games=140
-gpu_ms=498.271
-games_s=280.971
-action_changes=0
-activations=0
-bad=0
+proposed:              16 / 16 unique
+source parents:         5
+operation families:     6
+quality panel:          final-lifecycle-424260/g1/full
+exact quality states:   6
+Stage-2 programs:       6
+production niches:      8
+exploration niches:    10
+exact certifications:  17
+exported generations: [1, 2]
 ```
 
-That root scan contained 42 incumbent losses and 32 wins within the 5,000-margin fragile band. Proposal thresholds were derived only from the public R0 capture; 3,157 legal observed threshold rows were available for the held-out benchmark.
+Final corpus validation:
 
-## Fresh first-class CLI equal-budget benchmark
+```text
+export_valid:                   true
+generations:                    2
+programs:                      12
+labels:                        96
+parents:                       33
+cases:                         16
+uint64_trace_schema:            true
+aggregates_recomputed:          true
+model_boundary_allowlisted:     true
+child_semantic_duplicate_rate:  0.0
+exact_program_duplicate_rate:   0.0
+reconstruction_failures:        0
+referential_integrity_failures: 0
+```
 
-Command:
+Final archive validation also returned `valid=true` with `[1,2]` in `runtime_state.exported_generations` and the G2 exact-quality panel/state count preserved.
+
+## Fresh real-corpus corruption attacks
+
+Copies of the final two-generation corpus were corrupted independently under:
+
+```text
+scratch/bkg4_edit_search_validation/final_corruptions_424260/
+```
+
+Every previously accepted corruption failed closed:
+
+| Corruption | Result |
+| --- | --- |
+| program shard without corresponding label shard | rejected: orphan/missing label shards |
+| label shard without corresponding program shard | rejected: orphan/missing program shards |
+| unmanifested program shard | rejected: actual/expected program shard mismatch |
+| manifest references deleted label shard | rejected: actual/expected label shard mismatch |
+| `l2w_count` tamper | rejected: aggregate recomputation mismatch |
+| `strict_safe` tamper | rejected: aggregate recomputation mismatch |
+| `sample_category` tamper | rejected: aggregate recomputation mismatch |
+| add declared `candidate_margin` model feature | rejected: model feature contract mismatch |
+| nested `screening_rank` in `model_context_json` | rejected: unknown/non-pre-outcome context key |
+
+The uint64 regression also round-trips values above `2^63-1` and `(2^64)-1` exactly in Parquet.
+
+## Fresh fair equal-budget benchmark
+
+All four arms use the same exact parent semantic identity and root truth:
+
+```text
+same_root_parent: true
+root_truth_shared: true
+root semantic id:
+766224c843a42274275e2e0ac332c2512ab1a85377365b8dd093309e11b81cf2
+```
+
+Each arm receives exactly 64 children × 16 cases = **1,024 exact child×case CUDA evaluations** per seed. Three deterministic seeds were rerun with `--require-material-improvement`: `424251`, `424252`, and `424253`. All three exited 0 and passed all four material gates: safety, yield, recursive search, and structural diversity.
+
+Permanent recursive versus historical old-shallow:
+
+| Seed | Safe-useful /1k old → permanent | Strict-safe L→W /1k old → permanent | Useful diversity old → permanent | Source parents permanent | Max depth permanent | New-loss / W→L / severe permanent |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 424251 | 343.75 → **593.75** | 234.375 → **468.75** | 11 → **16** | 12 | 5 | 0 / 0 / 0 |
+| 424252 | 343.75 → **625.0** | 203.125 → **453.125** | 11 → **16** | 12 | 5 | 0 / 0 / 0 |
+| 424253 | 359.375 → **640.625** | 218.75 → **500.0** | 10 → **16** | 11 | 5 | 0 / 0 / 0 |
+
+The permanent arm covered root/rule/condition targets on every seed. It reached 10 operation families on seed 424251 and all 11 historical shallow operation families on 424252/424253. The benchmark no longer relies on the invalid pre-hardening 5×/4.4× headline.
+
+The benchmark exposed and caused one additional search-quality fix during hardening: one-slot recursive emitter allocations were starving later operation families because typed candidates were globally operation-sorted. Candidate selection now uses a bounded deterministic operation+target-family round-robin, preserving legal grammar diversity even when many parents receive one proposal slot. This is permanent proposer behavior, not benchmark-only filtering.
+
+## Anti-saturation / escalation evidence
+
+Two different questions are validated separately.
+
+### 1. Does the final exact-CUDA search collapse under a narrow neighborhood?
+
+A fresh 8-generation exact-CUDA stress used only eight legal public observation rows, 16 exact full-panel cases, and 24 candidates/generation. It **did not** trigger automatic escalation because it did not meet stagnation criteria:
+
+```text
+unique candidates:       24 / 24 every generation
+source parents:           10–14 after G1
+operation families:        9–12 after G1
+underfill:                 0.0 every generation
+duplicate rate after G1:   0.107–0.500
+archive states after G8: 193
+production niches:       141
+exploration niches:      154
+```
+
+`--require-escalation` correctly returned nonzero for this healthy run. Escalation is not forced merely to satisfy a report.
+
+### 2. Does escalation alter real search behavior when stagnation exists?
+
+A fresh deterministic plateau oracle (`seed=424271`) removed progress/novelty while still exercising the real permanent proposer/archive/stagnation machinery. With patience 1, the monitor escalated once per generation through all six regimes:
+
+```text
+G1 → level 1: wider scalar/window/route neighborhoods
+G2 → level 2: broader QD parents and structural mutation
+G3 → level 3: semantic recombination across distant niches
+G4 → level 4: large-neighborhood destroy/repair
+G5 → level 5: deeper multi-edit evolvability/MCTS
+G6 → level 6: novelty/rare niches and hard-case refresh
+```
+
+The run still filled 20/20 unique proposals every generation and expanded source-parent count from 1 to 15.
+
+A separate identical-parent/identical-generation/identical-seed comparison (`generation=7`, `seed=515151`) showed level 1 is behaviorally real:
+
+```text
+level-0 proposals: 64
+level-1 proposals: 64
+overlap:           37
+level-0 only:      27
+level-1 only:      27
+max window distance: 372 → 575
+```
+
+Level 1 also changed route/operation coverage (`CHANGE_PRIORITY` appeared at level 1 in this controlled sample). Therefore the regime transition is not a decorative counter change.
+
+## Production MCTS exact-quality evidence
+
+The final lifecycle supplies direct production evidence: generation 2 reports
+
+```text
+quality_panel_id:    final-lifecycle-424260/g1/full
+quality_state_count: 6
+```
+
+Those are persisted exact Stage-2 full-panel state certifications from generation 1. Regression tests additionally prove:
+
+- high/low exact quality changes MCTS branch preference,
+- absent quality falls back to exploration,
+- incompatible panels are ignored,
+- save/resume reconstructs the same quality map.
+
+No neural or future outcome score enters production MCTS selection.
+
+## Fresh non-empty CPU C++ ↔ CUDA parity
+
+Permanent command:
 
 ```bash
-python3 -m tools.bkg4_search.edit_search.cli benchmark \
+python3 -m tools.bkg4_search.edit_search.parity \
   --parent-dir bonsai-kg/integrations/bkg4_champion/champions/w33_s172_expansion_v1 \
   --cases-tsv scratch/bkg4_edit_search_validation/heldout16_cases7.tsv \
-  --observations scratch/bkg4_edit_search_validation/current140_observations.jsonl \
-  --evaluator scratch/cuda-engine-build/bkg4_edit_corpus_eval \
-  --work-dir scratch/bkg4_edit_search_validation/cli_benchmark \
-  --candidate-budget 64 --seed 99173 --memory-fraction 0.55 \
-  --report scratch/bkg4_edit_search_validation/cli_benchmark_report.json \
-  --require-material-improvement
+  --cuda-evaluator scratch/cuda-engine-build/bkg4_edit_corpus_eval \
+  --work-dir scratch/bkg4_edit_search_validation/final_nonempty_parity_424260 \
+  --case-count 4 \
+  --report scratch/bkg4_edit_search_validation/final_nonempty_parity_424260/report.json
 ```
 
-Result: exit code 0, `material_improvement=true`.
+The harness uses three legal, structurally distinct, **non-empty** ModuleGenomes. Opponent tapes are normalized once into B4TP1 and the same bytes feed CPU and CUDA. The CPU path reuses the authoritative BKG4 VM, C++ simulator, extended route pack, frozen legacy overlay semantics, engine exploits, and feed reconciler; it is not a second Python simulator.
 
-The held-out panel has 16 current hard-loss cases balanced 8/8 by seat across 9 strategy families. Every arm receives exactly 64 evaluated children × 16 cases = **1,024 exact child×case evaluations**. The root truth is shared.
-
-| Metric | Old shallow | Random typed | Fixed systematic | Permanent recursive |
-| --- | ---: | ---: | ---: | ---: |
-| strict-safe L→W / 1,000 | 78.125 | 187.5 | 453.125 | **343.75** |
-| safe-useful / 1,000 | 93.75 | 265.625 | 484.375 | **468.75** |
-| target-loss improving / 1,000 | 609.375 | 421.875 | 828.125 | **593.75** |
-| top-quartile W→L rate | 0 | 0 | 0 | **0** |
-| useful structural diversity | 4 | 1 | 1 | **8** |
-| maximum generation depth | 2 | 1 | 1 | **5** |
-| operation coverage | 10 | 2 | 1 | 6 |
-| QD structural niches | 42 | 16 | 5 | 24 |
-
-The permanent recursive arm therefore produced **4.4×** the strict-safe L→W candidate rate of the old shallow generator and **2.0×** the useful structural diversity while preserving zero top-quartile W→L. Its safe-useful rate was **5.0×** the old shallow rate (468.75 vs 93.75 per 1,000).
-
-The fixed systematic arm is intentionally retained as evidence: on this narrow all-loss panel it has higher raw repair yield, but only one operation family, one source-parent structural depth and one useful structural shape. It is an exploitation component, not a replacement for persistent recursive/QD search.
-
-## Fresh first-class CLI anti-saturation probe
-
-Command:
-
-```bash
-python3 -m tools.bkg4_search.edit_search.cli anti-saturation \
-  --parent-dir bonsai-kg/integrations/bkg4_champion/champions/w33_s172_expansion_v1 \
-  --cases-tsv scratch/bkg4_edit_search_validation/heldout16_cases7.tsv \
-  --observations scratch/bkg4_edit_search_validation/current140_observations.jsonl \
-  --evaluator scratch/cuda-engine-build/bkg4_edit_corpus_eval \
-  --work-dir scratch/bkg4_edit_search_validation/cli_anti_saturation \
-  --generations 8 --candidates-per-generation 24 \
-  --screen-size 8 --final-size 16 --stagnation-patience 1 \
-  --seed 99173 --memory-fraction 0.55 \
-  --report scratch/bkg4_edit_search_validation/cli_anti_saturation_report.json \
-  --require-escalation
-```
-
-Result: exit code 0. Root scoring confirmed 16/16 cases are losses for this deliberately hard panel.
-
-Duplicate pressure rose while the engine continued filling every requested generation:
+Fresh result:
 
 ```text
-G1  duplicate=20.51%  unique=24/24  level=0
-G2  duplicate=43.18%  unique=24/24  level=0
-G3  duplicate=58.62%  unique=24/24  level=0
-G4  duplicate=67.95%  unique=24/24  level=0
-G5  duplicate=74.47%  unique=24/24  level=1
-G6  duplicate=77.27%  unique=24/24  level=2
-G7  duplicate=81.34%  unique=24/24  level=3
-G8  duplicate=81.34%  unique=24/24  level=4
+non-empty overlays:     3
+cases:                  4
+full comparisons:      12
+CPU faults:             0
+CUDA faults:            0
+CPU↔CUDA mismatches:    0
+CUDA action changes: 4140
+CUDA activations:     8480
+B4EC1 bad:              0
 ```
 
-Observed escalation events:
+The nonzero action-change/activation counts prove this is not an empty/inert-overlay parity test.
+
+The original base-champion native differential parity was also rerun:
 
 ```text
-level 1: wider scalar/window/route neighborhoods
-level 2: broader QD parents and structural mutation
-level 3: semantic recombination across distant niches
-level 4: large-neighborhood destroy/repair
+cases:              2
+VM records:      1438
+C++ mismatches:     0
+CUDA mismatches:    0
 ```
 
-Final persistent search state:
+## Fresh regression gates
+
+Final commands and results before commit:
 
 ```text
-states:             193
-production niches:  44
-exploration niches: 87
-novelty entries:     7
-final level:          4
+python3 -m unittest discover -s tools/bkg4_search/edit_search -p 'test_*.py' -v
+→ 54 / 54 passed
+
+python3 -m unittest discover -s tools/edit_corpus -p 'test_*.py' -v
+→ 59 / 59 passed
+
+python3 bonsai-kg/tests/test_bkg4_search.py
+→ 4 / 4 passed
+
+python3 -m compileall -q tools/bkg4_search/edit_search
+→ exit 0
+
+uv run --with kaggle-environments==1.32.7 python \
+  bonsai-kg/tests/bkg4_champion_native_parity.py --seeds 1 \
+  --assets bonsai-kg/integrations/bkg4_champion/champions/w33_s172_expansion_v1
+→ 2 cases / 1,438 VM records / 0 C++ mismatches / 0 CUDA mismatches
 ```
 
-Source-parent diversity expanded from one root in generation 1 to as many as 15 different archived parents. Operation coverage reached seven families during the run. Underfill remained 0.0 for every generation.
-
-This demonstrates the intended operational anti-saturation property: duplicate pressure is measured, triggers concrete changes in the search regime, and does not silently collapse candidate throughput. It is not a claim of mathematical open-endedness.
-
-## Training-corpus boundary
-
-The exact search-corpus exporter stores:
-
-- reconstructable parent and child `ModuleGenome` structures,
-- full canonical EditProgram JSON,
-- operation/target semantics,
-- exact per-case margins/flip/regression/trace-effect labels,
-- sample category and split grouping keys,
-- search provenance and QD descriptors in `search_*` fields.
-
-Only the declared legal/public case model columns plus `parent_genome_json` and `edit_program_json` are model feature columns. The validator rejects provenance/search fields in the declared model feature boundary, unresolved parent/child/case references, duplicate program×case rows, reconstruction mismatches and exact label recomputation errors.
+`git diff --check`, reviewed local commit, and final clean-status/HEAD are terminal repository gates and are recorded in the completion report rather than hard-coded here before the commit exists.
 
 ## Promotion status
 
-No BKG4 champion asset was modified or promoted by this implementation task. Therefore an official Python 64/128-game **promotion** canary is not applicable to a candidate yet.
+No champion asset was modified or promoted. No Kaggle push/submission occurred. Therefore the official Python 64/128-game **promotion canary** is intentionally not run in this infrastructure-hardening task.
 
-When the search produces a concrete candidate selected for promotion, the mandatory sequence remains:
+When a concrete searched candidate is selected for champion promotion, the mandatory sequence remains:
 
 1. exact CUDA certification,
-2. exact CPU C++ translation/parity,
-3. 64/128-game official Python-engine validation,
-4. only then champion promotion/submission.
-
-## Final regression commands
-
-The terminal integration gate for this implementation is:
-
-```bash
-python3 -m unittest discover -s tools/bkg4_search/edit_search -p 'test_*.py' -v
-python3 -m unittest discover -s tools/edit_corpus -p 'test_*.py' -v
-python3 -m unittest bonsai-kg/tests/test_bkg4_search.py -v
-python3 bonsai-kg/tests/bkg4_champion_native_parity.py --seeds 1 --assets bonsai-kg/integrations/bkg4_champion/champions/w33_s172_expansion_v1
-python3 -m compileall -q tools/bkg4_search/edit_search
-git diff --check
-```
-
-Fresh terminal results for this implementation pass:
-
-```text
-permanent edit-search suite: 32/32 passed
-legacy edit-corpus suite:     59/59 passed
-existing BKG4 search suite:    4/4 passed
-Python compileall:             exit 0
-git diff --check:              exit 0
-native differential parity:    2 cases / 1,438 VM records, C++ mismatches=0, CUDA mismatches=0
-```
-
-The native parity command was run through `uv run --with kaggle-environments==1.32.7` because the system Python lacked `jsonschema`; the first plain-Python attempt failed before any simulation executed.
+2. non-empty CPU C++ translation/parity of that exact candidate,
+3. 64/128-game official Python-engine canary,
+4. only then serialized champion promotion/submission.

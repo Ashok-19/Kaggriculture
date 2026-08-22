@@ -105,5 +105,86 @@ class EditSearchArchiveTests(unittest.TestCase):
         self.assertEqual(got.motifs[motif_id]["safe_useful_hits"], archive.motifs[motif_id]["safe_useful_hits"])
 
 
+    def test_production_safety_covers_all_outcome_transitions_and_tie_to_loss(self):
+        from tools.bkg4_search.edit_search.fitness import LexicographicFitness, PairEvaluation, StateEvaluation
+        transitions = [
+            (10, -1, False, "win-loss"),
+            (0, -1, False, "tie-loss"),
+            (-10, -20, True, "loss-worse-loss"),
+            (-10, 0, True, "loss-tie"),
+            (-10, 10, True, "loss-win"),
+            (10, 0, False, "win-tie"),
+            (0, 10, True, "tie-win"),
+            (10, 5, True, "win-smaller-win"),
+        ]
+        for parent_margin, child_margin, expected_safe, label in transitions:
+            with self.subTest(label=label):
+                p = StateEvaluation("p", "full", ("c",), (parent_margin,), (0,), (0,), (1,))
+                c = StateEvaluation("c", "full", ("c",), (child_margin,), (1,), (1,), (2,))
+                pair = PairEvaluation.from_states(p, c, protected={"c": True})
+                fit = LexicographicFitness.from_pair(pair)
+                self.assertEqual(fit.strict_safe, expected_safe)
+                self.assertEqual(bool(pair.aggregate["strict_safe"]), expected_safe)
+        p = StateEvaluation("p", "full", ("bad", "gain"), (0, 1), (0, 0), (0, 0), (1, 1))
+        c = StateEvaluation("c", "full", ("bad", "gain"), (-1, 1000000), (1, 1), (1, 1), (2, 2))
+        bad = PairEvaluation.from_states(p, c, protected={"bad": True, "gain": True})
+        self.assertEqual(bad.aggregate["new_loss_count"], 1)
+        self.assertEqual(LexicographicFitness.from_pair(bad).new_losses, 1)
+        safe_c = StateEvaluation("s", "full", ("bad", "gain"), (0, 2), (0, 1), (0, 1), (1, 3))
+        safe = PairEvaluation.from_states(p, safe_c, protected={"bad": True, "gain": True})
+        self.assertLess(LexicographicFitness.from_pair(safe).key(), LexicographicFitness.from_pair(bad).key())
+
+    def test_archive_defense_in_depth_rejects_tie_to_loss_from_production(self):
+        from tools.bkg4_search.bonsai_editformer.actor_grammar import EditAction
+        from tools.bkg4_search.edit_search.archive import SearchArchive
+        from tools.bkg4_search.edit_search.fitness import PairEvaluation, StateEvaluation
+        from tools.bkg4_search.edit_search.schema import EditProgram
+        p = root(); archive = SearchArchive.new(root_genome=p, base_identity="b", route_ids=ROUTES, run_id="r", master_seed=1)
+        program = EditProgram.build(p, (EditAction("CHANGE_WINDOW", 0, prefix_step=200),), ROUTES, emitter="systematic", seed=1)
+        child = program.reconstruct(p, ROUTES); archive.add_program(program, child)
+        pe = StateEvaluation(p.semantic_id(), "full", ("c",), (0,), (0,), (0,), (10,))
+        ce = StateEvaluation(child.semantic_id(), "full", ("c",), (-1,), (1,), (1,), (11,))
+        pair = PairEvaluation.from_states(pe, ce, protected={"c": True})
+        result = archive.consider(program, pair)
+        self.assertFalse(result.production_inserted)
+        self.assertEqual(len(archive.production_niches), 0)
+
+    def test_convergent_programs_do_not_inflate_policy_state_qd_or_novelty(self):
+        from tools.bkg4_search.bonsai_editformer.actor_grammar import EditAction
+        from tools.bkg4_search.edit_search.archive import SearchArchive
+        from tools.bkg4_search.edit_search.fitness import PairEvaluation, StateEvaluation
+        from tools.bkg4_search.edit_search.schema import EditProgram
+        p = root(); archive = SearchArchive.new(root_genome=p, base_identity="b", route_ids=ROUTES, run_id="r", master_seed=1)
+        direct = EditProgram.build(p, (EditAction("CHANGE_WINDOW", 0, prefix_step=216),), ROUTES, emitter="systematic", seed=1)
+        via = EditProgram.build(p, (EditAction("CHANGE_WINDOW", 0, prefix_step=200), EditAction("CHANGE_WINDOW", 0, prefix_step=216)), ROUTES, emitter="lns", seed=2)
+        self.assertNotEqual(direct.program_id, via.program_id); self.assertEqual(direct.child_semantic_id, via.child_semantic_id)
+        child = direct.reconstruct(p, ROUTES); archive.add_program(direct, child); archive.add_program(via, child)
+        pe = StateEvaluation(p.semantic_id(), "full", ("c",), (1,), (0,), (0,), (10,))
+        ce = StateEvaluation(child.semantic_id(), "full", ("c",), (2,), (1,), (1,), (11,))
+        pair = PairEvaluation.from_states(pe, ce, protected={"c": True})
+        archive.consider(direct, pair); archive.consider(via, pair)
+        self.assertEqual(len(archive.production_niches), 1)
+        self.assertEqual(len(archive.exploration_niches), 1)
+        self.assertEqual(len([x for x in archive.novelty_archive if x["child_semantic_id"] == child.semantic_id()]), 1)
+
+    def test_archive_load_fails_closed_on_dangling_qd_reference(self):
+        from tools.bkg4_search.bonsai_editformer.actor_grammar import EditAction
+        from tools.bkg4_search.edit_search.archive import SearchArchive
+        from tools.bkg4_search.edit_search.fitness import PairEvaluation, StateEvaluation
+        from tools.bkg4_search.edit_search.schema import EditProgram
+        import json, tempfile
+        from pathlib import Path
+        p = root(); archive = SearchArchive.new(root_genome=p, base_identity="b", route_ids=ROUTES, run_id="r", master_seed=1)
+        program = EditProgram.build(p, (EditAction("CHANGE_WINDOW", 0, prefix_step=200),), ROUTES, emitter="systematic", seed=1)
+        child = program.reconstruct(p, ROUTES); archive.add_program(program, child)
+        pe = StateEvaluation(p.semantic_id(), "full", ("c",), (1,), (0,), (0,), (10,)); ce = StateEvaluation(child.semantic_id(), "full", ("c",), (2,), (1,), (1,), (11,))
+        archive.consider(program, PairEvaluation.from_states(pe, ce, protected={"c": True}))
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "a.json"; archive.save(path); raw = json.loads(path.read_text())
+            key = next(iter(raw["production_niches"])); raw["production_niches"][key]["child_semantic_id"] = "deadbeef"
+            path.write_text(json.dumps(raw))
+            with self.assertRaises(ValueError):
+                SearchArchive.load(path)
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
@@ -40,11 +40,22 @@ def structural_descriptor(program: EditProgram, child: ModuleGenome) -> dict[str
         "program_length": program.program_length,
     }
 
+def policy_state_descriptor(child: ModuleGenome) -> dict[str, Any]:
+    """Path-independent QD descriptor for the resulting semantic policy state."""
+    return {
+        "schema": QD_DESCRIPTOR_SCHEMA_VERSION,
+        "prefix_bucket": min(11, int(child.prefix_step) // 60),
+        "rule_count": len(child.rules),
+        "condition_counts": [len(r.conditions) for r in child.rules],
+        "route_signature": [int(r.route) for r in child.rules],
+        "feature_families": [[_feature_family(c.feature) for c in r.conditions] for r in child.rules],
+    }
+
 
 def behavior_descriptor(pair: PairEvaluation) -> dict[str, Any]:
     changed = sorted(pair.changed_case_ids)
     digest = hashlib.sha256(("\n".join(changed)).encode()).hexdigest()[:12]
-    a = pair.aggregate
+    a = pair.certified_aggregate()
     return {
         "changed_bucket": min(15, len(changed) // max(1, len(pair.case_rows) // 16 or 1)),
         "changed_signature": digest,
@@ -69,6 +80,51 @@ class ConsiderResult:
     exploration_inserted: bool
     production_niche: str | None
     exploration_niche: str | None
+
+@dataclass
+class SearchRuntimeState:
+    schema_version: int = 1
+    last_proposed_generation: int = -1
+    last_evaluated_generation: int = -1
+    stagnation: dict[str, int] = field(default_factory=lambda: {"level": 0, "stalled": 0, "patience": 3, "max_level": 6})
+    last_proposal_stats: dict[str, Any] = field(default_factory=dict)
+    proposal_history: list[dict[str, Any]] = field(default_factory=list)
+    exported_generations: list[int] = field(default_factory=list)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "schema_version": self.schema_version,
+            "last_proposed_generation": self.last_proposed_generation,
+            "last_evaluated_generation": self.last_evaluated_generation,
+            "stagnation": dict(self.stagnation),
+            "last_proposal_stats": json.loads(json.dumps(self.last_proposal_stats)),
+            "proposal_history": json.loads(json.dumps(self.proposal_history[-64:])),
+            "exported_generations": sorted(set(int(x) for x in self.exported_generations)),
+        }
+
+    @classmethod
+    def from_dict(cls, raw: Mapping[str, Any] | None) -> "SearchRuntimeState":
+        obj = dict(raw or {})
+        if int(obj.get("schema_version", 1)) != 1:
+            raise ValueError("incompatible search runtime-state schema")
+        stagnation = dict(obj.get("stagnation") or {"level":0,"stalled":0,"patience":3,"max_level":6})
+        if set(stagnation) != {"level", "stalled", "patience", "max_level"}:
+            raise ValueError("invalid persisted stagnation state")
+        values = {k:int(v) for k,v in stagnation.items()}
+        if values["level"] < 0 or values["stalled"] < 0 or values["patience"] < 1 or values["max_level"] < values["level"]:
+            raise ValueError("invalid persisted stagnation values")
+        exported = [int(x) for x in obj.get("exported_generations", ())]
+        if any(x < 0 for x in exported) or len(set(exported)) != len(exported):
+            raise ValueError("invalid exported-generation ledger")
+        return cls(
+            schema_version=1,
+            last_proposed_generation=int(obj.get("last_proposed_generation", -1)),
+            last_evaluated_generation=int(obj.get("last_evaluated_generation", -1)),
+            stagnation=values,
+            last_proposal_stats=dict(obj.get("last_proposal_stats") or {}),
+            proposal_history=[dict(x) for x in obj.get("proposal_history", ())],
+            exported_generations=sorted(exported),
+        )
 
 
 class SearchArchive:
@@ -97,6 +153,7 @@ class SearchArchive:
         self.evaluated_semantic_ids: set[str] = set()
         self.escalation_history: list[dict[str, Any]] = []
         self.state_evaluations: dict[str, dict[str, dict[str, Any]]] = {}
+        self.runtime_state = SearchRuntimeState()
 
     @classmethod
     def new(
@@ -145,14 +202,30 @@ class SearchArchive:
         fit = LexicographicFitness.from_pair(pair, complexity=len(child.rules) + program.program_length)
         return {
             "program_id": program.program_id,
+            "alternate_program_ids": [],
             "child_semantic_id": child.semantic_id(),
             "fitness_key": list(fit.key()),
             "strict_safe": fit.strict_safe,
-            "aggregate": dict(pair.aggregate),
+            "aggregate": pair.certified_aggregate(),
             "structural": structural_descriptor(program, child),
+            "policy_state": policy_state_descriptor(child),
             "behavior": behavior_descriptor(pair),
             "generation_depth": program.generation_depth,
         }
+
+    @staticmethod
+    def _child_niche(table: Mapping[str, Mapping[str, Any]], child_semantic_id: str) -> str | None:
+        for niche, row in table.items():
+            if str(row.get("child_semantic_id")) == str(child_semantic_id):
+                return str(niche)
+        return None
+
+    @staticmethod
+    def _preserve_alternate_program(record: dict[str, Any], program_id: str) -> None:
+        if str(record.get("program_id")) == str(program_id):
+            return
+        alt = set(str(x) for x in record.get("alternate_program_ids", ()))
+        alt.add(str(program_id)); record["alternate_program_ids"] = sorted(alt)
 
     def consider(self, program: EditProgram, pair: PairEvaluation) -> ConsiderResult:
         if pair.child_semantic_id != program.child_semantic_id:
@@ -160,29 +233,42 @@ class SearchArchive:
         child = self.genome(program.child_semantic_id)
         rec = self._elite_record(program, pair, child)
         fit = LexicographicFitness.from_pair(pair, complexity=len(child.rules) + program.program_length)
-        prod_niche = _niche("production", rec["structural"])
-        exp_niche = _niche("exploration", rec["structural"], rec["behavior"])
+        agg = pair.certified_aggregate()
+        prod_niche = _niche("production", rec["policy_state"])
+        exp_niche = _niche("exploration", rec["policy_state"], rec["behavior"])
         production_inserted = False
         exploration_inserted = False
-        if fit.strict_safe and bool(pair.aggregate["behavior_changing"]):
-            old = self.production_niches.get(prod_niche)
+
+        existing_prod = self._child_niche(self.production_niches, child.semantic_id())
+        if fit.strict_safe and bool(agg["behavior_changing"]):
+            target_niche = existing_prod or prod_niche
+            old = self.production_niches.get(target_niche)
             if old is None or tuple(rec["fitness_key"]) < tuple(old["fitness_key"]):
-                self.production_niches[prod_niche] = rec
-                production_inserted = True
-        old = self.exploration_niches.get(exp_niche)
-        # Exploration niches preserve specialists/unsafe stepping stones; within a niche
-        # prefer fewer new losses, then more repaired losses and behavioral effect.
+                if old is not None and str(old.get("child_semantic_id")) == child.semantic_id():
+                    self._preserve_alternate_program(rec, str(old.get("program_id")))
+                    for alt in old.get("alternate_program_ids", ()): self._preserve_alternate_program(rec, str(alt))
+                self.production_niches[target_niche] = rec
+                production_inserted = old is None or str(old.get("child_semantic_id")) != child.semantic_id()
+            elif old is not None and str(old.get("child_semantic_id")) == child.semantic_id():
+                self._preserve_alternate_program(old, program.program_id)
+
         exploration_key = (
-            int(pair.aggregate["w2l_count"]),
-            -int(pair.aggregate["l2w_count"]),
-            -len(pair.changed_case_ids),
-            -float(pair.aggregate["mean_margin_delta"]),
+            int(agg["new_loss_count"]), int(agg["w2l_count"]), -int(agg["l2w_count"]),
+            -len(pair.changed_case_ids), -float(agg["mean_margin_delta"]),
         )
-        if old is None or exploration_key < tuple(old.get("exploration_key", (10**9, 0, 0, 0))):
-            rec = dict(rec)
-            rec["exploration_key"] = list(exploration_key)
-            self.exploration_niches[exp_niche] = rec
-            exploration_inserted = True
+        existing_exp = self._child_niche(self.exploration_niches, child.semantic_id())
+        target_exp = existing_exp or exp_niche
+        old = self.exploration_niches.get(target_exp)
+        if old is None or exploration_key < tuple(old.get("exploration_key", (10**9, 10**9, 0, 0, 0))):
+            exp_rec = dict(rec); exp_rec["exploration_key"] = list(exploration_key)
+            if old is not None and str(old.get("child_semantic_id")) == child.semantic_id():
+                self._preserve_alternate_program(exp_rec, str(old.get("program_id")))
+                for alt in old.get("alternate_program_ids", ()): self._preserve_alternate_program(exp_rec, str(alt))
+            self.exploration_niches[target_exp] = exp_rec
+            exploration_inserted = old is None or str(old.get("child_semantic_id")) != child.semantic_id()
+        elif old is not None and str(old.get("child_semantic_id")) == child.semantic_id():
+            self._preserve_alternate_program(old, program.program_id)
+
         self.evaluated_semantic_ids.add(program.child_semantic_id)
         if pair.changed_case_ids:
             novelty = {
@@ -191,7 +277,7 @@ class SearchArchive:
                 "changed_signature": rec["behavior"]["changed_signature"],
                 "changed_cases": len(pair.changed_case_ids),
             }
-            if not any(x["changed_signature"] == novelty["changed_signature"] for x in self.novelty_archive):
+            if not any(str(x.get("child_semantic_id")) == child.semantic_id() or x.get("changed_signature") == novelty["changed_signature"] for x in self.novelty_archive):
                 self.novelty_archive.append(novelty)
         return ConsiderResult(production_inserted, exploration_inserted, prod_niche if production_inserted else None, exp_niche if exploration_inserted else None)
 
@@ -221,7 +307,7 @@ class SearchArchive:
             raise KeyError(f"missing exact state evaluation {semantic_id} on panel {panel_id}") from exc
 
     def observe_motif(self, program: EditProgram, pair: PairEvaluation) -> str | None:
-        a = pair.aggregate
+        a = pair.certified_aggregate()
         useful = bool(a["strict_safe"]) and bool(a["behavior_changing"]) and (
             int(a["l2w_count"]) > 0 or float(a["mean_margin_delta"]) > 0.0
         )
@@ -270,6 +356,74 @@ class SearchArchive:
         ids.update(str(x["child_semantic_id"]) for x in self.novelty_archive)
         return sorted(ids)
 
+    def mark_exported_generation(self, generation: int) -> None:
+        g = int(generation)
+        if g < 0:
+            raise ValueError("generation must be non-negative")
+        if g not in self.runtime_state.exported_generations:
+            self.runtime_state.exported_generations.append(g)
+            self.runtime_state.exported_generations.sort()
+
+    def validate_integrity(self) -> None:
+        if not self.base_identity or not self.run_id or not self.route_ids or len(set(self.route_ids)) != len(self.route_ids):
+            raise ValueError("invalid archive identity/runtime metadata")
+        if self.root_semantic_id not in self.states:
+            raise ValueError("search archive root state missing")
+        for sid, raw in self.states.items():
+            genome = genome_from_json(raw); genome.validate(self.route_ids)
+            if genome.semantic_id() != sid:
+                raise ValueError(f"archive state semantic identity mismatch: {sid}")
+        for pid, program in self.programs.items():
+            if pid != program.program_id or program.source_parent_semantic_id not in self.states or program.child_semantic_id not in self.states:
+                raise ValueError("search archive program references invalid state")
+            program.reconstruct(self.genome(program.source_parent_semantic_id), self.route_ids)
+            if program.parent_program_id is not None:
+                parent_program = self.programs.get(str(program.parent_program_id))
+                if parent_program is None or parent_program.child_semantic_id != program.source_parent_semantic_id:
+                    raise ValueError("search archive lineage parent is dangling/incompatible")
+        for kind, table in (("production", self.production_niches), ("exploration", self.exploration_niches)):
+            seen_children: set[str] = set()
+            for niche, row in table.items():
+                sid = str(row.get("child_semantic_id", "")); pid = str(row.get("program_id", ""))
+                if sid not in self.states or pid not in self.programs or self.programs[pid].child_semantic_id != sid:
+                    raise ValueError(f"{kind} QD niche has dangling state/program reference")
+                if sid in seen_children:
+                    raise ValueError(f"{kind} QD contains duplicate semantic child")
+                seen_children.add(sid)
+                expected_state = policy_state_descriptor(self.genome(sid))
+                if dict(row.get("policy_state") or {}) != expected_state:
+                    raise ValueError(f"{kind} QD policy-state descriptor mismatch")
+                expected_niche = _niche(kind, expected_state) if kind == "production" else _niche(kind, expected_state, dict(row.get("behavior") or {}))
+                if niche != expected_niche:
+                    raise ValueError(f"{kind} QD niche identity mismatch")
+                if kind == "production" and not bool(row.get("strict_safe")):
+                    raise ValueError("production QD contains non-safe elite")
+                for alt in row.get("alternate_program_ids", ()):
+                    if str(alt) not in self.programs or self.programs[str(alt)].child_semantic_id != sid:
+                        raise ValueError(f"{kind} QD alternate program is dangling")
+        novelty_children: set[str] = set()
+        for row in self.novelty_archive:
+            sid = str(row.get("child_semantic_id", "")); pid = str(row.get("program_id", ""))
+            if sid not in self.states or pid not in self.programs or self.programs[pid].child_semantic_id != sid or sid in novelty_children:
+                raise ValueError("novelty archive has dangling/duplicate semantic state")
+            novelty_children.add(sid)
+        if not self.evaluated_semantic_ids.issubset(self.states):
+            raise ValueError("evaluated-state ledger references unknown state")
+        for sid, panels in self.state_evaluations.items():
+            if sid not in self.states:
+                raise ValueError("exact certification references unknown state")
+            for panel_id, payload in panels.items():
+                ev = StateEvaluation.from_dict(payload)
+                if ev.semantic_id != sid or ev.panel_id != panel_id:
+                    raise ValueError("exact certification identity mismatch")
+        for motif_id, row in self.motifs.items():
+            template = dict(row.get("template") or {})
+            if motif_id != stable_motif_identity(template) or str(row.get("motif_id")) != motif_id:
+                raise ValueError("motif identity mismatch")
+            if any(str(pid) not in self.programs for pid in row.get("source_programs", ())):
+                raise ValueError("motif source program is dangling")
+        self.runtime_state = SearchRuntimeState.from_dict(self.runtime_state.to_dict())
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "schema_version": self.schema_version,
@@ -294,9 +448,11 @@ class SearchArchive:
             "evaluated_semantic_ids": sorted(self.evaluated_semantic_ids),
             "escalation_history": self.escalation_history,
             "state_evaluations": self.state_evaluations,
+            "runtime_state": self.runtime_state.to_dict(),
         }
 
     def save(self, path: str | Path) -> None:
+        self.validate_integrity()
         target = Path(path)
         target.parent.mkdir(parents=True, exist_ok=True)
         tmp = target.with_suffix(target.suffix + ".tmp")
@@ -336,10 +492,6 @@ class SearchArchive:
             str(sid): {str(panel): dict(payload) for panel, payload in panels.items()}
             for sid, panels in obj.get("state_evaluations", {}).items()
         }
-        if out.root_semantic_id not in out.states:
-            raise ValueError("search archive root state missing")
-        for pid, program in out.programs.items():
-            if pid != program.program_id or program.source_parent_semantic_id not in out.states or program.child_semantic_id not in out.states:
-                raise ValueError("search archive program references invalid state")
-            program.reconstruct(out.genome(program.source_parent_semantic_id), out.route_ids)
+        out.runtime_state = SearchRuntimeState.from_dict(obj.get("runtime_state"))
+        out.validate_integrity()
         return out

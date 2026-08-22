@@ -71,6 +71,25 @@ class EditSearchEmitterTests(unittest.TestCase):
             self.assertTrue(all(x.reconstruct(p, ROUTES).semantic_id() == x.child_semantic_id for x in xs))
         self.assertTrue(any(len(x.reconstruct(p, ROUTES).rules) >= 3 for x in StructuralEmitter().propose(p, n=96, seed=8, context=self.context())))
 
+    def test_one_slot_recursive_budgets_rotate_across_legal_operation_target_families(self):
+        from tools.bkg4_search.edit_search.emitters import LocalRefinementEmitter, StructuralEmitter
+        p = parent2()
+        ctx = self.context()
+        local = [
+            x for seed in range(100, 116)
+            for x in LocalRefinementEmitter().propose(p, n=1, seed=seed, context=ctx)
+        ]
+        structural = [
+            x for seed in range(100, 116)
+            for x in StructuralEmitter().propose(p, n=1, seed=seed, context=ctx)
+        ]
+        local_ops = {x.atoms[0].operation for x in local}
+        structural_ops = {x.atoms[0].operation for x in structural}
+        self.assertIn("CHANGE_THRESHOLD", local_ops)
+        self.assertTrue(any(x.atoms[0].target_kind == "condition" for x in local))
+        self.assertGreaterEqual(len(local_ops), 4)
+        self.assertGreaterEqual(len(structural_ops), 4)
+
     def test_semantic_recombination_and_lns_make_reconstructable_multiedit_jumps(self):
         from tools.bkg4_search.edit_search.emitters import RecombinationEmitter, LargeNeighborhoodEmitter
         p = parent2()
@@ -91,6 +110,26 @@ class EditSearchEmitterTests(unittest.TestCase):
         self.assertTrue(any(x.program_length >= 2 for x in xs))
         self.assertLessEqual(max(x.program_length for x in xs), 3)
         self.assertGreater(len({x.child_semantic_id for x in xs}), 12)
+
+    def test_mcts_exact_quality_changes_branch_preference_and_missing_quality_explores(self):
+        from tools.bkg4_search.edit_search.emitters import EmitterContext, EvolvabilityMCTSEmitter
+        from tools.bkg4_search.edit_search.schema import EditProgram
+        from tools.edit_corpus.candidates import generate_typed_candidates
+        p = parent2(); rows = self.context().context_rows; seed = 31
+        base = EmitterContext.from_observations(ROUTES, rows, generation_depth=4)
+        first = generate_typed_candidates(p, base.rows_for_parent(p), n=12, seed=seed + 1009, route_ids=ROUTES)[0]
+        known = EditProgram.build(p, (first.action,), ROUTES, emitter="probe", seed=1).reconstruct(p, ROUTES)
+        emitter = EvolvabilityMCTSEmitter(max_depth=3)
+        none = emitter.propose(p, n=12, seed=seed, context=base)
+        high = emitter.propose(p, n=12, seed=seed, context=EmitterContext.from_observations(ROUTES, rows, generation_depth=4, quality_by_state={known.semantic_id(): 20.0}))
+        low = emitter.propose(p, n=12, seed=seed, context=EmitterContext.from_observations(ROUTES, rows, generation_depth=4, quality_by_state={known.semantic_id(): -20.0}))
+        self.assertTrue(none and high and low)
+        self.assertEqual(none[0].child_semantic_id, known.semantic_id())
+        self.assertEqual(high[0].child_semantic_id, known.semantic_id())
+        self.assertEqual(low[0].child_semantic_id, known.semantic_id())
+        self.assertNotEqual([x.child_semantic_id for x in high], [x.child_semantic_id for x in low])
+        self.assertNotEqual([x.program_length for x in high], [x.program_length for x in low])
+        self.assertGreater(len({x.child_semantic_id for x in none}), 8)
 
     def test_motif_emitter_reinstantiates_template_against_compatible_future_parent(self):
         from tools.bkg4_search.edit_search.emitters import EmitterContext, MotifEmitter

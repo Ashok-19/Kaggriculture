@@ -31,7 +31,7 @@ def _quantile(values: Sequence[int], q: float) -> int:
     return int(round(xs[lo] * (1.0 - w) + xs[hi] * w))
 
 
-def _expanded_context_rows(rows: Iterable[Mapping[str, Any]]) -> tuple[dict[str, Any], ...]:
+def _expanded_context_rows(rows: Iterable[Mapping[str, Any]], escalation_level: int = 0) -> tuple[dict[str, Any], ...]:
     """Convert legal observed-state samples into deterministic threshold neighborhoods."""
     grouped: dict[tuple[str, int], list[int]] = {}
     for raw in rows:
@@ -55,10 +55,15 @@ def _expanded_context_rows(rows: Iterable[Mapping[str, Any]]) -> tuple[dict[str,
     }
     for (feature, index), vals in sorted(grouped.items()):
         candidates = set(vals)
-        candidates.update(_quantile(vals, q) for q in (0.0, 0.10, 0.25, 0.5, 0.75, 0.90, 1.0))
+        quantiles = (0.0, 0.10, 0.25, 0.5, 0.75, 0.90, 1.0)
+        if int(escalation_level) >= 1:
+            quantiles += (0.05, 0.15, 0.35, 0.65, 0.85, 0.95)
+        candidates.update(_quantile(vals, q) for q in quantiles)
         for v in list(candidates):
             step = max(1, abs(int(v)) // 20)
             candidates.update((int(v) - 1, int(v) + 1, int(v) - step, int(v) + step))
+            if int(escalation_level) >= 1:
+                candidates.update((int(v) - 2 * step, int(v) + 2 * step, int(v) - 4 * step, int(v) + 4 * step))
         candidates.update(meaningful.get(feature, ()))
         for value in sorted(candidates):
             try:
@@ -102,7 +107,7 @@ class EmitterContext:
             donor.validate(routes)
         return cls(
             route_ids=routes,
-            context_rows=_expanded_context_rows(rows),
+            context_rows=_expanded_context_rows(rows, escalation_level),
             donor_genomes=tuple(donor_genomes),
             motifs=tuple(dict(x) for x in motifs),
             generation_depth=max(1, int(generation_depth)),
@@ -117,7 +122,7 @@ class EmitterContext:
         for rule in parent.rules:
             for c in rule.conditions:
                 rows.append({"feature": c.feature, "index": c.index, "value": c.value})
-        return _expanded_context_rows(rows)
+        return _expanded_context_rows(rows, self.escalation_level)
 
 
 class SearchEmitter:
@@ -126,13 +131,60 @@ class SearchEmitter:
     def propose(self, parent: ModuleGenome, *, n: int, seed: int, context: EmitterContext) -> list[EditProgram]:
         raise NotImplementedError
 
+    def _wide_local_programs(self, parent: ModuleGenome, *, seed: int, context: EmitterContext, allowed: set[str] | frozenset[str] | None) -> list[EditProgram]:
+        if context.escalation_level < 1:
+            return []
+        permit = lambda op: allowed is None or op in allowed
+        actions: list[EditAction] = []
+        if permit("CHANGE_WINDOW"):
+            far = 719 if parent.prefix_step < 360 else 0
+            if far != parent.prefix_step:
+                actions.append(EditAction("CHANGE_WINDOW", 0, prefix_step=far))
+            other = 0 if far == 719 else 719
+            if other != parent.prefix_step:
+                actions.append(EditAction("CHANGE_WINDOW", 0, prefix_step=other))
+        refs = node_refs(parent)
+        if permit("CHANGE_THRESHOLD"):
+            for ti, ref in enumerate(refs):
+                if ref is None or ref.kind != "condition":
+                    continue
+                old = parent.rules[ref.rule_index].conditions[ref.condition_index]
+                radius = max(4, abs(int(old.value)) // 2, 32)
+                for delta in (-2 * radius, -radius, radius, 2 * radius):
+                    value = max(-(1 << 31), min((1 << 31) - 1, int(old.value) + delta))
+                    if value != old.value:
+                        actions.append(EditAction("CHANGE_THRESHOLD", ti, feature=old.feature, cmp=old.cmp, index=old.index, value=value))
+        if permit("CHANGE_ROUTE") and len(context.route_ids) > 1:
+            for ti, ref in enumerate(refs):
+                if ref is None or ref.kind != "rule":
+                    continue
+                old = parent.rules[ref.rule_index].route
+                alternatives = [r for r in context.route_ids if r != old]
+                if alternatives:
+                    actions.append(EditAction("CHANGE_ROUTE", ti, route=alternatives[-1]))
+        out: list[EditProgram] = []
+        seen: set[str] = set()
+        for i, action in enumerate(actions):
+            try:
+                program = EditProgram.build(parent, (action,), context.route_ids, emitter=self.name, seed=int(seed) + 500_000 + i,
+                    generation_depth=context.generation_depth, parent_program_id=context.parent_program_id, run_id=context.run_id)
+            except ValueError:
+                continue
+            if program.child_semantic_id not in seen:
+                seen.add(program.child_semantic_id); out.append(program)
+        return out
+
     def _one_step(self, parent: ModuleGenome, *, n: int, seed: int, context: EmitterContext, allowed: set[str] | frozenset[str] | None = None) -> list[EditProgram]:
         if n <= 0:
             return []
+        # Recursive search often allocates only one or two slots to a given
+        # emitter/parent pair. Generate a bounded coverage pool first so those
+        # slots are not permanently captured by the first alphabetic operation.
+        family_floor = max(24, (len(allowed) if allowed is not None else len(OP_INDEX)) * 8)
         raw = generate_typed_candidates(
             parent,
             context.rows_for_parent(parent),
-            n=max(n, min(4096, n * 3)),
+            n=max(n, min(4096, max(n * 3, family_floor))),
             seed=int(seed),
             route_ids=context.route_ids,
         )
@@ -142,8 +194,38 @@ class SearchEmitter:
             x.action.operation, int(x.action.target_node), str(x.action.feature), str(x.action.cmp),
             int(x.action.index), int(x.action.value), int(x.action.route), int(x.action.priority), int(x.action.prefix_step), x.edit_id,
         ))
+        refs = node_refs(parent)
+        groups: dict[tuple[str, str], list[Any]] = {}
+        for row in raw:
+            ref = refs[int(row.action.target_node)] if 0 <= int(row.action.target_node) < len(refs) else None
+            key = (str(row.action.operation), str(ref.kind if ref is not None else "unknown"))
+            groups.setdefault(key, []).append(row)
+        group_keys = sorted(groups)
+        if group_keys:
+            parent_offset = int(parent.semantic_id()[:8], 16)
+            rotate = (int(seed) + parent_offset) % len(group_keys)
+            group_keys = group_keys[rotate:] + group_keys[:rotate]
+            balanced_raw = []
+            depth = 0
+            while True:
+                added = False
+                for key in group_keys:
+                    rows = groups[key]
+                    if depth < len(rows):
+                        balanced_raw.append(rows[depth]); added = True
+                if not added:
+                    break
+                depth += 1
+            raw = balanced_raw
         out: list[EditProgram] = []
         seen: set[str] = set()
+        wide = self._wide_local_programs(parent, seed=seed, context=context, allowed=allowed)
+        # Level 1 is a real regime change: reserve deterministic slots for farther
+        # thresholds/windows/routes while retaining the ordinary local neighborhood.
+        for program in wide[:max(1, min(len(wide), max(1, n // 4)))] if wide else ():
+            if program.child_semantic_id not in seen:
+                seen.add(program.child_semantic_id); out.append(program)
+                if len(out) >= n: return out
         for i, row in enumerate(raw):
             try:
                 program = EditProgram.build(

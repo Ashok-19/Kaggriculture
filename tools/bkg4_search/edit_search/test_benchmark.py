@@ -104,6 +104,19 @@ class EditSearchBenchmarkTests(unittest.TestCase):
             report["proposers"]["fixed_mutation"]["parent_rule_count_coverage"],
         )
 
+    def test_equal_budget_benchmark_enforces_same_root_parent_for_every_arm(self):
+        from tools.bkg4_search.edit_search.benchmark import benchmark_proposers
+        root = ModuleGenome(37, ())
+        with tempfile.TemporaryDirectory() as td:
+            report = benchmark_proposers(root_genome=root, route_ids=ROUTES, observations=OBS, panel=bank().rows,
+                evaluator=DeterministicExactOracle(), candidate_budget=16, seed=101, work_dir=Path(td))
+        self.assertTrue(report["same_root_parent"])
+        self.assertEqual(set(report["arm_root_semantic_ids"].values()), {root.semantic_id()})
+        self.assertTrue(report["root_truth_shared"])
+        for row in report["proposers"].values():
+            self.assertIn("source_parent_count", row)
+            self.assertIn("new_loss_rate", row)
+
     def test_anti_saturation_records_trajectories_and_real_escalation(self):
         from tools.bkg4_search.edit_search.benchmark import run_anti_saturation
 

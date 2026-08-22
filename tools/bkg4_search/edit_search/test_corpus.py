@@ -5,6 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import pyarrow as pa
 import pyarrow.parquet as pq
 
 from tools.bkg4_search.bonsai_editformer.actor_grammar import EditAction
@@ -72,11 +73,108 @@ class EditSearchCorpusTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             root=Path(td);profile,bank,archive,program,pair=self.fixture(root);out=root/"corpus"
             store=SearchCorpusStore.create(out,profile=profile,case_bank=bank,archive=archive);store.append_exact(generation=1,archive=archive,program_pairs={program.program_id:pair})
-            p=out/"shards/labels_g000001.parquet";rows=pq.read_table(p).to_pylist();rows[0]["margin_delta"]+=1
-            import pyarrow as pa
-            pq.write_table(pa.Table.from_pylist(rows),p)
+            p=out/"shards/labels_g000001.parquet";table=pq.read_table(p);rows=table.to_pylist();rows[0]["margin_delta"]+=1
+            pq.write_table(pa.Table.from_pylist(rows,schema=table.schema),p)
             with self.assertRaisesRegex(ValueError,"label recomputation"):
                 validate_export(out)
 
+
+    def test_uint64_trace_hashes_and_seed_round_trip_bit_exactly(self):
+        from tools.bkg4_search.edit_search.corpus import SearchCorpusStore, validate_export
+        from tools.bkg4_search.edit_search.fitness import PairEvaluation
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td);profile,bank,archive,program,_=self.fixture(root);out=root/"corpus"
+            source=archive.genome(program.source_parent_semantic_id);child=archive.genome(program.child_semantic_id)
+            max_u64=(1<<64)-1; hi=(1<<63)+12345
+            pair=PairEvaluation.from_states(ev(source.semantic_id(),[-10,100],[max_u64,hi]),ev(child.semantic_id(),[5,120],[hi,max_u64]),protected={"c0":True,"c1":True})
+            store=SearchCorpusStore.create(out,profile=profile,case_bank=bank,archive=archive);store.append_exact(generation=1,archive=archive,program_pairs={program.program_id:pair})
+            table=pq.read_table(out/"shards/labels_g000001.parquet")
+            self.assertEqual(table.schema.field("parent_action_trace_hash").type,pa.uint64())
+            self.assertEqual(table.schema.field("candidate_action_trace_hash").type,pa.uint64())
+            self.assertEqual(table.column("parent_action_trace_hash").to_pylist(),[max_u64,hi])
+            self.assertEqual(table.column("candidate_action_trace_hash").to_pylist(),[hi,max_u64])
+            self.assertEqual(pq.read_table(out/"cases.parquet").schema.field("prov_seed").type,pa.uint64())
+            self.assertEqual(validate_export(out)["labels"],2)
+
+    def test_empty_and_orphan_corpus_layouts_fail_closed(self):
+        from tools.bkg4_search.edit_search.corpus import SearchCorpusStore, validate_export
+        for orphan_name in (None,"programs_g000001.parquet","labels_g000001.parquet"):
+            with self.subTest(orphan=orphan_name), tempfile.TemporaryDirectory() as td:
+                root=Path(td);profile,bank,archive,_,_=self.fixture(root);out=root/"corpus"
+                SearchCorpusStore.create(out,profile=profile,case_bank=bank,archive=archive)
+                if orphan_name:
+                    pq.write_table(pa.table({"x":[1]}),out/"shards"/orphan_name)
+                with self.assertRaises(ValueError):
+                    validate_export(out)
+
+    def test_manifest_referencing_missing_shard_fails_closed(self):
+        from tools.bkg4_search.edit_search.corpus import SearchCorpusStore, validate_export
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td);profile,bank,archive,program,pair=self.fixture(root);out=root/"corpus"
+            store=SearchCorpusStore.create(out,profile=profile,case_bank=bank,archive=archive);store.append_exact(generation=1,archive=archive,program_pairs={program.program_id:pair})
+            (out/"shards/labels_g000001.parquet").unlink()
+            with self.assertRaises(ValueError): validate_export(out)
+
+    def test_failed_generation_transaction_rolls_back_and_retry_is_exactly_once(self):
+        from unittest.mock import patch
+        import tools.bkg4_search.edit_search.corpus as corpus_mod
+        from tools.bkg4_search.bonsai_editformer.actor_grammar import EditAction
+        from tools.bkg4_search.edit_search.corpus import SearchCorpusStore, validate_export
+        from tools.bkg4_search.edit_search.fitness import PairEvaluation
+        from tools.bkg4_search.edit_search.schema import EditProgram
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td);profile,bank,archive,p1,pair1=self.fixture(root);out=root/"corpus"
+            store=SearchCorpusStore.create(out,profile=profile,case_bank=bank,archive=archive);store.append_exact(generation=1,archive=archive,program_pairs={p1.program_id:pair1})
+            base=archive.genome(archive.root_semantic_id);p2=EditProgram.build(base,(EditAction("CHANGE_WINDOW",0,prefix_step=333),),ROUTES,emitter="systematic",seed=4,generation_depth=2,run_id="run-1")
+            child=p2.reconstruct(base,ROUTES);archive.add_program(p2,child)
+            pair2=PairEvaluation.from_states(ev(base.semantic_id(),[-10,100],[5,6]),ev(child.semantic_id(),[-8,110],[7,8]),protected={"c0":True,"c1":True})
+            original=corpus_mod._write_rows
+            def fail_labels(path,rows,*args,**kwargs):
+                if "g000002" in str(path) and "label" in Path(path).name:
+                    raise RuntimeError("injected label write failure")
+                return original(path,rows,*args,**kwargs)
+            with patch.object(corpus_mod,"_write_rows",side_effect=fail_labels):
+                with self.assertRaisesRegex(RuntimeError,"injected"):
+                    store.append_exact(generation=2,archive=archive,program_pairs={p2.program_id:pair2})
+            self.assertFalse((out/"shards/programs_g000002.parquet").exists())
+            self.assertFalse((out/"shards/labels_g000002.parquet").exists())
+            self.assertEqual(validate_export(out)["programs"],1)
+            store.append_exact(generation=2,archive=archive,program_pairs={p2.program_id:pair2})
+            self.assertEqual(validate_export(out)["programs"],2)
+            with self.assertRaises(ValueError):
+                store.append_exact(generation=2,archive=archive,program_pairs={p2.program_id:pair2})
+
+    def test_validator_recomputes_all_persisted_aggregates_and_category(self):
+        from tools.bkg4_search.edit_search.corpus import SearchCorpusStore, validate_export
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td);profile,bank,archive,program,pair=self.fixture(root);out=root/"corpus"
+            store=SearchCorpusStore.create(out,profile=profile,case_bank=bank,archive=archive);store.append_exact(generation=1,archive=archive,program_pairs={program.program_id:pair})
+            p=out/"shards/programs_g000001.parquet";rows=pq.read_table(p).to_pylist()
+            for field,bad in (("l2w_count",999),("strict_safe",False),("sample_category","hard_negative"),("mean_margin_delta",123456.0)):
+                with self.subTest(field=field):
+                    tampered=[dict(x) for x in rows];tampered[0][field]=bad;pq.write_table(pa.Table.from_pylist(tampered,schema=pq.read_table(p).schema),p)
+                    with self.assertRaises(ValueError): validate_export(out)
+                    pq.write_table(pa.Table.from_pylist(rows,schema=pq.read_table(p).schema),p)
+
+    def test_model_feature_contract_is_allowlisted_and_nested_future_truth_is_rejected(self):
+        from tools.bkg4_search.edit_search.corpus import SearchCorpusStore, validate_export
+        bad_features=("candidate_margin","strict_safe","screening_rank","screening_mean_delta","w2l_count","l2w_count","search_emitter","prov_seed","prov_team_name")
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td);profile,bank,archive,program,pair=self.fixture(root);out=root/"corpus"
+            store=SearchCorpusStore.create(out,profile=profile,case_bank=bank,archive=archive);store.append_exact(generation=1,archive=archive,program_pairs={program.program_id:pair})
+            manifest_path=out/"corpus_manifest.json";original=json.loads(manifest_path.read_text())
+            for field in bad_features:
+                with self.subTest(declared=field):
+                    obj=json.loads(json.dumps(original));obj["model_feature_columns"].append(field);manifest_path.write_text(json.dumps(obj))
+                    with self.assertRaises(ValueError): validate_export(out)
+            manifest_path.write_text(json.dumps(original))
+            cases_path=out/"cases.parquet";case_table=pq.read_table(cases_path);case_rows=case_table.to_pylist()
+            for field in bad_features:
+                with self.subTest(nested=field):
+                    rows=[dict(x) for x in case_rows];ctx=json.loads(rows[0]["model_context_json"]);ctx["nested"]={field:1};rows[0]["model_context_json"]=json.dumps(ctx)
+                    pq.write_table(pa.Table.from_pylist(rows,schema=case_table.schema),cases_path)
+                    with self.assertRaises(ValueError): validate_export(out)
+            pq.write_table(pa.Table.from_pylist(case_rows,schema=case_table.schema),cases_path)
+            self.assertEqual(validate_export(out)["programs"],1)
 
 if __name__=="__main__":unittest.main(verbosity=2)

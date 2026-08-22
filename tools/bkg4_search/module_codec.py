@@ -128,7 +128,13 @@ class ModuleGenome:
         return hashlib.sha256(b"BKG4-MODULE-GENOME\0" + raw).hexdigest()
 
 
-def distill_module(genome: ModuleGenome, route_ids: Sequence[int], provenance: Dict[str, Any] | None = None) -> Dict[str, Any]:
+def distill_module(
+    genome: ModuleGenome,
+    route_ids: Sequence[int],
+    provenance: Dict[str, Any] | None = None,
+    *,
+    route_slot: str = ROUTE_SLOT,
+) -> Dict[str, Any]:
     """Distill one compact genome into ordinary BKG4 schema-4 nodes.
 
     The module can only change the frozen controller route BB. Failure of every
@@ -138,7 +144,7 @@ def distill_module(genome: ModuleGenome, route_ids: Sequence[int], provenance: D
     rules: List[Dict[str, Any]] = []
     for i, rule in enumerate(genome.rules):
         children = [c.node() for c in rule.conditions]
-        children.append({"type": "SetBlackboard", "slot": ROUTE_SLOT, "value": int(rule.route)})
+        children.append({"type": "SetBlackboard", "slot": str(route_slot), "value": int(rule.route)})
         rules.append({
             "type": "Sequence",
             "name": f"route_rule_{i}",
@@ -157,6 +163,7 @@ def distill_module(genome: ModuleGenome, route_ids: Sequence[int], provenance: D
     body["provenance"] = {
         "genome_id": genome.semantic_id(),
         "grammar": "portable_route_selector_v1",
+        "route_slot": str(route_slot),
         **(provenance or {}),
     }
     return body

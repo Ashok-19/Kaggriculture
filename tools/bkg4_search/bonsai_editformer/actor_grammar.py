@@ -191,20 +191,26 @@ def denormalize_value(feature: str, value_norm: float) -> int:
 
 
 def _condition(feature: str, cmp: str, index: int, value: int) -> ConditionGene:
-    if feature == "SHOP_SEEN":
-        value = 1
-    c = ConditionGene(feature, cmp, legal_index(feature, index), int(value))
+    # Canonical semantic inputs are validated, never clipped/normalized. Neural adapters
+    # may normalize numeric tensors before constructing an EditAction, but apply_edit is
+    # the authoritative typed boundary and must reject malformed actions.
+    if feature == "SHOP_SEEN" and int(value) != 1:
+        raise ValueError("SHOP_SEEN canonical predicate value must be 1")
+    c = ConditionGene(str(feature), str(cmp), int(index), int(value))
     c.validate()
     return c
 
 
 def _new_conditions(a: EditAction) -> tuple[ConditionGene, ...]:
+    count = int(a.condition_count)
+    if not 1 <= count <= 2:
+        raise ValueError("edit condition_count must be 1..2")
     out = [_condition(a.feature, a.cmp, a.index, a.value)]
-    if int(a.condition_count) >= 2:
+    if count == 2:
         c2 = _condition(a.feature2, a.cmp2, a.index2, a.value2)
         if c2 != out[0]:
             out.append(c2)
-    return tuple(out[:2])
+    return tuple(out)
 
 
 def apply_edit(parent: ModuleGenome, action: EditAction, route_ids: Sequence[int]) -> ModuleGenome:
@@ -243,6 +249,8 @@ def apply_edit(parent: ModuleGenome, action: EditAction, route_ids: Sequence[int
         rules[ri] = RuleGene(tuple(conds), rule.route)
     elif op == "CHANGE_THRESHOLD":
         ri, ci = ref.rule_index, ref.condition_index; rule = rules[ri]; conds = list(rule.conditions); old = conds[ci]
+        if (str(action.feature), str(action.cmp), int(action.index)) != (old.feature, old.cmp, old.index):
+            raise ValueError("threshold edit predicate identity must match its target")
         conds[ci] = _condition(old.feature, old.cmp, old.index, action.value)
         if conds[ci] == old:
             raise ValueError("threshold edit is a no-op")
@@ -253,12 +261,16 @@ def apply_edit(parent: ModuleGenome, action: EditAction, route_ids: Sequence[int
             raise ValueError("route edit is a no-op")
         rules[ri] = RuleGene(rule.conditions, route)
     elif op == "CHANGE_PRIORITY":
-        ri = ref.rule_index; new_pos = max(0, min(len(rules) - 1, int(action.priority)))
+        ri = ref.rule_index; new_pos = int(action.priority)
+        if not 0 <= new_pos < len(rules):
+            raise ValueError("priority target out of range")
         if new_pos == ri:
             raise ValueError("priority edit is a no-op")
         rule = rules.pop(ri); rules.insert(new_pos, rule)
     elif op == "CHANGE_WINDOW":
-        prefix = max(0, min(719, int(action.prefix_step)))
+        prefix = int(action.prefix_step)
+        if not 0 <= prefix < 720:
+            raise ValueError("prefix_step out of range")
         if prefix == parent.prefix_step:
             raise ValueError("window edit is a no-op")
         out = ModuleGenome(prefix, tuple(rules)); out.validate(route_ids); return out

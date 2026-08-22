@@ -393,12 +393,16 @@ def build_edit_plan(
     seed_parent_count: int = 4,
     candidates_per_parent: int = 64,
     route_ids: Sequence[int] = DEFAULT_ROUTE_IDS,
+    root_overlay: ModuleGenome | None = None,
 ) -> dict[str, list[dict[str, Any]]]:
     context = sorted(
         (dict(x) for x in context_rows),
         key=lambda x: (str(x.get("feature", "")), int(x.get("index", 0)), int(x.get("value", 0))),
     )
-    base_overlay = ModuleGenome(prefix_step=216, rules=())
+    # Historical callers retain prefix=216. Benchmark callers may inject the exact
+    # common semantic root without changing corpus-builder production defaults.
+    base_overlay = ModuleGenome(prefix_step=216, rules=()) if root_overlay is None else root_overlay
+    base_overlay.validate(route_ids)
     seed_candidates = generate_typed_candidates(
         base_overlay, context, n=max(16, int(seed_parent_count) * 8), seed=int(seed), route_ids=route_ids
     )

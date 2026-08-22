@@ -29,6 +29,8 @@ class CaseRecord:
     def __post_init__(self) -> None:
         if self.seat not in (0, 1):
             raise ValueError("case seat must be 0 or 1")
+        if not 0 <= int(self.seed) < (1 << 64):
+            raise ValueError("case seed must fit evaluator uint64")
         payload = json.loads(self.model_context_json or "{}")
         if not isinstance(payload, dict):
             raise ValueError("model_context_json must contain an object")

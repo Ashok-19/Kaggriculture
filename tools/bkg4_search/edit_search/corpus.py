@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
+import shutil
 from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any, Mapping
@@ -11,7 +13,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 
 from tools.bkg4_search.module_codec import genome_from_json
-from tools.edit_corpus.corpus import assert_model_payload_safe, canonical_json, stable_identity
+from tools.edit_corpus.corpus import assert_model_payload_safe, canonical_json, derive_case_label, derive_edit_labels, stable_identity
 
 from . import CORPUS_SCHEMA_VERSION, EDIT_PROGRAM_SCHEMA_VERSION, GRAMMAR_ID
 from .archive import SearchArchive, behavior_descriptor, structural_descriptor
@@ -32,10 +34,89 @@ PROGRAM_MODEL_FEATURE_COLUMNS = (
     "edit_program_json",
 )
 
+_MODEL_CONTEXT_KEYS = frozenset({"context_schema", "seat", "probe_steps", "frame_width", "registry_width"})
 
-def _write_rows(path: Path, rows: list[dict[str, Any]]) -> None:
+
+def _f(name: str, typ: pa.DataType) -> pa.Field:
+    return pa.field(name, typ, nullable=False)
+
+
+BASE_SCHEMA = pa.schema([
+    _f("base_id", pa.string()), _f("combined_agent_identity", pa.string()), _f("controller_semantic_hash", pa.string()),
+    _f("bkg4_abi", pa.uint16()), _f("feature_registry", pa.uint16()), _f("route_ids", pa.list_(pa.uint16())),
+    _f("controller_structure_json", pa.string()),
+])
+CASE_SCHEMA = pa.schema([
+    _f("case_id", pa.string()), _f("seat", pa.int8()), _f("model_context_json", pa.string()), _f("baseline_margin", pa.int64()),
+    _f("context_probe_steps", pa.list_(pa.int16())), _f("public_context_width", pa.int32()), _f("public_context_registry_width", pa.int32()),
+    _f("public_context_values", pa.list_(pa.int64())), _f("protected", pa.bool_()), _f("prov_seed", pa.uint64()),
+    _f("prov_family", pa.string()), _f("prov_role", pa.string()), _f("prov_tape_path", pa.string()), _f("prov_own_history", pa.bool_()),
+])
+PARENT_SCHEMA = pa.schema([
+    _f("parent_id", pa.string()), _f("base_id", pa.string()), _f("overlay_semantic_id", pa.string()),
+    _f("overlay_genome_json", pa.string()), _f("overlay_prefix_step", pa.uint16()), _f("overlay_rule_count", pa.uint8()),
+])
+PROGRAM_SCHEMA = pa.schema([
+    _f("program_id", pa.string()), _f("base_id", pa.string()), _f("parent_id", pa.string()), _f("child_parent_id", pa.string()),
+    _f("parent_overlay_semantic_id", pa.string()), _f("child_overlay_semantic_id", pa.string()),
+    _f("parent_genome_json", pa.string()), _f("child_genome_json", pa.string()), _f("edit_program_json", pa.string()),
+    _f("operations_json", pa.string()), _f("targets_json", pa.string()), _f("program_length", pa.uint16()), _f("generation_depth", pa.int32()),
+    _f("parent_rule_count", pa.uint8()), _f("child_rule_count", pa.uint8()), _f("parent_prefix_step", pa.uint16()), _f("child_prefix_step", pa.uint16()),
+    _f("sample_category", pa.string()), _f("strict_safe", pa.bool_()), _f("exact_noop", pa.bool_()), _f("behavior_changing", pa.bool_()),
+    _f("l2w_count", pa.int32()), _f("w2l_count", pa.int32()), _f("new_loss_count", pa.int32()), _f("severe_regression_count", pa.int32()),
+    _f("losses_before", pa.int32()), _f("losses_after", pa.int32()), _f("fragile_wins_before", pa.int32()), _f("fragile_wins_after", pa.int32()),
+    _f("worst_candidate_margin", pa.int64()), _f("worst_protected_win_delta", pa.int64()), _f("mean_margin_delta", pa.float64()),
+    _f("action_change_total", pa.int64()), _f("activation_total", pa.int64()), _f("label_count", pa.int32()),
+    _f("exact_program_group", pa.string()), _f("parent_family_group", pa.string()), _f("parent_structural_group", pa.string()),
+    _f("child_semantic_group", pa.string()), _f("action_skeleton_group", pa.string()), _f("operation_target_group", pa.string()),
+    _f("lineage_group", pa.string()), _f("run_temporal_group", pa.string()), _f("search_emitter", pa.string()), _f("search_seed", pa.int64()),
+    _f("search_run_id", pa.string()), _f("search_generation", pa.int32()), _f("search_structural_descriptor_json", pa.string()),
+    _f("search_behavior_descriptor_json", pa.string()),
+])
+LABEL_SCHEMA = pa.schema([
+    _f("baseline_margin", pa.int64()), _f("candidate_margin", pa.int64()), _f("margin_delta", pa.int64()),
+    _f("baseline_outcome", pa.string()), _f("candidate_outcome", pa.string()), _f("l2w", pa.bool_()), _f("w2l", pa.bool_()), _f("new_loss", pa.bool_()),
+    _f("protected", pa.bool_()), _f("action_changes", pa.uint16()), _f("activations", pa.uint16()),
+    _f("parent_action_trace_hash", pa.uint64()), _f("candidate_action_trace_hash", pa.uint64()), _f("action_trace_equal", pa.bool_()),
+    _f("behavior_changing", pa.bool_()), _f("case_id", pa.string()), _f("parent_action_changes_from_base", pa.uint16()),
+    _f("candidate_action_changes_from_base", pa.uint16()), _f("parent_activations", pa.uint16()), _f("candidate_activations", pa.uint16()),
+    _f("program_id", pa.string()), _f("edit_id", pa.string()), _f("parent_overlay_semantic_id", pa.string()),
+    _f("child_overlay_semantic_id", pa.string()), _f("search_generation", pa.int32()),
+])
+
+
+def _validate_model_context(payload: Any) -> None:
+    if not isinstance(payload, dict):
+        raise ValueError("model_context_json must encode an object")
+    unknown = set(payload) - _MODEL_CONTEXT_KEYS
+    if unknown:
+        raise ValueError(f"unknown/non-pre-outcome model context keys: {sorted(unknown)}")
+    if "context_schema" in payload and not isinstance(payload["context_schema"], str):
+        raise ValueError("context_schema must be a string")
+    if "seat" in payload and (type(payload["seat"]) is not int or payload["seat"] not in (0, 1)):
+        raise ValueError("model context seat must be 0 or 1")
+    for key in ("frame_width", "registry_width"):
+        if key in payload and (type(payload[key]) is not int or int(payload[key]) < 0):
+            raise ValueError(f"{key} must be a non-negative integer")
+    if "probe_steps" in payload:
+        steps = payload["probe_steps"]
+        if not isinstance(steps, list) or any(type(x) is not int or not 0 <= x < 720 for x in steps):
+            raise ValueError("probe_steps must be legal public step integers")
+
+
+def _table(rows: list[dict[str, Any]], schema: pa.Schema) -> pa.Table:
+    table = pa.Table.from_pylist(rows, schema=schema)
+    if not table.schema.equals(schema, check_metadata=False):
+        raise ValueError("Arrow schema drift")
+    for field in schema:
+        if not field.nullable and table[field.name].null_count:
+            raise ValueError(f"non-null corpus field contains nulls: {field.name}")
+    return table
+
+
+def _write_rows(path: Path, rows: list[dict[str, Any]], schema: pa.Schema) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    pq.write_table(pa.Table.from_pylist(rows), path, compression="zstd")
+    pq.write_table(_table(rows, schema), path, compression="zstd")
 
 
 def _read_rows(path: Path) -> list[dict[str, Any]]:
@@ -93,8 +174,7 @@ def _lineage_root(program: EditProgram, archive: SearchArchive) -> str:
     return current.program_id
 
 
-def _sample_category(pair: PairEvaluation) -> str:
-    a = pair.aggregate
+def _sample_category_from_aggregate(a: Mapping[str, Any]) -> str:
     behavior = bool(a["behavior_changing"])
     safe = bool(a["strict_safe"])
     useful = behavior and (int(a["l2w_count"]) > 0 or float(a["mean_margin_delta"]) > 0.0)
@@ -110,6 +190,11 @@ def _sample_category(pair: PairEvaluation) -> str:
         return "boundary"
     return "novel_diverse"
 
+
+
+
+def _sample_category(pair: PairEvaluation) -> str:
+    return _sample_category_from_aggregate(pair.certified_aggregate())
 
 def _parent_id(base_identity: str, semantic_id: str) -> str:
     return stable_identity("BKG4-EDIT-SEARCH-PARENT-V1", str(base_identity), str(semantic_id))
@@ -152,10 +237,14 @@ class SearchCorpusStore:
             "route_ids": list(profile.route_ids),
             "controller_structure_json": canonical_json(controller_structure),
         }]
-        _write_rows(root / "base_structures.parquet", base_rows)
+        _write_rows(root / "base_structures.parquet", base_rows, BASE_SCHEMA)
         case_rows: list[dict[str, Any]] = []
         for case in sorted(case_bank.rows, key=lambda x: x.case_id):
-            assert_model_payload_safe(json.loads(case.model_context_json))
+            model_context = json.loads(case.model_context_json)
+            assert_model_payload_safe(model_context)
+            _validate_model_context(model_context)
+            if not 0 <= int(case.seed) < (1 << 64):
+                raise ValueError(f"case seed is outside uint64 ABI range: {case.case_id}")
             if not case.context_probe_steps or case.public_context_width <= 0 or case.public_context_registry_width <= 0:
                 raise ValueError(f"ranker corpus case lacks public context: {case.case_id}")
             case_rows.append({
@@ -174,7 +263,7 @@ class SearchCorpusStore:
                 "prov_tape_path": case.tape_path,
                 "prov_own_history": case.own_history,
             })
-        _write_rows(root / "cases.parquet", case_rows)
+        _write_rows(root / "cases.parquet", case_rows, CASE_SCHEMA)
         store = cls(root)
         store._write_parents(archive)
         manifest = {
@@ -208,7 +297,8 @@ class SearchCorpusStore:
         tmp.write_text(json.dumps(dict(manifest), indent=2, sort_keys=True) + "\n", encoding="utf-8")
         tmp.replace(target)
 
-    def _write_parents(self, archive: SearchArchive) -> None:
+    @staticmethod
+    def _parent_rows(archive: SearchArchive) -> list[dict[str, Any]]:
         rows = []
         for sid in sorted(archive.states):
             genome = archive.genome(sid)
@@ -220,7 +310,46 @@ class SearchCorpusStore:
                 "overlay_prefix_step": genome.prefix_step,
                 "overlay_rule_count": len(genome.rules),
             })
-        _write_rows(self.root / "parents.parquet", rows)
+        return rows
+
+    def _write_parents(self, archive: SearchArchive, path: Path | None = None) -> None:
+        _write_rows(self.root / "parents.parquet" if path is None else path, self._parent_rows(archive), PARENT_SCHEMA)
+
+    @staticmethod
+    def _assert_parquet_schema(path: Path, expected: pa.Schema) -> None:
+        if not path.is_file():
+            raise ValueError(f"missing corpus parquet: {path}")
+        actual = pq.ParquetFile(path).schema_arrow
+        if not actual.equals(expected, check_metadata=False):
+            raise ValueError(f"corpus Arrow schema mismatch for {path.name}: {actual} != {expected}")
+
+    def _validate_layout(self, manifest: Mapping[str, Any], *, require_generation: bool) -> None:
+        for name, schema in (("base_structures.parquet", BASE_SCHEMA), ("cases.parquet", CASE_SCHEMA), ("parents.parquet", PARENT_SCHEMA)):
+            self._assert_parquet_schema(self.root / name, schema)
+        generations = list(manifest.get("generations", ()))
+        if require_generation and not generations:
+            raise ValueError("corpus has no complete exported generation")
+        expected_programs: set[str] = set()
+        expected_labels: set[str] = set()
+        seen_generations: set[int] = set()
+        for row in generations:
+            generation = int(row["generation"])
+            if generation < 0 or generation in seen_generations:
+                raise ValueError("duplicate/invalid corpus generation in manifest")
+            seen_generations.add(generation)
+            expected_p = f"shards/programs_g{generation:06d}.parquet"
+            expected_l = f"shards/labels_g{generation:06d}.parquet"
+            if str(row.get("program_shard")) != expected_p or str(row.get("label_shard")) != expected_l:
+                raise ValueError("manifest generation shard names are non-canonical")
+            expected_programs.add(expected_p); expected_labels.add(expected_l)
+        actual_programs = {str(p.relative_to(self.root)) for p in (self.root / "shards").glob("programs_g*.parquet")}
+        actual_labels = {str(p.relative_to(self.root)) for p in (self.root / "shards").glob("labels_g*.parquet")}
+        if actual_programs != expected_programs:
+            raise ValueError(f"orphan/missing program shards: actual={sorted(actual_programs)} expected={sorted(expected_programs)}")
+        if actual_labels != expected_labels:
+            raise ValueError(f"orphan/missing label shards: actual={sorted(actual_labels)} expected={sorted(expected_labels)}")
+        for rel in sorted(expected_programs): self._assert_parquet_schema(self.root / rel, PROGRAM_SCHEMA)
+        for rel in sorted(expected_labels): self._assert_parquet_schema(self.root / rel, LABEL_SCHEMA)
 
     def append_exact(
         self,
@@ -232,6 +361,7 @@ class SearchCorpusStore:
         manifest = self._manifest()
         if int(manifest["corpus_schema_version"]) != CORPUS_SCHEMA_VERSION or str(manifest["grammar_id"]) != GRAMMAR_ID:
             raise ValueError("incompatible search corpus schema/grammar")
+        self._validate_layout(manifest, require_generation=False)
         generation = int(generation)
         if generation < 0:
             raise ValueError("generation must be non-negative")
@@ -239,7 +369,9 @@ class SearchCorpusStore:
             raise ValueError(f"generation already exported: {generation}")
         if not program_pairs:
             raise ValueError("cannot export an empty exact generation")
-        case_ids = {str(x["case_id"]) for x in _read_rows(self.root / "cases.parquet")}
+
+        case_rows_by_id = {str(x["case_id"]): x for x in _read_rows(self.root / "cases.parquet")}
+        case_ids = set(case_rows_by_id)
         program_rows: list[dict[str, Any]] = []
         label_rows: list[dict[str, Any]] = []
         for program_id in sorted(program_pairs):
@@ -256,6 +388,11 @@ class SearchCorpusStore:
             missing = {str(r["case_id"]) for r in pair.case_rows} - case_ids
             if missing:
                 raise ValueError(f"exact labels reference unknown cases: {sorted(missing)[:5]}")
+            for raw in pair.case_rows:
+                cid = str(raw["case_id"])
+                if bool(raw.get("protected", True)) != bool(case_rows_by_id[cid]["protected"]):
+                    raise ValueError(f"exact label protected flag differs from case bank: {cid}")
+            agg = pair.certified_aggregate()
             skeleton = _action_skeleton(program)
             op_target = _operation_target(program)
             program_rows.append({
@@ -276,18 +413,23 @@ class SearchCorpusStore:
                 "child_rule_count": len(child.rules),
                 "parent_prefix_step": source.prefix_step,
                 "child_prefix_step": child.prefix_step,
-                "sample_category": _sample_category(pair),
-                "strict_safe": bool(pair.aggregate["strict_safe"]),
-                "exact_noop": bool(pair.aggregate["exact_noop"]),
-                "behavior_changing": bool(pair.aggregate["behavior_changing"]),
-                "l2w_count": int(pair.aggregate["l2w_count"]),
-                "w2l_count": int(pair.aggregate["w2l_count"]),
-                "severe_regression_count": int(pair.aggregate["severe_regression_count"]),
-                "losses_after": int(pair.aggregate["losses_after"]),
-                "fragile_wins_after": int(pair.aggregate["fragile_wins_after"]),
-                "worst_candidate_margin": int(pair.aggregate["worst_candidate_margin"]),
-                "worst_protected_win_delta": int(pair.aggregate["worst_protected_win_delta"]),
-                "mean_margin_delta": float(pair.aggregate["mean_margin_delta"]),
+                "sample_category": _sample_category_from_aggregate(agg),
+                "strict_safe": bool(agg["strict_safe"]),
+                "exact_noop": bool(agg["exact_noop"]),
+                "behavior_changing": bool(agg["behavior_changing"]),
+                "l2w_count": int(agg["l2w_count"]),
+                "w2l_count": int(agg["w2l_count"]),
+                "new_loss_count": int(agg["new_loss_count"]),
+                "severe_regression_count": int(agg["severe_regression_count"]),
+                "losses_before": int(agg["losses_before"]),
+                "losses_after": int(agg["losses_after"]),
+                "fragile_wins_before": int(agg["fragile_wins_before"]),
+                "fragile_wins_after": int(agg["fragile_wins_after"]),
+                "worst_candidate_margin": int(agg["worst_candidate_margin"]),
+                "worst_protected_win_delta": int(agg["worst_protected_win_delta"]),
+                "mean_margin_delta": float(agg["mean_margin_delta"]),
+                "action_change_total": int(agg["action_change_total"]),
+                "activation_total": int(agg["activation_total"]),
                 "label_count": len(pair.case_rows),
                 "exact_program_group": program.program_id,
                 "parent_family_group": program.source_parent_semantic_id,
@@ -318,64 +460,175 @@ class SearchCorpusStore:
                 row["child_overlay_semantic_id"] = program.child_semantic_id
                 row["search_generation"] = generation
                 label_rows.append(row)
+
+        label_rows.sort(key=lambda r: (str(r["program_id"]), str(r["case_id"])))
         pair_keys = [(str(r["program_id"]), str(r["case_id"])) for r in label_rows]
         if len(set(pair_keys)) != len(pair_keys):
             raise ValueError("duplicate edit-program × case relation")
-        program_path = self.root / "shards" / f"programs_g{generation:06d}.parquet"
-        label_path = self.root / "shards" / f"labels_g{generation:06d}.parquet"
-        _write_rows(program_path, program_rows)
-        _write_rows(label_path, sorted(label_rows, key=lambda r: (str(r["program_id"]), str(r["case_id"]))))
-        self._write_parents(archive)
-        manifest["generations"].append({
-            "generation": generation,
-            "program_shard": str(program_path.relative_to(self.root)),
-            "label_shard": str(label_path.relative_to(self.root)),
-            "program_rows": len(program_rows),
-            "label_rows": len(label_rows),
-        })
-        manifest["generations"].sort(key=lambda x: int(x["generation"]))
-        manifest["counts"] = {
-            "programs": sum(int(x["program_rows"]) for x in manifest["generations"]),
-            "labels": sum(int(x["label_rows"]) for x in manifest["generations"]),
-            "parents": len(archive.states),
-            "cases": len(case_ids),
-        }
-        self._write_manifest(manifest)
+
+        shards = self.root / "shards"
+        program_path = shards / f"programs_g{generation:06d}.parquet"
+        label_path = shards / f"labels_g{generation:06d}.parquet"
+        if program_path.exists() or label_path.exists():
+            raise ValueError(f"orphan/canonical files already exist for generation {generation}")
+        staging = shards / ".staging" / f"g{generation:06d}"
+        if staging.exists():
+            shutil.rmtree(staging)
+        staging.mkdir(parents=True, exist_ok=True)
+        staged_program = staging / program_path.name
+        staged_label = staging / label_path.name
+        staged_parents = staging / "parents.parquet"
+        prior_parents = staging / "parents.previous.parquet"
+        parent_path = self.root / "parents.parquet"
+        parent_replaced = False
+        published_program = False
+        published_label = False
+        try:
+            _write_rows(staged_program, program_rows, PROGRAM_SCHEMA)
+            _write_rows(staged_label, label_rows, LABEL_SCHEMA)
+            self._write_parents(archive, staged_parents)
+            self._assert_parquet_schema(staged_program, PROGRAM_SCHEMA)
+            self._assert_parquet_schema(staged_label, LABEL_SCHEMA)
+            self._assert_parquet_schema(staged_parents, PARENT_SCHEMA)
+            if pq.ParquetFile(staged_program).metadata.num_rows != len(program_rows) or pq.ParquetFile(staged_label).metadata.num_rows != len(label_rows):
+                raise ValueError("staged generation row-count mismatch")
+
+            next_manifest = json.loads(json.dumps(manifest))
+            next_manifest["generations"].append({
+                "generation": generation,
+                "program_shard": str(program_path.relative_to(self.root)),
+                "label_shard": str(label_path.relative_to(self.root)),
+                "program_rows": len(program_rows),
+                "label_rows": len(label_rows),
+            })
+            next_manifest["generations"].sort(key=lambda x: int(x["generation"]))
+            next_manifest["counts"] = {
+                "programs": sum(int(x["program_rows"]) for x in next_manifest["generations"]),
+                "labels": sum(int(x["label_rows"]) for x in next_manifest["generations"]),
+                "parents": len(archive.states),
+                "cases": len(case_ids),
+            }
+
+            shutil.copy2(parent_path, prior_parents)
+            os.replace(staged_program, program_path); published_program = True
+            os.replace(staged_label, label_path); published_label = True
+            os.replace(staged_parents, parent_path); parent_replaced = True
+            # Manifest is the commit record and is published LAST.
+            self._write_manifest(next_manifest)
+        except Exception:
+            if published_program:
+                program_path.unlink(missing_ok=True)
+            if published_label:
+                label_path.unlink(missing_ok=True)
+            if parent_replaced and prior_parents.exists():
+                os.replace(prior_parents, parent_path)
+            shutil.rmtree(staging, ignore_errors=True)
+            raise
+        shutil.rmtree(staging, ignore_errors=True)
+        self._validate_layout(self._manifest(), require_generation=True)
         return {"programs": len(program_rows), "labels": len(label_rows)}
 
 
 def _validate_model_boundary(manifest: Mapping[str, Any], case_rows: list[dict[str, Any]]) -> None:
-    features = [str(x) for x in manifest.get("model_feature_columns", ())]
-    program_features = [str(x) for x in manifest.get("program_model_feature_columns", ())]
-    forbidden = [x for x in features + program_features if x.startswith("prov_") or x.startswith("search_")]
-    if forbidden:
-        raise ValueError(f"provenance/search leakage in model feature columns: {forbidden}")
+    features = tuple(str(x) for x in manifest.get("model_feature_columns", ()))
+    program_features = tuple(str(x) for x in manifest.get("program_model_feature_columns", ()))
+    if features != MODEL_FEATURE_COLUMNS:
+        raise ValueError(f"model feature contract mismatch/unknown feature: {features}")
+    if program_features != PROGRAM_MODEL_FEATURE_COLUMNS:
+        raise ValueError(f"program model feature contract mismatch/unknown feature: {program_features}")
     for row in case_rows:
-        assert_model_payload_safe(json.loads(str(row["model_context_json"])))
+        payload = json.loads(str(row["model_context_json"]))
+        assert_model_payload_safe(payload)
+        _validate_model_context(payload)
+
+
+def _authoritative_case_row(row: Mapping[str, Any]) -> dict[str, Any]:
+    expected = derive_case_label(
+        int(row["baseline_margin"]), int(row["candidate_margin"]), int(row["action_changes"]), int(row["activations"]),
+        protected=bool(row["protected"]), parent_action_trace_hash=int(row["parent_action_trace_hash"]),
+        candidate_action_trace_hash=int(row["candidate_action_trace_hash"]),
+    )
+    expected["case_id"] = str(row["case_id"])
+    return expected
+
+
+def _validate_case_label(row: Mapping[str, Any], case_row: Mapping[str, Any]) -> dict[str, Any]:
+    expected = _authoritative_case_row(row)
+    for key in ("baseline_margin", "candidate_margin", "margin_delta", "baseline_outcome", "candidate_outcome", "l2w", "w2l", "new_loss", "protected", "action_changes", "activations", "parent_action_trace_hash", "candidate_action_trace_hash", "action_trace_equal", "behavior_changing"):
+        if row[key] != expected[key]:
+            raise ValueError(f"label recomputation mismatch: {key}")
+    if int(row["candidate_action_changes_from_base"]) != int(row["action_changes"]):
+        raise ValueError("label recomputation mismatch: candidate_action_changes_from_base")
+    if int(row["candidate_activations"]) != int(row["activations"]):
+        raise ValueError("label recomputation mismatch: candidate_activations")
+    if bool(row["protected"]) != bool(case_row["protected"]):
+        raise ValueError("label protected flag differs from authoritative case row")
+    return expected
+
+
+def _validate_program_aggregate(program_row: Mapping[str, Any], exact_rows: list[dict[str, Any]]) -> None:
+    aggregate = derive_edit_labels(exact_rows)
+    checks = {
+        "l2w_count": int(aggregate["l2w_count"]), "w2l_count": int(aggregate["w2l_count"]),
+        "new_loss_count": int(aggregate["new_loss_count"]), "severe_regression_count": int(aggregate["severe_regression_count"]),
+        "losses_before": int(aggregate["losses_before"]), "losses_after": int(aggregate["losses_after"]),
+        "fragile_wins_before": int(aggregate["fragile_wins_before"]), "fragile_wins_after": int(aggregate["fragile_wins_after"]),
+        "worst_candidate_margin": int(aggregate["worst_candidate_margin"]),
+        "worst_protected_win_delta": int(aggregate["worst_protected_win_delta"]),
+        "action_change_total": int(aggregate["action_change_total"]), "activation_total": int(aggregate["activation_total"]),
+        "strict_safe": bool(aggregate["strict_safe"]), "exact_noop": bool(aggregate["exact_noop"]),
+        "behavior_changing": bool(aggregate["behavior_changing"]), "sample_category": _sample_category_from_aggregate(aggregate),
+    }
+    for key, expected in checks.items():
+        if program_row[key] != expected:
+            raise ValueError(f"program aggregate recomputation mismatch: {key}")
+    if not np.isclose(float(program_row["mean_margin_delta"]), float(aggregate["mean_margin_delta"]), rtol=0.0, atol=1e-12):
+        raise ValueError("program aggregate recomputation mismatch: mean_margin_delta")
+    if int(program_row["label_count"]) != len(exact_rows):
+        raise ValueError("program aggregate recomputation mismatch: label_count")
 
 
 def validate_export(path: str | Path) -> dict[str, Any]:
     root = Path(path)
-    manifest = json.loads((root / "corpus_manifest.json").read_text(encoding="utf-8"))
+    manifest_path = root / "corpus_manifest.json"
+    if not manifest_path.is_file():
+        raise ValueError("missing corpus manifest")
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     if int(manifest.get("corpus_schema_version", -1)) != CORPUS_SCHEMA_VERSION:
         raise ValueError("incompatible corpus schema")
     if int(manifest.get("edit_program_schema_version", -1)) != EDIT_PROGRAM_SCHEMA_VERSION or str(manifest.get("grammar_id")) != GRAMMAR_ID:
         raise ValueError("incompatible edit-program schema/grammar")
+    store = SearchCorpusStore(root)
+    store._validate_layout(manifest, require_generation=True)
     route_ids = tuple(int(x) for x in manifest["route_ids"])
+    if not route_ids or len(set(route_ids)) != len(route_ids):
+        raise ValueError("invalid corpus route identity")
+
+    base_rows = _read_rows(root / "base_structures.parquet")
+    if len(base_rows) != 1 or str(base_rows[0]["base_id"]) != str(manifest["base_identity"]):
+        raise ValueError("base-structure/manifest identity mismatch")
+    if tuple(int(x) for x in base_rows[0]["route_ids"]) != route_ids:
+        raise ValueError("base-structure route identity mismatch")
+
     case_rows = _read_rows(root / "cases.parquet")
-    case_ids = {str(x["case_id"]) for x in case_rows}
-    if len(case_ids) != len(case_rows):
-        raise ValueError("duplicate case identity in corpus")
+    case_by_id = {str(x["case_id"]): x for x in case_rows}
+    if len(case_by_id) != len(case_rows) or not case_rows:
+        raise ValueError("duplicate/empty case identity in corpus")
     _validate_model_boundary(manifest, case_rows)
+    for row in case_rows:
+        if not 0 <= int(row["prov_seed"]) < (1 << 64):
+            raise ValueError("case provenance seed outside uint64 range")
+
     parents_rows = _read_rows(root / "parents.parquet")
     parents: dict[str, Any] = {}
     for row in parents_rows:
+        if str(row["base_id"]) != str(manifest["base_identity"]):
+            raise ValueError("parent/base identity mismatch")
         genome_obj = json.loads(str(row["overlay_genome_json"]))
-        genome = genome_from_json(genome_obj)
-        genome.validate(route_ids)
+        genome = genome_from_json(genome_obj); genome.validate(route_ids)
         sid = genome.semantic_id()
-        if sid != str(row["overlay_semantic_id"]):
-            raise ValueError("parent semantic identity mismatch")
+        if sid != str(row["overlay_semantic_id"]) or str(row["parent_id"]) != _parent_id(str(manifest["base_identity"]), sid):
+            raise ValueError("parent semantic/canonical identity mismatch")
         if sid in parents:
             raise ValueError("duplicate parent semantic identity")
         parents[sid] = genome
@@ -384,36 +637,38 @@ def validate_export(path: str | Path) -> dict[str, Any]:
 
     all_programs: dict[str, dict[str, Any]] = {}
     expected_labels: dict[str, int] = {}
+    program_generation: dict[str, int] = {}
     operation_counts: Counter[str] = Counter()
     target_counts: Counter[str] = Counter()
     action_groups: Counter[str] = Counter()
     child_groups: Counter[str] = Counter()
     reconstruction_failures = 0
-    generation_rows = manifest.get("generations", [])
+    generation_rows = list(manifest.get("generations", ()))
     for gen in generation_rows:
+        generation = int(gen["generation"])
         ppath = root / str(gen["program_shard"])
         lpath = root / str(gen["label_shard"])
-        if not ppath.is_file() or not lpath.is_file():
-            raise ValueError("manifest references missing corpus shard")
-        pf = pq.ParquetFile(ppath)
-        lf = pq.ParquetFile(lpath)
+        pf = pq.ParquetFile(ppath); lf = pq.ParquetFile(lpath)
         if pf.metadata.num_rows != int(gen["program_rows"]) or lf.metadata.num_rows != int(gen["label_rows"]):
             raise ValueError("manifest/parquet row-count mismatch")
         for row in pf.read().to_pylist():
             pid = str(row["program_id"])
             if pid in all_programs:
                 raise ValueError("duplicate exact program identity across corpus shards")
-            source_sid = str(row["parent_overlay_semantic_id"])
-            child_sid = str(row["child_overlay_semantic_id"])
+            if int(row["search_generation"]) != generation:
+                raise ValueError("program search-generation mismatch")
+            source_sid = str(row["parent_overlay_semantic_id"]); child_sid = str(row["child_overlay_semantic_id"])
             if source_sid not in parents or child_sid not in parents:
                 raise ValueError("program references unresolved parent/child state")
+            if str(row["parent_id"]) != _parent_id(str(manifest["base_identity"]), source_sid) or str(row["child_parent_id"]) != _parent_id(str(manifest["base_identity"]), child_sid):
+                raise ValueError("program parent identity group mismatch")
             program = EditProgram.from_dict(json.loads(str(row["edit_program_json"])))
             try:
                 rebuilt = program.reconstruct(parents[source_sid], route_ids)
             except Exception as exc:
                 reconstruction_failures += 1
                 raise ValueError(f"program reconstruction failure: {pid}: {exc}") from exc
-            if rebuilt.semantic_id() != child_sid or child_sid != program.child_semantic_id or source_sid != program.source_parent_semantic_id:
+            if pid != program.program_id or rebuilt.semantic_id() != child_sid or child_sid != program.child_semantic_id or source_sid != program.source_parent_semantic_id:
                 reconstruction_failures += 1
                 raise ValueError("program reconstruction child/source identity mismatch")
             if canonical_json(rebuilt.canonical()) != canonical_json(json.loads(str(row["child_genome_json"]))):
@@ -421,77 +676,67 @@ def validate_export(path: str | Path) -> dict[str, Any]:
                 raise ValueError("recorded child genome differs from reconstructed child")
             if canonical_json(parents[source_sid].canonical()) != canonical_json(json.loads(str(row["parent_genome_json"]))):
                 raise ValueError("recorded parent genome differs from resolved parent")
-            all_programs[pid] = row
-            expected_labels[pid] = int(row["label_count"])
+            if str(row["exact_program_group"]) != pid or str(row["child_semantic_group"]) != child_sid or str(row["parent_family_group"]) != source_sid:
+                raise ValueError("program split-group identity mismatch")
+            all_programs[pid] = row; expected_labels[pid] = int(row["label_count"]); program_generation[pid] = generation
             for atom in program.atoms:
-                operation_counts[atom.operation] += 1
-                target_counts[atom.target_kind] += 1
-            action_groups[str(row["action_skeleton_group"])] += 1
-            child_groups[child_sid] += 1
+                operation_counts[atom.operation] += 1; target_counts[atom.target_kind] += 1
+            action_groups[str(row["action_skeleton_group"])] += 1; child_groups[child_sid] += 1
+
+    if not all_programs:
+        raise ValueError("corpus has no exact programs")
 
     observed_labels: Counter[str] = Counter()
     total_labels = 0
     for gen in generation_rows:
-        lpath = root / str(gen["label_shard"])
+        generation = int(gen["generation"]); lpath = root / str(gen["label_shard"])
         last_key: tuple[str, str] | None = None
+        current_pid: str | None = None
+        current_exact_rows: list[dict[str, Any]] = []
+        def finish_program() -> None:
+            nonlocal current_pid, current_exact_rows
+            if current_pid is None:
+                return
+            _validate_program_aggregate(all_programs[current_pid], current_exact_rows)
+            current_pid = None; current_exact_rows = []
         for batch in pq.ParquetFile(lpath).iter_batches(batch_size=65536):
-            d = batch.to_pydict()
-            pids = [str(x) for x in d["program_id"]]
-            cids = [str(x) for x in d["case_id"]]
-            for pid, cid in zip(pids, cids):
-                key = (pid, cid)
+            for row in batch.to_pylist():
+                pid = str(row["program_id"]); cid = str(row["case_id"]); key = (pid, cid)
                 if last_key is not None and key <= last_key:
                     raise ValueError("duplicate or unsorted edit-program × case relation")
                 last_key = key
-                if pid not in all_programs:
-                    raise ValueError("label references unknown exact program")
-                if cid not in case_ids:
+                if pid not in all_programs or program_generation[pid] != generation:
+                    raise ValueError("label references unknown/wrong-generation exact program")
+                if cid not in case_by_id:
                     raise ValueError("label references unknown case")
-                observed_labels[pid] += 1
-            b = np.asarray(d["baseline_margin"], dtype=np.int64)
-            c = np.asarray(d["candidate_margin"], dtype=np.int64)
-            delta = np.asarray(d["margin_delta"], dtype=np.int64)
-            l2w = np.asarray(d["l2w"], dtype=bool)
-            w2l = np.asarray(d["w2l"], dtype=bool)
-            trace_equal = np.asarray(d["action_trace_equal"], dtype=bool)
-            behavior = np.asarray(d["behavior_changing"], dtype=bool)
-            ph = np.asarray(d["parent_action_trace_hash"], dtype=np.uint64)
-            ch = np.asarray(d["candidate_action_trace_hash"], dtype=np.uint64)
-            if not np.array_equal(delta, c - b):
-                raise ValueError("label recomputation mismatch: margin_delta")
-            if not np.array_equal(l2w, (b < 0) & (c > 0)):
-                raise ValueError("label recomputation mismatch: l2w")
-            if not np.array_equal(w2l, (b > 0) & (c <= 0)):
-                raise ValueError("label recomputation mismatch: w2l")
-            if not np.array_equal(trace_equal, ph == ch):
-                raise ValueError("label recomputation mismatch: action_trace_equal")
-            if not np.array_equal(behavior, (delta != 0) | (~trace_equal)):
-                raise ValueError("label recomputation mismatch: behavior_changing")
-            total_labels += len(pids)
+                if str(row["edit_id"]) != pid or int(row["search_generation"]) != generation:
+                    raise ValueError("label program/generation identity mismatch")
+                if str(row["parent_overlay_semantic_id"]) != str(all_programs[pid]["parent_overlay_semantic_id"]) or str(row["child_overlay_semantic_id"]) != str(all_programs[pid]["child_overlay_semantic_id"]):
+                    raise ValueError("label parent/child semantic identity mismatch")
+                if current_pid is not None and pid != current_pid:
+                    finish_program()
+                if current_pid is None:
+                    current_pid = pid
+                exact = _validate_case_label(row, case_by_id[cid])
+                current_exact_rows.append(exact); observed_labels[pid] += 1; total_labels += 1
+        finish_program()
+
     for pid, expected in expected_labels.items():
         if observed_labels[pid] != expected:
             raise ValueError(f"program label participation mismatch: {pid}: {observed_labels[pid]} != {expected}")
-    if total_labels != int(manifest["counts"]["labels"]) or len(all_programs) != int(manifest["counts"]["programs"]):
-        raise ValueError("manifest global counts disagree with validated corpus")
-    exact_duplicate_rate = 0.0
-    semantic_child_duplicate_rate = (
-        sum(max(0, n - 1) for n in child_groups.values()) / max(1, len(all_programs))
-    )
-    action_skeleton_duplicate_rate = (
-        sum(max(0, n - 1) for n in action_groups.values()) / max(1, len(all_programs))
-    )
+    counts = dict(manifest.get("counts") or {})
+    expected_global = {"programs": len(all_programs), "labels": total_labels, "parents": len(parents), "cases": len(case_by_id)}
+    if any(int(counts.get(k, -1)) != v for k, v in expected_global.items()):
+        raise ValueError(f"manifest global counts disagree with validated corpus: {counts} != {expected_global}")
+
+    semantic_child_duplicate_rate = sum(max(0, n - 1) for n in child_groups.values()) / max(1, len(all_programs))
+    action_skeleton_duplicate_rate = sum(max(0, n - 1) for n in action_groups.values()) / max(1, len(all_programs))
     return {
-        "programs": len(all_programs),
-        "labels": total_labels,
-        "cases": len(case_ids),
-        "parents": len(parents),
-        "reconstruction_failures": reconstruction_failures,
-        "referential_integrity_failures": 0,
-        "exact_program_duplicate_rate": exact_duplicate_rate,
-        "child_semantic_duplicate_rate": semantic_child_duplicate_rate,
-        "action_skeleton_duplicate_rate": action_skeleton_duplicate_rate,
-        "operation_counts": dict(sorted(operation_counts.items())),
-        "target_kind_counts": dict(sorted(target_counts.items())),
-        "model_feature_columns": list(manifest["model_feature_columns"]),
+        "programs": len(all_programs), "labels": total_labels, "cases": len(case_by_id), "parents": len(parents),
+        "generations": len(generation_rows), "reconstruction_failures": reconstruction_failures, "referential_integrity_failures": 0,
+        "exact_program_duplicate_rate": 0.0, "child_semantic_duplicate_rate": semantic_child_duplicate_rate,
+        "action_skeleton_duplicate_rate": action_skeleton_duplicate_rate, "operation_counts": dict(sorted(operation_counts.items())),
+        "target_kind_counts": dict(sorted(target_counts.items())), "model_feature_columns": list(manifest["model_feature_columns"]),
         "program_model_feature_columns": list(manifest["program_model_feature_columns"]),
+        "uint64_trace_schema": True, "complete_generation_layout": True, "aggregates_recomputed": True, "model_boundary_allowlisted": True,
     }

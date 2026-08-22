@@ -149,6 +149,20 @@ class StagnationMonitor:
             return EscalationEvent(self.level, True, _ESCALATION_REASONS.get(self.level, "expanded search regime"))
         return EscalationEvent(self.level, False, "healthy" if not self.is_stalled(signals) else "stagnation accumulating")
 
+    def to_dict(self) -> dict[str, int]:
+        return {"level": int(self.level), "stalled": int(self._stalled), "patience": int(self.patience), "max_level": int(self.max_level)}
+
+    @classmethod
+    def from_dict(cls, raw: Mapping[str, object]) -> "StagnationMonitor":
+        obj = {str(k): int(v) for k, v in raw.items()}
+        if set(obj) != {"level", "stalled", "patience", "max_level"}:
+            raise ValueError("invalid persisted stagnation state")
+        out = cls(patience=obj["patience"], max_level=obj["max_level"])
+        if obj["level"] < 0 or obj["level"] > out.max_level or obj["stalled"] < 0:
+            raise ValueError("invalid persisted stagnation values")
+        out.level = obj["level"]; out._stalled = obj["stalled"]
+        return out
+
 
 def lexicase_parent(evaluations: Mapping[str, StateEvaluation], *, seed: int, epsilon: int = 0) -> str:
     """Case-wise specialist parent selection; aggregate margin never replaces the case filters."""
@@ -165,6 +179,22 @@ def lexicase_parent(evaluations: Mapping[str, StateEvaluation], *, seed: int, ep
         survivors = [sid for sid in survivors if evaluations[sid].margins[ci] >= best - int(epsilon)]
         if len(survivors) <= 1: break
     return random.Random(int(seed) ^ 0x1E71CA5E).choice(sorted(survivors))
+
+def exact_state_quality_map(evaluations: Mapping[str, StateEvaluation]) -> dict[str, float]:
+    """Panel-local exact quality for MCTS/UCB; incompatible certifications are never mixed."""
+    if not evaluations:
+        return {}
+    ids = sorted(evaluations); first = evaluations[ids[0]]
+    if any(ev.panel_id != first.panel_id or ev.case_ids != first.case_ids for ev in evaluations.values()):
+        raise ValueError("exact state quality requires one aligned full-panel certification")
+    out: dict[str, float] = {}
+    for sid in ids:
+        margins = evaluations[sid].margins
+        losses = sum(int(x) < 0 for x in margins)
+        ties = sum(int(x) == 0 for x in margins)
+        worst = min(margins); mean = sum(margins) / len(margins)
+        out[sid] = -4.0 * losses - 0.25 * ties + math.tanh(worst / 5000.0) + 0.25 * math.tanh(mean / 5000.0)
+    return out
 
 
 class SearchEngine:
@@ -184,6 +214,31 @@ class SearchEngine:
         missing = set(_BASE_WEIGHTS) - set(self.emitters)
         if missing:
             raise ValueError(f"missing required search emitters: {sorted(missing)}")
+
+    @classmethod
+    def from_archive(cls, archive: SearchArchive, *, route_ids: Sequence[int] | None = None, emitters: Sequence[SearchEmitter] = DEFAULT_EMITTERS, scheduler: FixedEmitterScheduler | None = None) -> "SearchEngine":
+        routes = tuple(int(x) for x in (archive.route_ids if route_ids is None else route_ids))
+        if routes != tuple(archive.route_ids):
+            raise ValueError("resume route identity differs from archive")
+        monitor = StagnationMonitor.from_dict(archive.runtime_state.stagnation)
+        out = cls(route_ids=routes, emitters=emitters, scheduler=scheduler, stagnation=monitor)
+        out.last_proposal_stats = dict(archive.runtime_state.last_proposal_stats)
+        return out
+
+    def persist_runtime(self, archive: SearchArchive, *, generation: int | None = None, evaluated: bool = False) -> None:
+        archive.runtime_state.stagnation = self.stagnation.to_dict()
+        archive.runtime_state.last_proposal_stats = dict(self.last_proposal_stats)
+        if generation is not None:
+            g = int(generation)
+            if evaluated:
+                archive.runtime_state.last_evaluated_generation = max(archive.runtime_state.last_evaluated_generation, g)
+            else:
+                archive.runtime_state.last_proposed_generation = max(archive.runtime_state.last_proposed_generation, g)
+            snapshot = {"generation": g, **dict(self.last_proposal_stats)}
+            hist = archive.runtime_state.proposal_history
+            if not hist or hist[-1] != snapshot:
+                hist.append(snapshot)
+                del hist[:-64]
 
     @staticmethod
     def _state_depth(archive: SearchArchive, semantic_id: str) -> int:
@@ -227,6 +282,8 @@ class SearchEngine:
         seen_children = set(archive.states)
         seen_pairs: set[tuple[str, str]] = set()
         parent_evaluations = dict(parent_evaluations or {})
+        quality_by_state = exact_state_quality_map(parent_evaluations)
+        quality_panel_id = next(iter(parent_evaluations.values())).panel_id if parent_evaluations else None
         donors_all = {sid: archive.genome(sid) for sid in parent_ids}
         raw_emitted = 0
         duplicate_rejected = 0
@@ -259,6 +316,7 @@ class SearchEngine:
                 self.route_ids, observations, donor_genomes=donors, generation_depth=depth,
                 motifs=tuple(archive.motifs.values()), escalation_level=self.stagnation.level,
                 parent_program_id=self._lineage_program(archive, sid), run_id=archive.run_id,
+                quality_by_state=quality_by_state,
             )
 
         for emitter_index, (name, budget) in enumerate(allocations.items()):
@@ -327,7 +385,10 @@ class SearchEngine:
             "operation_count": len({a.operation for p in proposed for a in p.atoms}),
             "emitter_raw": dict(sorted(emitter_raw.items())),
             "emitter_unique": dict(sorted(emitter_unique.items())),
+            "quality_state_count": len(quality_by_state),
+            "quality_panel_id": quality_panel_id,
         }
+        self.persist_runtime(archive, generation=generation)
         return proposed
 
 
@@ -337,7 +398,7 @@ class SearchEngine:
         buckets: dict[str, list[EditProgram]] = {"exploitation": [], "boundary": [], "negative": [], "diversity": []}
         for program in programs:
             pair = root_pairs[program.program_id]
-            a = pair.aggregate
+            a = pair.certified_aggregate()
             useful = bool(a["strict_safe"]) and bool(a["behavior_changing"]) and (
                 int(a["l2w_count"]) > 0 or float(a["mean_margin_delta"]) > 0.0
             )
@@ -453,7 +514,7 @@ class SearchEngine:
             if program.program_id in finalist_ids:
                 considered = archive.consider(program, root_pair)
                 insertions += int(considered.production_inserted) + int(considered.exploration_inserted)
-                a = root_pair.aggregate
+                a = root_pair.certified_aggregate()
                 is_useful = bool(a["strict_safe"]) and bool(a["behavior_changing"]) and (int(a["l2w_count"]) > 0 or float(a["mean_margin_delta"]) > 0)
                 useful_safe += int(is_useful)
                 target_improvements += int(int(a["l2w_count"]) > 0)
@@ -465,13 +526,14 @@ class SearchEngine:
                 )
                 if is_useful:
                     archive.observe_motif(program, root_pair)
-            if bool(screen_root_pairs[program.program_id].aggregate["strict_safe"]):
+            if bool(screen_root_pairs[program.program_id].certified_aggregate()["strict_safe"]):
                 for row in root_pair.case_rows:
                     cid = str(row["case_id"])
-                    dangerous = bool(row["w2l"]) or (int(row["baseline_margin"]) > 0 and int(row["margin_delta"]) < -3000)
+                    new_loss = bool(row.get("new_loss", int(row["baseline_margin"]) >= 0 and int(row["candidate_margin"]) < 0))
+                    dangerous = new_loss or bool(row["w2l"]) or (int(row["baseline_margin"]) > 0 and int(row["margin_delta"]) < -3000)
                     if dangerous and cid not in screen_ids:
-                        severity = max(1, -int(row["candidate_margin"]) if bool(row["w2l"]) else -int(row["margin_delta"]))
-                        reason = "w2l" if bool(row["w2l"]) else "severe_regression"
+                        severity = max(1, -int(row["candidate_margin"]) if new_loss or bool(row["w2l"]) else -int(row["margin_delta"]))
+                        reason = "new_loss" if new_loss and not bool(row["w2l"]) else ("w2l" if bool(row["w2l"]) else "severe_regression")
                         panel_manager.add_hard_case(cid, severity=severity, reason=reason)
                         archive.record_counterexample(cid, reason=reason, severity=severity, panel_id=root_pair.panel_id)
                         counterexamples.add(cid)
@@ -480,13 +542,13 @@ class SearchEngine:
         if audit_all:
             useful_truth = {
                 pid for pid, pair in full_root_pairs.items()
-                if bool(pair.aggregate["strict_safe"]) and bool(pair.aggregate["behavior_changing"])
-                and (int(pair.aggregate["l2w_count"]) > 0 or float(pair.aggregate["mean_margin_delta"]) > 0)
+                if bool(pair.certified_aggregate()["strict_safe"]) and bool(pair.certified_aggregate()["behavior_changing"])
+                and (int(pair.certified_aggregate()["l2w_count"]) > 0 or float(pair.certified_aggregate()["mean_margin_delta"]) > 0)
             }
-            l2w_truth = {pid for pid, pair in full_root_pairs.items() if int(pair.aggregate["l2w_count"]) > 0}
+            l2w_truth = {pid for pid, pair in full_root_pairs.items() if int(pair.certified_aggregate()["l2w_count"]) > 0}
             danger_truth = {
                 pid for pid, pair in full_root_pairs.items()
-                if int(pair.aggregate["w2l_count"]) > 0 or int(pair.aggregate["severe_regression_count"]) > 0
+                if int(pair.certified_aggregate()["new_loss_count"]) > 0 or int(pair.certified_aggregate()["w2l_count"]) > 0 or int(pair.certified_aggregate()["severe_regression_count"]) > 0
             }
             stage_recall = panel_manager.stage_recall(
                 screened_program_ids=finalist_ids,
@@ -511,6 +573,7 @@ class SearchEngine:
                 "generation": int(generation), "level": event.level, "reason": event.reason,
                 "signals": signals.__dict__,
             })
+        self.persist_runtime(archive, generation=generation, evaluated=True)
         return RoundResult(
             generation=int(generation), screened_program_ids=tuple(p.program_id for p in programs),
             finalist_program_ids=tuple(p.program_id for p in finalists), screen_source_pairs=screen_source_pairs,

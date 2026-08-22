@@ -72,6 +72,7 @@ def _archive_summary(archive: SearchArchive) -> dict[str, Any]:
         "motifs": len(archive.motifs),
         "exact_state_certifications": sum(len(x) for x in archive.state_evaluations.values()),
         "escalation_events": len(archive.escalation_history),
+        "runtime_state": archive.runtime_state.to_dict(),
         "run_config": archive.run_config,
     }
 
@@ -92,6 +93,10 @@ def cmd_init(args) -> int:
     if args.motifs_from:
         previous = SearchArchive.load(args.motifs_from)
         archive.motifs = json.loads(json.dumps(previous.motifs))
+        # Motif semantics are portable; concrete source-program provenance belongs to
+        # the old parent/archive and must not create dangling references in the new archive.
+        for row in archive.motifs.values():
+            row["source_programs"] = []
     archive.save(args.archive)
     print(json.dumps(_archive_summary(archive), sort_keys=True))
     return 0
@@ -112,7 +117,7 @@ def cmd_resume(args) -> int:
 def cmd_propose(args) -> int:
     archive = SearchArchive.load(args.archive)
     observations = _load_observations(args.observations)
-    engine = SearchEngine(route_ids=archive.route_ids)
+    engine = SearchEngine.from_archive(archive, route_ids=archive.route_ids)
     programs = engine.propose_generation(
         archive, observations=observations, total=args.count, generation=args.generation, seed=args.seed,
     )
@@ -188,14 +193,23 @@ def cmd_search(args) -> int:
     corpus_root = Path(args.corpus)
     if (corpus_root / "corpus_manifest.json").is_file():
         corpus = SearchCorpusStore(corpus_root)
+        validation = validate_export(corpus_root)
         manifest = json.loads((corpus_root / "corpus_manifest.json").read_text())
         if str(manifest.get("base_identity")) != archive.base_identity:
             raise ValueError("existing exact corpus belongs to a different BKG4 parent")
         exported_generations = {int(x["generation"]) for x in manifest.get("generations", [])}
+        claimed = set(int(x) for x in archive.runtime_state.exported_generations)
+        if not claimed.issubset(exported_generations):
+            raise ValueError("archive claims exported generations missing from exact corpus")
+        for g in sorted(exported_generations): archive.mark_exported_generation(g)
+        if int(validation["generations"]) != len(exported_generations):
+            raise ValueError("validated generation ledger mismatch")
     else:
+        if archive.runtime_state.exported_generations:
+            raise ValueError("archive claims exported generations but exact corpus is missing")
         corpus = SearchCorpusStore.create(corpus_root, profile=profile, case_bank=bank, archive=archive)
         exported_generations = set()
-    engine = SearchEngine(route_ids=archive.route_ids)
+    engine = SearchEngine.from_archive(archive, route_ids=archive.route_ids)
     summaries = []
     for offset in range(int(args.rounds)):
         generation = int(args.start_generation) + offset
@@ -226,6 +240,8 @@ def cmd_search(args) -> int:
             audit_all=bool(args.audit_all),
         )
         corpus.append_exact(generation=generation, archive=archive, program_pairs=result.full_source_pairs)
+        archive.mark_exported_generation(generation)
+        exported_generations.add(generation)
         archive.run_config.update({
             "last_search_generation": generation,
             "candidates_per_round": int(args.candidates),
