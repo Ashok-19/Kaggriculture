@@ -66,6 +66,8 @@ class EditSearchArchiveTests(unittest.TestCase):
         program = EditProgram.build(p, (EditAction("CHANGE_WINDOW", 0, prefix_step=200),), ROUTES, emitter="random_typed", seed=9)
         archive = SearchArchive.new(root_genome=p, base_identity="base", route_ids=ROUTES, run_id="r1", master_seed=99)
         archive.add_program(program, program.reconstruct(p, ROUTES))
+        archive.bind_case_bank("bank-r1", ("c9",))
+        archive.register_panel("full", ("c9",))
         archive.record_counterexample("c9", reason="w2l", severity=10, panel_id="full")
         archive.record_counterexample("c9", reason="w2l", severity=10, panel_id="full")
         archive.note_emitter("random_typed", attempts=5, unique=4, archive_insertions=1, useful_safe=0)
@@ -89,6 +91,8 @@ class EditSearchArchiveTests(unittest.TestCase):
         archive.add_program(program, child)
         base = state_eval(p.semantic_id(), [100, -10], [1, 2])
         exact = state_eval(child.semantic_id(), [120, 5], [3, 4])
+        archive.bind_case_bank("bank-r2", ("c0", "c1"))
+        archive.register_panel("p", ("c0", "c1"))
         pair = PairEvaluation.from_states(base, exact)
         archive.consider(program, pair)
         archive.record_state_evaluation(base)
@@ -185,6 +189,83 @@ class EditSearchArchiveTests(unittest.TestCase):
             path.write_text(json.dumps(raw))
             with self.assertRaises(ValueError):
                 SearchArchive.load(path)
+
+    def test_archive_load_rejects_unknown_cases_and_invalid_panel_membership(self):
+        """Persisted certifications/hard cases must be referentially closed over one registered CaseBank."""
+        import json
+        from tools.bkg4_search.edit_search.archive import SearchArchive
+        p = root()
+        archive = SearchArchive.new(root_genome=p, base_identity="base", route_ids=ROUTES, run_id="case-reg", master_seed=1)
+        archive.bind_case_bank("bank-1", ("c0", "c1"))
+        archive.register_panel("p", ("c0", "c1"))
+        archive.record_state_evaluation(state_eval(p.semantic_id(), [10, 20]))
+        with tempfile.TemporaryDirectory() as td:
+            clean_path = Path(td) / "clean.json"
+            archive.save(clean_path)
+            base = json.loads(clean_path.read_text())
+            # Desired persisted registry contract. Current loader ignores this, which is the bug.
+            base["case_registry"] = {
+                "schema_version": 1,
+                "case_bank_identity": "bank-1",
+                "case_ids": ["c0", "c1"],
+                "panels": {"p": ["c0", "c1"]},
+            }
+            corruptions = []
+            ghost_cert = json.loads(json.dumps(base))
+            ghost_cert["state_evaluations"][p.semantic_id()]["p"]["case_ids"][0] = "ghost-case-id"
+            corruptions.append(("ghost certification", ghost_cert))
+            ghost_hard = json.loads(json.dumps(base))
+            ghost_hard["hard_cases"]["ghost-case-id"] = {"count": 1, "max_severity": 1, "reasons": ["new_loss"], "panels": ["p"]}
+            corruptions.append(("ghost hard case", ghost_hard))
+            wrong_panel = json.loads(json.dumps(base))
+            wrong_panel["case_registry"]["panels"]["p"] = ["c0"]
+            corruptions.append(("invalid panel membership", wrong_panel))
+            for label, raw in corruptions:
+                with self.subTest(label=label):
+                    path = Path(td) / (label.replace(" ", "_") + ".json")
+                    path.write_text(json.dumps(raw))
+                    with self.assertRaises(ValueError):
+                        SearchArchive.load(path)
+
+    def test_constrained_qd_separates_feasible_production_from_infeasible_repair(self):
+        from tools.bkg4_search.edit_search.archive import SearchArchive
+        from tools.bkg4_search.edit_search.fitness import PairEvaluation, StateEvaluation
+        p=root(); archive=SearchArchive.new(root_genome=p,base_identity="b",route_ids=ROUTES,run_id="r",master_seed=1)
+        self.assertTrue(hasattr(archive,"repair_niches"),"archive needs a dedicated infeasible repair population")
+        if not hasattr(archive,"repair_niches"): return
+        a=EditProgram.build(p,(EditAction("CHANGE_WINDOW",0,prefix_step=145),),ROUTES,emitter="systematic",seed=1)
+        b=EditProgram.build(p,(EditAction("CHANGE_WINDOW",0,prefix_step=146),),ROUTES,emitter="structural",seed=2)
+        archive.add_program(a,a.reconstruct(p,ROUTES)); archive.add_program(b,b.reconstruct(p,ROUTES))
+        root_eval=StateEvaluation(p.semantic_id(),"mixed",("loss","guard"),(-100,1000),(0,0),(0,0),(1,2))
+        near=StateEvaluation(a.child_semantic_id,"mixed",("loss","guard"),(50,-1),(1,1),(1,1),(3,4))
+        bad=StateEvaluation(b.child_semantic_id,"mixed",("loss","guard"),(50000,-9000),(1,1),(1,1),(5,6))
+        protected={"loss":False,"guard":True}
+        archive.consider(a,PairEvaluation.from_states(root_eval,near,protected=protected))
+        archive.consider(b,PairEvaluation.from_states(root_eval,bad,protected=protected))
+        self.assertEqual(len(archive.production_niches),0)
+        self.assertGreaterEqual(len(archive.repair_niches),1)
+        records=list(archive.repair_niches.values())
+        self.assertEqual(len(records),1)
+        self.assertEqual(records[0]["child_semantic_id"],a.child_semantic_id)
+        self.assertLess(records[0]["repair_key"][4],5000)
+
+    def test_root_feasibility_controls_production_even_when_edit_is_source_safe(self):
+        from tools.bkg4_search.edit_search.archive import SearchArchive
+        from tools.bkg4_search.edit_search.fitness import PairEvaluation, StateEvaluation
+        p=root(); archive=SearchArchive.new(root_genome=p,base_identity="b",route_ids=ROUTES,run_id="r",master_seed=1)
+        parent_prog=EditProgram.build(p,(EditAction("CHANGE_WINDOW",0,prefix_step=145),),ROUTES,emitter="seed",seed=1)
+        parent=parent_prog.reconstruct(p,ROUTES); archive.add_program(parent_prog,parent)
+        child_prog=EditProgram.build(parent,(EditAction("CHANGE_WINDOW",0,prefix_step=146),),ROUTES,emitter="local",seed=2,parent_program_id=parent_prog.program_id,generation_depth=2)
+        child=child_prog.reconstruct(parent,ROUTES); archive.add_program(child_prog,child)
+        root_eval=StateEvaluation(p.semantic_id(),"mixed",("guard","loss"),(100,-100),(0,0),(0,0),(1,2))
+        parent_eval=StateEvaluation(parent.semantic_id(),"mixed",("guard","loss"),(-10,-80),(1,1),(1,1),(3,4))
+        child_eval=StateEvaluation(child.semantic_id(),"mixed",("guard","loss"),(-1,10),(1,1),(1,1),(5,6))
+        protected={"guard":True,"loss":False}
+        source_pair=PairEvaluation.from_states(parent_eval,child_eval,protected=protected)
+        root_pair=PairEvaluation.from_states(root_eval,child_eval,protected=protected)
+        archive.consider(child_prog,root_pair,source_pair=source_pair)
+        self.assertFalse(any(x["child_semantic_id"]==child.semantic_id() for x in archive.production_niches.values()))
+        self.assertTrue(any(x["child_semantic_id"]==child.semantic_id() for x in archive.repair_niches.values()))
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

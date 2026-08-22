@@ -112,5 +112,11 @@ class EditSearchSchemaTests(unittest.TestCase):
             self.assertEqual(profile.controller_path, root / "controller.bkgc")
 
 
+    def test_format_breaking_hardening_uses_new_search_corpus_and_emitter_versions(self):
+        from tools.bkg4_search.edit_search import CORPUS_SCHEMA_VERSION, EMITTER_REGISTRY_VERSION, SEARCH_STATE_SCHEMA_VERSION
+        self.assertGreaterEqual(SEARCH_STATE_SCHEMA_VERSION, 3)
+        self.assertGreaterEqual(CORPUS_SCHEMA_VERSION, 3)
+        self.assertGreaterEqual(EMITTER_REGISTRY_VERSION, 3)
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

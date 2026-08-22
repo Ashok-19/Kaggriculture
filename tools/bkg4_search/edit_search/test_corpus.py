@@ -177,4 +177,72 @@ class EditSearchCorpusTests(unittest.TestCase):
             pq.write_table(pa.Table.from_pylist(case_rows,schema=case_table.schema),cases_path)
             self.assertEqual(validate_export(out)["programs"],1)
 
+    def test_committed_generation_carries_immutable_archive_transaction_identity(self):
+        """A corpus generation must be cryptographically tied to its matching post-evaluation archive state."""
+        from tools.bkg4_search.edit_search.corpus import SearchCorpusStore
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td);profile,bank,archive,program,pair=self.fixture(root);out=root/"corpus"
+            store=SearchCorpusStore.create(out,profile=profile,case_bank=bank,archive=archive)
+            archive.bind_case_bank(bank.identity(), ("c0", "c1"))
+            archive.register_panel("full", ("c0", "c1"))
+            archive.record_state_evaluation(ev(archive.root_semantic_id,[-10,100],[1,2]))
+            archive.record_state_evaluation(ev(program.child_semantic_id,[5,120],[3,4]))
+            store.append_exact(generation=1,archive=archive,program_pairs={program.program_id:pair})
+            manifest=json.loads((out/"corpus_manifest.json").read_text())
+            row=manifest["generations"][0]
+            self.assertIn("transaction_id", row)
+            self.assertIn("archive_digest", row)
+            self.assertTrue(str(row["transaction_id"]))
+            self.assertEqual(len(str(row["archive_digest"])),64)
+
+    def test_committed_corpus_recovers_stale_archive_from_matching_generation_snapshot(self):
+        from tools.bkg4_search.edit_search.corpus import SearchCorpusStore
+        from tools.bkg4_search.edit_search.archive import SearchArchive
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td);profile,bank,archive,program,pair=self.fixture(root);out=root/"corpus";archive_path=root/"search.json"
+            archive.bind_case_bank(bank.identity(), ("c0", "c1")); archive.register_panel("full", ("c0", "c1"))
+            archive.record_state_evaluation(ev(archive.root_semantic_id,[-10,100],[1,2]))
+            archive.record_state_evaluation(ev(program.child_semantic_id,[5,120],[3,4]))
+            stale=SearchArchive.new(root_genome=archive.genome(archive.root_semantic_id),base_identity=archive.base_identity,route_ids=ROUTES,run_id=archive.run_id,master_seed=archive.master_seed)
+            stale.bind_case_bank(bank.identity(), ("c0", "c1")); stale.save(archive_path)
+            store=SearchCorpusStore.create(out,profile=profile,case_bank=bank,archive=archive)
+            store.append_exact(generation=1,archive=archive,program_pairs={program.program_id:pair})
+            recover=getattr(store,"recover_archive",None)
+            self.assertIsNotNone(recover,"SearchCorpusStore must provide crash recovery for corpus/archive pairs")
+            result=recover(archive_path)
+            got=SearchArchive.load(archive_path); manifest=json.loads((out/"corpus_manifest.json").read_text()); tx=manifest["generations"][0]["transaction_id"]
+            self.assertEqual(got.runtime_state.exported_generations,[1])
+            self.assertEqual(got.runtime_state.generation_transactions,{1:tx})
+            self.assertIn(program.child_semantic_id,got.states)
+            self.assertEqual(got.state_evaluation(program.child_semantic_id,"full").margins,(5,120))
+            self.assertEqual(result["recovered_generations"],[1])
+
+    def test_prepared_uncommitted_transaction_is_rolled_back_on_recovery(self):
+        from unittest.mock import patch
+        import tools.bkg4_search.edit_search.corpus as corpus_mod
+        from tools.bkg4_search.edit_search.corpus import SearchCorpusStore
+        from tools.bkg4_search.edit_search.archive import SearchArchive
+        class SimulatedCrash(BaseException): pass
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td);profile,bank,archive,program,pair=self.fixture(root);out=root/"corpus";archive_path=root/"search.json"
+            archive.bind_case_bank(bank.identity(), ("c0", "c1")); archive.register_panel("full", ("c0", "c1")); archive.save(archive_path)
+            store=SearchCorpusStore.create(out,profile=profile,case_bank=bank,archive=archive)
+            original=store._write_manifest
+            def crash_before_manifest(manifest):
+                if manifest.get("generations"):
+                    raise SimulatedCrash()
+                return original(manifest)
+            with patch.object(store,"_write_manifest",side_effect=crash_before_manifest):
+                with self.assertRaises(SimulatedCrash):
+                    store.append_exact(generation=1,archive=archive,program_pairs={program.program_id:pair})
+            recover=getattr(store,"recover_archive",None)
+            self.assertIsNotNone(recover,"SearchCorpusStore must recover prepared crash artifacts")
+            result=recover(archive_path)
+            manifest=json.loads((out/"corpus_manifest.json").read_text())
+            self.assertEqual(manifest["generations"],[])
+            self.assertFalse((out/"shards/programs_g000001.parquet").exists())
+            self.assertFalse((out/"shards/labels_g000001.parquet").exists())
+            self.assertEqual(SearchArchive.load(archive_path).runtime_state.exported_generations,[])
+            self.assertIn(1,result["rolled_back_generations"])
+
 if __name__=="__main__":unittest.main(verbosity=2)

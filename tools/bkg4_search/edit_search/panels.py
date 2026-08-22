@@ -114,6 +114,8 @@ class CasePanelManager:
         random_anchor_fraction: float = 0.10,
         useful_recall_floor: float = 0.90,
         danger_recall_floor: float = 0.98,
+        production_mode: bool = False,
+        min_protected_fraction: float = 0.25,
     ):
         self.bank = bank
         self.fragile_margin = int(fragile_margin)
@@ -122,6 +124,21 @@ class CasePanelManager:
         self.useful_recall_floor = float(useful_recall_floor)
         self.danger_recall_floor = float(danger_recall_floor)
         self.hard_cases: dict[str, dict[str, Any]] = {}
+        self.production_mode = bool(production_mode)
+        self.min_protected_fraction = max(0.0, min(0.5, float(min_protected_fraction)))
+        if self.production_mode:
+            self._validate_production_bank()
+
+    def _validate_production_bank(self) -> None:
+        rows = self.bank.rows
+        losses = [r for r in rows if r.baseline_margin < 0]
+        protected_wins = [r for r in rows if r.protected and r.baseline_margin > 0]
+        fragile = [r for r in protected_wins if r.baseline_margin <= self.fragile_margin]
+        strong = [r for r in protected_wins if r.baseline_margin > self.fragile_margin]
+        if not losses or not protected_wins or not fragile or not strong:
+            raise ValueError("production CaseBank must contain losses, fragile protected wins, and strong protected wins")
+        if {r.seat for r in rows} != {0, 1} or len({r.family for r in rows}) < 2:
+            raise ValueError("production CaseBank must cover both seats and multiple strategy families")
 
     def add_hard_case(self, case_id: str, *, severity: int, reason: str) -> None:
         cid = str(case_id)
@@ -150,6 +167,18 @@ class CasePanelManager:
         for cid, meta in sorted(self.hard_cases.items(), key=lambda kv: (-int(kv[1]["severity"]), -int(kv[1]["count"]), kv[0])):
             if len(selected) >= n: break
             selected.append(self.bank.by_id[cid]); used.add(cid)
+        # Production screens reserve guard capacity before loss strata can crowd it out.
+        if self.production_mode and len(selected) < n:
+            reserve = min(n - len(selected), max(1, int(round(n * self.min_protected_fraction))))
+            wins = [r for r in self.bank if r.protected and r.baseline_margin > 0 and r.case_id not in used]
+            wins.sort(key=lambda r: (0 if r.baseline_margin <= self.fragile_margin else 1, r.baseline_margin, self._stable_random_key(seed, r.case_id), r.case_id))
+            guard_order: list[CaseRecord] = []
+            for seat in (0, 1):
+                row = next((r for r in wins if r.seat == seat and r.case_id not in {x.case_id for x in guard_order}), None)
+                if row is not None: guard_order.append(row)
+            guard_order.extend(r for r in wins if r.case_id not in {x.case_id for x in guard_order})
+            for row in guard_order[:reserve]:
+                selected.append(row); used.add(row.case_id)
         # Round-robin nonredundant strata: outcome bucket x seat x family.
         groups: dict[tuple[int, int, str], list[CaseRecord]] = {}
         for row in self.bank:
@@ -208,6 +237,29 @@ class CasePanelManager:
             "useful_recall": self._recall(selected, set(full_useful_ids)),
             "l2w_recall": self._recall(selected, set(full_l2w_ids)),
             "danger_recall": self._recall(selected, set(full_dangerous_ids)),
+        }
+
+    def stage_detection_recall(
+        self,
+        *,
+        screen_useful_ids: set[str],
+        screen_l2w_ids: set[str],
+        screen_dangerous_ids: set[str],
+        full_useful_ids: set[str],
+        full_l2w_ids: set[str],
+        full_dangerous_ids: set[str],
+        finalist_ids: set[str],
+    ) -> dict[str, float]:
+        """Measure Stage-1 classification recall separately from bounded Stage-2 sampling recall."""
+        finalists = set(finalist_ids)
+        full_useful = set(full_useful_ids); full_l2w = set(full_l2w_ids); full_danger = set(full_dangerous_ids)
+        return {
+            "useful_recall": self._recall(set(screen_useful_ids), full_useful),
+            "l2w_recall": self._recall(set(screen_l2w_ids), full_l2w),
+            "danger_recall": self._recall(set(screen_dangerous_ids), full_danger),
+            "selection_useful_recall": self._recall(finalists, full_useful),
+            "selection_l2w_recall": self._recall(finalists, full_l2w),
+            "selection_danger_recall": self._recall(finalists, full_danger),
         }
 
     def refresh_required(self, diag: Mapping[str, float]) -> bool:

@@ -12,6 +12,7 @@ from tools.edit_corpus.pipeline import build_edit_plan
 from .archive import SearchArchive, structural_descriptor
 from .emitters import EmitterContext, RandomTypedEmitter, SystematicEmitter
 from .fitness import LexicographicFitness, PairEvaluation, StateEvaluation
+from .goals import build_search_goals, decode_case_contexts
 from .panels import CaseBank, CasePanelManager, CaseRecord
 from .schema import EditProgram
 from .search import SearchEngine, StagnationMonitor
@@ -179,8 +180,10 @@ def _metric_row(
     target_kinds = set()
     parent_rule_counts = set()
     operations = set()
+    emitters = set()
     useful_shapes = set()
     for p, child in entries:
+        emitters.add(p.emitter)
         parent_rules = int(p.atoms[0].target_rule_index >= 0)
         # Parent rule count can be reconstructed from target metadata only imperfectly;
         # use the source atom ledger: max addressed rule + one, or zero for root-only edits.
@@ -207,6 +210,7 @@ def _metric_row(
         "behavior_changing_rate": sum(bool(a["behavior_changing"]) for a in aggregates) / len(programs),
         "operation_coverage": len(operations),
         "operation_families": sorted(operations),
+        "emitter_families": sorted(emitters),
         "target_depth_coverage": len(target_kinds),
         "target_kinds": sorted(target_kinds),
         "parent_rule_count_coverage": len(parent_rule_counts),
@@ -247,6 +251,11 @@ def _recursive_entries(
     )
     engine = SearchEngine(route_ids=route_ids)
     protected = {c.case_id: c.protected for c in panel}
+    benchmark_bank = CaseBank(panel)
+    search_goals = build_search_goals(benchmark_bank)
+    case_contexts = decode_case_contexts(benchmark_bank) if search_goals else {}
+    archive.bind_case_bank(benchmark_bank.identity(), tuple(benchmark_bank.by_id))
+    archive.register_panel(panel_id, tuple(c.case_id for c in panel))
     first_budget = max(1, int(budget) // 2)
     second_budget = int(budget) - first_budget
     all_entries: list[tuple[EditProgram, ModuleGenome]] = []
@@ -259,6 +268,7 @@ def _recursive_entries(
         programs = engine.propose_generation(
             archive, observations=observations, total=count, generation=generation,
             seed=int(seed) + generation * 1009, parent_evaluations=parent_evals,
+            search_goals=search_goals, case_contexts=case_contexts, case_bank=benchmark_bank,
         )
         if len(programs) != count:
             raise RuntimeError(f"permanent recursive proposer underfilled equal budget at generation {generation}: {len(programs)} < {count}")

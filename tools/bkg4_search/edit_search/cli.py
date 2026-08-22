@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import subprocess
 from dataclasses import replace
 from pathlib import Path
@@ -13,6 +14,7 @@ from .archive import SearchArchive
 from .benchmark import benchmark_proposers, load_evaluator_cases_tsv, run_anti_saturation
 from .corpus import SearchCorpusStore, validate_export
 from .evaluator import ExactCudaEvaluator
+from .goals import build_search_goals, decode_case_contexts
 from .panels import CaseBank, CasePanelManager
 from .schema import ParentProfile
 from .search import SearchEngine
@@ -168,18 +170,103 @@ def _latest_parent_evaluations(archive: SearchArchive) -> dict[str, Any]:
     return by_panel[best_panel]
 
 
+def _build_production_search_context(
+    bank: CaseBank,
+    *,
+    fragile_margin: int,
+    random_anchor_fraction: float,
+    useful_recall_floor: float,
+    danger_recall_floor: float,
+    counterexample_ids: Sequence[str],
+):
+    manager = CasePanelManager(
+        bank,
+        fragile_margin=fragile_margin,
+        random_anchor_fraction=random_anchor_fraction,
+        useful_recall_floor=useful_recall_floor,
+        danger_recall_floor=danger_recall_floor,
+        production_mode=True,
+    )
+    contexts = decode_case_contexts(bank)
+    goals = build_search_goals(bank, counterexample_ids=counterexample_ids)
+    if not goals:
+        raise ValueError("production search could not build any failure-repair SearchGoal from the mixed CaseBank")
+    return manager, contexts, goals
+
+
+def _validate_search_corpus_for_resume(path: str | Path) -> dict[str, Any]:
+    """Validate an existing corpus for search resume, including the legal pre-generation empty state."""
+    from . import CORPUS_SCHEMA_VERSION, EDIT_PROGRAM_SCHEMA_VERSION, GRAMMAR_ID
+    root = Path(path)
+    manifest_path = root / "corpus_manifest.json"
+    if not manifest_path.is_file():
+        raise ValueError("missing corpus manifest")
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if int(manifest.get("corpus_schema_version", -1)) != CORPUS_SCHEMA_VERSION:
+        raise ValueError("incompatible corpus schema")
+    if int(manifest.get("edit_program_schema_version", -1)) != EDIT_PROGRAM_SCHEMA_VERSION or str(manifest.get("grammar_id")) != GRAMMAR_ID:
+        raise ValueError("incompatible edit-program schema/grammar")
+    generations = list(manifest.get("generations", ()))
+    if generations:
+        return validate_export(root)
+    store = SearchCorpusStore(root)
+    store._validate_layout(manifest, require_generation=False)
+    counts = dict(manifest.get("counts") or {})
+    if int(counts.get("programs", -1)) != 0 or int(counts.get("labels", -1)) != 0:
+        raise ValueError("empty search corpus has nonzero exact row counts")
+    if int(counts.get("parents", 0)) < 1 or int(counts.get("cases", 0)) < 1:
+        raise ValueError("empty search corpus must retain parent and CaseBank rows")
+    return {"generations": 0, "programs": 0, "labels": 0, "parents": int(counts["parents"]), "cases": int(counts["cases"])}
+
+
+def _recover_search_after_generation(corpus: SearchCorpusStore, archive_path: str | Path, engine: SearchEngine) -> tuple[SearchArchive, SearchEngine]:
+    """Recover the committed archive while preserving in-process search caches."""
+    corpus.recover_archive(archive_path)
+    archive = SearchArchive.load(archive_path)
+    if tuple(archive.route_ids) != tuple(engine.route_ids):
+        raise ValueError("recovered archive route identity differs from live search engine")
+    return archive, engine
+
+
 def cmd_search(args) -> int:
-    archive = SearchArchive.load(args.archive)
+    archive_path = Path(args.archive)
+    archive = SearchArchive.load(archive_path)
     profile = ParentProfile.from_directory(args.parent_dir)
     assert_archive_parent(archive, profile)
     observations = _load_observations(args.observations)
     bank = CaseBank.load_jsonl(args.case_bank)
-    manager = CasePanelManager(
+    corpus_root = Path(args.corpus)
+    if (corpus_root / "corpus_manifest.json").is_file():
+        corpus = SearchCorpusStore(corpus_root)
+        # Recovery is authoritative. Never infer search state merely from corpus generation numbers.
+        corpus.recover_archive(archive_path)
+        archive = SearchArchive.load(archive_path)
+        assert_archive_parent(archive, profile)
+        archive.bind_case_bank(bank.identity(), tuple(bank.by_id))
+        validation = _validate_search_corpus_for_resume(corpus_root)
+        manifest = json.loads((corpus_root / "corpus_manifest.json").read_text())
+        if str(manifest.get("base_identity")) != archive.base_identity:
+            raise ValueError("existing exact corpus belongs to a different BKG4 parent")
+        exported_generations = {int(x["generation"]) for x in manifest.get("generations", [])}
+        claimed = set(int(x) for x in archive.runtime_state.exported_generations)
+        if claimed != exported_generations:
+            raise ValueError("archive/corpus generation transaction ledger mismatch after recovery")
+        if int(validation["generations"]) != len(exported_generations):
+            raise ValueError("validated generation ledger mismatch")
+    else:
+        if archive.runtime_state.exported_generations:
+            raise ValueError("archive claims exported generations but exact corpus is missing")
+        archive.bind_case_bank(bank.identity(), tuple(bank.by_id))
+        archive.save(archive_path)
+        corpus = SearchCorpusStore.create(corpus_root, profile=profile, case_bank=bank, archive=archive)
+        exported_generations = set()
+    manager, case_contexts, search_goals = _build_production_search_context(
         bank,
         fragile_margin=args.fragile_margin,
         random_anchor_fraction=args.random_anchor_fraction,
         useful_recall_floor=args.useful_recall_floor,
         danger_recall_floor=args.danger_recall_floor,
+        counterexample_ids=tuple(archive.hard_cases),
     )
     _seed_panel_manager_from_archive(manager, archive)
     evaluator = ExactCudaEvaluator(
@@ -190,32 +277,18 @@ def cmd_search(args) -> int:
         memory_fraction=args.memory_fraction,
         cuda_visible_devices=args.cuda_visible_devices,
     )
-    corpus_root = Path(args.corpus)
-    if (corpus_root / "corpus_manifest.json").is_file():
-        corpus = SearchCorpusStore(corpus_root)
-        validation = validate_export(corpus_root)
-        manifest = json.loads((corpus_root / "corpus_manifest.json").read_text())
-        if str(manifest.get("base_identity")) != archive.base_identity:
-            raise ValueError("existing exact corpus belongs to a different BKG4 parent")
-        exported_generations = {int(x["generation"]) for x in manifest.get("generations", [])}
-        claimed = set(int(x) for x in archive.runtime_state.exported_generations)
-        if not claimed.issubset(exported_generations):
-            raise ValueError("archive claims exported generations missing from exact corpus")
-        for g in sorted(exported_generations): archive.mark_exported_generation(g)
-        if int(validation["generations"]) != len(exported_generations):
-            raise ValueError("validated generation ledger mismatch")
-    else:
-        if archive.runtime_state.exported_generations:
-            raise ValueError("archive claims exported generations but exact corpus is missing")
-        corpus = SearchCorpusStore.create(corpus_root, profile=profile, case_bank=bank, archive=archive)
-        exported_generations = set()
     engine = SearchEngine.from_archive(archive, route_ids=archive.route_ids)
     summaries = []
+    if int(args.recall_audit_every) < 1:
+        raise ValueError("--recall-audit-every must be >= 1")
+    current_screen_size = int(archive.run_config.get("adaptive_screen_size", args.screen_size))
+    current_stage2_budget = int(archive.run_config.get("adaptive_stage2_budget", args.stage2_budget))
     for offset in range(int(args.rounds)):
         generation = int(args.start_generation) + offset
         if generation in exported_generations:
             raise ValueError(f"generation {generation} already exists in exact corpus")
         parent_evals = _latest_parent_evaluations(archive)
+        search_goals = build_search_goals(bank, counterexample_ids=tuple(manager.hard_cases)) or search_goals
         programs = engine.propose_generation(
             archive,
             observations=observations,
@@ -223,37 +296,50 @@ def cmd_search(args) -> int:
             generation=generation,
             seed=int(args.seed) + generation * 100003,
             parent_evaluations=parent_evals,
+            search_goals=search_goals,
+            case_contexts=case_contexts,
+            case_bank=bank,
         )
         if not programs:
             raise RuntimeError(f"generation {generation} produced no unique legal candidates")
+        audit_due = bool(args.audit_all) or (offset % int(args.recall_audit_every) == 0)
+        effective_screen = min(max(1, current_screen_size), max(1, min(len(bank) - 1, int(args.final_size) - 1)))
+        effective_stage2 = min(len(programs), max(1, current_stage2_budget))
         result = engine.evaluate_round(
             archive,
             programs,
             evaluator=evaluator,
             panel_manager=manager,
-            screen_size=args.screen_size,
+            screen_size=effective_screen,
             final_size=args.final_size,
-            stage2_budget=args.stage2_budget,
+            stage2_budget=effective_stage2,
             generation=generation,
             seed=int(args.seed) + generation * 104729,
             work_dir=Path(args.work_dir) / f"g{generation:06d}",
-            audit_all=bool(args.audit_all),
+            audit_all=audit_due,
         )
-        corpus.append_exact(generation=generation, archive=archive, program_pairs=result.full_source_pairs)
-        archive.mark_exported_generation(generation)
-        exported_generations.add(generation)
+        recall_refresh = bool(result.stage_recall and manager.refresh_required(result.stage_recall))
+        if recall_refresh:
+            current_screen_size = min(max(1, int(args.final_size) - 1), max(effective_screen + 1, int(math.ceil(effective_screen * 1.5))))
+            current_stage2_budget = min(int(args.candidates), max(effective_stage2 + 1, int(math.ceil(effective_stage2 * 1.5))))
         archive.run_config.update({
             "last_search_generation": generation,
             "candidates_per_round": int(args.candidates),
-            "screen_size": int(args.screen_size),
+            "screen_size": int(effective_screen),
             "final_size": int(args.final_size),
-            "stage2_budget": int(args.stage2_budget),
+            "stage2_budget": int(effective_stage2),
+            "adaptive_screen_size": int(current_screen_size),
+            "adaptive_stage2_budget": int(current_stage2_budget),
+            "recall_audit_every": int(args.recall_audit_every),
+            "recall_refresh_required": bool(recall_refresh),
             "case_bank": str(Path(args.case_bank).resolve()),
             "case_bank_identity": bank.identity(),
             "observations": str(Path(args.observations).resolve()),
             "evaluator": evaluator.config_record(),
         })
-        archive.save(args.archive)
+        corpus.append_exact(generation=generation, archive=archive, program_pairs=result.full_source_pairs)
+        archive, engine = _recover_search_after_generation(corpus, archive_path, engine)
+        exported_generations = set(archive.runtime_state.exported_generations)
         summary = {
             "generation": generation,
             "proposed": len(programs),
@@ -261,6 +347,9 @@ def cmd_search(args) -> int:
             "full_exact_programs": len(result.full_source_pairs),
             "counterexamples": list(result.counterexamples),
             "stage_recall": result.stage_recall,
+            "recall_refresh_required": bool(recall_refresh),
+            "effective_screen_size": int(effective_screen),
+            "effective_stage2_budget": int(effective_stage2),
             "signals": result.signals.__dict__,
             "escalation": result.escalation.__dict__,
             "production_niches": len(archive.production_niches),
@@ -431,6 +520,7 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--memory-fraction", type=float, default=0.70); p.add_argument("--cuda-visible-devices")
     p.add_argument("--fragile-margin", type=int, default=5000); p.add_argument("--random-anchor-fraction", type=float, default=0.10)
     p.add_argument("--useful-recall-floor", type=float, default=0.90); p.add_argument("--danger-recall-floor", type=float, default=0.98)
+    p.add_argument("--recall-audit-every", type=int, default=4)
     p.add_argument("--audit-all", action="store_true"); p.add_argument("--report"); p.set_defaults(fn=cmd_search)
 
     p = sub.add_parser("benchmark")

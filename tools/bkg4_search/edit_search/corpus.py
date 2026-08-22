@@ -37,6 +37,29 @@ PROGRAM_MODEL_FEATURE_COLUMNS = (
 _MODEL_CONTEXT_KEYS = frozenset({"context_schema", "seat", "probe_steps", "frame_width", "registry_width"})
 
 
+def archive_transaction_digest(archive: SearchArchive) -> str:
+    """Digest post-evaluation search truth while ignoring commit-ledger bookkeeping."""
+    raw = json.loads(json.dumps(archive.to_dict()))
+    runtime = dict(raw.get("runtime_state") or {})
+    runtime["exported_generations"] = []
+    runtime.pop("generation_transactions", None)
+    raw["runtime_state"] = runtime
+    return hashlib.sha256(canonical_json(raw).encode()).hexdigest()
+
+
+def generation_transaction_id(archive: SearchArchive, generation: int, program_ids: Sequence[str]) -> tuple[str, str]:
+    digest = archive_transaction_digest(archive)
+    tx = stable_identity(
+        "BKG4-EDIT-GENERATION-TX-V1",
+        archive.base_identity,
+        archive.run_id,
+        int(generation),
+        digest,
+        tuple(sorted(str(x) for x in program_ids)),
+    )
+    return tx, digest
+
+
 def _f(name: str, typ: pa.DataType) -> pa.Field:
     return pa.field(name, typ, nullable=False)
 
@@ -369,6 +392,19 @@ class SearchCorpusStore:
             raise ValueError(f"generation already exported: {generation}")
         if not program_pairs:
             raise ValueError("cannot export an empty exact generation")
+        transaction_id, archive_digest = generation_transaction_id(archive, generation, tuple(program_pairs))
+        transaction_root = self.root / "transactions" / f"g{generation:06d}_{transaction_id[:16]}"
+        transaction_root.mkdir(parents=True, exist_ok=False)
+        snapshot_path = transaction_root / "archive.after.json"
+        snapshot_path.write_text(json.dumps(archive.to_dict(), sort_keys=True, indent=2) + "\n", encoding="utf-8")
+        tx_meta = {
+            "schema_version": 1,
+            "generation": generation,
+            "transaction_id": transaction_id,
+            "archive_digest": archive_digest,
+            "status": "prepared",
+        }
+        (transaction_root / "transaction.json").write_text(json.dumps(tx_meta, sort_keys=True, indent=2) + "\n", encoding="utf-8")
 
         case_rows_by_id = {str(x["case_id"]): x for x in _read_rows(self.root / "cases.parquet")}
         case_ids = set(case_rows_by_id)
@@ -500,6 +536,9 @@ class SearchCorpusStore:
                 "label_shard": str(label_path.relative_to(self.root)),
                 "program_rows": len(program_rows),
                 "label_rows": len(label_rows),
+                "transaction_id": transaction_id,
+                "archive_digest": archive_digest,
+                "transaction_dir": str(transaction_root.relative_to(self.root)),
             })
             next_manifest["generations"].sort(key=lambda x: int(x["generation"]))
             next_manifest["counts"] = {
@@ -510,10 +549,14 @@ class SearchCorpusStore:
             }
 
             shutil.copy2(parent_path, prior_parents)
+            shutil.copy2(parent_path, transaction_root / "parents.before.parquet")
             os.replace(staged_program, program_path); published_program = True
             os.replace(staged_label, label_path); published_label = True
             os.replace(staged_parents, parent_path); parent_replaced = True
-            # Manifest is the commit record and is published LAST.
+            # Prepare every recoverable artifact before the manifest. The manifest is
+            # the sole commit record and is the final fallible write in the transaction.
+            tx_meta["status"] = "ready_to_commit"
+            (transaction_root / "transaction.json").write_text(json.dumps(tx_meta, sort_keys=True, indent=2) + "\n", encoding="utf-8")
             self._write_manifest(next_manifest)
         except Exception:
             if published_program:
@@ -523,10 +566,113 @@ class SearchCorpusStore:
             if parent_replaced and prior_parents.exists():
                 os.replace(prior_parents, parent_path)
             shutil.rmtree(staging, ignore_errors=True)
+            shutil.rmtree(transaction_root, ignore_errors=True)
             raise
         shutil.rmtree(staging, ignore_errors=True)
         self._validate_layout(self._manifest(), require_generation=True)
-        return {"programs": len(program_rows), "labels": len(label_rows)}
+        return {"programs": len(program_rows), "labels": len(label_rows), "transaction_id": transaction_id, "archive_digest": archive_digest}
+
+
+    def recover_archive(self, archive_path: str | Path) -> dict[str, Any]:
+        """Recover or reject the corpus/archive pair using immutable generation snapshots.
+
+        Corpus manifest publication is the cross-artifact commit intent. If it exists but
+        the canonical archive is stale, the post-evaluation archive snapshot is restored.
+        Prepared transactions that never reached the corpus manifest are rolled back.
+        """
+        manifest = self._manifest()
+        generations = sorted(list(manifest.get("generations", ())), key=lambda x: int(x["generation"]))
+        committed_by_generation = {int(x["generation"]): x for x in generations}
+        tx_root = self.root / "transactions"
+        rolled_back: list[int] = []
+        tx_root.mkdir(parents=True, exist_ok=True)
+
+        # A process can die after canonical shard/parents publication but before the
+        # manifest commit. Such a prepared transaction is not committed and is reverted.
+        for directory in sorted(p for p in tx_root.iterdir() if p.is_dir()):
+            meta_path = directory / "transaction.json"
+            if not meta_path.is_file():
+                raise ValueError(f"generation transaction missing metadata: {directory}")
+            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+            generation = int(meta.get("generation", -1))
+            if generation in committed_by_generation:
+                continue
+            if generation < 0:
+                raise ValueError("invalid prepared generation transaction")
+            (self.root / "shards" / f"programs_g{generation:06d}.parquet").unlink(missing_ok=True)
+            (self.root / "shards" / f"labels_g{generation:06d}.parquet").unlink(missing_ok=True)
+            before = directory / "parents.before.parquet"
+            if before.is_file():
+                shutil.copy2(before, self.root / "parents.parquet")
+            shutil.rmtree(self.root / "shards" / ".staging" / f"g{generation:06d}", ignore_errors=True)
+            shutil.rmtree(directory)
+            rolled_back.append(generation)
+
+        self._validate_layout(manifest, require_generation=bool(generations))
+        if not generations:
+            return {"recovered_generations": [], "rolled_back_generations": sorted(rolled_back), "committed_generations": []}
+
+        snapshots: dict[int, SearchArchive] = {}
+        for row in generations:
+            generation = int(row["generation"])
+            transaction_id = str(row.get("transaction_id", ""))
+            archive_digest = str(row.get("archive_digest", ""))
+            transaction_dir = str(row.get("transaction_dir", ""))
+            if not transaction_id or len(archive_digest) != 64 or not transaction_dir:
+                raise ValueError("committed corpus generation lacks immutable archive transaction identity")
+            directory = self.root / transaction_dir
+            meta_path = directory / "transaction.json"
+            snapshot_path = directory / "archive.after.json"
+            if not meta_path.is_file() or not snapshot_path.is_file():
+                raise ValueError("committed generation transaction snapshot is missing")
+            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+            if int(meta.get("generation", -1)) != generation or str(meta.get("transaction_id")) != transaction_id or str(meta.get("archive_digest")) != archive_digest:
+                raise ValueError("generation transaction metadata disagrees with corpus manifest")
+            snapshot = SearchArchive.load(snapshot_path)
+            if snapshot.base_identity != str(manifest["base_identity"]):
+                raise ValueError("generation transaction archive belongs to a different BKG4 parent")
+            if archive_transaction_digest(snapshot) != archive_digest:
+                raise ValueError("generation transaction archive digest mismatch")
+            program_ids = [str(x["program_id"]) for x in pq.read_table(self.root / str(row["program_shard"]), columns=["program_id"]).to_pylist()]
+            expected_tx, _ = generation_transaction_id(snapshot, generation, program_ids)
+            if expected_tx != transaction_id:
+                raise ValueError("generation transaction identity does not reconstruct")
+            snapshots[generation] = snapshot
+
+        archive_file = Path(archive_path)
+        current = SearchArchive.load(archive_file) if archive_file.is_file() else None
+        if current is not None:
+            if current.base_identity != str(manifest["base_identity"]):
+                raise ValueError("canonical archive/corpus parent identity mismatch")
+            manifest_ids = {int(x["generation"]): str(x["transaction_id"]) for x in generations}
+            for generation, transaction_id in current.runtime_state.generation_transactions.items():
+                if manifest_ids.get(int(generation)) != str(transaction_id):
+                    raise ValueError("canonical archive contains a generation transaction absent/different in corpus")
+
+        latest_generation = int(generations[-1]["generation"])
+        latest = snapshots[latest_generation]
+        recovered = []
+        current_tx = {} if current is None else dict(current.runtime_state.generation_transactions)
+        for row in generations:
+            generation = int(row["generation"]); transaction_id = str(row["transaction_id"])
+            if current_tx.get(generation) != transaction_id:
+                recovered.append(generation)
+            latest.mark_exported_generation(generation, transaction_id)
+        latest.save(archive_file)
+
+        # Commit marker is deliberately last. A missing marker is recoverable because
+        # corpus manifest + immutable snapshot are already sufficient to reconstruct.
+        for row in generations:
+            directory = self.root / str(row["transaction_dir"])
+            meta_path = directory / "transaction.json"
+            meta = json.loads(meta_path.read_text(encoding="utf-8")); meta["status"] = "committed"
+            meta_path.write_text(json.dumps(meta, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+            (directory / "COMMITTED").write_text(str(row["transaction_id"]) + "\n", encoding="utf-8")
+        return {
+            "recovered_generations": sorted(recovered),
+            "rolled_back_generations": sorted(rolled_back),
+            "committed_generations": [int(x["generation"]) for x in generations],
+        }
 
 
 def _validate_model_boundary(manifest: Mapping[str, Any], case_rows: list[dict[str, Any]]) -> None:

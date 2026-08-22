@@ -58,5 +58,37 @@ class EditSearchPanelTests(unittest.TestCase):
         self.assertTrue(manager.refresh_required(diag))
 
 
+    def test_production_mode_rejects_all_loss_bank_and_reserves_protected_wins(self):
+        from tools.bkg4_search.edit_search.panels import CaseBank, CasePanelManager, CaseRecord
+        losses=[CaseRecord(f"l{i}",f"/tmp/l{i}",i%2,100+i,f"f{i%3}",protected=True,baseline_margin=-100-i) for i in range(8)]
+        with self.assertRaises(ValueError):
+            CasePanelManager(CaseBank(losses),production_mode=True)
+        wins=[
+            CaseRecord("fw0","/tmp/fw0",0,501,"g0",protected=True,baseline_margin=500),
+            CaseRecord("fw1","/tmp/fw1",1,502,"g1",protected=True,baseline_margin=2500),
+            CaseRecord("sw0","/tmp/sw0",0,503,"g2",protected=True,baseline_margin=15000),
+            CaseRecord("sw1","/tmp/sw1",1,504,"g3",protected=True,baseline_margin=30000),
+        ]
+        manager=CasePanelManager(CaseBank(losses+wins),production_mode=True,min_protected_fraction=0.25)
+        panel=manager.select_screen(8,seed=19)
+        protected=[x for x in panel if x.protected and x.baseline_margin>0]
+        self.assertGreaterEqual(len(protected),2)
+        self.assertTrue(any(x.baseline_margin<0 for x in panel))
+        self.assertEqual({x.seat for x in protected},{0,1})
+    def test_detection_recall_is_separate_from_stage2_selection_recall(self):
+        from tools.bkg4_search.edit_search.panels import CasePanelManager
+        manager = CasePanelManager(self.cases(), useful_recall_floor=0.8, danger_recall_floor=0.9)
+        diag = manager.stage_detection_recall(
+            screen_useful_ids={"u0"}, screen_l2w_ids={"u0"}, screen_dangerous_ids={"d0"},
+            full_useful_ids={"u0", "u1"}, full_l2w_ids={"u0", "u1"}, full_dangerous_ids={"d0", "d1"},
+            finalist_ids={"u0", "d0", "d1"},
+        )
+        self.assertAlmostEqual(diag["useful_recall"], 0.5)
+        self.assertAlmostEqual(diag["danger_recall"], 0.5)
+        self.assertAlmostEqual(diag["selection_useful_recall"], 0.5)
+        self.assertAlmostEqual(diag["selection_danger_recall"], 1.0)
+        self.assertTrue(manager.refresh_required(diag))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

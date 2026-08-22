@@ -13,18 +13,21 @@ from .emitters import (
     SearchEmitter,
 )
 from .fitness import PairEvaluation, StateEvaluation
-from .panels import CasePanelManager
+from .goals import SearchGoal, build_search_goals, synthesize_contrastive_conditions
+from .panels import CaseBank, CasePanelManager
+from .safety import SafetySpec
 from .schema import EditProgram
 
 
 _BASE_WEIGHTS = {
-    "systematic": 0.22,
-    "local_refine": 0.17,
-    "structural": 0.18,
-    "motif": 0.08,
-    "recombine": 0.10,
-    "lns": 0.08,
-    "evolvability_mcts": 0.12,
+    "contrastive": 0.18,
+    "systematic": 0.16,
+    "local_refine": 0.13,
+    "structural": 0.15,
+    "motif": 0.07,
+    "recombine": 0.08,
+    "lns": 0.07,
+    "evolvability_mcts": 0.11,
     "random_typed": 0.05,
 }
 
@@ -35,7 +38,7 @@ class FixedEmitterScheduler:
     def __init__(self, random_floor: float = 0.05):
         self.random_floor = max(0.01, min(0.25, float(random_floor)))
 
-    def weights(self, escalation_level: int) -> dict[str, float]:
+    def weights(self, escalation_level: int, emitter_stats: Mapping[str, Mapping[str, int]] | None = None) -> dict[str, float]:
         w = dict(_BASE_WEIGHTS); level = max(0, int(escalation_level))
         if level >= 2:
             w["structural"] += 0.08; w["systematic"] -= 0.04; w["local_refine"] -= 0.04
@@ -47,15 +50,27 @@ class FixedEmitterScheduler:
             w["evolvability_mcts"] += 0.15; w["local_refine"] -= 0.05; w["systematic"] -= 0.05; w["structural"] -= 0.05
         if level >= 6:
             w["random_typed"] += 0.07; w["recombine"] += 0.03; w["local_refine"] -= 0.05; w["systematic"] -= 0.05
+        # Multi-emitter adaptation: exact safe contribution changes future budget,
+        # while untried emitters retain their prior and random exploration keeps a floor.
+        stats = dict(emitter_stats or {})
+        for key in w:
+            row = dict(stats.get(key) or {})
+            attempts = max(0, int(row.get("attempts", 0)))
+            if attempts < 4:
+                continue
+            useful = max(0, int(row.get("useful_safe", 0)))
+            insertions = max(0, int(row.get("archive_insertions", 0)))
+            contribution = min(1.0, (useful + 0.25 * insertions) / max(1, attempts))
+            w[key] *= 0.60 + 2.20 * contribution
         for key in w: w[key] = max(0.01, w[key])
         w["random_typed"] = max(self.random_floor, w["random_typed"])
         z = sum(w.values())
         return {k: v / z for k, v in w.items()}
 
-    def allocations(self, total: int, escalation_level: int) -> dict[str, int]:
+    def allocations(self, total: int, escalation_level: int, emitter_stats: Mapping[str, Mapping[str, int]] | None = None) -> dict[str, int]:
         total = max(0, int(total)); names = list(_BASE_WEIGHTS)
         if total == 0: return {k: 0 for k in names}
-        weights = self.weights(escalation_level)
+        weights = self.weights(escalation_level, emitter_stats=emitter_stats)
         raw = {k: total * weights[k] for k in names}
         out = {k: int(math.floor(raw[k])) for k in names}
         # Preserve a permanent random floor even at very small budgets.
@@ -90,6 +105,8 @@ class GenerationSignals:
     novelty_mean: float
     new_niches: int
     duplicate_rate: float = 0.0
+    production_insertions: int = 0
+    repair_insertions: int = 0
     underfill_rate: float = 0.0
     source_parent_count: int = 0
     operation_count: int = 0
@@ -134,9 +151,11 @@ class StagnationMonitor:
     @staticmethod
     def is_stalled(s: GenerationSignals) -> bool:
         unique_rate = s.unique / max(1, s.proposed)
-        objective_plateau = s.useful_safe <= 0 and s.target_improvements <= 0 and float(s.novelty_mean) < 0.05
+        # Novel research behavior is useful evidence, but it must not reset a search
+        # that is making no progress toward feasibility or strategic repair.
+        objective_plateau = s.useful_safe <= 0 and s.target_improvements <= 0 and s.repair_insertions <= 0
         search_collapse = unique_rate < 0.35 or float(s.duplicate_rate) >= 0.70 or float(s.underfill_rate) >= 0.50
-        archive_plateau = s.archive_insertions <= 0 and s.new_niches <= 0 and float(s.novelty_mean) < 0.05
+        archive_plateau = s.production_insertions <= 0 and s.repair_insertions <= 0 and s.useful_safe <= 0
         return search_collapse or objective_plateau or archive_plateau
 
     def observe(self, signals: GenerationSignals) -> EscalationEvent:
@@ -211,6 +230,7 @@ class SearchEngine:
         self.scheduler = scheduler or FixedEmitterScheduler()
         self.stagnation = stagnation or StagnationMonitor()
         self.last_proposal_stats: dict[str, object] = {}
+        self._contrastive_condition_cache: dict[tuple[str, str], tuple[tuple[object, ...], ...]] = {}
         missing = set(_BASE_WEIGHTS) - set(self.emitters)
         if missing:
             raise ValueError(f"missing required search emitters: {sorted(missing)}")
@@ -256,6 +276,52 @@ class SearchEngine:
             return EvolvabilityMCTSEmitter(max_depth=min(6, 3 + (level - 4)))
         return self.emitters[name]
 
+    def parent_schedule(self, archive: SearchArchive, *, total: int, seed: int) -> list[tuple[str, str]]:
+        """Deterministic constrained parent mixture: feasible first, then repair, bounded research."""
+        total = max(0, int(total))
+        if total == 0:
+            return []
+        feasible = archive.production_parent_state_ids() or [archive.root_semantic_id]
+        repair = archive.repair_parent_state_ids(limit=max(4, total))
+        research = sorted({
+            str(row.get("child_semantic_id"))
+            for row in archive.exploration_niches.values()
+            if str(row.get("child_semantic_id", "")) in archive.states
+        } | {
+            str(row.get("child_semantic_id"))
+            for row in archive.novelty_archive
+            if str(row.get("child_semantic_id", "")) in archive.states
+        })
+
+        if repair:
+            repair_n = max(1, int(round(total * 0.25)))
+        else:
+            repair_n = 0
+        if research:
+            research_n = min(max(1, int(round(total * 0.10))), max(0, total - repair_n - 1))
+        else:
+            research_n = 0
+        feasible_n = total - repair_n - research_n
+        if feasible_n <= 0:
+            feasible_n = 1
+            if research_n > 0: research_n -= 1
+            elif repair_n > 0: repair_n -= 1
+
+        def lane_rows(name: str, ids: Sequence[str], count: int, salt: int) -> list[tuple[str, str]]:
+            if count <= 0 or not ids:
+                return []
+            ordered = list(sorted(ids))
+            rng = random.Random(int(seed) ^ int(salt)); rng.shuffle(ordered)
+            return [(name, ordered[i % len(ordered)]) for i in range(count)]
+
+        out = (
+            lane_rows("feasible", feasible, feasible_n, 0xF3A51B1E)
+            + lane_rows("repair", repair, repair_n, 0xA11CE)
+            + lane_rows("exploration", research, research_n, 0xE71A)
+        )
+        random.Random(int(seed) ^ 0x51CED).shuffle(out)
+        return out
+
     def propose_generation(
         self,
         archive: SearchArchive,
@@ -265,6 +331,9 @@ class SearchEngine:
         generation: int,
         seed: int,
         parent_evaluations: Mapping[str, StateEvaluation] | None = None,
+        search_goals: Sequence[SearchGoal] = (),
+        case_contexts: Mapping[str, Sequence[Mapping[str, object]]] | None = None,
+        case_bank: CaseBank | None = None,
     ) -> list[EditProgram]:
         if tuple(archive.route_ids) != self.route_ids:
             raise ValueError("search engine/archive route identity mismatch")
@@ -276,15 +345,22 @@ class SearchEngine:
                 "operation_count": 0, "emitter_raw": {}, "emitter_unique": {},
             }
             return []
-        parent_ids = archive.parent_state_ids() or [archive.root_semantic_id]
-        allocations = self.scheduler.allocations(requested, self.stagnation.level)
+        production_parent_ids = archive.production_parent_state_ids() or [archive.root_semantic_id]
+        repair_parent_ids = archive.repair_parent_state_ids(limit=max(4, len(production_parent_ids)))
+        allocations = self.scheduler.allocations(requested, self.stagnation.level, emitter_stats=archive.emitter_stats)
         proposed: list[EditProgram] = []
         seen_children = set(archive.states)
         seen_pairs: set[tuple[str, str]] = set()
         parent_evaluations = dict(parent_evaluations or {})
         quality_by_state = exact_state_quality_map(parent_evaluations)
         quality_panel_id = next(iter(parent_evaluations.values())).panel_id if parent_evaluations else None
-        donors_all = {sid: archive.genome(sid) for sid in parent_ids}
+        goals = tuple(search_goals or ())
+        if not goals and case_bank is not None:
+            goals = build_search_goals(case_bank, counterexample_ids=tuple(archive.hard_cases))
+        contexts_by_case = {str(k): tuple(dict(r) for r in v) for k, v in dict(case_contexts or {}).items()}
+        goal_condition_cache: dict[str, tuple[tuple[object, ...], ...]] = {}
+        bank_identity = case_bank.identity() if case_bank is not None else ""
+        donors_all = {sid: archive.genome(sid) for sid in production_parent_ids}
         raw_emitted = 0
         duplicate_rejected = 0
         emitter_raw: dict[str, int] = {}
@@ -308,21 +384,65 @@ class SearchEngine:
                 proposed.append(program)
                 emitter_unique[name] = emitter_unique.get(name, 0) + 1
 
-        def context_for(sid: str) -> EmitterContext:
+        repair_capable = {"contrastive", "local_refine", "structural", "lns", "evolvability_mcts"}
+        context_cache: dict[tuple[str, str], EmitterContext] = {}
+
+        def parents_for(name: str) -> list[str]:
+            if name not in repair_capable or not repair_parent_ids:
+                return list(production_parent_ids)
+            repair_cap = min(len(repair_parent_ids), max(1, len(production_parent_ids) // 2))
+            return list(production_parent_ids) + list(repair_parent_ids[:repair_cap])
+
+        def goal_for(name: str, sid: str, ordinal: int = 0) -> SearchGoal | None:
+            if name != "contrastive" or not goals:
+                return None
+            return goals[(int(seed) + int(sid[:8], 16) + int(ordinal)) % len(goals)]
+
+        def context_for(sid: str, goal: SearchGoal | None = None) -> EmitterContext:
+            goal_key = "" if goal is None else goal.goal_id
+            cache_key = (sid, goal_key)
+            cached = context_cache.get(cache_key)
+            if cached is not None:
+                return cached
             parent = archive.genome(sid)
             donors = tuple(g for dsid, g in donors_all.items() if dsid != sid)
             depth = self._state_depth(archive, sid) + 1
-            return EmitterContext.from_observations(
+            precomputed_conditions = None
+            if goal is not None:
+                persistent_key = (bank_identity, goal_key) if bank_identity else None
+                if persistent_key is not None and persistent_key in self._contrastive_condition_cache:
+                    goal_condition_cache[goal_key] = self._contrastive_condition_cache[persistent_key]
+                if goal_key not in goal_condition_cache:
+                    goal_condition_cache[goal_key] = tuple(
+                        tuple(conds) for conds in synthesize_contrastive_conditions(
+                            goal, contexts_by_case, max_conditions=2, limit=64,
+                            guard_excluding_only=True,
+                        )
+                    )
+                    if persistent_key is not None:
+                        self._contrastive_condition_cache[persistent_key] = goal_condition_cache[goal_key]
+                precomputed_conditions = goal_condition_cache[goal_key]
+            built = EmitterContext.from_observations(
                 self.route_ids, observations, donor_genomes=donors, generation_depth=depth,
                 motifs=tuple(archive.motifs.values()), escalation_level=self.stagnation.level,
                 parent_program_id=self._lineage_program(archive, sid), run_id=archive.run_id,
-                quality_by_state=quality_by_state,
+                quality_by_state=quality_by_state, search_goal=goal, case_contexts=contexts_by_case,
+                contrastive_condition_sets=precomputed_conditions,
             )
+            if goal is None:
+                pool_size = min(1024, max(192, math.ceil(requested / max(1, len(production_parent_ids))) * 4))
+                built = built.with_typed_pool(
+                    parent, n=pool_size,
+                    seed=int(seed) + int(generation) * 65537 + int(sid[:8], 16),
+                )
+            context_cache[cache_key] = built
+            return built
 
         for emitter_index, (name, budget) in enumerate(allocations.items()):
             if budget <= 0 or len(proposed) >= requested:
                 continue
             emitter = self._emitter_for_level(name, self.stagnation.level)
+            parent_ids = parents_for(name)
             assignments: dict[str, int] = {sid: 0 for sid in parent_ids}
             for j in range(budget):
                 if parent_evaluations and j % max(2, len(parent_ids)) == 0:
@@ -336,17 +456,38 @@ class SearchEngine:
                 if count <= 0 or len(proposed) >= requested:
                     continue
                 parent = archive.genome(sid)
-                rows = emitter.propose(
-                    parent, n=count,
-                    seed=int(seed) + int(generation) * 1000003 + emitter_index * 10007 + pi * 101,
-                    context=context_for(sid),
-                )
-                accept_rows(name, parent, rows)
+                base_seed = int(seed) + int(generation) * 1000003 + emitter_index * 10007 + pi * 101
+                if name == "contrastive" and goals and count > 1:
+                    # A single feasible parent must still cover several independent
+                    # failure-repair goals in one generation. Otherwise one seed picks
+                    # one goal and the whole contrastive budget becomes seed-sensitive.
+                    span = min(int(count), len(goals))
+                    base = int(count) // span; extra = int(count) % span
+                    for gi in range(span):
+                        share = base + int(gi < extra)
+                        if share <= 0 or len(proposed) >= requested:
+                            continue
+                        rows = emitter.propose(
+                            parent, n=share,
+                            seed=base_seed + gi * 4099,
+                            context=context_for(sid, goal_for(name, sid, pi + gi)),
+                        )
+                        accept_rows(name, parent, rows)
+                else:
+                    rows = emitter.propose(
+                        parent, n=count,
+                        seed=base_seed,
+                        context=context_for(sid, goal_for(name, sid, pi)),
+                    )
+                    accept_rows(name, parent, rows)
 
         # Some emitters are conditionally inapplicable (motifs before any motif exists,
         # recombination before multiple parents exist). Reallocate their unused budget
         # rather than silently sacrificing CUDA throughput. The fallback remains typed,
         # deterministic and exploration-preserving.
+        # Contrastive specialists have an explicit first-class budget and are intentionally
+        # excluded from generic refill. Otherwise unavailable motif/recombination capacity
+        # can collapse the generation into one aggressive specialist family.
         fallback = ("systematic", "structural", "random_typed", "evolvability_mcts", "local_refine")
         for refill_pass in range(4):
             if len(proposed) >= requested:
@@ -357,6 +498,7 @@ class SearchEngine:
                 if len(proposed) >= requested:
                     break
                 emitter = self._emitter_for_level(name, self.stagnation.level)
+                parent_ids = parents_for(name)
                 per_parent = max(1, math.ceil(remaining / max(1, len(parent_ids))))
                 for pi, sid in enumerate(parent_ids):
                     if len(proposed) >= requested:
@@ -366,7 +508,7 @@ class SearchEngine:
                     rows = emitter.propose(
                         parent, n=max(count, count * 2),
                         seed=int(seed) + int(generation) * 3000017 + refill_pass * 65537 + fi * 4099 + pi * 131,
-                        context=context_for(sid),
+                        context=context_for(sid, goal_for(name, sid, pi + refill_pass)),
                     )
                     accept_rows(name, parent, rows)
             if len(proposed) == progress_before:
@@ -456,6 +598,7 @@ class SearchEngine:
         for program in programs:
             if program.program_id not in archive.programs:
                 raise ValueError("evaluate_round program is not registered in archive")
+        archive.bind_case_bank(panel_manager.bank.identity(), tuple(panel_manager.bank.by_id))
         screen_panel = panel_manager.select_screen(screen_size, seed=seed)
         if not screen_panel:
             raise ValueError("screening panel is empty")
@@ -465,13 +608,17 @@ class SearchEngine:
             full_panel = panel_manager.select_screen(final_size, seed=seed ^ 0xF17A1)
         if len(full_panel) <= len(screen_panel) and set(c.case_id for c in full_panel) == set(c.case_id for c in screen_panel):
             raise ValueError("final panel must be broader than the screening panel")
+        screen_panel_id = f"{archive.run_id}/g{int(generation)}/screen"
+        full_panel_id = f"{archive.run_id}/g{int(generation)}/full"
+        archive.register_panel(screen_panel_id, tuple(c.case_id for c in screen_panel))
+        archive.register_panel(full_panel_id, tuple(c.case_id for c in full_panel))
 
         screen_sids = {archive.root_semantic_id}
         for program in programs:
             screen_sids.add(program.source_parent_semantic_id); screen_sids.add(program.child_semantic_id)
         screen_eval = evaluator.evaluate(
             [archive.genome(sid) for sid in sorted(screen_sids)], screen_panel,
-            work_dir=work_dir, panel_id=f"{archive.run_id}/g{int(generation)}/screen",
+            work_dir=work_dir, panel_id=screen_panel_id,
         )
         root_screen = screen_eval[archive.root_semantic_id]
         protected_screen = {c.case_id: c.protected for c in screen_panel}
@@ -492,7 +639,7 @@ class SearchEngine:
             full_sids.add(program.source_parent_semantic_id); full_sids.add(program.child_semantic_id)
         full_eval = evaluator.evaluate(
             [archive.genome(sid) for sid in sorted(full_sids)], full_panel,
-            work_dir=work_dir, panel_id=f"{archive.run_id}/g{int(generation)}/full",
+            work_dir=work_dir, panel_id=full_panel_id,
         )
         root_full = full_eval[archive.root_semantic_id]
         protected_full = {c.case_id: c.protected for c in full_panel}
@@ -502,29 +649,32 @@ class SearchEngine:
         full_source_pairs: dict[str, PairEvaluation] = {}
         full_root_pairs: dict[str, PairEvaluation] = {}
         counterexamples: set[str] = set()
-        insertions = useful_safe = target_improvements = 0
+        production_insertions = repair_insertions = useful_safe = target_improvements = 0
         novelty_values: list[float] = []
+        safety_spec = SafetySpec(severe_delta=panel_manager.severe_delta, fragile_margin=panel_manager.fragile_margin)
         finalist_ids = {p.program_id for p in finalists}
+        considered_ids = {p.program_id for p in full_programs} if audit_all else finalist_ids
         for program in full_programs:
             child = full_eval[program.child_semantic_id]
             source_pair = PairEvaluation.from_states(full_eval[program.source_parent_semantic_id], child, protected=protected_full)
             root_pair = PairEvaluation.from_states(root_full, child, protected=protected_full)
             full_source_pairs[program.program_id] = source_pair
             full_root_pairs[program.program_id] = root_pair
-            if program.program_id in finalist_ids:
-                considered = archive.consider(program, root_pair)
-                insertions += int(considered.production_inserted) + int(considered.exploration_inserted)
-                a = root_pair.certified_aggregate()
-                is_useful = bool(a["strict_safe"]) and bool(a["behavior_changing"]) and (int(a["l2w_count"]) > 0 or float(a["mean_margin_delta"]) > 0)
+            if program.program_id in considered_ids:
+                assessment = safety_spec.assess_program(source_pair=source_pair, root_pair=root_pair)
+                considered = archive.consider(program, root_pair, source_pair=source_pair)
+                production_insertions += int(considered.production_inserted)
+                repair_insertions += int(considered.repair_inserted)
+                is_useful = bool(assessment.root.safe_useful)
                 useful_safe += int(is_useful)
-                target_improvements += int(int(a["l2w_count"]) > 0)
+                target_improvements += int(assessment.root.l2w > 0)
                 novelty_values.append(len(root_pair.changed_case_ids) / max(1, len(root_pair.case_rows)))
                 archive.note_emitter(
                     program.emitter, attempts=1, unique=1,
-                    archive_insertions=int(considered.production_inserted or considered.exploration_inserted),
+                    archive_insertions=int(considered.production_inserted or considered.repair_inserted),
                     useful_safe=int(is_useful),
                 )
-                if is_useful:
+                if assessment.high_quality_supervision:
                     archive.observe_motif(program, root_pair)
             if bool(screen_root_pairs[program.program_id].certified_aggregate()["strict_safe"]):
                 for row in root_pair.case_rows:
@@ -550,18 +700,34 @@ class SearchEngine:
                 pid for pid, pair in full_root_pairs.items()
                 if int(pair.certified_aggregate()["new_loss_count"]) > 0 or int(pair.certified_aggregate()["w2l_count"]) > 0 or int(pair.certified_aggregate()["severe_regression_count"]) > 0
             }
-            stage_recall = panel_manager.stage_recall(
-                screened_program_ids=finalist_ids,
+            screen_useful = {
+                pid for pid, pair in screen_root_pairs.items()
+                if bool(pair.certified_aggregate()["strict_safe"]) and bool(pair.certified_aggregate()["behavior_changing"])
+                and (int(pair.certified_aggregate()["l2w_count"]) > 0 or float(pair.certified_aggregate()["mean_margin_delta"]) > 0)
+            }
+            screen_l2w = {pid for pid, pair in screen_root_pairs.items() if int(pair.certified_aggregate()["l2w_count"]) > 0}
+            screen_danger = {
+                pid for pid, pair in screen_root_pairs.items()
+                if int(pair.certified_aggregate()["new_loss_count"]) > 0 or int(pair.certified_aggregate()["w2l_count"]) > 0
+                or int(pair.certified_aggregate()["severe_regression_count"]) > 0
+            }
+            stage_recall = panel_manager.stage_detection_recall(
+                screen_useful_ids=screen_useful,
+                screen_l2w_ids=screen_l2w,
+                screen_dangerous_ids=screen_danger,
                 full_useful_ids=useful_truth,
                 full_l2w_ids=l2w_truth,
                 full_dangerous_ids=danger_truth,
+                finalist_ids=finalist_ids,
             )
         proposal_stats = self.last_proposal_stats if int(self.last_proposal_stats.get("unique", -1)) == len(programs) else {}
+        strategic_insertions = production_insertions + repair_insertions
         signals = GenerationSignals(
             proposed=int(proposal_stats.get("requested", len(programs))),
             unique=len({p.child_semantic_id for p in programs}),
-            archive_insertions=insertions, useful_safe=useful_safe, target_improvements=target_improvements,
-            novelty_mean=sum(novelty_values) / max(1, len(novelty_values)), new_niches=insertions,
+            archive_insertions=strategic_insertions, useful_safe=useful_safe, target_improvements=target_improvements,
+            novelty_mean=sum(novelty_values) / max(1, len(novelty_values)), new_niches=strategic_insertions,
+            production_insertions=production_insertions, repair_insertions=repair_insertions,
             duplicate_rate=float(proposal_stats.get("duplicate_rate", 0.0)),
             underfill_rate=float(proposal_stats.get("underfill_rate", 0.0)),
             source_parent_count=int(proposal_stats.get("source_parent_count", len({p.source_parent_semantic_id for p in programs}))),

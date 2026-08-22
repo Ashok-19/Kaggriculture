@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from unittest import mock
 
 from tools.bkg4_search.module_codec import ConditionGene, ModuleGenome, RuleGene
 
@@ -161,6 +162,91 @@ class EditSearchEmitterTests(unittest.TestCase):
         for program in xs:
             self.assertEqual(program.reconstruct(p, ROUTES).semantic_id(), program.child_semantic_id)
             self.assertEqual(program.source_parent_semantic_id, p.semantic_id())
+
+
+    def test_contrastive_specialist_emitter_uses_guard_excluding_predicates(self):
+        import tools.bkg4_search.edit_search.emitters as emitters
+        from tools.bkg4_search.edit_search.goals import SearchGoal, conjunction_stats
+        self.assertTrue(hasattr(emitters,"ContrastiveSpecialistEmitter"))
+        if not hasattr(emitters,"ContrastiveSpecialistEmitter"): return
+        p=ModuleGenome(0,())
+        contexts={
+            "loss":({"feature":"OWN_MONEY","index":0,"value":100},{"feature":"DAY","index":0,"value":2}),
+            "guard":({"feature":"OWN_MONEY","index":0,"value":2000},{"feature":"DAY","index":0,"value":2}),
+        }
+        goal=SearchGoal(("loss",),("guard",),(),())
+        ctx=emitters.EmitterContext.from_observations(ROUTES,self.context().context_rows,generation_depth=1,search_goal=goal,case_contexts=contexts)
+        rows=emitters.ContrastiveSpecialistEmitter().propose(p,n=8,seed=41,context=ctx)
+        self.assertTrue(rows)
+        for program in rows:
+            child=program.reconstruct(p,ROUTES)
+            self.assertTrue(child.rules)
+            conds=child.rules[0].conditions
+            diag=conjunction_stats(conds,goal,contexts)
+            self.assertGreater(diag["target_hits"],0)
+            self.assertEqual(diag["guard_hits"],0)
+
+    def test_precomputed_parent_typed_pool_is_reusable_across_one_step_emitters(self):
+        from tools.bkg4_search.edit_search.emitters import LocalRefinementEmitter, RandomTypedEmitter, StructuralEmitter, SystematicEmitter
+        p = parent2()
+        ctx = self.context().with_typed_pool(p, n=192, seed=12345)
+        self.assertEqual(ctx.typed_pool_parent_semantic_id, p.semantic_id())
+        self.assertGreaterEqual(len(ctx.typed_pool), 96)
+        for emitter in (SystematicEmitter(), LocalRefinementEmitter(), StructuralEmitter(), RandomTypedEmitter()):
+            rows = emitter.propose(p, n=8, seed=77, context=ctx)
+            self.assertTrue(rows, emitter.name)
+            for program in rows:
+                self.assertEqual(program.reconstruct(p, ROUTES).semantic_id(), program.child_semantic_id)
+
+    def test_contrastive_specialist_adds_temporal_guard_and_can_use_multi_edit_rule(self):
+        from tools.bkg4_search.edit_search.emitters import ContrastiveSpecialistEmitter, EmitterContext
+        from tools.bkg4_search.edit_search.goals import SearchGoal
+        p=ModuleGenome(0,())
+        contexts={
+            "loss":(
+                {"probe_index":0,"probe_step":264,"feature":"OWN_MONEY","index":0,"value":100},
+                {"probe_index":0,"probe_step":264,"feature":"DAY","index":0,"value":2},
+            ),
+            "guard0":(
+                {"probe_index":0,"probe_step":264,"feature":"OWN_MONEY","index":0,"value":2000},
+                {"probe_index":0,"probe_step":264,"feature":"DAY","index":0,"value":2},
+            ),
+            "guard1":(
+                {"probe_index":0,"probe_step":264,"feature":"OWN_MONEY","index":0,"value":100},
+                {"probe_index":0,"probe_step":264,"feature":"DAY","index":0,"value":9},
+            ),
+        }
+        goal=SearchGoal(("loss",),("guard0","guard1"),(),())
+        ctx=EmitterContext.from_observations(
+            ROUTES,[{"feature":"OWN_MONEY","index":0,"value":100}],
+            generation_depth=1,search_goal=goal,case_contexts=contexts,
+        )
+        rows=ContrastiveSpecialistEmitter().propose(p,n=12,seed=19,context=ctx)
+        self.assertTrue(rows)
+        children=[x.reconstruct(p,ROUTES) for x in rows]
+        self.assertTrue(all(any(c.feature=="STEP" for c in g.rules[-1].conditions) for g in children))
+        self.assertTrue(any(x.program_length>=2 and len(g.rules[-1].conditions)>=3 for x,g in zip(rows,children)))
+    def test_contrastive_emitter_uses_precomputed_guarded_condition_sets(self):
+        from tools.bkg4_search.edit_search.emitters import ContrastiveSpecialistEmitter,EmitterContext
+        from tools.bkg4_search.edit_search.goals import SearchGoal
+        p=parent0(0); goal=SearchGoal(("loss",),("guard",),(),())
+        contexts={
+            "loss":({"feature":"OWN_MONEY","index":0,"value":100},),
+            "guard":({"feature":"OWN_MONEY","index":0,"value":2000},),
+        }
+        pre=((ConditionGene("OWN_MONEY","LE",0,100),),)
+        ctx=EmitterContext.from_observations(
+            ROUTES,(),generation_depth=1,search_goal=goal,case_contexts=contexts,
+            contrastive_condition_sets=pre,
+        )
+        with mock.patch(
+            "tools.bkg4_search.edit_search.emitters.synthesize_contrastive_conditions",
+            side_effect=AssertionError("precomputed condition sets should bypass synthesis"),
+        ):
+            rows=ContrastiveSpecialistEmitter().propose(p,n=4,seed=7,context=ctx)
+        self.assertTrue(rows)
+        self.assertTrue(all(x.emitter=="contrastive" for x in rows))
+
 
 
 if __name__ == "__main__":

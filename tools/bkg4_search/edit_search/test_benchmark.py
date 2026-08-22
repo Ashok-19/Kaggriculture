@@ -117,6 +117,30 @@ class EditSearchBenchmarkTests(unittest.TestCase):
             self.assertIn("source_parent_count", row)
             self.assertIn("new_loss_rate", row)
 
+    def test_mixed_benchmark_exercises_goal_aware_contrastive_search(self):
+        from tools.bkg4_search.edit_search.benchmark import benchmark_proposers
+        from tools.bkg4_search.information_state_io import registry_manifest
+
+        registry = registry_manifest(); width = len(registry)
+        own_money = next(i for i, (name, args) in enumerate(registry) if name == "OWN_MONEY" and not args)
+        rows = []
+        for i, margin in enumerate((-30, 130, 140, 150)):
+            values = [0] * width; values[own_money] = 100 if i == 0 else 1000
+            rows.append(CaseRecord(
+                f"c{i}", f"/tmp/t{i}", i % 2, i + 1, f"f{i}", protected=i > 0,
+                baseline_margin=margin, context_probe_steps=(264,), public_context_width=width,
+                public_context_registry_width=width, public_context_values=tuple(values),
+            ))
+        with tempfile.TemporaryDirectory() as td:
+            report = benchmark_proposers(
+                root_genome=ModuleGenome(0, ()), route_ids=ROUTES, observations=OBS,
+                panel=rows, evaluator=DeterministicExactOracle(), candidate_budget=24,
+                seed=123, work_dir=Path(td),
+            )
+        permanent = report["proposers"]["permanent_recursive"]
+        self.assertIn("emitter_families", permanent)
+        self.assertIn("contrastive", permanent["emitter_families"])
+
     def test_anti_saturation_records_trajectories_and_real_escalation(self):
         from tools.bkg4_search.edit_search.benchmark import run_anti_saturation
 

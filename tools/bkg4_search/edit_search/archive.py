@@ -12,6 +12,7 @@ from tools.edit_corpus.corpus import canonical_json
 from . import EMITTER_REGISTRY_VERSION, GRAMMAR_ID, QD_DESCRIPTOR_SCHEMA_VERSION, SEARCH_STATE_SCHEMA_VERSION
 from .fitness import LexicographicFitness, PairEvaluation, StateEvaluation
 from .schema import EditProgram
+from .safety import SafetySpec
 
 
 def _feature_family(feature: str) -> str:
@@ -80,16 +81,87 @@ class ConsiderResult:
     exploration_inserted: bool
     production_niche: str | None
     exploration_niche: str | None
+    repair_inserted: bool = False
+    repair_niche: str | None = None
+
+
+@dataclass
+class CaseRegistry:
+    """Authoritative case/panel identity persisted with every concrete search archive."""
+
+    schema_version: int = 1
+    case_bank_identity: str = ""
+    case_ids: tuple[str, ...] = ()
+    panels: dict[str, tuple[str, ...]] = field(default_factory=dict)
+
+    @property
+    def bound(self) -> bool:
+        return bool(self.case_bank_identity and self.case_ids)
+
+    def bind(self, identity: str, case_ids: Sequence[str]) -> None:
+        ids = tuple(sorted(str(x) for x in case_ids))
+        if not identity or not ids or len(set(ids)) != len(ids):
+            raise ValueError("invalid case-bank registry")
+        if self.bound:
+            if self.case_bank_identity != str(identity) or self.case_ids != ids:
+                raise ValueError("case-bank identity/registered cases differ from concrete search archive")
+            return
+        self.case_bank_identity = str(identity)
+        self.case_ids = ids
+
+    def register_panel(self, panel_id: str, case_ids: Sequence[str]) -> None:
+        if not self.bound:
+            raise ValueError("case bank must be registered before panel membership")
+        pid = str(panel_id)
+        ids = tuple(str(x) for x in case_ids)
+        registered = set(self.case_ids)
+        if not pid or not ids or len(set(ids)) != len(ids) or any(x not in registered for x in ids):
+            raise ValueError("panel contains unknown/duplicate case IDs")
+        prior = self.panels.get(pid)
+        if prior is not None and prior != ids:
+            raise ValueError("panel identity already registered with different case membership")
+        self.panels[pid] = ids
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "schema_version": int(self.schema_version),
+            "case_bank_identity": self.case_bank_identity,
+            "case_ids": list(self.case_ids),
+            "panels": {str(k): list(v) for k, v in sorted(self.panels.items())},
+        }
+
+    @classmethod
+    def from_dict(cls, raw: Mapping[str, Any] | None) -> "CaseRegistry":
+        obj = dict(raw or {})
+        if not obj:
+            return cls()
+        if int(obj.get("schema_version", -1)) != 1:
+            raise ValueError("incompatible case-registry schema")
+        out = cls(
+            schema_version=1,
+            case_bank_identity=str(obj.get("case_bank_identity", "")),
+            case_ids=tuple(sorted(str(x) for x in obj.get("case_ids", ()))),
+            panels={str(k): tuple(str(x) for x in v) for k, v in dict(obj.get("panels") or {}).items()},
+        )
+        if out.case_bank_identity or out.case_ids or out.panels:
+            if not out.bound or len(set(out.case_ids)) != len(out.case_ids):
+                raise ValueError("invalid persisted case registry")
+            registered = set(out.case_ids)
+            for pid, ids in out.panels.items():
+                if not pid or not ids or len(set(ids)) != len(ids) or any(x not in registered for x in ids):
+                    raise ValueError("invalid persisted panel case membership")
+        return out
 
 @dataclass
 class SearchRuntimeState:
-    schema_version: int = 1
+    schema_version: int = 2
     last_proposed_generation: int = -1
     last_evaluated_generation: int = -1
     stagnation: dict[str, int] = field(default_factory=lambda: {"level": 0, "stalled": 0, "patience": 3, "max_level": 6})
     last_proposal_stats: dict[str, Any] = field(default_factory=dict)
     proposal_history: list[dict[str, Any]] = field(default_factory=list)
     exported_generations: list[int] = field(default_factory=list)
+    generation_transactions: dict[int, str] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -100,12 +172,13 @@ class SearchRuntimeState:
             "last_proposal_stats": json.loads(json.dumps(self.last_proposal_stats)),
             "proposal_history": json.loads(json.dumps(self.proposal_history[-64:])),
             "exported_generations": sorted(set(int(x) for x in self.exported_generations)),
+            "generation_transactions": {str(int(k)): str(v) for k, v in sorted(self.generation_transactions.items())},
         }
 
     @classmethod
     def from_dict(cls, raw: Mapping[str, Any] | None) -> "SearchRuntimeState":
         obj = dict(raw or {})
-        if int(obj.get("schema_version", 1)) != 1:
+        if int(obj.get("schema_version", -1)) != 2:
             raise ValueError("incompatible search runtime-state schema")
         stagnation = dict(obj.get("stagnation") or {"level":0,"stalled":0,"patience":3,"max_level":6})
         if set(stagnation) != {"level", "stalled", "patience", "max_level"}:
@@ -116,14 +189,18 @@ class SearchRuntimeState:
         exported = [int(x) for x in obj.get("exported_generations", ())]
         if any(x < 0 for x in exported) or len(set(exported)) != len(exported):
             raise ValueError("invalid exported-generation ledger")
+        transactions = {int(k): str(v) for k, v in dict(obj.get("generation_transactions") or {}).items()}
+        if any(k < 0 or not v for k, v in transactions.items()) or set(exported) != set(transactions):
+            raise ValueError("exported generations must have one immutable transaction identity")
         return cls(
-            schema_version=1,
+            schema_version=2,
             last_proposed_generation=int(obj.get("last_proposed_generation", -1)),
             last_evaluated_generation=int(obj.get("last_evaluated_generation", -1)),
             stagnation=values,
             last_proposal_stats=dict(obj.get("last_proposal_stats") or {}),
             proposal_history=[dict(x) for x in obj.get("proposal_history", ())],
             exported_generations=sorted(exported),
+            generation_transactions=transactions,
         )
 
 
@@ -145,6 +222,7 @@ class SearchArchive:
         self.states: dict[str, dict[str, Any]] = {}
         self.programs: dict[str, EditProgram] = {}
         self.production_niches: dict[str, dict[str, Any]] = {}
+        self.repair_niches: dict[str, dict[str, Any]] = {}
         self.exploration_niches: dict[str, dict[str, Any]] = {}
         self.novelty_archive: list[dict[str, Any]] = []
         self.hard_cases: dict[str, dict[str, Any]] = {}
@@ -154,6 +232,7 @@ class SearchArchive:
         self.escalation_history: list[dict[str, Any]] = []
         self.state_evaluations: dict[str, dict[str, dict[str, Any]]] = {}
         self.runtime_state = SearchRuntimeState()
+        self.case_registry = CaseRegistry()
 
     @classmethod
     def new(
@@ -177,6 +256,12 @@ class SearchArchive:
             return genome_from_json(self.states[str(semantic_id)])
         except KeyError as exc:
             raise KeyError(f"unknown search state {semantic_id}") from exc
+
+    def bind_case_bank(self, identity: str, case_ids: Sequence[str]) -> None:
+        self.case_registry.bind(identity, case_ids)
+
+    def register_panel(self, panel_id: str, case_ids: Sequence[str]) -> None:
+        self.case_registry.register_panel(panel_id, case_ids)
 
     def add_program(self, program: EditProgram, child: ModuleGenome) -> bool:
         if program.child_semantic_id != child.semantic_id():
@@ -227,20 +312,36 @@ class SearchArchive:
         alt = set(str(x) for x in record.get("alternate_program_ids", ()))
         alt.add(str(program_id)); record["alternate_program_ids"] = sorted(alt)
 
-    def consider(self, program: EditProgram, pair: PairEvaluation) -> ConsiderResult:
+    def consider(self, program: EditProgram, pair: PairEvaluation, *, source_pair: PairEvaluation | None = None) -> ConsiderResult:
         if pair.child_semantic_id != program.child_semantic_id:
             raise ValueError("pair/program child mismatch")
+        source_pair = pair if source_pair is None else source_pair
+        if source_pair.child_semantic_id != pair.child_semantic_id or source_pair.panel_id != pair.panel_id:
+            raise ValueError("source/root safety pairs must describe the same child/panel")
         child = self.genome(program.child_semantic_id)
         rec = self._elite_record(program, pair, child)
-        fit = LexicographicFitness.from_pair(pair, complexity=len(child.rules) + program.program_length)
         agg = pair.certified_aggregate()
+        safety = SafetySpec().assess_program(source_pair=source_pair, root_pair=pair)
+        root_safety = safety.root; source_safety = safety.source
+        rec.update({
+            "root_feasible": bool(root_safety.feasible),
+            "source_feasible": bool(source_safety.feasible),
+            "safety_tier": root_safety.tier.value,
+            "worst_protected_delta": int(root_safety.worst_protected_delta),
+            "protected_tail_mean": float(root_safety.protected_tail_mean),
+        })
         prod_niche = _niche("production", rec["policy_state"])
+        repair_niche = _niche("repair", rec["policy_state"])
         exp_niche = _niche("exploration", rec["policy_state"], rec["behavior"])
-        production_inserted = False
-        exploration_inserted = False
+        production_inserted = repair_inserted = exploration_inserted = False
 
-        existing_prod = self._child_niche(self.production_niches, child.semantic_id())
-        if fit.strict_safe and bool(agg["behavior_changing"]):
+        if root_safety.feasible and root_safety.behavior_changing:
+            production_key = root_safety.production_key(
+                program_length=program.program_length,
+                rule_delta=len(child.rules) - len(self.genome(program.source_parent_semantic_id).rules),
+            )
+            rec["fitness_key"] = list(production_key)
+            existing_prod = self._child_niche(self.production_niches, child.semantic_id())
             target_niche = existing_prod or prod_niche
             old = self.production_niches.get(target_niche)
             if old is None or tuple(rec["fitness_key"]) < tuple(old["fitness_key"]):
@@ -251,23 +352,25 @@ class SearchArchive:
                 production_inserted = old is None or str(old.get("child_semantic_id")) != child.semantic_id()
             elif old is not None and str(old.get("child_semantic_id")) == child.semantic_id():
                 self._preserve_alternate_program(old, program.program_id)
+        elif not root_safety.feasible:
+            repair_key = root_safety.repair_key()
+            repair_rec = dict(rec); repair_rec["repair_key"] = list(repair_key)
+            existing_repair = self._child_niche(self.repair_niches, child.semantic_id())
+            target_repair = existing_repair or repair_niche
+            old = self.repair_niches.get(target_repair)
+            if old is None or tuple(repair_rec["repair_key"]) < tuple(old.get("repair_key", (10**9,))):
+                self.repair_niches[target_repair] = repair_rec
+                repair_inserted = old is None or str(old.get("child_semantic_id")) != child.semantic_id()
 
-        exploration_key = (
-            int(agg["new_loss_count"]), int(agg["w2l_count"]), -int(agg["l2w_count"]),
-            -len(pair.changed_case_ids), -float(agg["mean_margin_delta"]),
-        )
+        # Research evidence is retained separately, but never defines production feasibility.
+        exploration_key = (*root_safety.violation.key(), -len(pair.changed_case_ids), -float(agg["mean_margin_delta"]))
         existing_exp = self._child_niche(self.exploration_niches, child.semantic_id())
         target_exp = existing_exp or exp_niche
         old = self.exploration_niches.get(target_exp)
-        if old is None or exploration_key < tuple(old.get("exploration_key", (10**9, 10**9, 0, 0, 0))):
+        if old is None or exploration_key < tuple(old.get("exploration_key", (10**9,) * len(exploration_key))):
             exp_rec = dict(rec); exp_rec["exploration_key"] = list(exploration_key)
-            if old is not None and str(old.get("child_semantic_id")) == child.semantic_id():
-                self._preserve_alternate_program(exp_rec, str(old.get("program_id")))
-                for alt in old.get("alternate_program_ids", ()): self._preserve_alternate_program(exp_rec, str(alt))
             self.exploration_niches[target_exp] = exp_rec
             exploration_inserted = old is None or str(old.get("child_semantic_id")) != child.semantic_id()
-        elif old is not None and str(old.get("child_semantic_id")) == child.semantic_id():
-            self._preserve_alternate_program(old, program.program_id)
 
         self.evaluated_semantic_ids.add(program.child_semantic_id)
         if pair.changed_case_ids:
@@ -279,10 +382,22 @@ class SearchArchive:
             }
             if not any(str(x.get("child_semantic_id")) == child.semantic_id() or x.get("changed_signature") == novelty["changed_signature"] for x in self.novelty_archive):
                 self.novelty_archive.append(novelty)
-        return ConsiderResult(production_inserted, exploration_inserted, prod_niche if production_inserted else None, exp_niche if exploration_inserted else None)
+        return ConsiderResult(
+            production_inserted=production_inserted,
+            exploration_inserted=exploration_inserted,
+            production_niche=prod_niche if production_inserted else None,
+            exploration_niche=exp_niche if exploration_inserted else None,
+            repair_inserted=repair_inserted,
+            repair_niche=repair_niche if repair_inserted else None,
+        )
 
     def record_counterexample(self, case_id: str, *, reason: str, severity: int, panel_id: str) -> None:
         cid = str(case_id)
+        if not self.case_registry.bound or cid not in set(self.case_registry.case_ids):
+            raise ValueError("counterexample case is not registered in archive CaseBank")
+        registered_panel = self.case_registry.panels.get(str(panel_id))
+        if registered_panel is None or cid not in registered_panel:
+            raise ValueError("counterexample panel membership is not registered")
         row = self.hard_cases.setdefault(cid, {"count": 0, "severity": 0, "reasons": {}, "panels": {}})
         row["count"] = int(row["count"]) + 1
         row["severity"] = max(int(row["severity"]), int(severity))
@@ -293,6 +408,11 @@ class SearchArchive:
         sid = str(evaluation.semantic_id)
         if sid not in self.states:
             raise ValueError("cannot certify unknown search state")
+        if not self.case_registry.bound:
+            raise ValueError("case bank must be registered before exact state certification")
+        registered_panel = self.case_registry.panels.get(str(evaluation.panel_id))
+        if registered_panel is None or tuple(evaluation.case_ids) != registered_panel:
+            raise ValueError("exact certification case IDs do not match registered panel membership")
         by_panel = self.state_evaluations.setdefault(sid, {})
         existing = by_panel.get(evaluation.panel_id)
         payload = evaluation.to_dict()
@@ -349,17 +469,39 @@ class SearchArchive:
         for key, value in (("attempts", attempts), ("unique", unique), ("archive_insertions", archive_insertions), ("useful_safe", useful_safe)):
             row[key] = int(row[key]) + int(value)
 
-    def parent_state_ids(self) -> list[str]:
+    def production_parent_state_ids(self) -> list[str]:
+        """Root plus exact root-feasible QD elites; research-only states never leak here."""
         ids = {self.root_semantic_id}
-        for table in (self.production_niches, self.exploration_niches):
-            ids.update(str(x["child_semantic_id"]) for x in table.values())
-        ids.update(str(x["child_semantic_id"]) for x in self.novelty_archive)
+        ids.update(str(x["child_semantic_id"]) for x in self.production_niches.values())
         return sorted(ids)
 
-    def mark_exported_generation(self, generation: int) -> None:
-        g = int(generation)
-        if g < 0:
-            raise ValueError("generation must be non-negative")
+    def repair_parent_state_ids(self, *, limit: int = 16) -> list[str]:
+        """Best infeasible states ordered by distance to root feasibility."""
+        rows = sorted(
+            self.repair_niches.values(),
+            key=lambda x: (tuple(x.get("repair_key", (10**9,))), str(x.get("child_semantic_id", ""))),
+        )
+        out: list[str] = []
+        for row in rows:
+            sid = str(row["child_semantic_id"])
+            if sid not in out:
+                out.append(sid)
+            if len(out) >= max(0, int(limit)):
+                break
+        return out
+
+    def parent_state_ids(self) -> list[str]:
+        """Compatibility alias for the normal production parent lane only."""
+        return self.production_parent_state_ids()
+
+    def mark_exported_generation(self, generation: int, transaction_id: str) -> None:
+        g = int(generation); tx = str(transaction_id)
+        if g < 0 or not tx:
+            raise ValueError("generation/transaction identity must be valid")
+        prior = self.runtime_state.generation_transactions.get(g)
+        if prior is not None and prior != tx:
+            raise ValueError("generation is already bound to a different immutable transaction")
+        self.runtime_state.generation_transactions[g] = tx
         if g not in self.runtime_state.exported_generations:
             self.runtime_state.exported_generations.append(g)
             self.runtime_state.exported_generations.sort()
@@ -381,7 +523,7 @@ class SearchArchive:
                 parent_program = self.programs.get(str(program.parent_program_id))
                 if parent_program is None or parent_program.child_semantic_id != program.source_parent_semantic_id:
                     raise ValueError("search archive lineage parent is dangling/incompatible")
-        for kind, table in (("production", self.production_niches), ("exploration", self.exploration_niches)):
+        for kind, table in (("production", self.production_niches), ("repair", self.repair_niches), ("exploration", self.exploration_niches)):
             seen_children: set[str] = set()
             for niche, row in table.items():
                 sid = str(row.get("child_semantic_id", "")); pid = str(row.get("program_id", ""))
@@ -393,11 +535,13 @@ class SearchArchive:
                 expected_state = policy_state_descriptor(self.genome(sid))
                 if dict(row.get("policy_state") or {}) != expected_state:
                     raise ValueError(f"{kind} QD policy-state descriptor mismatch")
-                expected_niche = _niche(kind, expected_state) if kind == "production" else _niche(kind, expected_state, dict(row.get("behavior") or {}))
+                expected_niche = _niche(kind, expected_state) if kind in {"production", "repair"} else _niche(kind, expected_state, dict(row.get("behavior") or {}))
                 if niche != expected_niche:
                     raise ValueError(f"{kind} QD niche identity mismatch")
-                if kind == "production" and not bool(row.get("strict_safe")):
+                if kind == "production" and (not bool(row.get("strict_safe")) or not bool(row.get("root_feasible", True))):
                     raise ValueError("production QD contains non-safe elite")
+                if kind == "repair" and bool(row.get("root_feasible", False)):
+                    raise ValueError("repair QD contains a root-feasible state")
                 for alt in row.get("alternate_program_ids", ()):
                     if str(alt) not in self.programs or self.programs[str(alt)].child_semantic_id != sid:
                         raise ValueError(f"{kind} QD alternate program is dangling")
@@ -416,6 +560,22 @@ class SearchArchive:
                 ev = StateEvaluation.from_dict(payload)
                 if ev.semantic_id != sid or ev.panel_id != panel_id:
                     raise ValueError("exact certification identity mismatch")
+                if not self.case_registry.bound:
+                    raise ValueError("exact certifications require an authoritative case registry")
+                registered_panel = self.case_registry.panels.get(str(panel_id))
+                if registered_panel is None or tuple(ev.case_ids) != registered_panel:
+                    raise ValueError("exact certification references unknown/invalid panel cases")
+        if self.hard_cases:
+            if not self.case_registry.bound:
+                raise ValueError("hard cases require an authoritative case registry")
+            registered = set(self.case_registry.case_ids)
+            for cid, row in self.hard_cases.items():
+                if cid not in registered:
+                    raise ValueError("hard case references unknown registered case")
+                for panel_id in dict(row.get("panels") or {}):
+                    members = self.case_registry.panels.get(str(panel_id))
+                    if members is None or cid not in members:
+                        raise ValueError("hard case references invalid panel membership")
         for motif_id, row in self.motifs.items():
             template = dict(row.get("template") or {})
             if motif_id != stable_motif_identity(template) or str(row.get("motif_id")) != motif_id:
@@ -440,6 +600,7 @@ class SearchArchive:
             "states": self.states,
             "programs": {k: v.canonical(include_provenance=True) for k, v in self.programs.items()},
             "production_niches": self.production_niches,
+            "repair_niches": self.repair_niches,
             "exploration_niches": self.exploration_niches,
             "novelty_archive": self.novelty_archive,
             "hard_cases": self.hard_cases,
@@ -449,6 +610,7 @@ class SearchArchive:
             "escalation_history": self.escalation_history,
             "state_evaluations": self.state_evaluations,
             "runtime_state": self.runtime_state.to_dict(),
+            "case_registry": self.case_registry.to_dict(),
         }
 
     def save(self, path: str | Path) -> None:
@@ -481,6 +643,7 @@ class SearchArchive:
         out.states = {str(k): dict(v) for k, v in obj["states"].items()}
         out.programs = {str(k): EditProgram.from_dict(v) for k, v in obj["programs"].items()}
         out.production_niches = {str(k): dict(v) for k, v in obj.get("production_niches", {}).items()}
+        out.repair_niches = {str(k): dict(v) for k, v in obj.get("repair_niches", {}).items()}
         out.exploration_niches = {str(k): dict(v) for k, v in obj.get("exploration_niches", {}).items()}
         out.novelty_archive = [dict(x) for x in obj.get("novelty_archive", [])]
         out.hard_cases = {str(k): dict(v) for k, v in obj.get("hard_cases", {}).items()}
@@ -493,5 +656,6 @@ class SearchArchive:
             for sid, panels in obj.get("state_evaluations", {}).items()
         }
         out.runtime_state = SearchRuntimeState.from_dict(obj.get("runtime_state"))
+        out.case_registry = CaseRegistry.from_dict(obj.get("case_registry"))
         out.validate_integrity()
         return out

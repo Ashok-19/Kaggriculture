@@ -69,9 +69,43 @@ class EditSearchMultiFidelityTests(unittest.TestCase):
         self.assertFalse(any(x["child_semantic_id"] == unsafe for x in archive.production_niches.values()))
         self.assertTrue(any(x["child_semantic_id"] == safe for x in archive.production_niches.values()))
         self.assertIsNotNone(result.stage_recall)
+        self.assertEqual(result.stage_recall["danger_recall"], 0.0)
+        self.assertEqual(result.stage_recall["selection_danger_recall"], 1.0)
         self.assertEqual(set(result.full_source_pairs), {p.program_id for p in programs})
         self.assertEqual(archive.state_evaluation(safe, result.full_root_pairs[programs[1].program_id].panel_id).margins, (101,1,101,201))
+        self.assertTrue(archive.repair_niches)
+        self.assertEqual(result.signals.production_insertions, 1)
+        self.assertEqual(result.signals.repair_insertions, 1)
+        self.assertEqual(result.signals.archive_insertions, 2)
         self.assertTrue(archive.motifs)
 
+
+    def test_periodic_full_audit_recovers_missed_safe_candidate_into_production_archive(self):
+        from tools.bkg4_search.edit_search.search import SearchEngine
+        root = ModuleGenome(144, ())
+        archive = SearchArchive.new(root_genome=root, base_identity="base", route_ids=ROUTES, run_id="r", master_seed=1)
+        programs = [
+            EditProgram.build(root, (EditAction("CHANGE_WINDOW",0,prefix_step=145),), ROUTES, emitter="systematic", seed=1),
+            EditProgram.build(root, (EditAction("CHANGE_WINDOW",0,prefix_step=146),), ROUTES, emitter="contrastive", seed=2),
+        ]
+        for p in programs: archive.add_program(p, p.reconstruct(root, ROUTES))
+        bank = CaseBank([
+            CaseRecord("c0","/tmp/t0",0,1,"f0",baseline_margin=100),
+            CaseRecord("c1","/tmp/t1",1,2,"f1",baseline_margin=-10),
+            CaseRecord("c2","/tmp/t2",0,3,"f2",baseline_margin=100),
+            CaseRecord("c3","/tmp/t3",1,4,"f3",baseline_margin=200),
+        ])
+        manager = CasePanelManager(bank, random_anchor_fraction=0.0)
+        evaluator = ToyExactEvaluator(root.semantic_id())
+        engine = SearchEngine(route_ids=ROUTES)
+        with tempfile.TemporaryDirectory() as td:
+            result = engine.evaluate_round(
+                archive, programs, evaluator=evaluator, panel_manager=manager,
+                screen_size=2, final_size=4, stage2_budget=1, generation=1, seed=7,
+                work_dir=Path(td), audit_all=True,
+            )
+        self.assertEqual(len(result.finalist_program_ids),1)
+        self.assertIn(programs[1].program_id, result.full_root_pairs)
+        self.assertTrue(any(x["child_semantic_id"] == programs[1].child_semantic_id for x in archive.production_niches.values()))
 
 if __name__ == "__main__": unittest.main(verbosity=2)

@@ -1,94 +1,175 @@
 # Permanent BKG4 Edit Search
 
-`tools/bkg4_search/edit_search/` is the reusable recursive typed structural-search subsystem for ReCurSiON's BKG4 Bonsai agent.
-
-It is intentionally separate from the old replay-derived one-generation edit-corpus builder. The permanent engine accepts a concrete BKG4 parent profile, keeps a persistent quality-diversity archive of exact semantic states, proposes fully specified typed edit programs, evaluates them with exact B4EC1 CUDA truth, feeds broader-panel counterexamples back into future screening, and exports strict exact-labeled BonsaiEditFormer training corpora.
+`tools/bkg4_search/edit_search/` is ReCurSiON's permanent recursive typed structural-search system for the BKG4 Bonsai backbone. Its job is to produce diverse, exact-CUDA-labeled Bonsai edit programs that are useful for BonsaiEditFormer training and future BKG4 improvement. It is not a champion-promotion mechanism by itself.
 
 ## Non-negotiable invariants
 
-- BKG4/Bonsai remains the deterministic policy backbone. This package does not create BKG5 or replace the champion automatically.
-- Search/evaluation truth is exact CUDA (`B4EC1/v1`). There is no CPU or Python game-evaluator fallback in `ExactCudaEvaluator`.
-- Concrete search states are parent-specific. A future BKG4 parent gets a fresh archive; only symbolic motifs may be re-instantiated, and every re-instantiated motif must be reevaluated.
-- Production ranking is safety-first and lexicographic. Aggregate margin gains cannot compensate for new losses or severe protected-win regressions.
-- Search preserves unsafe or specialist stepping stones only in exploration/QD structures; unsafe states do not enter the production-safe archive.
-- Model inputs are restricted to legal/public state context plus parent structure/EditProgram semantics. `prov_*`, `search_*`, candidate screening scores and final outcome labels are never model feature columns.
-- Large campaigns belong on CUDA. Before any candidate is promoted to a submission, validate the final deterministic CPU C++ artifact and run a small 64/128-game official Python-engine canary.
+- BKG4/Bonsai remains the deterministic policy backbone.
+- Large search/evaluation campaigns use exact CUDA (`B4EC1/v1`). `ExactCudaEvaluator` has no CPU/Python game-evaluator fallback.
+- CPU C++ and CUDA semantics must remain bit-exact. Run `parity.py` after any evaluator/grammar change.
+- A final submission candidate still requires a 64/128-game official Python Kaggriculture canary before promotion.
+- Safety is a hard feasibility constraint, not a scalar reward. Margin gain never compensates for a new loss, win-to-loss transition, or configured severe protected regression.
+- Concrete search state is tied to one `ParentProfile`. Symbolic motifs may transfer to a new parent only by reconstruction and fresh exact evaluation.
+- Model-visible context is recursively allowlisted public information only. Search provenance, screening scores, opponent identity, and future outcome truth never become model features.
+- Search, corpus, and QD persistence fail closed on version, identity, referential-integrity, or transaction mismatches.
+
+Current persistence versions:
+
+```text
+SEARCH_STATE_SCHEMA_VERSION = 3
+EDIT_PROGRAM_SCHEMA_VERSION  = 2
+GRAMMAR_ID                   = bkg4_module_genome_edit_v2
+EMITTER_REGISTRY_VERSION     = 3
+QD_DESCRIPTOR_SCHEMA_VERSION = 2
+CORPUS_SCHEMA_VERSION        = 3
+```
 
 ## Architecture
 
-The permanent package is split into narrow components:
+- `schema.py` — `ParentProfile`, canonical state-relative `EditProgram`/`EditAtom` identities, reconstruction.
+- `safety.py` — hard root/source feasibility, violation distance, safety tiers, protected-tail diagnostics.
+- `goals.py` — public-state `SearchGoal` construction and contrastive predicate synthesis.
+- `emitters.py` — contrastive, systematic, local, structural, motif, recombination, LNS, evolvability/MCTS, and permanent random-typed emitters.
+- `archive.py` — authoritative `CaseRegistry`, exact certifications, production/repair/research QD, novelty, motifs, emitter contribution stats, hard cases, runtime transaction ledger.
+- `panels.py` — mixed production CaseBank validation, deterministic screens, hard-case prioritization, Stage-1 detection-recall governance.
+- `fitness.py` — exact parent→child case labels and safety-first lexicographic fitness.
+- `evaluator.py` — one batched B4GM1→B4EC1 CUDA invocation per exact state batch.
+- `search.py` — constrained parent lanes, lexicase selection, multi-goal scheduling, multi-fidelity evaluation, contribution-aware emitter allocation, persistent goal caches, anti-stagnation escalation.
+- `corpus.py` — crash-consistent exact Parquet transactions, immutable generation identities/snapshots, recovery, strict recomputation validation, model-boundary auditing.
+- `benchmark.py` — same-root equal-budget proposer comparison and bounded anti-saturation harness.
+- `parity.py` — non-empty ModuleGenome CPU C++↔CUDA parity on shared normalized B4TP1 tapes.
+- `cli.py` — persistent init/resume/search/validation/benchmark lifecycle.
 
-- `schema.py` — parent profiles and canonical state-relative `EditProgram`/`EditAtom` identities.
-- `emitters.py` — systematic, local, structural, motif, semantic recombination, large-neighborhood, evolvability/MCTS and permanent random-typed emitters.
-- `archive.py` — persistent production/exploration QD niches, novelty archive, motifs, exact certifications and hard counterexamples.
-- `panels.py` — deterministic mixed screening panels and hard-case prioritization.
-- `fitness.py` — exact parent→child labels and safety-first lexicographic fitness.
-- `evaluator.py` — one batched B4GM1→B4EC1 exact CUDA invocation per state batch; no fallback.
-- `search.py` — recursive parent selection, lexicase specialists, multi-fidelity Stage 1/Stage 2 evaluation and anti-stagnation escalation.
-- `corpus.py` — explicit-schema, transactional exact Parquet export plus fail-closed reconstruction/referential/per-case/aggregate/category validation and recursively allowlisted model-input boundaries.
-- `benchmark.py` — same-parent equal-budget proposer comparison and anti-saturation harness.
-- `parity.py` — bounded non-empty B4GM1 CPU C++ ↔ B4EC1 CUDA translation/parity harness using shared normalized B4TP1 tapes.
-- `cli.py` — persistent lifecycle and validation commands.
+## Hard safety and parent lanes
 
-The default fixed emitter scheduler is deliberate. An adaptive UCB allocator was not retained because no fixed-vs-adaptive ablation demonstrated a benefit. Exploration floors therefore remain explicit and reproducible.
+Every exact candidate is assessed relative to both its immediate source parent and the archive root. Root feasibility controls production admission.
 
-## Current semantic ceiling
+A candidate is infeasible if it introduces any of:
 
-The current backend searches the frozen BKG4 portable route-selector `ModuleGenome`: up to eight ordered rules, up to four legal/public predicates per rule, one frozen route-bank choice per rule, and a searchable activation prefix/window. It can recursively produce 2+ rule parents and all applicable typed operations, including `CHANGE_PRIORITY` once a state has multiple rules.
+- a new loss,
+- a win→loss transition,
+- a configured severe protected regression.
 
-This is a semantic ceiling of the **current backend**, not of the permanent search infrastructure. If a future BKG4 architecture adds a richer portable module grammar, add a separately versioned grammar/EditProgram backend and evaluator packing contract. Do not silently reinterpret existing `GRAMMAR_ID`, search-state, QD descriptor or corpus schema versions.
+Safety tiers are:
 
-## Build the exact evaluator
-
-The permanent wrapper uses `cuda-engine/src/bkg4_edit_corpus_eval.cu` and the same B4EC1 ABI used by the edit-corpus builder.
-
-```bash
-make -C cuda-engine bkg4-edit-corpus-eval
+```text
+ELITE_FLIP
+ELITE_MARGIN
+STRICT_SAFE_USEFUL
+SAFE_INCREMENTAL
+BOUNDARY
+HARD_NEGATIVE
+CONTROLLED_NOOP
 ```
 
-The target intentionally exposes separate B4EC flags because this evaluator is also compiled as a standalone support-dataset source. On local CUDA 11.5 installations whose default GCC is too new, select a supported host compiler explicitly; for an RTX 3050 (`sm_86`) local validation build:
+The archive keeps three separate populations:
 
-```bash
-make -C cuda-engine -B bkg4-edit-corpus-eval \
-  B4EC_HOST_CXX=g++-9 \
-  B4EC_NVCCFLAGS='-O3 -std=c++17 -lineinfo -arch=sm_86'
+1. **production** — root-feasible behavior-changing QD elites;
+2. **repair** — root-infeasible states ordered by distance to feasibility before reward/novelty;
+3. **research/exploration** — novelty evidence that never silently becomes a normal production parent.
+
+Normal parents are root + production elites. Repair-capable emitters may receive a bounded repair-parent mixture. Research novelty cannot reset strategic stagnation by itself.
+
+## Mixed production CaseBank
+
+Production search rejects an all-loss or otherwise degenerate CaseBank. A production bank must contain meaningful safety contrast, including losses, protected wins, fragile protected wins, strong protected wins, both seats, and multiple strategy families.
+
+The final validation bank used 64 current cases:
+
+```text
+20 losses
+16 fragile wins
+28 strong wins
+44 protected wins total
 ```
 
-Do not enable `--use_fast_math`; market/parity truth requires exact arithmetic behavior.
+A disjoint 48-case holdout was kept out of SearchGoals/QD during discovery.
 
-## Persistent lifecycle
+## Contrastive SearchGoals
 
-All commands are run from the repository root.
+`SearchGoal` clusters current failures using legal public state context and pairs them with protected/fragile guards. Contrastive synthesis is intentionally conservative:
 
-Create a fresh concrete archive for a parent:
+- conjunction predicates must co-occur in the same probe frame;
+- synthesis uses stable public regime features rather than worker/tile coordinate memorization;
+- if no predicate excludes protected guards, the contrastive emitter emits nothing for that goal;
+- when probe timing is available, specialists receive exact `STEP==t` or bounded `STEP` interval guards;
+- the existing B4GM1 ABI already supports up to four predicates/rule, so three/four-condition specialists are represented as canonical multi-edit programs without an ABI change;
+- a parent's scheduled contrastive budget is distributed across multiple failure goals rather than one seed-selected goal;
+- guarded condition sets are cached per `(CaseBank identity, goal_id)` across generations and invalidated automatically when either identity changes.
+
+The final direct exact-CUDA temporal-specialist proof evaluated 96 candidates on the 64-case mixed panel:
+
+```text
+hard-feasible:             96 / 96
+safe-useful:               26
+elite-tier:                20
+programs with L2W:          7
+new losses:                 0
+W2L:                        0
+severe regressions:         0
+best L2W:                   2
+best mean margin delta: +1317.65625
+```
+
+## Stage-1 / Stage-2 recall governance
+
+Stage-1 detection recall and Stage-2 selection recall are separate diagnostics. A small Stage-2 budget is not incorrectly reported as poor Stage-1 detection.
+
+Periodic full audits recompute exact truth for all proposals and promote any missed safe candidate into the constrained archive. If detection recall falls below the configured floor, the next generation widens the screen and Stage-2 budget. The final validation demonstrated the full feedback loop:
+
+```text
+16-case screen / 20 Stage-2 -> L2W recall miss -> widen to 24 / 30
+24 / 30 -> later useful-recall miss -> widen to 36 / 45
+36 / 45 -> useful=1.0, L2W=1.0, danger=1.0
+```
+
+## Contribution-aware emitter allocation
+
+The scheduler keeps explicit base weights and a permanent random floor, but exact contribution now changes later allocation. Emitters with sufficient attempts are scaled by safe-useful yield and production/repair insertions. Contrastive specialists have a first-class budget and are excluded from generic refill so unavailable motif/recombination capacity cannot collapse a generation into one aggressive family.
+
+Unused capacity is refilled by broader typed emitters. One-slot allocations round-robin operation/target families instead of being captured by alphabetic candidate order.
+
+## Proposal throughput
+
+Two host bottlenecks were removed without changing CUDA truth:
+
+1. shared deterministic typed pools avoid regenerating the same large typed neighborhood for every emitter/parent;
+2. contrastive conjunction scoring uses frame-coherent bitsets plus per-goal cross-generation caching.
+
+On the validator's 33-state workload, shared typed pools changed 64-candidate proposal throughput from about **3.22 unique/s to 20.73 unique/s**; 128 and 256 candidate probes reached **27.02/s** and **51.65/s** respectively.
+
+On the much richer final 193-state archive with 14–19 source parents and 11–12 operation families, a 64-proposal cold/warm pair measured **3.22/s → 4.88/s**. A single rich SearchGoal's synthesis fell from **16.65 s to 1.41 s (~11.8×)**. Large exact evaluation remains CUDA-resident; host proposal work is bounded and deterministic.
+
+## Crash-consistent corpus transactions
+
+Each exported generation has an immutable transaction identity tied to:
+
+- parent/search identity,
+- generation number,
+- canonical archive digest,
+- exact program IDs.
+
+A transaction writes program/label/parent shards and an immutable `archive.after.json` snapshot before the corpus manifest commit point. Recovery:
+
+- rolls back prepared/uncommitted process-death artifacts;
+- reconstructs stale canonical archive state from a committed immutable snapshot;
+- rejects corpus/archive transaction or digest mismatches;
+- never repairs an archive by copying generation numbers alone.
+
+Caught exceptions roll back the partial generation and permit an exact retry. An initialized zero-generation corpus is resumable, while strict final export validation still rejects a corpus with no complete generation.
+
+## Production lifecycle
+
+Create a fresh archive:
 
 ```bash
 python3 -m tools.bkg4_search.edit_search.cli init \
   --parent-dir bonsai-kg/integrations/bkg4_champion/champions/w33_s172_expansion_v1 \
   --archive scratch/edit_search/run/search.json \
-  --run-id recur-001 \
-  --seed 99173 \
-  --root-prefix 0
+  --run-id recur-001 --seed 99173 --root-prefix 0
 ```
 
-Inspect/resume it:
-
-```bash
-python3 -m tools.bkg4_search.edit_search.cli validate --archive scratch/edit_search/run/search.json
-python3 -m tools.bkg4_search.edit_search.cli resume --archive scratch/edit_search/run/search.json
-```
-
-Proposal-only debugging is available without evaluation:
-
-```bash
-python3 -m tools.bkg4_search.edit_search.cli propose \
-  --archive scratch/edit_search/run/search.json \
-  --observations scratch/edit_search/observations.jsonl \
-  --count 256 --generation 1 --seed 99173 \
-  --out scratch/edit_search/run/proposals_g1.jsonl
-```
-
-A production search round requires a `CaseBank` JSONL with legal/public ranker context and the exact evaluator:
+Run production search:
 
 ```bash
 python3 -m tools.bkg4_search.edit_search.cli search \
@@ -99,14 +180,14 @@ python3 -m tools.bkg4_search.edit_search.cli search \
   --evaluator scratch/cuda-engine-build/bkg4_edit_corpus_eval \
   --corpus scratch/edit_search/run/corpus \
   --work-dir scratch/edit_search/run/work \
-  --start-generation 1 --rounds 1 \
+  --start-generation 1 --rounds 4 \
   --candidates 4096 --screen-size 128 --final-size 512 --stage2-budget 512 \
-  --seed 99173
+  --recall-audit-every 4 --seed 99173
 ```
 
-The search command persists the archive after every completed generation and appends only exact Stage-2 rows to the corpus. Reusing an already-exported generation fails closed.
+For large corpus campaigns, use a large candidate pool with a 64/128-case CUDA screen and exact 512-case final labeling only for retained candidates; periodic full audits govern screen recall. Do not increase final-panel size merely to compensate for poor candidate throughput.
 
-Validate an exported exact corpus:
+Validate the exact corpus:
 
 ```bash
 python3 -m tools.bkg4_search.edit_search.cli validate-corpus \
@@ -116,83 +197,32 @@ python3 -m tools.bkg4_search.edit_search.cli validate-corpus \
 
 ## Equal-budget benchmark
 
-The benchmark compares four proposal systems with identical **child × case exact-CUDA budgets**:
+The benchmark compares historical shallow, random typed, fixed systematic, and permanent recursive search under one shared root and identical child×case exact-CUDA budgets. The permanent arm receives the same mixed CaseBank/SearchGoals used in production; contrastive search is not silently disabled during benchmarking.
 
-1. historical shallow `build_edit_plan`,
-2. random typed single-parent mutation,
-3. fixed systematic single-parent mutation,
-4. permanent recursive/QD search.
+`--require-material-improvement` checks catastrophic safety, safe-useful/repair yield, genuine recursion/multi-parent behavior, and structural diversity. Use multiple deterministic seeds.
 
-The root evaluation is shared and does not bias one arm's child budget.
-
-```bash
-python3 -m tools.bkg4_search.edit_search.cli benchmark \
-  --parent-dir bonsai-kg/integrations/bkg4_champion/champions/w33_s172_expansion_v1 \
-  --cases-tsv scratch/bkg4_edit_search_validation/heldout16_cases7.tsv \
-  --observations scratch/bkg4_edit_search_validation/current140_observations.jsonl \
-  --evaluator scratch/cuda-engine-build/bkg4_edit_corpus_eval \
-  --work-dir scratch/bkg4_edit_search_validation/cli_benchmark \
-  --candidate-budget 64 --seed 99173 --memory-fraction 0.55 \
-  --report scratch/bkg4_edit_search_validation/cli_benchmark_report.json \
-  --require-material-improvement
-```
-
-Every arm must report the same root semantic identity; the benchmark fails before child evaluation if that invariant is violated. `--require-material-improvement` returns nonzero unless catastrophic safety is no worse than old shallow, safe-useful and strict-safe repair yield remain materially competitive (the current gate is at least 80% of old shallow), recursive search is genuinely deeper and multi-parent, and useful structural diversity or parent-rule coverage expands. The final validation uses three deterministic 64×16 exact-CUDA seeds rather than one lucky seed.
-
-## Anti-saturation harness
-
-The anti-saturation command first exact-scores the supplied B4EC1 cases to establish current root margins, then runs a bounded persistent recursive search while recording raw proposal pressure, duplicate rejection, archive/QD growth, emitter yield, source-parent diversity, operation coverage and escalation events.
-
-```bash
-python3 -m tools.bkg4_search.edit_search.cli anti-saturation \
-  --parent-dir bonsai-kg/integrations/bkg4_champion/champions/w33_s172_expansion_v1 \
-  --cases-tsv scratch/bkg4_edit_search_validation/heldout16_cases7.tsv \
-  --observations scratch/bkg4_edit_search_validation/current140_observations.jsonl \
-  --evaluator scratch/cuda-engine-build/bkg4_edit_corpus_eval \
-  --work-dir scratch/bkg4_edit_search_validation/cli_anti_saturation \
-  --generations 8 --candidates-per-generation 24 \
-  --screen-size 8 --final-size 16 --stagnation-patience 1 \
-  --seed 99173 --memory-fraction 0.55 \
-  --report scratch/bkg4_edit_search_validation/cli_anti_saturation_report.json \
-  --require-escalation
-```
-
-Escalation levels expand the search regime in order: wider scalar/window/route neighborhoods; broader QD parents/structural edits; semantic recombination; large-neighborhood destroy/repair; deeper evolvability/MCTS; then novelty/rare-niche/hard-case refresh. A permanent random-typed floor remains nonzero. `--require-escalation` is appropriate for an intentionally saturated/plateau validation fixture; a healthy production probe may correctly exit nonzero under that flag because no stagnation condition occurred. Do not manufacture escalation when unique throughput, novelty, and archive growth remain healthy.
-
-## Non-empty CPU C++ ↔ CUDA parity
-
-Before treating a searched ModuleGenome as portable, run the bounded non-empty parity harness. It feeds the same normalized B4TP1 opponent actions and the same B4GM1 overlays to the authoritative CPU C++ BKG4 stack and B4EC1 CUDA path, then compares final money and full action-trace hashes.
+## Non-empty CPU C++↔CUDA parity
 
 ```bash
 python3 -m tools.bkg4_search.edit_search.parity \
   --parent-dir bonsai-kg/integrations/bkg4_champion/champions/w33_s172_expansion_v1 \
-  --cases-tsv scratch/bkg4_edit_search_validation/heldout16_cases7.tsv \
+  --cases-tsv scratch/bkg4_editformer_jax/current140_cases7.tsv \
   --cuda-evaluator scratch/cuda-engine-build/bkg4_edit_corpus_eval \
-  --work-dir scratch/bkg4_edit_search_validation/nonempty_parity \
-  --case-count 4 \
-  --report scratch/bkg4_edit_search_validation/nonempty_parity/report.json
+  --work-dir scratch/edit_search/nonempty_parity \
+  --case-count 4
 ```
 
-The harness uses real non-empty threshold/route/multi-rule overlays and fails on any CPU fault, CUDA fault, money mismatch, or action-trace mismatch. It is a small translation gate, not a replacement for the official 64/128-game promotion canary.
-
-## New-parent procedure
-
-When BKG4 changes:
-
-1. Create a fresh archive with the new `ParentProfile`.
-2. Optionally pass `--motifs-from OLD_ARCHIVE` during `init` to copy symbolic motif templates only.
-3. Re-instantiate those motifs against targets valid in the new parent.
-4. Reevaluate every concrete child with exact CUDA. Never import old concrete elite fitness as truth for the new parent.
-5. Run the equal-budget benchmark and anti-saturation gate on a current held-out league panel before scaling.
+The harness uses three non-empty legal overlays and fails on any CPU fault, CUDA fault, final-money mismatch, or action-trace mismatch.
 
 ## Promotion gate
 
-Search is not promotion. Before an exact-CUDA discovery modifies the official ReCurSiON champion:
+Search/corpus readiness is not champion readiness. Before any discovered program modifies the official ReCurSiON agent:
 
-1. Freeze the exact candidate semantic identity and assets.
-2. Confirm the candidate result translates exactly to the CPU C++ engine using the existing BKG4 parity harness.
-3. Run a 64- or 128-game official Python Kaggriculture canary against a representative current/historical/own-history panel.
-4. Reject any unexplained CUDA↔CPU↔official-engine discrepancy or regression.
-5. Only then consider a champion write/submission under the repository's serialized promotion workflow.
+1. choose a candidate using exact search-panel **and disjoint held-out** evidence;
+2. freeze its semantic identity/assets;
+3. run exact CPU C++↔CUDA parity for that candidate/grammar;
+4. run a 64/128-game official Python Kaggriculture canary against current, historical, and own-history opponents;
+5. reject any regression or unexplained translation discrepancy;
+6. only then use the serialized champion promotion/submission workflow.
 
-See `VALIDATION.md` for the bounded evidence supporting the current implementation.
+See `VALIDATION.md` for the final bounded evidence supporting corpus-generation readiness.

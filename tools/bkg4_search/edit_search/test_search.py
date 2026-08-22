@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from unittest import mock
 
 from tools.bkg4_search.bonsai_editformer.actor_grammar import EditAction
 from tools.bkg4_search.module_codec import ConditionGene, ModuleGenome, RuleGene
@@ -104,6 +105,8 @@ class EditSearchLoopTests(unittest.TestCase):
         from tools.bkg4_search.edit_search.search import exact_state_quality_map
         p = root(); archive = SearchArchive.new(root_genome=p, base_identity="b", route_ids=ROUTES, run_id="r", master_seed=1)
         cert = StateEvaluation(p.semantic_id(), "r/g4/full", ("c0","c1"), (-3,20), (0,0), (0,0), (1,2))
+        archive.bind_case_bank("bank", ("c0", "c1"))
+        archive.register_panel("r/g4/full", ("c0", "c1"))
         archive.record_state_evaluation(cert)
         before = exact_state_quality_map({p.semantic_id(): cert})
         with tempfile.TemporaryDirectory() as td:
@@ -145,6 +148,196 @@ class EditSearchLoopTests(unittest.TestCase):
         other = StateEvaluation("other", "other/full", ("c0","c1"), (1,2), (0,0), (0,0), (3,4))
         with self.assertRaises(ValueError):
             exact_state_quality_map({p.semantic_id():ev, "other":other})
+
+    def test_production_parent_schedule_prefers_feasible_and_near_feasible_over_broad_novelty(self):
+        from tools.bkg4_search.edit_search.archive import SearchArchive
+        from tools.bkg4_search.edit_search.search import SearchEngine
+        p=root(); archive=SearchArchive.new(root_genome=p,base_identity="b",route_ids=ROUTES,run_id="r",master_seed=1)
+        archive.production_niches={
+            "p0":{"child_semantic_id":p.semantic_id(),"program_id":"root"},
+        }
+        # parent_pools is intentionally tested as a pure policy surface; records point at registered states.
+        archive.repair_niches={"r0":{"child_semantic_id":p.semantic_id(),"program_id":"root","repair_key":[1,1,0,0,1,1.0]}}
+        archive.exploration_niches={"e0":{"child_semantic_id":p.semantic_id(),"program_id":"root"}}
+        engine=SearchEngine(route_ids=ROUTES)
+        schedule=engine.parent_schedule(archive,total=20,seed=77)
+        self.assertEqual(len(schedule),20)
+        self.assertGreaterEqual(sum(x[0]=="feasible" for x in schedule),10)
+        self.assertGreaterEqual(sum(x[0]=="repair" for x in schedule),3)
+        self.assertLessEqual(sum(x[0]=="exploration" for x in schedule),4)
+        self.assertEqual(schedule,engine.parent_schedule(archive,total=20,seed=77))
+
+    def test_goal_aware_generation_allocates_contrastive_proposals_deterministically(self):
+        from tools.bkg4_search.edit_search.archive import SearchArchive
+        from tools.bkg4_search.edit_search.panels import CaseBank,CaseRecord
+        from tools.bkg4_search.edit_search.search import SearchEngine
+        p=ModuleGenome(0,()); archive=SearchArchive.new(root_genome=p,base_identity="b",route_ids=ROUTES,run_id="r",master_seed=1)
+        bank=CaseBank((
+            CaseRecord("loss","/tmp/l",0,1,"f0",protected=True,baseline_margin=-100),
+            CaseRecord("guard","/tmp/g",1,2,"f1",protected=True,baseline_margin=1000),
+            CaseRecord("strong","/tmp/s",0,3,"f2",protected=True,baseline_margin=10000),
+        ))
+        contexts={
+            "loss":({"feature":"OWN_MONEY","index":0,"value":100},),
+            "guard":({"feature":"OWN_MONEY","index":0,"value":2000},),
+            "strong":({"feature":"OWN_MONEY","index":0,"value":5000},),
+        }
+        engine=SearchEngine(route_ids=ROUTES)
+        a=engine.propose_generation(archive,observations=[{"feature":"OWN_MONEY","index":0,"value":100}],total=24,generation=1,seed=99,case_bank=bank,case_contexts=contexts)
+        emitters=[x.emitter for x in a]
+        self.assertIn("contrastive",emitters)
+        archive2=SearchArchive.new(root_genome=p,base_identity="b",route_ids=ROUTES,run_id="r",master_seed=1)
+        engine2=SearchEngine(route_ids=ROUTES)
+        b=engine2.propose_generation(archive2,observations=[{"feature":"OWN_MONEY","index":0,"value":100}],total=24,generation=1,seed=99,case_bank=bank,case_contexts=contexts)
+        self.assertEqual([x.program_id for x in a],[x.program_id for x in b])
+
+    def test_contrastive_budget_spans_multiple_failure_goals_for_one_parent(self):
+        from tools.bkg4_search.edit_search.archive import SearchArchive
+        from tools.bkg4_search.edit_search.goals import SearchGoal
+        from tools.bkg4_search.edit_search.search import SearchEngine
+        p=ModuleGenome(0,()); archive=SearchArchive.new(root_genome=p,base_identity="b",route_ids=ROUTES,run_id="r",master_seed=1)
+        goals=(
+            SearchGoal(("loss-a",),("guard",),(),()),
+            SearchGoal(("loss-b",),("guard",),(),()),
+        )
+        contexts={
+            "loss-a":({"feature":"OWN_MONEY","index":0,"value":100},),
+            "loss-b":({"feature":"OPP_MONEY","index":0,"value":100},),
+            "guard":(
+                {"feature":"OWN_MONEY","index":0,"value":2000},
+                {"feature":"OPP_MONEY","index":0,"value":2000},
+            ),
+        }
+        engine=SearchEngine(route_ids=ROUTES)
+        programs=engine.propose_generation(
+            archive,observations=[{"feature":"OWN_MONEY","index":0,"value":100}],
+            total=64,generation=1,seed=31337,search_goals=goals,case_contexts=contexts,
+        )
+        features=set()
+        for program in programs:
+            if program.emitter!="contrastive": continue
+            child=program.reconstruct(p,ROUTES)
+            features.update(c.feature for c in child.rules[-1].conditions if c.feature!="STEP")
+        self.assertIn("OWN_MONEY",features)
+        self.assertIn("OPP_MONEY",features)
+
+    def test_goal_aware_refill_does_not_let_contrastive_monopolize_unused_budget(self):
+        from tools.bkg4_search.edit_search.archive import SearchArchive
+        from tools.bkg4_search.edit_search.goals import SearchGoal
+        from tools.bkg4_search.edit_search.search import SearchEngine
+        p=ModuleGenome(0,()); archive=SearchArchive.new(root_genome=p,base_identity="b",route_ids=ROUTES,run_id="r",master_seed=1)
+        goal=SearchGoal(("loss",),("guard",),(),())
+        contexts={
+            "loss":({"feature":"OWN_MONEY","index":0,"value":100},),
+            "guard":({"feature":"OWN_MONEY","index":0,"value":2000},),
+        }
+        engine=SearchEngine(route_ids=ROUTES)
+        total=32
+        engine.propose_generation(
+            archive,observations=[{"feature":"OWN_MONEY","index":0,"value":100}],
+            total=total,generation=1,seed=101,search_goals=(goal,),case_contexts=contexts,
+        )
+        scheduled=engine.scheduler.allocations(total,0)["contrastive"]
+        self.assertLessEqual(int(engine.last_proposal_stats["emitter_raw"].get("contrastive",0)),scheduled)
+
+    def test_search_caches_contrastive_synthesis_once_per_goal_across_parents(self):
+        from tools.bkg4_search.edit_search.archive import SearchArchive
+        from tools.bkg4_search.edit_search.goals import SearchGoal
+        from tools.bkg4_search.edit_search.panels import CaseBank,CaseRecord
+        from tools.bkg4_search.edit_search.search import SearchEngine
+        p=ModuleGenome(0,()); archive=SearchArchive.new(root_genome=p,base_identity="b",route_ids=ROUTES,run_id="r",master_seed=1)
+        seed_program=EditProgram.build(
+            p,(EditAction("ADD_SPECIALIST",0,feature="OWN_MONEY",cmp="GE",value=5000,route=22),),
+            ROUTES,emitter="systematic",seed=1,
+        )
+        child=seed_program.reconstruct(p,ROUTES); archive.add_program(seed_program,child)
+        archive.production_niches={"seed":{"child_semantic_id":child.semantic_id(),"program_id":seed_program.program_id}}
+        goal=SearchGoal(("loss",),("guard",),(),())
+        bank=CaseBank((
+            CaseRecord("loss","/tmp/l",0,1,"f0",baseline_margin=-1),
+            CaseRecord("guard","/tmp/g",1,2,"f1",baseline_margin=1),
+        ))
+        contexts={
+            "loss":({"feature":"OWN_MONEY","index":0,"value":100},),
+            "guard":({"feature":"OWN_MONEY","index":0,"value":2000},),
+        }
+        pre=[(ConditionGene("OWN_MONEY","LE",0,100),)]
+        engine=SearchEngine(route_ids=ROUTES)
+        with mock.patch(
+            "tools.bkg4_search.edit_search.search.synthesize_contrastive_conditions",
+            return_value=pre,create=True,
+        ) as synth:
+            first=engine.propose_generation(
+                archive,observations=[{"feature":"OWN_MONEY","index":0,"value":100}],
+                total=64,generation=1,seed=77,search_goals=(goal,),case_contexts=contexts,case_bank=bank,
+            )
+            second=engine.propose_generation(
+                archive,observations=[{"feature":"OWN_MONEY","index":0,"value":100}],
+                total=64,generation=2,seed=78,search_goals=(goal,),case_contexts=contexts,case_bank=bank,
+            )
+        self.assertEqual(synth.call_count,1)
+        self.assertIn("contrastive",[x.emitter for x in first+second])
+
+    def test_research_novelty_does_not_mask_strategic_stagnation(self):
+        from tools.bkg4_search.edit_search.search import GenerationSignals, StagnationMonitor
+        monitor = StagnationMonitor(patience=1)
+        signals = GenerationSignals(
+            proposed=64, unique=64, archive_insertions=0, useful_safe=0,
+            target_improvements=0, novelty_mean=0.95, new_niches=20,
+            duplicate_rate=0.0, production_insertions=0, repair_insertions=0,
+        )
+        event = monitor.observe(signals)
+        self.assertTrue(event.escalated)
+        self.assertEqual(event.level, 1)
+
+    def test_adaptive_emitter_allocation_rewards_safe_contribution_without_losing_random_floor(self):
+        from tools.bkg4_search.edit_search.search import FixedEmitterScheduler
+        scheduler = FixedEmitterScheduler(random_floor=0.05)
+        stats = {
+            "contrastive": {"attempts": 20, "unique": 20, "archive_insertions": 12, "useful_safe": 10},
+            "systematic": {"attempts": 20, "unique": 20, "archive_insertions": 1, "useful_safe": 0},
+        }
+        allocation = scheduler.allocations(100, escalation_level=0, emitter_stats=stats)
+        self.assertGreater(allocation["contrastive"], allocation["systematic"])
+        self.assertGreaterEqual(allocation["random_typed"], 5)
+        self.assertEqual(sum(allocation.values()), 100)
+
+    def test_parent_lanes_keep_research_only_states_out_of_normal_production_parent_pool(self):
+        from tools.bkg4_search.edit_search.archive import SearchArchive
+        p = root(); archive = SearchArchive.new(root_genome=p, base_identity="b", route_ids=ROUTES, run_id="r", master_seed=1)
+        unsafe_program = EditProgram.build(p, (EditAction("CHANGE_WINDOW",0,prefix_step=200),), ROUTES, emitter="systematic", seed=1)
+        unsafe_child = unsafe_program.reconstruct(p, ROUTES); archive.add_program(unsafe_program, unsafe_child)
+        base = ev(p.semantic_id(), [100, 100]); unsafe = ev(unsafe_child.semantic_id(), [-1, 500])
+        archive.consider(unsafe_program, PairEvaluation.from_states(base, unsafe))
+        self.assertNotIn(unsafe_child.semantic_id(), archive.production_parent_state_ids())
+        self.assertIn(unsafe_child.semantic_id(), archive.repair_parent_state_ids())
+        self.assertNotIn(unsafe_child.semantic_id(), archive.parent_state_ids())
+
+    def test_contrastive_emitter_receives_first_class_scheduler_budget(self):
+        from tools.bkg4_search.edit_search.search import FixedEmitterScheduler
+        allocation = FixedEmitterScheduler().allocations(64, escalation_level=0)
+        self.assertIn("contrastive", allocation)
+        self.assertGreater(allocation["contrastive"], 0)
+
+    def test_search_engine_routes_contrastive_goal_context_into_real_proposals(self):
+        from tools.bkg4_search.edit_search.goals import SearchGoal
+        from tools.bkg4_search.edit_search.search import SearchEngine
+        p = root()
+        archive = SearchArchive.new(root_genome=p, base_identity="b", route_ids=ROUTES, run_id="r", master_seed=1)
+        goal = SearchGoal(("loss",), ("guard",), (), ())
+        contexts = {
+            "loss": ({"feature":"OWN_MONEY","index":0,"value":100}, {"feature":"DAY","index":0,"value":2}),
+            "guard": ({"feature":"OWN_MONEY","index":0,"value":2000}, {"feature":"DAY","index":0,"value":2}),
+        }
+        obs = [{"feature":"OWN_MONEY","index":0,"value":x} for x in (100,500,1000,2000,5000)]
+        engine = SearchEngine(route_ids=ROUTES)
+        programs = engine.propose_generation(
+            archive, observations=obs, total=32, generation=1, seed=77,
+            search_goals=(goal,), case_contexts=contexts,
+        )
+        contrastive = [x for x in programs if x.emitter == "contrastive"]
+        self.assertTrue(contrastive)
+        self.assertGreater(engine.last_proposal_stats["emitter_raw"].get("contrastive",0),0)
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

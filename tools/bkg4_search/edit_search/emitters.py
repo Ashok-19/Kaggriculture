@@ -2,14 +2,15 @@ from __future__ import annotations
 
 import math
 import random
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any, Iterable, Mapping, Sequence
 
-from tools.bkg4_search.bonsai_editformer.actor_grammar import EditAction, OP_INDEX, node_refs, target_masks
+from tools.bkg4_search.bonsai_editformer.actor_grammar import EditAction, OP_INDEX, apply_edit, node_refs, target_masks
 from tools.bkg4_search.module_codec import ConditionGene, ModuleGenome
-from tools.edit_corpus.candidates import generate_typed_candidates
+from tools.edit_corpus.candidates import GeneratedEdit, generate_typed_candidates
 
 from .schema import EditProgram
+from .goals import SearchGoal, conjunction_stats, matching_probe_steps, synthesize_contrastive_conditions
 
 
 STRUCTURAL_OPS = frozenset({
@@ -85,6 +86,11 @@ class EmitterContext:
     parent_program_id: str | None = None
     run_id: str | None = None
     quality_by_state: Mapping[str, float] = field(default_factory=dict)
+    search_goal: SearchGoal | None = None
+    case_contexts: Mapping[str, Sequence[Mapping[str, Any]]] = field(default_factory=dict)
+    contrastive_condition_sets: tuple[tuple[ConditionGene, ...], ...] | None = None
+    typed_pool_parent_semantic_id: str | None = None
+    typed_pool: tuple[GeneratedEdit, ...] = ()
 
     @classmethod
     def from_observations(
@@ -99,6 +105,9 @@ class EmitterContext:
         parent_program_id: str | None = None,
         run_id: str | None = None,
         quality_by_state: Mapping[str, float] | None = None,
+        search_goal: SearchGoal | None = None,
+        case_contexts: Mapping[str, Sequence[Mapping[str, Any]]] | None = None,
+        contrastive_condition_sets: Sequence[Sequence[ConditionGene]] | None = None,
     ) -> "EmitterContext":
         routes = tuple(int(x) for x in route_ids)
         if not routes:
@@ -115,14 +124,42 @@ class EmitterContext:
             parent_program_id=parent_program_id,
             run_id=run_id,
             quality_by_state=dict(quality_by_state or {}),
+            search_goal=search_goal,
+            case_contexts={str(k): tuple(dict(r) for r in v) for k, v in dict(case_contexts or {}).items()},
+            contrastive_condition_sets=(
+                None if contrastive_condition_sets is None
+                else tuple(tuple(c for c in conds) for conds in contrastive_condition_sets)
+            ),
         )
 
     def rows_for_parent(self, parent: ModuleGenome) -> tuple[dict[str, Any], ...]:
-        rows = list(self.context_rows)
-        for rule in parent.rules:
-            for c in rule.conditions:
-                rows.append({"feature": c.feature, "index": c.index, "value": c.value})
-        return _expanded_context_rows(rows, self.escalation_level)
+        # context_rows is already expanded. Re-expanding thousands of public samples
+        # for every emitter/parent call dominated host time; expand only the parent's
+        # own predicates, then merge deterministically.
+        merged = {
+            (str(r["feature"]), int(r.get("index", 0)), int(r["value"])): dict(r)
+            for r in self.context_rows
+        }
+        parent_rows = [
+            {"feature": c.feature, "index": c.index, "value": c.value}
+            for rule in parent.rules for c in rule.conditions
+        ]
+        for row in _expanded_context_rows(parent_rows, self.escalation_level) if parent_rows else ():
+            merged[(str(row["feature"]), int(row.get("index", 0)), int(row["value"]))] = dict(row)
+        return tuple(merged[k] for k in sorted(merged))
+
+    def with_typed_pool(self, parent: ModuleGenome, *, n: int, seed: int) -> "EmitterContext":
+        size = max(0, int(n))
+        if size == 0:
+            return replace(self, typed_pool_parent_semantic_id=parent.semantic_id(), typed_pool=())
+        pool = generate_typed_candidates(
+            parent, self.rows_for_parent(parent), n=size, seed=int(seed), route_ids=self.route_ids,
+        )
+        return replace(
+            self,
+            typed_pool_parent_semantic_id=parent.semantic_id(),
+            typed_pool=tuple(pool),
+        )
 
 
 class SearchEmitter:
@@ -181,13 +218,17 @@ class SearchEmitter:
         # emitter/parent pair. Generate a bounded coverage pool first so those
         # slots are not permanently captured by the first alphabetic operation.
         family_floor = max(24, (len(allowed) if allowed is not None else len(OP_INDEX)) * 8)
-        raw = generate_typed_candidates(
-            parent,
-            context.rows_for_parent(parent),
-            n=max(n, min(4096, max(n * 3, family_floor))),
-            seed=int(seed),
-            route_ids=context.route_ids,
-        )
+        pool_need = max(n, min(4096, max(n * 3, family_floor)))
+        if context.typed_pool_parent_semantic_id == parent.semantic_id() and len(context.typed_pool) >= pool_need:
+            raw = list(context.typed_pool)
+        else:
+            raw = generate_typed_candidates(
+                parent,
+                context.rows_for_parent(parent),
+                n=pool_need,
+                seed=int(seed),
+                route_ids=context.route_ids,
+            )
         if allowed is not None:
             raw = [x for x in raw if x.action.operation in allowed]
         raw.sort(key=lambda x: (
@@ -239,6 +280,109 @@ class SearchEmitter:
             seen.add(program.child_semantic_id); out.append(program)
             if len(out) >= n:
                 break
+        return out
+
+
+class ContrastiveSpecialistEmitter(SearchEmitter):
+    """Synthesize public predicates covering target failures while excluding protected guards."""
+
+    name = "contrastive"
+
+    def propose(self, parent: ModuleGenome, *, n: int, seed: int, context: EmitterContext) -> list[EditProgram]:
+        if n <= 0 or context.search_goal is None or not context.case_contexts or len(parent.rules) >= 8:
+            return []
+        if context.contrastive_condition_sets is None:
+            condition_sets = synthesize_contrastive_conditions(
+                context.search_goal, context.case_contexts, max_conditions=2,
+                limit=max(16, n * 4), guard_excluding_only=True,
+            )
+        else:
+            condition_sets = list(context.contrastive_condition_sets)
+        # If public evidence cannot exclude protected guards, do not manufacture a
+        # "contrastive" candidate. Other emitters retain exploration capacity and exact
+        # CUDA can still discover safe mutations without pretending this goal is localized.
+        if not condition_sets:
+            return []
+        out: list[EditProgram] = []; seen: set[str] = set()
+        offset = (int(seed) + int(parent.semantic_id()[:8], 16)) % len(context.route_ids)
+        routes = context.route_ids[offset:] + context.route_ids[:offset]
+        has_explicit_time = any(
+            "probe_step" in row
+            for cid in context.search_goal.target_case_ids
+            for row in context.case_contexts.get(cid, ())
+        )
+
+        candidates: list[tuple[tuple[ConditionGene, ...], int, int, int]] = []
+        for ci, semantic_conds in enumerate(condition_sets):
+            if not semantic_conds:
+                continue
+            temporal: list[tuple[ConditionGene, ...]] = [()]
+            if has_explicit_time:
+                steps = sorted({
+                    int(step)
+                    for cid in context.search_goal.target_case_ids
+                    for step in matching_probe_steps(semantic_conds, cid, context.case_contexts)
+                })
+                if not steps:
+                    continue
+                temporal = [(ConditionGene("STEP", "EQ", 0, step),) for step in steps]
+                if len(steps) > 1:
+                    temporal.append((
+                        ConditionGene("STEP", "GE", 0, steps[0]),
+                        ConditionGene("STEP", "LE", 0, steps[-1]),
+                    ))
+            for ti, time_conds in enumerate(temporal):
+                combined: list[ConditionGene] = []
+                for c in (*semantic_conds, *time_conds):
+                    c.validate()
+                    if c not in combined:
+                        combined.append(c)
+                if not 1 <= len(combined) <= 4:
+                    continue
+                for ri, route in enumerate(routes):
+                    candidates.append((tuple(combined), int(route), ci, ti * len(routes) + ri))
+
+        # Deterministic shuffle gives small budgets simultaneous coverage of route and
+        # timing variants instead of exhausting every route for one wide predicate first.
+        random.Random(int(seed) ^ 0xC017A57).shuffle(candidates)
+        for conds, route, ci, variant in candidates:
+            first = conds[:2]
+            c1 = first[0]; c2 = first[1] if len(first) > 1 else c1
+            add = EditAction(
+                "ADD_SPECIALIST", 0,
+                feature=c1.feature, cmp=c1.cmp, index=c1.index, value=c1.value,
+                feature2=c2.feature, cmp2=c2.cmp, index2=c2.index, value2=c2.value,
+                condition_count=len(first), route=int(route), priority=0,
+            )
+            actions: list[EditAction] = [add]
+            try:
+                if len(conds) > 2:
+                    state = apply_edit(parent, add, context.route_ids)
+                    new_rule_index = len(parent.rules)
+                    target = next(
+                        ref.node_index for ref in node_refs(state)
+                        if ref is not None and ref.kind == "rule" and ref.rule_index == new_rule_index
+                    )
+                    rest = conds[2:]
+                    r1 = rest[0]; r2 = rest[1] if len(rest) > 1 else r1
+                    actions.append(EditAction(
+                        "ADD_CONDITION", int(target),
+                        feature=r1.feature, cmp=r1.cmp, index=r1.index, value=r1.value,
+                        feature2=r2.feature, cmp2=r2.cmp, index2=r2.index, value2=r2.value,
+                        condition_count=len(rest),
+                    ))
+                program = EditProgram.build(
+                    parent, tuple(actions), context.route_ids, emitter=self.name,
+                    seed=int(seed) + ci * 4099 + variant,
+                    generation_depth=context.generation_depth + len(actions) - 1,
+                    parent_program_id=context.parent_program_id, run_id=context.run_id,
+                )
+            except (StopIteration, ValueError):
+                continue
+            if program.child_semantic_id not in seen:
+                seen.add(program.child_semantic_id); out.append(program)
+                if len(out) >= n:
+                    return out
         return out
 
 
@@ -538,6 +682,6 @@ class EvolvabilityMCTSEmitter(SearchEmitter):
 
 
 DEFAULT_EMITTERS: tuple[SearchEmitter, ...] = (
-    SystematicEmitter(), LocalRefinementEmitter(), StructuralEmitter(), MotifEmitter(), RecombinationEmitter(),
-    LargeNeighborhoodEmitter(), EvolvabilityMCTSEmitter(), RandomTypedEmitter(),
+    ContrastiveSpecialistEmitter(), SystematicEmitter(), LocalRefinementEmitter(), StructuralEmitter(), MotifEmitter(),
+    RecombinationEmitter(), LargeNeighborhoodEmitter(), EvolvabilityMCTSEmitter(), RandomTypedEmitter(),
 )
