@@ -112,6 +112,30 @@ class EditSearchEmitterTests(unittest.TestCase):
         self.assertLessEqual(max(x.program_length for x in xs), 3)
         self.assertGreater(len({x.child_semantic_id for x in xs}), 12)
 
+    def test_mcts_tiny_budget_does_not_pay_fixed_64_expansion_floor(self):
+        from tools.bkg4_search.edit_search import emitters as emitter_module
+        from tools.bkg4_search.edit_search.emitters import EvolvabilityMCTSEmitter
+        p = parent2()
+        real = emitter_module.generate_typed_candidates
+        with mock.patch.object(emitter_module, "generate_typed_candidates", wraps=real) as generate:
+            xs = EvolvabilityMCTSEmitter(max_depth=3).propose(p, n=1, seed=37, context=self.context())
+        self.assertTrue(xs)
+        self.assertLessEqual(generate.call_count, 8)
+        self.assertLessEqual(max(x.program_length for x in xs), 3)
+
+    def test_mcts_candidate_pool_is_cached_per_semantic_state(self):
+        from tools.bkg4_search.edit_search import emitters as emitter_module
+        from tools.bkg4_search.edit_search.emitters import _mcts_candidate_pool
+        p = parent2(); ctx = self.context(); cache = {}; row_cache = {}
+        real = emitter_module.generate_typed_candidates
+        with mock.patch.object(emitter_module, "generate_typed_candidates", wraps=real) as generate:
+            first = _mcts_candidate_pool(p, ctx, seed=41, cache=cache, row_cache=row_cache, pool_size=16)
+            second = _mcts_candidate_pool(p, ctx, seed=999, cache=cache, row_cache=row_cache, pool_size=16)
+        self.assertTrue(first)
+        self.assertEqual(first, second)
+        self.assertEqual(generate.call_count, 1)
+        self.assertEqual(len(row_cache), 1)
+
     def test_mcts_exact_quality_changes_branch_preference_and_missing_quality_explores(self):
         from tools.bkg4_search.edit_search.emitters import EmitterContext, EvolvabilityMCTSEmitter
         from tools.bkg4_search.edit_search.schema import EditProgram
@@ -198,21 +222,23 @@ class EditSearchEmitterTests(unittest.TestCase):
             for program in rows:
                 self.assertEqual(program.reconstruct(p, ROUTES).semantic_id(), program.child_semantic_id)
 
-    def test_contrastive_specialist_adds_temporal_guard_and_can_use_multi_edit_rule(self):
+    def test_contrastive_specialist_prefers_semantic_before_temporal_localizers(self):
         from tools.bkg4_search.edit_search.emitters import ContrastiveSpecialistEmitter, EmitterContext
-        from tools.bkg4_search.edit_search.goals import SearchGoal
+        from tools.bkg4_search.edit_search.goals import SearchGoal, temporal_specificity
         p=ModuleGenome(0,())
         contexts={
             "loss":(
                 {"probe_index":0,"probe_step":264,"feature":"OWN_MONEY","index":0,"value":100},
                 {"probe_index":0,"probe_step":264,"feature":"DAY","index":0,"value":2},
+                {"probe_index":1,"probe_step":288,"feature":"OWN_MONEY","index":0,"value":120},
+                {"probe_index":1,"probe_step":288,"feature":"DAY","index":0,"value":12},
             ),
             "guard0":(
                 {"probe_index":0,"probe_step":264,"feature":"OWN_MONEY","index":0,"value":2000},
                 {"probe_index":0,"probe_step":264,"feature":"DAY","index":0,"value":2},
             ),
             "guard1":(
-                {"probe_index":0,"probe_step":264,"feature":"OWN_MONEY","index":0,"value":100},
+                {"probe_index":0,"probe_step":264,"feature":"OWN_MONEY","index":0,"value":2200},
                 {"probe_index":0,"probe_step":264,"feature":"DAY","index":0,"value":9},
             ),
         }
@@ -221,11 +247,17 @@ class EditSearchEmitterTests(unittest.TestCase):
             ROUTES,[{"feature":"OWN_MONEY","index":0,"value":100}],
             generation_depth=1,search_goal=goal,case_contexts=contexts,
         )
-        rows=ContrastiveSpecialistEmitter().propose(p,n=12,seed=19,context=ctx)
+        rows=ContrastiveSpecialistEmitter().propose(p,n=40,seed=19,context=ctx)
         self.assertTrue(rows)
         children=[x.reconstruct(p,ROUTES) for x in rows]
-        self.assertTrue(all(any(c.feature=="STEP" for c in g.rules[-1].conditions) for g in children))
-        self.assertTrue(any(x.program_length>=2 and len(g.rules[-1].conditions)>=3 for x,g in zip(rows,children)))
+        specs=[temporal_specificity(g.rules[-1].conditions) for g in children]
+        self.assertEqual(specs[0],min(specs))
+        self.assertEqual(specs,sorted(specs))
+        self.assertEqual(specs[0][0],0)
+        self.assertTrue(any(s[0]>0 for s in specs),"temporal localizers must remain available after semantic candidates")
+        first_temporal=next(i for i,s in enumerate(specs) if s[0]>0)
+        self.assertTrue(all(s[0]==0 for s in specs[:first_temporal]))
+        self.assertTrue(any(x.program_length>=2 and len(g.rules[-1].conditions)>=3 for x,g in zip(rows,children) if temporal_specificity(g.rules[-1].conditions)[0]>0))
     def test_contrastive_emitter_uses_precomputed_guarded_condition_sets(self):
         from tools.bkg4_search.edit_search.emitters import ContrastiveSpecialistEmitter,EmitterContext
         from tools.bkg4_search.edit_search.goals import SearchGoal
@@ -247,6 +279,20 @@ class EditSearchEmitterTests(unittest.TestCase):
         self.assertTrue(rows)
         self.assertTrue(all(x.emitter=="contrastive" for x in rows))
 
+
+    def test_recombination_prefers_certified_donor_quality(self):
+        from tools.bkg4_search.edit_search.emitters import EmitterContext, RecombinationEmitter
+        parent=ModuleGenome(0,())
+        weak=ModuleGenome(0,(RuleGene((ConditionGene("OWN_MONEY","GE",0,1000),),22),))
+        strong=ModuleGenome(0,(RuleGene((ConditionGene("OPP_MONEY","GE",0,1000),),77),))
+        ctx=EmitterContext.from_observations(
+            ROUTES,[{"feature":"OWN_MONEY","index":0,"value":1000}],
+            donor_genomes=(weak,strong), donor_quality_by_state={weak.semantic_id():100.0,strong.semantic_id():900.0},
+        )
+        out=RecombinationEmitter().propose(parent,n=1,seed=5,context=ctx)
+        self.assertTrue(out)
+        child=out[0].reconstruct(parent,ROUTES)
+        self.assertEqual(child.rules[0].route,77)
 
 
 if __name__ == "__main__":

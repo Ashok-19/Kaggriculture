@@ -295,3 +295,223 @@ The system now supplies the properties required for large-scale BonsaiEditFormer
 - disjoint holdout evidence that quantifies generalization instead of assuming it.
 
 **Champion promotion: NOT AUTOMATICALLY READY.** A concrete candidate must still pass a disjoint exact holdout, CPU/CUDA parity as applicable, and the mandatory 64/128-game official Python-engine canary before any ReCurSiON champion/submission change.
+
+
+# Terminal certified-elite generator validation — 2026-08-23
+
+This section supersedes older edit-search readiness measurements above. It validates the permanent schema-v4 search/corpus path against the unchanged BKG4 parent:
+
+```text
+parent identity:     6359ab400f9d128945cdbba5df7178a33b88c643ddd9b488299d66e14daa6925
+controller hash:     8c5d7cd0e32574cbe349d5964946a9e2d6e7a75d766708f5d82308cd8507a034
+root ModuleGenome:   766224c843a42274275e2e0ac332c2512ab1a85377365b8dd093309e11b81cf2
+```
+
+No champion asset was modified during this validation.
+
+## Multi-temporal evidence roles
+
+The final search uses 35 searchable/training cases (25 discovery + 10 rotating certification-repair), 10 disjoint held-out certification cases, and 16 frozen ranker-validation cases. Public context spans 22 probe steps from 48 through 672 across early, early-mid, mid, late-mid, and late strategic windows. Certification and frozen validation cases are not materialized as model-input rows.
+
+## Real CUDA CEGIS
+
+A bounded real B4EC1 repair campaign on promising unsafe discovery candidates produced:
+
+```text
+selected unsafe sources:      10
+sources reaching feasible:    10 / 10
+exact repair attempts:       312
+less-infeasible descendants: 311
+feasible descendants:        185
+safe-useful descendants:      27
+```
+
+Later recursive production generations also produced repair→feasible and repair→elite transitions. CEGIS therefore no longer stalls at “less infeasible”; it reaches exact root feasibility on real CUDA truth.
+
+## Five-seed equal-budget discovery benchmark
+
+Fresh seeds (none are from the prohibited historical seed set):
+
+```text
+961101  961113  961127  961139  961151
+```
+
+Each proposer received the same root, the same rich 64-case discovery CaseBank, 64 candidates, and 4096 exact candidate×case CUDA evaluations.
+
+```text
+                         safe-useful/1k   median   elite/1k   safe L→W/1k   new-loss   W→L     severe
+old shallow                    6.25        0.00      3.13          3.13       80.00%   20.00%   79.69%
+random typed                    9.38        0.00      6.25          3.13       40.94%    0.00%   41.25%
+fixed systematic               0.00        0.00      0.00          0.00       62.19%    0.00%   62.19%
+permanent recursive          156.25      140.63    156.25        150.00       39.69%    0.00%   39.69%
+```
+
+Permanent safe-useful yield by seed:
+
+```text
+140.625  125.000  171.875  203.125  140.625
+```
+
+Permanent beats random typed on safe-useful yield in 5/5 seeds. The final safety-aware scheduler/refill accounting reduced permanent raw new-loss from the earlier 61.25% measurement to 39.69%, slightly below random typed at 40.94%. The aspirational 0.75×-random raw-proposal target was not reached; this is not used to weaken feasibility rules. Production admission still requires exact root feasibility through the audited multi-fidelity funnel.
+
+## Held-out certification cohort
+
+Across 136 discovery elites exported in the final four-generation corpus:
+
+```text
+mean strict-safe retention:     99.26%
+mean activation retention:      58.09%
+mean behavior retention:        58.09%
+mean safe-useful retention:     48.90%
+mean elite retention:           40.44%
+certified positives:           125 / 136
+certified elites:              109 / 136
+```
+
+Certification classes among those discovery elites:
+
+```text
+certified_elite_margin:        109
+certified_safe_useful:          16
+generalization_boundary:         9
+generalization_hard_negative:    2
+```
+
+The cohort clears the 80% strict-safety, 50% behavior, and 40% safe-useful transfer gates. These held-out elites are margin elites; held-out L→W retention is zero and is not relabeled as a flip.
+
+## Audited production funnel and throughput
+
+Final G4 used a balanced 34/35 screen:
+
+```text
+target losses:       16
+fragile wins:         8
+strong wins:         10
+counterexamples:      2
+seat 0 / seat 1:  17 / 17
+```
+
+Corrected Stage-1 detection truth contains only programs that existed before Stage-1. CEGIS/certified-neighborhood descendants created later are not incorrectly counted as Stage-1 misses.
+
+```text
+useful recall:              1.000
+L→W recall:                 1.000
+danger recall:              1.000
+target-repair recall:       1.000
+selection useful recall:    1.000
+selection L→W recall:       1.000
+selection danger recall:    1.000
+recall refresh required:    false
+```
+
+G4 walltime:
+
+```text
+proposal wall:          6.221 s
+exact CUDA evaluation: 29.343 s
+corpus transaction:     1.698 s
+recovery:               3.562 s
+round wall:            40.823 s
+proposal fraction:      15.24%
+unique proposals/s:     10.29
+```
+
+The permanent proposal path is below the <=25% round-wall requirement. Earlier mature generation profiling was reduced from roughly 30.2 s / 32 proposals to the current production rate through persistent SearchGoal cache, per-state MCTS typed-pool caching, bounded parent typed pools, and one immutable base `EmitterContext` per generation.
+
+## Final high-information corpus
+
+Strict `export-corpus` validation of the recovered G1–G4 corpus:
+
+```text
+programs:                         407
+labels:                        28,490
+cases materialized:                35
+certified elites:                  128
+certified safe-useful:              38
+generalization boundaries:          15
+generalization hard negatives:       2
+near-feasible repairs:                6
+local contrastive neighbors:         98
+hard negatives:                     110
+controlled no-ops:                   10  (2.46%)
+reconstruction failures:              0
+referential-integrity failures:       0
+exact program duplicate rate:       0.0
+child semantic duplicate rate:      0.0
+```
+
+The final corpus therefore contains dense certified-positive and local-contrast supervision, explicit transfer failures, repair examples, and a controlled no-op rate far below the 10% ceiling instead of the earlier hard-negative/no-op saturation.
+
+## Real CUDA anti-saturation recovery
+
+A low-budget 14-generation campaign on the mixed 64-case discovery panel used only eight proposals/generation with stagnation patience 1. Generations 1–6 produced zero safe-useful candidates and zero production niches. Quality escalation then activated:
+
+```text
+g7   level 1   wider contrastive semantic thresholds
+g9   level 2   alternate failure clusters / broader QD parents
+g10  level 3   stronger non-temporal guard / structural search
+g11  level 4   stronger CEGIS / large-neighborhood repair
+```
+
+Recovery followed rather than continued novelty-only churn:
+
+```text
+g10 production niches: 1
+g12 safe-useful: 1
+g13 safe-useful: 2
+g14 safe-useful: 2
+final production niches: 12
+```
+
+This is real CUDA stall→escalation→safe-useful recovery evidence.
+
+## Final parity
+
+Expanded non-empty ModuleGenome parity now includes explicit temporal 3-condition and 4-condition rules in addition to the prior 1/2-condition and multi-rule overlays:
+
+```text
+non-empty overlays:       5
+real cases:               4
+comparisons:             20
+CPU faults:               0
+CUDA faults:              0
+CPU↔CUDA mismatches:      0
+CUDA action changes:   7838
+CUDA activations:     11360
+B4EC1 bad:                0
+```
+
+Official-Python-generated native differential parity was rerun on two seeds × both seats against the exact current parent assets:
+
+```text
+cases:                 4
+VM records:         2876
+C++ mismatches:        0
+CUDA mismatches:       0
+policy hash: 8c5d7cd0e32574cbe349d5964946a9e2d6e7a75d766708f5d82308cd8507a034
+```
+
+The missing `jsonschema` import required by the vendored Kaggle environment was supplied only through an ignored scratch-local dependency target; system Python and committed dependency metadata were not modified.
+
+## Terminal regression matrix
+
+Fresh commands after the final implementation changes:
+
+```text
+python3 -m unittest discover -s tools/bkg4_search/edit_search -p 'test_*.py' -v
+→ 137 / 137 passed
+
+python3 -m unittest discover -s tools/edit_corpus -p 'test_*.py' -v
+→ 59 / 59 passed
+
+python3 -m unittest -v bonsai-kg/tests/test_bkg4_search.py
+→ 4 / 4 passed
+
+python3 -m compileall -q tools/bkg4_search/edit_search
+→ exit 0
+
+git diff --check
+→ exit 0
+```
+
+This validates the permanent edit-search/corpus generator. It does **not** promote or change the ReCurSiON champion. Any future champion/submission still requires the separate mandatory 64/128-game official-Python canary against current, historical, and own-history agents.

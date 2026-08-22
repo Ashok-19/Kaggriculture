@@ -108,4 +108,55 @@ class EditSearchMultiFidelityTests(unittest.TestCase):
         self.assertIn(programs[1].program_id, result.full_root_pairs)
         self.assertTrue(any(x["child_semantic_id"] == programs[1].child_semantic_id for x in archive.production_niches.values()))
 
+
+    def test_round_expands_new_certified_positive_into_exact_certified_neighborhood(self):
+        from tools.bkg4_search.edit_search.search import SearchEngine
+        root = ModuleGenome(0, ())
+        archive = SearchArchive.new(root_genome=root, base_identity="base", route_ids=(64,70,22), run_id="r", master_seed=1)
+        source = EditProgram.build(root, (EditAction("ADD_SPECIALIST",0,feature="OWN_MONEY",cmp="GE",value=1,route=70),), (64,70,22), emitter="contrastive", seed=1)
+        archive.add_program(source, source.reconstruct(root, (64,70,22)))
+        search = CaseBank([
+            CaseRecord("s0","/tmp/s0",0,1,"loss",protected=False,baseline_margin=-100),
+            CaseRecord("s1","/tmp/s1",1,2,"fragile",protected=True,baseline_margin=1000),
+            CaseRecord("s2","/tmp/s2",0,3,"strong",protected=True,baseline_margin=9000),
+            CaseRecord("s3","/tmp/s3",1,4,"strong",protected=True,baseline_margin=10000),
+        ])
+        cert = CaseBank([
+            CaseRecord("c0","/tmp/c0",0,11,"loss",protected=False,baseline_margin=-100),
+            CaseRecord("c1","/tmp/c1",1,12,"fragile",protected=True,baseline_margin=1000),
+            CaseRecord("c2","/tmp/c2",0,13,"strong",protected=True,baseline_margin=9000),
+            CaseRecord("c3","/tmp/c3",1,14,"strong",protected=True,baseline_margin=10000),
+        ])
+        class NeighborhoodOracle:
+            def evaluate(self, genomes, panel, *, work_dir, panel_id):
+                ids=tuple(x.case_id for x in panel); out={}
+                baseline={x.case_id:x.baseline_margin for x in panel}
+                for genome in genomes:
+                    route=genome.rules[0].route if genome.rules else 0
+                    margins=[]; actions=[]; activations=[]; traces=[]
+                    for i,cid in enumerate(ids):
+                        b=baseline[cid]
+                        if not genome.rules: m=b
+                        elif route==64: m=(600 if b < 0 else b)
+                        else: m=b+10
+                        margins.append(m); actions.append(0 if not genome.rules else 1); activations.append(0 if not genome.rules else 2); traces.append((100 if not genome.rules else 1000)+i+route)
+                    out[genome.semantic_id()]=StateEvaluation(genome.semantic_id(),panel_id,ids,tuple(margins),tuple(actions),tuple(activations),tuple(traces))
+                return out
+        manager=CasePanelManager(search,random_anchor_fraction=0.0)
+        engine=SearchEngine(route_ids=(64,70,22))
+        import tempfile
+        with tempfile.TemporaryDirectory() as td:
+            result=engine.evaluate_round(
+                archive,[source],evaluator=NeighborhoodOracle(),panel_manager=manager,
+                screen_size=2,final_size=4,stage2_budget=1,generation=1,seed=7,
+                work_dir=Path(td),audit_all=True,certification_evaluator=NeighborhoodOracle(),
+                certification_bank=cert,certified_neighborhood_budget=24,
+            )
+        elite=[pid for pid,v in result.certification_vectors.items() if v.certified_elite]
+        self.assertTrue(elite)
+        self.assertTrue(any(archive.programs[pid].emitter=="certified_neighborhood" for pid in elite))
+        self.assertTrue(all(pid in result.full_root_pairs and pid in result.full_source_pairs for pid in elite))
+        self.assertEqual(result.stage_recall["useful_recall"],1.0)
+        self.assertEqual(result.stage_recall["danger_recall"],1.0)
+
 if __name__ == "__main__": unittest.main(verbosity=2)

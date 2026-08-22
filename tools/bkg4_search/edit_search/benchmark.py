@@ -16,6 +16,7 @@ from .goals import build_search_goals, decode_case_contexts
 from .panels import CaseBank, CasePanelManager, CaseRecord
 from .schema import EditProgram
 from .search import SearchEngine, StagnationMonitor
+from .safety import SafetySpec
 
 
 def load_evaluator_cases_tsv(path: str | Path) -> CaseBank:
@@ -138,11 +139,16 @@ def _metric_row(
     candidate_budget: int,
     case_count: int,
     proposal_stats: Mapping[str, Any] | None = None,
+    requested_candidates: int | None = None,
+    exact_candidate_case_evaluations: int | None = None,
 ) -> dict[str, Any]:
     programs = [p for p, _ in entries]
     if len(programs) != int(candidate_budget):
-        raise ValueError("benchmark arm did not consume the exact common candidate budget")
+        raise ValueError("benchmark arm did not consume the exact evaluated candidate budget")
+    requested = int(candidate_budget if requested_candidates is None else requested_candidates)
+    exact_evals = int(len(programs) * int(case_count) if exact_candidate_case_evaluations is None else exact_candidate_case_evaluations)
     aggregates = [pairs[p.program_id].aggregate for p in programs]
+    safety = {p.program_id: SafetySpec().assess(pairs[p.program_id]) for p in programs}
     useful = [
         p for p in programs
         if bool(pairs[p.program_id].aggregate["strict_safe"])
@@ -202,9 +208,9 @@ def _metric_row(
     scale = 1000.0 / max(1, len(programs))
     best_worst = max(int(a["worst_candidate_margin"]) - root_worst for a in aggregates)
     return {
-        "requested_candidates": int(candidate_budget),
+        "requested_candidates": requested,
         "evaluated_candidates": len(programs),
-        "exact_candidate_case_evaluations": len(programs) * int(case_count),
+        "exact_candidate_case_evaluations": exact_evals,
         "unique_valid_proposals": len({p.child_semantic_id for p in programs}),
         "duplicate_rate": duplicates / max(1, attempted),
         "behavior_changing_rate": sum(bool(a["behavior_changing"]) for a in aggregates) / len(programs),
@@ -218,6 +224,9 @@ def _metric_row(
         "source_parent_count": len({p.source_parent_semantic_id for p in programs}),
         "new_loss_rate": sum(int(a.get("new_loss_count", 0)) > 0 for a in aggregates) / len(programs),
         "new_loss_candidates": sum(int(a.get("new_loss_count", 0)) > 0 for a in aggregates),
+        "root_feasible_rate": sum(safety[p.program_id].feasible for p in programs) / len(programs),
+        "elite_per_1000": sum(safety[p.program_id].elite for p in programs) * scale,
+        "no_op_rate": sum(safety[p.program_id].exact_noop for p in programs) / len(programs),
         "qd_niches": len(qd_keys),
         "safe_useful_per_1000": len(useful) * scale,
         "target_loss_improving_per_1000": len(target_improvers) * scale,
@@ -276,11 +285,27 @@ def _recursive_entries(
         evaluations = _evaluate_children(
             entries, evaluator=evaluator, panel=panel, work_dir=work_dir / f"g{generation}", panel_id=panel_id,
         )
+        spec = SafetySpec()
         for p, child in entries:
-            pair = PairEvaluation.from_states(root_eval, evaluations[child.semantic_id()], protected=protected)
+            child_eval = evaluations[child.semantic_id()]
+            pair = PairEvaluation.from_states(root_eval, child_eval, protected=protected)
+            source_eval = parent_evals.get(p.source_parent_semantic_id, root_eval)
+            source_pair = PairEvaluation.from_states(source_eval, child_eval, protected=protected)
             all_pairs[p.program_id] = pair
-            archive.record_state_evaluation(evaluations[child.semantic_id()])
-            archive.consider(p, pair)
+            archive.record_state_evaluation(child_eval)
+            considered = archive.consider(p, pair, source_pair=source_pair)
+            assessment = spec.assess(pair)
+            archive.note_emitter(
+                p.emitter, attempts=1, unique=1,
+                archive_insertions=int(considered.production_inserted or considered.repair_inserted),
+                production_insertions=int(considered.production_inserted),
+                repair_insertions=int(considered.repair_inserted),
+                useful_safe=int(assessment.safe_useful),
+                unsafe=int(not assessment.feasible),
+                new_loss=int(assessment.violation.new_losses > 0),
+            )
+            if assessment.safe_useful:
+                archive.observe_motif(p, pair, certification=None)
         parent_evals = {root_genome.semantic_id(): root_eval, **evaluations}
         all_entries.extend(entries)
         stats = dict(getattr(engine, "last_proposal_stats", {}) or {})
@@ -301,6 +326,8 @@ def benchmark_proposers(
     candidate_budget: int,
     seed: int,
     work_dir: str | Path,
+    production_targeted: bool = False,
+    target_screen_size: int = 0,
 ) -> dict[str, Any]:
     """Compare four proposal systems with exactly the same child×case truth budget."""
     candidate_budget = int(candidate_budget)
@@ -312,6 +339,24 @@ def benchmark_proposers(
     root = Path(work_dir); root.mkdir(parents=True, exist_ok=True)
     panel_id = f"benchmark/equal-budget/{int(seed)}"
     root_eval = evaluator.evaluate([root_genome], panel, work_dir=root / "shared_root", panel_id=panel_id)[root_genome.semantic_id()]
+    screen_panel: tuple[CaseRecord, ...] = ()
+    screen_root_eval: StateEvaluation | None = None
+    full_candidate_budget = candidate_budget
+    exact_budget = candidate_budget * len(panel)
+    if production_targeted:
+        screen_n = int(target_screen_size)
+        if screen_n <= 0 or screen_n >= len(panel):
+            raise ValueError("production-targeted benchmark requires 0 < target_screen_size < case count")
+        remainder = candidate_budget * (len(panel) - screen_n)
+        if remainder % len(panel):
+            raise ValueError("production-targeted benchmark screen does not preserve an exact integer CUDA budget")
+        full_candidate_budget = remainder // len(panel)
+        manager = CasePanelManager(CaseBank(panel), random_anchor_fraction=0.0)
+        screen_panel = tuple(manager.select_screen(screen_n, seed=int(seed)))
+        if len(screen_panel) != screen_n:
+            raise RuntimeError("production-targeted benchmark screen underfilled")
+        screen_id = f"{panel_id}/screen"
+        screen_root_eval = evaluator.evaluate([root_genome], screen_panel, work_dir=root / "shared_root_screen", panel_id=screen_id)[root_genome.semantic_id()]
 
     arms: dict[str, tuple[list[tuple[EditProgram, ModuleGenome]], dict[str, PairEvaluation], Mapping[str, Any]]] = {}
     arm_roots = {
@@ -322,26 +367,55 @@ def benchmark_proposers(
     }
     if len(set(arm_roots.values())) != 1:
         raise ValueError("equal-budget benchmark arms do not share one exact root semantic identity")
+    def target_arm(
+        name: str,
+        entries: list[tuple[EditProgram, ModuleGenome]],
+        screen_pairs: Mapping[str, PairEvaluation] | None,
+        stats: Mapping[str, Any],
+    ) -> tuple[list[tuple[EditProgram, ModuleGenome]], dict[str, PairEvaluation], Mapping[str, Any]]:
+        if not production_targeted:
+            evaluations = _evaluate_children(entries, evaluator=evaluator, panel=panel, work_dir=root / name, panel_id=panel_id)
+            return entries, _pairs_against_root(entries, evaluations, root_eval, panel), stats
+        assert screen_root_eval is not None and screen_panel
+        pairs = dict(screen_pairs or {})
+        if not pairs:
+            screen_eval = _evaluate_children(entries, evaluator=evaluator, panel=screen_panel, work_dir=root / name / "screen", panel_id=screen_root_eval.panel_id)
+            pairs = _pairs_against_root(entries, screen_eval, screen_root_eval, screen_panel)
+        ordered = SearchEngine._stage2_order([p for p, _ in entries], pairs)
+        chosen_ids = {p.program_id for p in ordered[:full_candidate_budget]}
+        chosen = [(p, child) for p, child in entries if p.program_id in chosen_ids]
+        # Preserve the quality order rather than original generator order.
+        by_id = {p.program_id: (p, child) for p, child in chosen}
+        chosen = [by_id[p.program_id] for p in ordered[:full_candidate_budget]]
+        full_eval = _evaluate_children(chosen, evaluator=evaluator, panel=panel, work_dir=root / name / "full", panel_id=panel_id)
+        return chosen, _pairs_against_root(chosen, full_eval, root_eval, panel), stats
+
     old = _old_shallow_programs(root_genome, observations, route_ids, budget=candidate_budget, seed=seed + 11)
-    old_eval = _evaluate_children(old, evaluator=evaluator, panel=panel, work_dir=root / "old_shallow", panel_id=panel_id)
-    arms["old_shallow"] = (old, _pairs_against_root(old, old_eval, root_eval, panel), {})
+    arms["old_shallow"] = target_arm("old_shallow", old, None, {})
 
     random_rows = _single_parent_programs(root_genome, observations, route_ids, budget=candidate_budget, seed=seed + 23, random_typed=True)
-    random_eval = _evaluate_children(random_rows, evaluator=evaluator, panel=panel, work_dir=root / "random_typed", panel_id=panel_id)
-    arms["random_typed"] = (random_rows, _pairs_against_root(random_rows, random_eval, root_eval, panel), {})
+    arms["random_typed"] = target_arm("random_typed", random_rows, None, {})
 
     fixed = _single_parent_programs(root_genome, observations, route_ids, budget=candidate_budget, seed=seed + 37, random_typed=False)
-    fixed_eval = _evaluate_children(fixed, evaluator=evaluator, panel=panel, work_dir=root / "fixed_mutation", panel_id=panel_id)
-    arms["fixed_mutation"] = (fixed, _pairs_against_root(fixed, fixed_eval, root_eval, panel), {})
+    arms["fixed_mutation"] = target_arm("fixed_mutation", fixed, None, {})
 
-    recursive_entries, recursive_pairs, recursive_stats = _recursive_entries(
-        root_genome, route_ids, observations, panel=panel, evaluator=evaluator, root_eval=root_eval,
-        budget=candidate_budget, seed=seed + 53, work_dir=root / "permanent_recursive", panel_id=panel_id,
+    recursive_panel = screen_panel if production_targeted else panel
+    recursive_root = screen_root_eval if production_targeted else root_eval
+    assert recursive_root is not None
+    recursive_entries, recursive_screen_pairs, recursive_stats = _recursive_entries(
+        root_genome, route_ids, observations, panel=recursive_panel, evaluator=evaluator, root_eval=recursive_root,
+        budget=candidate_budget, seed=seed + 53, work_dir=root / "permanent_recursive" / ("screen" if production_targeted else "raw"),
+        panel_id=recursive_root.panel_id,
     )
-    arms["permanent_recursive"] = (recursive_entries, recursive_pairs, recursive_stats)
+    arms["permanent_recursive"] = target_arm("permanent_recursive", recursive_entries, recursive_screen_pairs if production_targeted else None, recursive_stats)
 
     metrics = {
-        name: _metric_row(entries, pairs, root_eval, candidate_budget=candidate_budget, case_count=len(panel), proposal_stats=stats)
+        name: _metric_row(
+            entries, pairs, root_eval, candidate_budget=(full_candidate_budget if production_targeted else candidate_budget),
+            case_count=len(panel), proposal_stats=stats,
+            requested_candidates=candidate_budget,
+            exact_candidate_case_evaluations=exact_budget,
+        )
         for name, (entries, pairs, stats) in arms.items()
     }
     old_row = metrics["old_shallow"]; permanent = metrics["permanent_recursive"]
@@ -366,7 +440,10 @@ def benchmark_proposers(
         "schema": 1,
         "candidate_budget_per_proposer": candidate_budget,
         "cases": len(panel),
-        "exact_candidate_case_budget_per_proposer": candidate_budget * len(panel),
+        "production_targeted": bool(production_targeted),
+        "screen_cases": len(screen_panel) if production_targeted else 0,
+        "full_candidates_per_proposer": full_candidate_budget if production_targeted else candidate_budget,
+        "exact_candidate_case_budget_per_proposer": exact_budget,
         "root_truth_shared": True,
         "same_root_parent": True,
         "arm_root_semantic_ids": arm_roots,
@@ -403,7 +480,7 @@ def run_anti_saturation(
     )
     engine = SearchEngine(
         route_ids=route_ids,
-        stagnation=StagnationMonitor(patience=int(stagnation_patience), max_level=6),
+        stagnation=StagnationMonitor(patience=int(stagnation_patience), max_level=8),
     )
     manager = CasePanelManager(case_bank, random_anchor_fraction=0.10)
     root = Path(work_dir); root.mkdir(parents=True, exist_ok=True)

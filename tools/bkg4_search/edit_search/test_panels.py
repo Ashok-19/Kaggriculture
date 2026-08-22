@@ -90,5 +90,55 @@ class EditSearchPanelTests(unittest.TestCase):
         self.assertTrue(manager.refresh_required(diag))
 
 
+    def test_counterexamples_cannot_saturate_production_screen(self):
+        from tools.bkg4_search.edit_search.panels import CaseBank, CasePanelManager, CaseRecord
+        rows=[]
+        for i in range(120):
+            if i<40: margin=-100-i
+            elif i<80: margin=500+(i%20)*100
+            else: margin=10000+i
+            rows.append(CaseRecord(f"c{i}",f"/tmp/t{i}",i%2,1000+i,f"family-{i%8}",protected=i>=40,baseline_margin=margin))
+        manager=CasePanelManager(CaseBank(rows),production_mode=True,random_anchor_fraction=0.1)
+        for row in rows:
+            manager.add_hard_case(row.case_id,severity=1000+(row.case_id.__hash__()&255),reason="counterexample")
+        panel=manager.select_screen(20,seed=33)
+        ids={x.case_id for x in panel}
+        self.assertEqual(len(panel),20)
+        self.assertTrue(any(x.baseline_margin<0 for x in panel))
+        self.assertTrue(any(0<x.baseline_margin<=5000 for x in panel))
+        self.assertTrue(any(x.baseline_margin>5000 for x in panel))
+        self.assertEqual({x.seat for x in panel},{0,1})
+        compressed=set(manager.compressed_counterexamples())
+        self.assertLess(sum(x.case_id in compressed for x in panel),20)
+        composition=manager.screen_composition(panel)
+        self.assertGreater(composition["target_losses"],0)
+        self.assertGreater(composition["fragile_wins"],0)
+        self.assertGreater(composition["strong_wins"],0)
+        self.assertGreater(composition["counterexamples"],0)
+
+    def test_counterexample_memory_compresses_redundant_public_failure_signatures(self):
+        from tools.bkg4_search.edit_search.panels import CaseBank, CasePanelManager, CaseRecord
+        rows=[]
+        for i in range(40):
+            payload='{"context_schema":"x"}'
+            rows.append(CaseRecord(f"c{i}",f"/tmp/t{i}",i%2,10+i,"same-family",protected=True,baseline_margin=1000,model_context_json=payload,context_probe_steps=(72,),public_context_width=1,public_context_registry_width=1,public_context_values=(100,)))
+        manager=CasePanelManager(CaseBank(rows),counterexample_memory_limit=8)
+        for i in range(40): manager.add_hard_case(f"c{i}",severity=i+1,reason="w2l")
+        compressed=manager.compressed_counterexamples()
+        self.assertLessEqual(len(compressed),8)
+        self.assertIn("c39",compressed)
+
+    def test_detection_recall_includes_target_repair_recall(self):
+        from tools.bkg4_search.edit_search.panels import CasePanelManager
+        manager=CasePanelManager(self.cases(),useful_recall_floor=0.8,danger_recall_floor=0.9)
+        diag=manager.stage_detection_recall(
+            screen_useful_ids={"u"},screen_l2w_ids={"l"},screen_dangerous_ids={"d"},
+            full_useful_ids={"u"},full_l2w_ids={"l"},full_dangerous_ids={"d"},finalist_ids={"u","l","d"},
+            screen_target_repair_ids={"t0"},full_target_repair_ids={"t0","t1"},
+        )
+        self.assertEqual(diag["target_repair_recall"],0.5)
+        self.assertTrue(manager.refresh_required(diag))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

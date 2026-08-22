@@ -126,6 +126,21 @@ def representative_overlays(route_ids: Sequence[int]) -> tuple[ModuleGenome, ...
             RuleGene((ConditionGene("OPP_MONEY", "GE", 0, 0),), r2),
             RuleGene((ConditionGene("OWN_MONEY", "GE", 0, 0),), r0),
         )),
+        ModuleGenome(96, (
+            RuleGene((
+                ConditionGene("STEP", "GE", 0, 96),
+                ConditionGene("STEP", "LE", 0, 240),
+                ConditionGene("OWN_MONEY", "GE", 0, 0),
+            ), r1),
+        )),
+        ModuleGenome(144, (
+            RuleGene((
+                ConditionGene("DAY", "GE", 0, 1),
+                ConditionGene("HOUR", "GE", 0, 0),
+                ConditionGene("MARKET_INVENTORY", "LE", 5, 10000),
+                ConditionGene("OPP_MONEY", "GE", 0, 0),
+            ), r2),
+        )),
     )
     for genome in rows:
         genome.validate(routes)

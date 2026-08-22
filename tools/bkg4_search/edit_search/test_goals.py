@@ -121,4 +121,51 @@ class ContrastiveGoalTests(unittest.TestCase):
 
 
 
+    def test_non_temporal_synthesis_can_exclude_temporal_features(self):
+        from tools.bkg4_search.edit_search.goals import SearchGoal, synthesize_contrastive_conditions
+        contexts={
+            "loss":(
+                {"probe_index":0,"probe_step":264,"feature":"STEP","index":0,"value":264},
+                {"probe_index":0,"probe_step":264,"feature":"OWN_MONEY","index":0,"value":100},
+            ),
+            "guard":(
+                {"probe_index":0,"probe_step":264,"feature":"STEP","index":0,"value":264},
+                {"probe_index":0,"probe_step":264,"feature":"OWN_MONEY","index":0,"value":2000},
+            ),
+        }
+        rows=synthesize_contrastive_conditions(
+            SearchGoal(("loss",),("guard",),(),()),contexts,limit=16,
+            guard_excluding_only=True,allow_temporal=False,
+        )
+        self.assertTrue(rows)
+        self.assertTrue(all(c.feature not in {"STEP","DAY","HOUR"} for conds in rows for c in conds))
+
+    def test_temporal_specificity_prefers_semantic_then_broad_then_exact(self):
+        from tools.bkg4_search.edit_search.goals import temporal_specificity
+        from tools.bkg4_search.module_codec import ConditionGene
+        semantic=(ConditionGene("OWN_MONEY","LE",0,1000),)
+        broad=semantic+(ConditionGene("STEP","GE",0,144),ConditionGene("STEP","LE",0,287))
+        narrow=semantic+(ConditionGene("STEP","GE",0,260),ConditionGene("STEP","LE",0,280))
+        exact=semantic+(ConditionGene("STEP","EQ",0,274),)
+        self.assertLess(temporal_specificity(semantic),temporal_specificity(broad))
+        self.assertLess(temporal_specificity(broad),temporal_specificity(narrow))
+        self.assertLess(temporal_specificity(narrow),temporal_specificity(exact))
+
+    def test_failure_clustering_does_not_split_only_on_day_or_hour(self):
+        from tools.bkg4_search.edit_search.goals import _cluster_signature
+        a=(
+            {"feature":"DAY","index":0,"value":2},
+            {"feature":"HOUR","index":0,"value":4},
+            {"feature":"OWN_UNITS","index":0,"value":3},
+            {"feature":"OWN_LAND","index":0,"value":2},
+        )
+        b=(
+            {"feature":"DAY","index":0,"value":20},
+            {"feature":"HOUR","index":0,"value":22},
+            {"feature":"OWN_UNITS","index":0,"value":3},
+            {"feature":"OWN_LAND","index":0,"value":2},
+        )
+        self.assertEqual(_cluster_signature(a),_cluster_signature(b))
+
+
 if __name__=="__main__": unittest.main(verbosity=2)

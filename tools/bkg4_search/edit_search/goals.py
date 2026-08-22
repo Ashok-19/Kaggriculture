@@ -21,6 +21,24 @@ CONTRASTIVE_FEATURES = frozenset({
     "MARKET_PRICE", "MARKET_INVENTORY", "OWN_SHED", "OWN_SEED",
 })
 
+TEMPORAL_FEATURES = frozenset({"STEP", "DAY", "HOUR"})
+
+
+def temporal_specificity(conditions: Sequence[ConditionGene]) -> tuple[int, int]:
+    """Late lexicographic prior: semantic < broad phase < narrow window < exact step."""
+    temporal = [c for c in conditions if c.feature in TEMPORAL_FEATURES]
+    if not temporal:
+        return (0, 0)
+    if any(c.feature == "STEP" and c.cmp == "EQ" for c in temporal):
+        return (3, 0)
+    lower = [int(c.value) for c in temporal if c.feature == "STEP" and c.cmp == "GE"]
+    upper = [int(c.value) for c in temporal if c.feature == "STEP" and c.cmp == "LE"]
+    if lower and upper:
+        width = max(0, min(upper) - max(lower) + 1)
+        return (1 if width >= 72 else 2, -width)
+    # DAY/HOUR or one-sided STEP guards describe broad regimes, not exact moments.
+    return (1, 0)
+
 
 @dataclass(frozen=True)
 class SearchGoal:
@@ -213,6 +231,39 @@ def _condition_pool(
     common = [key for key in set(target) & set(guards) if target[key] and guards[key]]
     common.sort(key=feature_key)
     common = common[:max(1, int(feature_budget))]
+    frame_rows: list[Mapping[tuple[str, int], Sequence[int]]] = []
+    case_masks: dict[str, int] = {}
+    key_frames: dict[tuple[str, int], list[tuple[int, Sequence[int]]]] = {}
+    for cid in sorted(indexed):
+        case_mask = 0
+        for frame in indexed[cid]:
+            fi = len(frame_rows)
+            bit = 1 << fi
+            frame_rows.append(frame)
+            case_mask |= bit
+            for key, vals in frame.items():
+                key_frames.setdefault(key, []).append((fi, vals))
+        case_masks[cid] = case_mask
+
+    def singleton_stats(condition: ConditionGene) -> dict[str, int]:
+        mask = 0
+        for fi, vals in key_frames.get((condition.feature, condition.index), ()):
+            if condition.cmp == "LE":
+                hit = any(v <= condition.value for v in vals)
+            elif condition.cmp == "GE":
+                hit = any(v >= condition.value for v in vals)
+            else:
+                hit = any(v == condition.value for v in vals)
+            if hit:
+                mask |= 1 << fi
+        def count(ids: Sequence[str]) -> int:
+            return sum(bool(mask & case_masks.get(str(cid), 0)) for cid in ids)
+        return {
+            "target_hits": count(goal.target_case_ids),
+            "guard_hits": count(goal.protected_guard_ids),
+            "fragile_hits": count(goal.fragile_win_ids),
+            "counterexample_hits": count(goal.counterexample_ids),
+        }
     scored: dict[ConditionGene, tuple[Any, ...]] = {}
     for feature, index in common:
         tv = target[(feature, index)]; gv = guards[(feature, index)]
@@ -235,7 +286,7 @@ def _condition_pool(
                     c = ConditionGene(feature, cmp, index, 1 if feature == "SHOP_SEEN" else int(value)); c.validate()
                 except ValueError:
                     continue
-                diag = _conjunction_stats_indexed((c,), goal, indexed)
+                diag = singleton_stats(c)
                 if not diag["target_hits"]:
                     continue
                 scored[c] = (
@@ -253,10 +304,19 @@ def synthesize_contrastive_conditions(
     limit: int = 64,
     feature_budget: int = 64,
     guard_excluding_only: bool = False,
+    allow_temporal: bool = True,
 ) -> list[tuple[ConditionGene, ...]]:
     max_conditions = max(1, min(4, int(max_conditions))); limit = max(1, int(limit))
     feature_budget = max(4, min(256, int(feature_budget)))
     indexed = _context_index(contexts)
+    if not allow_temporal:
+        indexed = {
+            cid: tuple(
+                {key: vals for key, vals in frame.items() if key[0] not in TEMPORAL_FEATURES}
+                for frame in frames
+            )
+            for cid, frames in indexed.items()
+        }
     singles = _condition_pool(
         goal, indexed, feature_budget=feature_budget,
         condition_budget=max(32, min(192, limit * 4)),
@@ -341,7 +401,9 @@ def synthesize_contrastive_conditions(
 def _cluster_signature(rows: Sequence[Mapping[str, Any]]) -> tuple[tuple[str, int, int], ...]:
     # Identity-free public regime signature. Coarse time/unit context groups coherent failures
     # without encoding opponent/replay provenance.
-    wanted = {"DAY", "HOUR", "OWN_UNITS", "OPP_UNITS", "OWN_LAND", "OPP_LAND"}
+    # Primary failure clustering is semantic. Temporal locality is introduced only
+    # later by the specialist hierarchy when semantic guards alone do not transfer.
+    wanted = {"OWN_UNITS", "OPP_UNITS", "OWN_LAND", "OPP_LAND"}
     vals: dict[tuple[str, int], list[int]] = {}
     for row in rows:
         feature = str(row.get("feature", ""))

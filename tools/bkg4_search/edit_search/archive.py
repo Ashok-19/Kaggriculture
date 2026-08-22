@@ -6,13 +6,14 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
-from tools.bkg4_search.module_codec import ModuleGenome, genome_from_json
+from tools.bkg4_search.module_codec import ConditionGene, ModuleGenome, genome_from_json
 from tools.edit_corpus.corpus import canonical_json
 
 from . import EMITTER_REGISTRY_VERSION, GRAMMAR_ID, QD_DESCRIPTOR_SCHEMA_VERSION, SEARCH_STATE_SCHEMA_VERSION
 from .fitness import LexicographicFitness, PairEvaluation, StateEvaluation
 from .schema import EditProgram
 from .safety import SafetySpec
+from .certification import CertificationVector
 
 
 def _feature_family(feature: str) -> str:
@@ -154,7 +155,7 @@ class CaseRegistry:
 
 @dataclass
 class SearchRuntimeState:
-    schema_version: int = 2
+    schema_version: int = 3
     last_proposed_generation: int = -1
     last_evaluated_generation: int = -1
     stagnation: dict[str, int] = field(default_factory=lambda: {"level": 0, "stalled": 0, "patience": 3, "max_level": 6})
@@ -162,6 +163,7 @@ class SearchRuntimeState:
     proposal_history: list[dict[str, Any]] = field(default_factory=list)
     exported_generations: list[int] = field(default_factory=list)
     generation_transactions: dict[int, str] = field(default_factory=dict)
+    contrastive_goal_cache: dict[str, list[list[dict[str, Any]]]] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -173,12 +175,13 @@ class SearchRuntimeState:
             "proposal_history": json.loads(json.dumps(self.proposal_history[-64:])),
             "exported_generations": sorted(set(int(x) for x in self.exported_generations)),
             "generation_transactions": {str(int(k)): str(v) for k, v in sorted(self.generation_transactions.items())},
+            "contrastive_goal_cache": json.loads(json.dumps(self.contrastive_goal_cache)),
         }
 
     @classmethod
     def from_dict(cls, raw: Mapping[str, Any] | None) -> "SearchRuntimeState":
         obj = dict(raw or {})
-        if int(obj.get("schema_version", -1)) != 2:
+        if int(obj.get("schema_version", -1)) != 3:
             raise ValueError("incompatible search runtime-state schema")
         stagnation = dict(obj.get("stagnation") or {"level":0,"stalled":0,"patience":3,"max_level":6})
         if set(stagnation) != {"level", "stalled", "patience", "max_level"}:
@@ -192,8 +195,28 @@ class SearchRuntimeState:
         transactions = {int(k): str(v) for k, v in dict(obj.get("generation_transactions") or {}).items()}
         if any(k < 0 or not v for k, v in transactions.items()) or set(exported) != set(transactions):
             raise ValueError("exported generations must have one immutable transaction identity")
+        cache = dict(obj.get("contrastive_goal_cache") or {})
+        if len(cache) > 512:
+            raise ValueError("persisted contrastive goal cache is unbounded")
+        normalized_cache: dict[str, list[list[dict[str, Any]]]] = {}
+        for key, condition_sets in cache.items():
+            if not str(key).startswith("goalcache:") or not isinstance(condition_sets, list) or len(condition_sets) > 64:
+                raise ValueError("invalid persisted contrastive goal cache entry")
+            normalized_sets: list[list[dict[str, Any]]] = []
+            for raw_set in condition_sets:
+                if not isinstance(raw_set, list) or not 1 <= len(raw_set) <= 4:
+                    raise ValueError("invalid persisted contrastive condition set")
+                normalized: list[dict[str, Any]] = []
+                for raw in raw_set:
+                    if not isinstance(raw, dict):
+                        raise ValueError("invalid persisted contrastive condition")
+                    cond = ConditionGene(str(raw.get("feature", "")), str(raw.get("cmp", "")), int(raw.get("index", 0)), int(raw.get("value", 0)))
+                    cond.validate()
+                    normalized.append({"feature": cond.feature, "cmp": cond.cmp, "index": cond.index, "value": cond.value})
+                normalized_sets.append(normalized)
+            normalized_cache[str(key)] = normalized_sets
         return cls(
-            schema_version=2,
+            schema_version=3,
             last_proposed_generation=int(obj.get("last_proposed_generation", -1)),
             last_evaluated_generation=int(obj.get("last_evaluated_generation", -1)),
             stagnation=values,
@@ -201,6 +224,7 @@ class SearchRuntimeState:
             proposal_history=[dict(x) for x in obj.get("proposal_history", ())],
             exported_generations=sorted(exported),
             generation_transactions=transactions,
+            contrastive_goal_cache=normalized_cache,
         )
 
 
@@ -233,6 +257,8 @@ class SearchArchive:
         self.state_evaluations: dict[str, dict[str, dict[str, Any]]] = {}
         self.runtime_state = SearchRuntimeState()
         self.case_registry = CaseRegistry()
+        self.external_case_banks: dict[str, dict[str, Any]] = {}
+        self.certification_evidence: dict[str, dict[str, Any]] = {}
 
     @classmethod
     def new(
@@ -262,6 +288,43 @@ class SearchArchive:
 
     def register_panel(self, panel_id: str, case_ids: Sequence[str]) -> None:
         self.case_registry.register_panel(panel_id, case_ids)
+
+    def register_external_case_bank(self, role: str, identity: str, case_ids: Sequence[str]) -> None:
+        role = str(role); identity = str(identity); ids = tuple(sorted(str(x) for x in case_ids))
+        if role not in {"certification", "ranker_validation"}:
+            raise ValueError("external CaseBank role must be certification or ranker_validation")
+        if not identity or not ids or len(set(ids)) != len(ids):
+            raise ValueError("invalid external CaseBank identity/cases")
+        discovery = set(self.case_registry.case_ids) if self.case_registry.bound else set()
+        if discovery & set(ids):
+            raise ValueError("external CaseBank overlaps discovery cases")
+        for other_role, row in self.external_case_banks.items():
+            if other_role != role and set(str(x) for x in row.get("case_ids", ())) & set(ids):
+                raise ValueError("external CaseBank roles overlap")
+        prior = self.external_case_banks.get(role)
+        payload = {"identity": identity, "case_ids": list(ids)}
+        if prior is not None and prior != payload:
+            raise ValueError("external CaseBank role is already bound to different evidence")
+        self.external_case_banks[role] = payload
+
+    def record_certification(self, program_id: str, vector: CertificationVector, *, certification_bank_identity: str) -> None:
+        pid = str(program_id)
+        if pid not in self.programs:
+            raise ValueError("cannot certify unknown EditProgram")
+        registered = self.external_case_banks.get("certification")
+        if registered is None or str(registered.get("identity")) != str(certification_bank_identity):
+            raise ValueError("certification evidence does not match registered certification CaseBank")
+        if vector.panel_count <= 0:
+            raise ValueError("certification evidence must contain an independent panel")
+        payload = {"certification_bank_identity": str(certification_bank_identity), "vector": vector.to_dict()}
+        prior = self.certification_evidence.get(pid)
+        if prior is not None and prior != payload:
+            raise ValueError("conflicting certification evidence for EditProgram")
+        self.certification_evidence[pid] = payload
+
+    def certification_vector(self, program_id: str) -> CertificationVector | None:
+        row = self.certification_evidence.get(str(program_id))
+        return None if row is None else CertificationVector.from_dict(dict(row["vector"]))
 
     def add_program(self, program: EditProgram, child: ModuleGenome) -> bool:
         if program.child_semantic_id != child.semantic_id():
@@ -426,7 +489,7 @@ class SearchArchive:
         except KeyError as exc:
             raise KeyError(f"missing exact state evaluation {semantic_id} on panel {panel_id}") from exc
 
-    def observe_motif(self, program: EditProgram, pair: PairEvaluation) -> str | None:
+    def observe_motif(self, program: EditProgram, pair: PairEvaluation, *, certification: CertificationVector | None = None) -> str | None:
         a = pair.certified_aggregate()
         useful = bool(a["strict_safe"]) and bool(a["behavior_changing"]) and (
             int(a["l2w_count"]) > 0 or float(a["mean_margin_delta"]) > 0.0
@@ -454,20 +517,44 @@ class SearchArchive:
             "l2w_total": 0,
             "mean_delta_sum": 0.0,
             "source_programs": [],
+            "certified_hits": 0,
+            "certified_elite_hits": 0,
+            "discovery_only_hits": 0,
         })
         row["observations"] = int(row["observations"]) + 1
         row["safe_useful_hits"] = int(row["safe_useful_hits"]) + 1
         row["l2w_total"] = int(row["l2w_total"]) + int(a["l2w_count"])
         row["mean_delta_sum"] = float(row["mean_delta_sum"]) + float(a["mean_margin_delta"])
+        if certification is not None and certification.certified_positive:
+            row["certified_hits"] = int(row.get("certified_hits", 0)) + 1
+            row["certified_elite_hits"] = int(row.get("certified_elite_hits", 0)) + int(certification.certified_elite)
+        else:
+            row["discovery_only_hits"] = int(row.get("discovery_only_hits", 0)) + 1
         if program.program_id not in row["source_programs"]:
             row["source_programs"].append(program.program_id)
             row["source_programs"].sort()
         return motif_id
 
-    def note_emitter(self, name: str, *, attempts: int = 0, unique: int = 0, archive_insertions: int = 0, useful_safe: int = 0) -> None:
-        row = self.emitter_stats.setdefault(str(name), {"attempts": 0, "unique": 0, "archive_insertions": 0, "useful_safe": 0})
-        for key, value in (("attempts", attempts), ("unique", unique), ("archive_insertions", archive_insertions), ("useful_safe", useful_safe)):
-            row[key] = int(row[key]) + int(value)
+    def note_emitter(
+        self, name: str, *, attempts: int = 0, unique: int = 0,
+        archive_insertions: int = 0, production_insertions: int = 0,
+        repair_insertions: int = 0, useful_safe: int = 0,
+        unsafe: int = 0, new_loss: int = 0,
+    ) -> None:
+        row = self.emitter_stats.setdefault(str(name), {
+            "attempts": 0, "unique": 0, "archive_insertions": 0,
+            "production_insertions": 0, "repair_insertions": 0,
+            "useful_safe": 0, "unsafe": 0, "new_loss": 0,
+        })
+        values = (
+            ("attempts", attempts), ("unique", unique),
+            ("archive_insertions", archive_insertions),
+            ("production_insertions", production_insertions),
+            ("repair_insertions", repair_insertions),
+            ("useful_safe", useful_safe), ("unsafe", unsafe), ("new_loss", new_loss),
+        )
+        for key, value in values:
+            row[key] = int(row.get(key, 0)) + int(value)
 
     def production_parent_state_ids(self) -> list[str]:
         """Root plus exact root-feasible QD elites; research-only states never leak here."""
@@ -576,6 +663,24 @@ class SearchArchive:
                     members = self.case_registry.panels.get(str(panel_id))
                     if members is None or cid not in members:
                         raise ValueError("hard case references invalid panel membership")
+        discovery_ids = set(self.case_registry.case_ids) if self.case_registry.bound else set()
+        external_ids: set[str] = set()
+        for role, row in self.external_case_banks.items():
+            if role not in {"certification", "ranker_validation"}:
+                raise ValueError("unknown external CaseBank role")
+            identity = str(row.get("identity", "")); ids = tuple(str(x) for x in row.get("case_ids", ()))
+            if not identity or not ids or len(set(ids)) != len(ids) or discovery_ids & set(ids) or external_ids & set(ids):
+                raise ValueError("invalid/overlapping external CaseBank registry")
+            external_ids.update(ids)
+        for pid, row in self.certification_evidence.items():
+            if pid not in self.programs:
+                raise ValueError("certification evidence references unknown program")
+            registered = self.external_case_banks.get("certification")
+            if registered is None or str(row.get("certification_bank_identity")) != str(registered.get("identity")):
+                raise ValueError("certification evidence bank identity mismatch")
+            vector = CertificationVector.from_dict(dict(row.get("vector") or {}))
+            if vector.panel_count <= 0:
+                raise ValueError("certification evidence is empty")
         for motif_id, row in self.motifs.items():
             template = dict(row.get("template") or {})
             if motif_id != stable_motif_identity(template) or str(row.get("motif_id")) != motif_id:
@@ -611,6 +716,8 @@ class SearchArchive:
             "state_evaluations": self.state_evaluations,
             "runtime_state": self.runtime_state.to_dict(),
             "case_registry": self.case_registry.to_dict(),
+            "external_case_banks": self.external_case_banks,
+            "certification_evidence": self.certification_evidence,
         }
 
     def save(self, path: str | Path) -> None:
@@ -657,5 +764,7 @@ class SearchArchive:
         }
         out.runtime_state = SearchRuntimeState.from_dict(obj.get("runtime_state"))
         out.case_registry = CaseRegistry.from_dict(obj.get("case_registry"))
+        out.external_case_banks = {str(k): dict(v) for k, v in obj.get("external_case_banks", {}).items()}
+        out.certification_evidence = {str(k): dict(v) for k, v in obj.get("certification_evidence", {}).items()}
         out.validate_integrity()
         return out

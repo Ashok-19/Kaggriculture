@@ -18,6 +18,7 @@ from tools.edit_corpus.corpus import assert_model_payload_safe, canonical_json, 
 from . import CORPUS_SCHEMA_VERSION, EDIT_PROGRAM_SCHEMA_VERSION, GRAMMAR_ID
 from .archive import SearchArchive, behavior_descriptor, structural_descriptor
 from .fitness import PairEvaluation
+from .certification import CertificationClass, DiscoveryQuality, TransferFailure, discovery_quality, program_contains_temporal
 from .panels import CaseBank
 from .schema import EditProgram, ParentProfile
 
@@ -85,14 +86,22 @@ PROGRAM_SCHEMA = pa.schema([
     _f("parent_genome_json", pa.string()), _f("child_genome_json", pa.string()), _f("edit_program_json", pa.string()),
     _f("operations_json", pa.string()), _f("targets_json", pa.string()), _f("program_length", pa.uint16()), _f("generation_depth", pa.int32()),
     _f("parent_rule_count", pa.uint8()), _f("child_rule_count", pa.uint8()), _f("parent_prefix_step", pa.uint16()), _f("child_prefix_step", pa.uint16()),
-    _f("sample_category", pa.string()), _f("strict_safe", pa.bool_()), _f("exact_noop", pa.bool_()), _f("behavior_changing", pa.bool_()),
+    _f("sample_category", pa.string()), _f("discovery_quality", pa.string()), _f("certification_class", pa.string()), _f("transfer_failure", pa.string()),
+    _f("certification_panel_count", pa.int16()), _f("cert_strict_safe_retention", pa.float64()), _f("cert_activation_retention", pa.float64()),
+    _f("cert_behavior_retention", pa.float64()), _f("cert_safe_useful_retention", pa.float64()), _f("cert_elite_retention", pa.float64()), _f("cert_l2w_retention", pa.float64()),
+    _f("cert_worst_protected_delta", pa.int64()), _f("cert_mean_margin_delta", pa.float64()), _f("temporal_edit", pa.bool_()),
+    _f("strict_safe", pa.bool_()), _f("exact_noop", pa.bool_()), _f("behavior_changing", pa.bool_()),
     _f("l2w_count", pa.int32()), _f("w2l_count", pa.int32()), _f("new_loss_count", pa.int32()), _f("severe_regression_count", pa.int32()),
     _f("losses_before", pa.int32()), _f("losses_after", pa.int32()), _f("fragile_wins_before", pa.int32()), _f("fragile_wins_after", pa.int32()),
     _f("worst_candidate_margin", pa.int64()), _f("worst_protected_win_delta", pa.int64()), _f("mean_margin_delta", pa.float64()),
-    _f("action_change_total", pa.int64()), _f("activation_total", pa.int64()), _f("label_count", pa.int32()),
+    _f("action_change_total", pa.int64()), _f("activation_total", pa.int64()), _f("label_count", pa.int32()), _f("source_label_count", pa.int32()), _f("root_label_count", pa.int32()),
+    _f("root_strict_safe", pa.bool_()), _f("root_behavior_changing", pa.bool_()), _f("root_l2w_count", pa.int32()), _f("root_w2l_count", pa.int32()),
+    _f("root_new_loss_count", pa.int32()), _f("root_severe_regression_count", pa.int32()), _f("root_worst_candidate_margin", pa.int64()),
+    _f("root_worst_protected_win_delta", pa.int64()), _f("root_mean_margin_delta", pa.float64()),
     _f("exact_program_group", pa.string()), _f("parent_family_group", pa.string()), _f("parent_structural_group", pa.string()),
     _f("child_semantic_group", pa.string()), _f("action_skeleton_group", pa.string()), _f("operation_target_group", pa.string()),
-    _f("lineage_group", pa.string()), _f("run_temporal_group", pa.string()), _f("search_emitter", pa.string()), _f("search_seed", pa.int64()),
+    _f("lineage_group", pa.string()), _f("run_temporal_group", pa.string()), _f("target_holdout_group", pa.string()), _f("temporal_regime_group", pa.string()),
+    _f("search_generation_group", pa.string()), _f("certification_panel_group", pa.string()), _f("search_emitter", pa.string()), _f("search_seed", pa.int64()),
     _f("search_run_id", pa.string()), _f("search_generation", pa.int32()), _f("search_structural_descriptor_json", pa.string()),
     _f("search_behavior_descriptor_json", pa.string()),
 ])
@@ -104,7 +113,7 @@ LABEL_SCHEMA = pa.schema([
     _f("behavior_changing", pa.bool_()), _f("case_id", pa.string()), _f("parent_action_changes_from_base", pa.uint16()),
     _f("candidate_action_changes_from_base", pa.uint16()), _f("parent_activations", pa.uint16()), _f("candidate_activations", pa.uint16()),
     _f("program_id", pa.string()), _f("edit_id", pa.string()), _f("parent_overlay_semantic_id", pa.string()),
-    _f("child_overlay_semantic_id", pa.string()), _f("search_generation", pa.int32()),
+    _f("child_overlay_semantic_id", pa.string()), _f("search_generation", pa.int32()), _f("label_role", pa.string()),
 ])
 
 
@@ -197,27 +206,157 @@ def _lineage_root(program: EditProgram, archive: SearchArchive) -> str:
     return current.program_id
 
 
-def _sample_category_from_aggregate(a: Mapping[str, Any]) -> str:
-    behavior = bool(a["behavior_changing"])
-    safe = bool(a["strict_safe"])
-    useful = behavior and (int(a["l2w_count"]) > 0 or float(a["mean_margin_delta"]) > 0.0)
-    if safe and useful:
-        return "strict_safe_useful"
-    if safe and behavior:
-        return "safe_incremental"
-    if bool(a["exact_noop"]):
+def _quality_category(
+    *,
+    discovery: DiscoveryQuality,
+    certification: CertificationClass,
+    root_aggregate: Mapping[str, Any],
+    emitter: str = "",
+) -> str:
+    if certification in {CertificationClass.CERTIFIED_ELITE_FLIP, CertificationClass.CERTIFIED_ELITE_MARGIN}:
+        return "certified_elite"
+    if certification == CertificationClass.CERTIFIED_SAFE_USEFUL:
+        return "certified_safe_useful"
+    if certification == CertificationClass.GENERALIZATION_HARD_NEGATIVE:
+        return "generalization_hard_negative"
+    if certification == CertificationClass.GENERALIZATION_BOUNDARY:
+        return "generalization_boundary"
+    if bool(root_aggregate["exact_noop"]):
         return "controlled_noop"
-    if int(a["w2l_count"]) > 0 or int(a["severe_regression_count"]) > 0 or float(a["mean_margin_delta"]) < 0.0:
+    if str(emitter) == "cegis_repair":
+        return "near_feasible_repair"
+    if discovery == DiscoveryQuality.DISCOVERY_BOUNDARY:
+        return "near_feasible_repair"
+    if str(emitter) == "certified_neighborhood":
+        return "local_contrastive_neighbor"
+    if discovery in {
+        DiscoveryQuality.DISCOVERY_ELITE_FLIP,
+        DiscoveryQuality.DISCOVERY_ELITE_MARGIN,
+        DiscoveryQuality.DISCOVERY_SAFE_USEFUL,
+    }:
+        return "discovery_only_positive"
+    if int(root_aggregate["new_loss_count"]) > 0 or int(root_aggregate["w2l_count"]) > 0 or int(root_aggregate["severe_regression_count"]) > 0 or float(root_aggregate["mean_margin_delta"]) < 0.0:
         return "hard_negative"
-    if behavior:
-        return "boundary"
-    return "novel_diverse"
+    if bool(root_aggregate["behavior_changing"]):
+        return "structural_diversity"
+    return "structural_diversity"
 
 
+def program_sample_category(archive: SearchArchive, program_id: str, root_pair: PairEvaluation) -> str:
+    program = archive.programs[str(program_id)]
+    dq = discovery_quality(root_pair)
+    vector = archive.certification_vector(str(program_id))
+    cls = CertificationClass.UNCERTIFIED if vector is None else vector.certification_class
+    return _quality_category(
+        discovery=dq, certification=cls,
+        root_aggregate=root_pair.certified_aggregate(), emitter=program.emitter,
+    )
 
 
-def _sample_category(pair: PairEvaluation) -> str:
-    return _sample_category_from_aggregate(pair.certified_aggregate())
+def select_high_information_program_ids(
+    rows: Mapping[str, Mapping[str, Any]], *, max_noop_fraction: float = 0.10,
+    max_easy_hard_negative_fraction: float = 0.30,
+    max_structural_fraction: float = 0.15,
+) -> tuple[str, ...]:
+    """Select a deterministic high-information training slice from exact evaluated rows.
+
+    Rare certified/generalization/repair/local-neighbor evidence is never discarded.
+    Once any such premium evidence exists, easy catastrophic negatives and structural
+    filler are fraction-capped instead of overwhelming the corpus. Negative-only
+    diagnostic generations retain all non-noops so evidence is never silently erased.
+    """
+    noop_frac = float(max_noop_fraction)
+    hard_frac = float(max_easy_hard_negative_fraction)
+    structural_frac = float(max_structural_fraction)
+    for name, value in (("max_noop_fraction", noop_frac), ("max_easy_hard_negative_fraction", hard_frac), ("max_structural_fraction", structural_frac)):
+        if not 0.0 <= value < 1.0:
+            raise ValueError(f"{name} must be in [0,1)")
+
+    easy_categories = {"hard_negative", "structural_diversity", "controlled_noop"}
+    premium = sorted(
+        str(pid) for pid, row in rows.items()
+        if str(row.get("sample_category")) not in easy_categories
+    )
+    hard = [
+        (str(pid), row) for pid, row in rows.items()
+        if str(row.get("sample_category")) == "hard_negative"
+    ]
+    structural = sorted(
+        str(pid) for pid, row in rows.items()
+        if str(row.get("sample_category")) == "structural_diversity"
+    )
+    noops = sorted(
+        str(pid) for pid, row in rows.items()
+        if str(row.get("sample_category")) == "controlled_noop"
+    )
+
+    # Without premium evidence, preserve the full non-noop diagnostic surface and
+    # only enforce the no-op ceiling. Search must create positives rather than have
+    # the sampler fabricate a balanced-looking corpus by deleting all negatives.
+    if not premium:
+        non_noop = sorted(pid for pid, row in rows.items() if str(row.get("sample_category")) != "controlled_noop")
+        if not non_noop or noop_frac <= 0.0:
+            return tuple(non_noop)
+        max_noops = int((len(non_noop) * noop_frac) // max(1e-12, 1.0 - noop_frac))
+        return tuple(sorted((*non_noop, *noops[:max_noops])))
+
+    selected = list(premium)
+    if structural_frac > 0.0 and structural:
+        max_structural = int((len(selected) * structural_frac) // max(1e-12, 1.0 - structural_frac))
+        selected.extend(structural[:max_structural])
+
+    def hard_key(item: tuple[str, Mapping[str, Any]]) -> tuple[float, ...]:
+        pid, row = item
+        violation_count = (
+            int(row.get("new_loss_count", 0))
+            + int(row.get("w2l_count", 0))
+            + int(row.get("severe_regression_count", 0))
+        )
+        return (
+            float(violation_count),
+            abs(float(row.get("mean_margin_delta", 0.0))),
+            str(pid),
+        )
+
+    hard.sort(key=hard_key)
+    if hard_frac > 0.0 and hard:
+        max_hard = int((len(selected) * hard_frac) // max(1e-12, 1.0 - hard_frac))
+        selected.extend(pid for pid, _ in hard[:max_hard])
+
+    if noop_frac > 0.0 and noops:
+        max_noops = int((len(selected) * noop_frac) // max(1e-12, 1.0 - noop_frac))
+        selected.extend(noops[:max_noops])
+    return tuple(sorted(dict.fromkeys(selected)))
+
+
+def _temporal_regime_group(program: EditProgram) -> str:
+    temporal = []
+    for atom in program.atoms:
+        action = dict(atom.action)
+        if atom.operation == "CHANGE_WINDOW":
+            temporal.append((atom.operation, int(action.get("prefix_step", -1))))
+        for suffix in ("", "2"):
+            feature = str(action.get(f"feature{suffix}", ""))
+            if feature in {"STEP", "DAY", "HOUR"}:
+                temporal.append((feature, str(action.get(f"cmp{suffix}", "")), int(action.get(f"value{suffix}", 0))))
+    return _hash_group("BKG4-TEMPORAL-REGIME-GROUP-V1", temporal or [("semantic",)])
+
+
+def _certification_defaults() -> dict[str, Any]:
+    return {
+        "certification_class": CertificationClass.UNCERTIFIED.value,
+        "transfer_failure": TransferFailure.NOT_CERTIFIED.value,
+        "certification_panel_count": 0,
+        "cert_strict_safe_retention": 0.0,
+        "cert_activation_retention": 0.0,
+        "cert_behavior_retention": 0.0,
+        "cert_safe_useful_retention": 0.0,
+        "cert_elite_retention": 0.0,
+        "cert_l2w_retention": 0.0,
+        "cert_worst_protected_delta": 0,
+        "cert_mean_margin_delta": 0.0,
+    }
+
 
 def _parent_id(base_identity: str, semantic_id: str) -> str:
     return stable_identity("BKG4-EDIT-SEARCH-PARENT-V1", str(base_identity), str(semantic_id))
@@ -297,11 +436,27 @@ class SearchCorpusStore:
             "feature_registry": profile.feature_registry,
             "cuda_result_abi": "B4EC1/v1",
             "base_identity": profile.combined_agent_identity,
+            "root_semantic_id": archive.root_semantic_id,
             "case_bank_identity": case_bank.identity(),
             "route_ids": list(profile.route_ids),
             "model_feature_columns": list(MODEL_FEATURE_COLUMNS),
             "program_model_feature_columns": list(PROGRAM_MODEL_FEATURE_COLUMNS),
             "provenance_prefixes": ["prov_", "search_"],
+            "case_roles": {
+                "search_training": {
+                    "identity": case_bank.identity(),
+                    "materialized_for_training": True,
+                    "role_counts": dict(sorted(Counter(str(x.role) for x in case_bank.rows).items())),
+                },
+                "certification": {**dict(archive.external_case_banks.get("certification") or {}), "materialized_for_training": False},
+                "ranker_validation": {**dict(archive.external_case_banks.get("ranker_validation") or {}), "materialized_for_training": False},
+            },
+            "label_contract": {
+                "source_discovery": "exact source-parent-relative B4EC1 outcome",
+                "root_discovery": "exact root-relative B4EC1 outcome",
+                "certification": "aggregate independent B4EC1 transfer vector; label/provenance only",
+            },
+            "max_controlled_noop_fraction": 0.10,
             "generations": [],
             "counts": {"programs": 0, "labels": 0, "parents": len(archive.states), "cases": len(case_bank)},
         }
@@ -380,6 +535,7 @@ class SearchCorpusStore:
         generation: int,
         archive: SearchArchive,
         program_pairs: Mapping[str, PairEvaluation],
+        root_pairs: Mapping[str, PairEvaluation] | None = None,
     ) -> dict[str, int]:
         manifest = self._manifest()
         if int(manifest["corpus_schema_version"]) != CORPUS_SCHEMA_VERSION or str(manifest["grammar_id"]) != GRAMMAR_ID:
@@ -392,6 +548,10 @@ class SearchCorpusStore:
             raise ValueError(f"generation already exported: {generation}")
         if not program_pairs:
             raise ValueError("cannot export an empty exact generation")
+        explicit_root_pairs = root_pairs is not None
+        root_pairs_map = dict(root_pairs or {})
+        if explicit_root_pairs and set(root_pairs_map) != set(program_pairs):
+            raise ValueError("source/root discovery program identities differ")
         transaction_id, archive_digest = generation_transaction_id(archive, generation, tuple(program_pairs))
         transaction_root = self.root / "transactions" / f"g{generation:06d}_{transaction_id[:16]}"
         transaction_root.mkdir(parents=True, exist_ok=False)
@@ -412,13 +572,20 @@ class SearchCorpusStore:
         label_rows: list[dict[str, Any]] = []
         for program_id in sorted(program_pairs):
             pair = program_pairs[program_id]
+            root_pair = root_pairs_map.get(program_id, pair)
             program = archive.programs.get(program_id)
             if program is None:
                 raise ValueError(f"export references unknown search program {program_id}")
             source = archive.genome(program.source_parent_semantic_id)
             child = program.reconstruct(source, archive.route_ids)
             if child.semantic_id() != pair.child_semantic_id or source.semantic_id() != pair.parent_semantic_id:
-                raise ValueError("exact pair identities do not match reconstructable EditProgram")
+                raise ValueError("source exact pair identities do not match reconstructable EditProgram")
+            if root_pair.child_semantic_id != child.semantic_id():
+                raise ValueError("root exact pair child identity differs from reconstructable EditProgram")
+            if explicit_root_pairs and root_pair.parent_semantic_id != archive.root_semantic_id:
+                raise ValueError("root discovery pair is not root-relative")
+            if tuple(str(r["case_id"]) for r in root_pair.case_rows) != tuple(str(r["case_id"]) for r in pair.case_rows):
+                raise ValueError("source/root discovery case alignment mismatch")
             if len(pair.case_rows) != len({str(r["case_id"]) for r in pair.case_rows}):
                 raise ValueError("duplicate edit-program × case relation")
             missing = {str(r["case_id"]) for r in pair.case_rows} - case_ids
@@ -429,6 +596,28 @@ class SearchCorpusStore:
                 if bool(raw.get("protected", True)) != bool(case_rows_by_id[cid]["protected"]):
                     raise ValueError(f"exact label protected flag differs from case bank: {cid}")
             agg = pair.certified_aggregate()
+            root_agg = root_pair.certified_aggregate()
+            dq = discovery_quality(root_pair)
+            vector = archive.certification_vector(program_id)
+            cert = _certification_defaults()
+            if vector is not None:
+                cert = {
+                    "certification_class": vector.certification_class.value,
+                    "transfer_failure": vector.transfer_failure.value,
+                    "certification_panel_count": int(vector.panel_count),
+                    "cert_strict_safe_retention": float(vector.strict_safe_retention),
+                    "cert_activation_retention": float(vector.activation_retention),
+                    "cert_behavior_retention": float(vector.behavior_retention),
+                    "cert_safe_useful_retention": float(vector.safe_useful_retention),
+                    "cert_elite_retention": float(vector.elite_retention),
+                    "cert_l2w_retention": float(vector.l2w_retention),
+                    "cert_worst_protected_delta": int(vector.worst_certification_protected_delta),
+                    "cert_mean_margin_delta": float(vector.certification_mean_margin_delta),
+                }
+            cert_class = CertificationClass(str(cert["certification_class"]))
+            category = _quality_category(
+                discovery=dq, certification=cert_class, root_aggregate=root_agg, emitter=program.emitter,
+            )
             skeleton = _action_skeleton(program)
             op_target = _operation_target(program)
             program_rows.append({
@@ -449,7 +638,10 @@ class SearchCorpusStore:
                 "child_rule_count": len(child.rules),
                 "parent_prefix_step": source.prefix_step,
                 "child_prefix_step": child.prefix_step,
-                "sample_category": _sample_category_from_aggregate(agg),
+                "sample_category": category,
+                "discovery_quality": dq.value,
+                **cert,
+                "temporal_edit": bool(program_contains_temporal(program)),
                 "strict_safe": bool(agg["strict_safe"]),
                 "exact_noop": bool(agg["exact_noop"]),
                 "behavior_changing": bool(agg["behavior_changing"]),
@@ -466,7 +658,18 @@ class SearchCorpusStore:
                 "mean_margin_delta": float(agg["mean_margin_delta"]),
                 "action_change_total": int(agg["action_change_total"]),
                 "activation_total": int(agg["activation_total"]),
-                "label_count": len(pair.case_rows),
+                "label_count": len(pair.case_rows) + (len(root_pair.case_rows) if explicit_root_pairs else 0),
+                "source_label_count": len(pair.case_rows),
+                "root_label_count": len(root_pair.case_rows) if explicit_root_pairs else 0,
+                "root_strict_safe": bool(root_agg["strict_safe"]),
+                "root_behavior_changing": bool(root_agg["behavior_changing"]),
+                "root_l2w_count": int(root_agg["l2w_count"]),
+                "root_w2l_count": int(root_agg["w2l_count"]),
+                "root_new_loss_count": int(root_agg["new_loss_count"]),
+                "root_severe_regression_count": int(root_agg["severe_regression_count"]),
+                "root_worst_candidate_margin": int(root_agg["worst_candidate_margin"]),
+                "root_worst_protected_win_delta": int(root_agg["worst_protected_win_delta"]),
+                "root_mean_margin_delta": float(root_agg["mean_margin_delta"]),
                 "exact_program_group": program.program_id,
                 "parent_family_group": program.source_parent_semantic_id,
                 "parent_structural_group": _hash_group("BKG4-PARENT-STRUCTURE-GROUP-V1", {
@@ -481,6 +684,10 @@ class SearchCorpusStore:
                 "operation_target_group": _hash_group("BKG4-OP-TARGET-GROUP-V1", op_target),
                 "lineage_group": _lineage_root(program, archive),
                 "run_temporal_group": str(program.run_id or archive.run_id),
+                "target_holdout_group": _hash_group("BKG4-TARGET-HOLDOUT-GROUP-V1", op_target),
+                "temporal_regime_group": _temporal_regime_group(program),
+                "search_generation_group": _hash_group("BKG4-SEARCH-GENERATION-GROUP-V1", {"run": str(program.run_id or archive.run_id), "generation": generation}),
+                "certification_panel_group": _hash_group("BKG4-CERTIFICATION-PANEL-GROUP-V1", dict(archive.external_case_banks.get("certification") or {"identity":"uncertified"})),
                 "search_emitter": program.emitter,
                 "search_seed": program.seed,
                 "search_run_id": str(program.run_id or archive.run_id),
@@ -488,17 +695,21 @@ class SearchCorpusStore:
                 "search_structural_descriptor_json": canonical_json(structural_descriptor(program, child)),
                 "search_behavior_descriptor_json": canonical_json(behavior_descriptor(pair)),
             })
-            for raw in pair.case_rows:
-                row = dict(raw)
-                row["program_id"] = program.program_id
-                row["edit_id"] = program.program_id
-                row["parent_overlay_semantic_id"] = program.source_parent_semantic_id
-                row["child_overlay_semantic_id"] = program.child_semantic_id
-                row["search_generation"] = generation
-                label_rows.append(row)
+            for role, role_pair in (("source_discovery", pair), ("root_discovery", root_pair)):
+                if role == "root_discovery" and not explicit_root_pairs:
+                    continue
+                for raw in role_pair.case_rows:
+                    row = dict(raw)
+                    row["program_id"] = program.program_id
+                    row["edit_id"] = program.program_id
+                    row["parent_overlay_semantic_id"] = role_pair.parent_semantic_id
+                    row["child_overlay_semantic_id"] = program.child_semantic_id
+                    row["search_generation"] = generation
+                    row["label_role"] = role
+                    label_rows.append(row)
 
-        label_rows.sort(key=lambda r: (str(r["program_id"]), str(r["case_id"])))
-        pair_keys = [(str(r["program_id"]), str(r["case_id"])) for r in label_rows]
+        label_rows.sort(key=lambda r: (str(r["program_id"]), str(r["case_id"]), str(r["label_role"])))
+        pair_keys = [(str(r["program_id"]), str(r["case_id"]), str(r["label_role"])) for r in label_rows]
         if len(set(pair_keys)) != len(pair_keys):
             raise ValueError("duplicate edit-program × case relation")
 
@@ -712,8 +923,49 @@ def _validate_case_label(row: Mapping[str, Any], case_row: Mapping[str, Any]) ->
     return expected
 
 
+def _validate_certification_semantics(program_row: Mapping[str, Any]) -> CertificationClass:
+    cls = CertificationClass(str(program_row["certification_class"]))
+    TransferFailure(str(program_row["transfer_failure"]))
+    panel_count = int(program_row["certification_panel_count"])
+    safe = float(program_row["cert_strict_safe_retention"])
+    active = float(program_row["cert_activation_retention"])
+    behavior = float(program_row["cert_behavior_retention"])
+    useful = float(program_row["cert_safe_useful_retention"])
+    elite = float(program_row["cert_elite_retention"])
+    l2w = float(program_row["cert_l2w_retention"])
+    fractions = (safe, active, behavior, useful, elite, l2w)
+    if panel_count < 0 or any(not 0.0 <= x <= 1.0 for x in fractions):
+        raise ValueError("invalid certification vector range")
+    if cls == CertificationClass.UNCERTIFIED:
+        if panel_count != 0 or any(x != 0.0 for x in fractions):
+            raise ValueError("uncertified program carries certification outcomes")
+    else:
+        if panel_count <= 0:
+            raise ValueError("certified/generalization program lacks certification panels")
+        if cls == CertificationClass.GENERALIZATION_HARD_NEGATIVE and not safe < 1.0:
+            raise ValueError("generalization hard negative must have unsafe transfer")
+        if cls == CertificationClass.GENERALIZATION_BOUNDARY and not (safe == 1.0 and (behavior < 0.50 or useful < 0.40)):
+            raise ValueError("generalization boundary semantics mismatch")
+        if cls in {CertificationClass.CERTIFIED_ELITE_FLIP, CertificationClass.CERTIFIED_ELITE_MARGIN, CertificationClass.CERTIFIED_SAFE_USEFUL, CertificationClass.CERTIFIED_SAFE_INCREMENTAL} and safe != 1.0:
+            raise ValueError("certified positive must be safe on every certification panel")
+        if cls == CertificationClass.CERTIFIED_ELITE_FLIP and not (behavior >= 0.50 and useful >= 0.40 and elite >= 0.25 and l2w > 0.0):
+            raise ValueError("certified elite flip semantics mismatch")
+        if cls == CertificationClass.CERTIFIED_ELITE_MARGIN and not (behavior >= 0.50 and useful >= 0.40 and elite >= 0.25):
+            raise ValueError("certified elite margin semantics mismatch")
+        if cls == CertificationClass.CERTIFIED_SAFE_USEFUL and not (behavior >= 0.50 and useful >= 0.40):
+            raise ValueError("certified safe-useful semantics mismatch")
+    return cls
+
+
 def _validate_program_aggregate(program_row: Mapping[str, Any], exact_rows: list[dict[str, Any]]) -> None:
-    aggregate = derive_edit_labels(exact_rows)
+    source_rows = [r for r in exact_rows if str(r.get("label_role")) == "source_discovery"]
+    root_rows = [r for r in exact_rows if str(r.get("label_role")) == "root_discovery"]
+    if len(source_rows) != int(program_row["source_label_count"]) or len(root_rows) != int(program_row["root_label_count"]):
+        raise ValueError("program aggregate recomputation mismatch: role label counts")
+    if not source_rows or any(str(r.get("label_role")) not in {"source_discovery", "root_discovery"} for r in exact_rows):
+        raise ValueError("invalid/empty exact discovery label roles")
+    aggregate = derive_edit_labels(source_rows)
+    root_aggregate = derive_edit_labels(root_rows or source_rows)
     checks = {
         "l2w_count": int(aggregate["l2w_count"]), "w2l_count": int(aggregate["w2l_count"]),
         "new_loss_count": int(aggregate["new_loss_count"]), "severe_regression_count": int(aggregate["severe_regression_count"]),
@@ -723,15 +975,37 @@ def _validate_program_aggregate(program_row: Mapping[str, Any], exact_rows: list
         "worst_protected_win_delta": int(aggregate["worst_protected_win_delta"]),
         "action_change_total": int(aggregate["action_change_total"]), "activation_total": int(aggregate["activation_total"]),
         "strict_safe": bool(aggregate["strict_safe"]), "exact_noop": bool(aggregate["exact_noop"]),
-        "behavior_changing": bool(aggregate["behavior_changing"]), "sample_category": _sample_category_from_aggregate(aggregate),
+        "behavior_changing": bool(aggregate["behavior_changing"]),
+        "root_strict_safe": bool(root_aggregate["strict_safe"]),
+        "root_behavior_changing": bool(root_aggregate["behavior_changing"]),
+        "root_l2w_count": int(root_aggregate["l2w_count"]), "root_w2l_count": int(root_aggregate["w2l_count"]),
+        "root_new_loss_count": int(root_aggregate["new_loss_count"]), "root_severe_regression_count": int(root_aggregate["severe_regression_count"]),
+        "root_worst_candidate_margin": int(root_aggregate["worst_candidate_margin"]),
+        "root_worst_protected_win_delta": int(root_aggregate["worst_protected_win_delta"]),
     }
     for key, expected in checks.items():
         if program_row[key] != expected:
             raise ValueError(f"program aggregate recomputation mismatch: {key}")
     if not np.isclose(float(program_row["mean_margin_delta"]), float(aggregate["mean_margin_delta"]), rtol=0.0, atol=1e-12):
         raise ValueError("program aggregate recomputation mismatch: mean_margin_delta")
+    if not np.isclose(float(program_row["root_mean_margin_delta"]), float(root_aggregate["mean_margin_delta"]), rtol=0.0, atol=1e-12):
+        raise ValueError("program aggregate recomputation mismatch: root_mean_margin_delta")
     if int(program_row["label_count"]) != len(exact_rows):
         raise ValueError("program aggregate recomputation mismatch: label_count")
+    synthetic = PairEvaluation(
+        parent_semantic_id="root", child_semantic_id="child", panel_id="validated",
+        case_rows=tuple(root_rows or source_rows), aggregate={},
+    )
+    dq = discovery_quality(synthetic)
+    if str(program_row["discovery_quality"]) != dq.value:
+        raise ValueError("program discovery-quality recomputation mismatch")
+    cls = _validate_certification_semantics(program_row)
+    expected_category = _quality_category(
+        discovery=dq, certification=cls, root_aggregate=root_aggregate,
+        emitter=str(program_row["search_emitter"]),
+    )
+    if str(program_row["sample_category"]) != expected_category:
+        raise ValueError("program aggregate recomputation mismatch: sample_category")
 
 
 def validate_export(path: str | Path) -> dict[str, Any]:
@@ -836,7 +1110,7 @@ def validate_export(path: str | Path) -> dict[str, Any]:
     total_labels = 0
     for gen in generation_rows:
         generation = int(gen["generation"]); lpath = root / str(gen["label_shard"])
-        last_key: tuple[str, str] | None = None
+        last_key: tuple[str, str, str] | None = None
         current_pid: str | None = None
         current_exact_rows: list[dict[str, Any]] = []
         def finish_program() -> None:
@@ -847,7 +1121,7 @@ def validate_export(path: str | Path) -> dict[str, Any]:
             current_pid = None; current_exact_rows = []
         for batch in pq.ParquetFile(lpath).iter_batches(batch_size=65536):
             for row in batch.to_pylist():
-                pid = str(row["program_id"]); cid = str(row["case_id"]); key = (pid, cid)
+                pid = str(row["program_id"]); cid = str(row["case_id"]); role = str(row["label_role"]); key = (pid, cid, role)
                 if last_key is not None and key <= last_key:
                     raise ValueError("duplicate or unsorted edit-program × case relation")
                 last_key = key
@@ -857,13 +1131,19 @@ def validate_export(path: str | Path) -> dict[str, Any]:
                     raise ValueError("label references unknown case")
                 if str(row["edit_id"]) != pid or int(row["search_generation"]) != generation:
                     raise ValueError("label program/generation identity mismatch")
-                if str(row["parent_overlay_semantic_id"]) != str(all_programs[pid]["parent_overlay_semantic_id"]) or str(row["child_overlay_semantic_id"]) != str(all_programs[pid]["child_overlay_semantic_id"]):
-                    raise ValueError("label parent/child semantic identity mismatch")
+                if role not in {"source_discovery", "root_discovery"}:
+                    raise ValueError("unknown exact label role")
+                expected_parent = str(all_programs[pid]["parent_overlay_semantic_id"]) if role == "source_discovery" else str(manifest["root_semantic_id"])
+                if str(row["parent_overlay_semantic_id"]) != expected_parent:
+                    raise ValueError(f"{role} label parent semantic identity mismatch")
+                if str(row["child_overlay_semantic_id"]) != str(all_programs[pid]["child_overlay_semantic_id"]):
+                    raise ValueError("label child semantic identity mismatch")
                 if current_pid is not None and pid != current_pid:
                     finish_program()
                 if current_pid is None:
                     current_pid = pid
                 exact = _validate_case_label(row, case_by_id[cid])
+                exact["label_role"] = role
                 current_exact_rows.append(exact); observed_labels[pid] += 1; total_labels += 1
         finish_program()
 
@@ -875,6 +1155,8 @@ def validate_export(path: str | Path) -> dict[str, Any]:
     if any(int(counts.get(k, -1)) != v for k, v in expected_global.items()):
         raise ValueError(f"manifest global counts disagree with validated corpus: {counts} != {expected_global}")
 
+    category_counts = Counter(str(row["sample_category"]) for row in all_programs.values())
+    noop_rate = category_counts.get("controlled_noop", 0) / max(1, len(all_programs))
     semantic_child_duplicate_rate = sum(max(0, n - 1) for n in child_groups.values()) / max(1, len(all_programs))
     action_skeleton_duplicate_rate = sum(max(0, n - 1) for n in action_groups.values()) / max(1, len(all_programs))
     return {
@@ -885,4 +1167,15 @@ def validate_export(path: str | Path) -> dict[str, Any]:
         "target_kind_counts": dict(sorted(target_counts.items())), "model_feature_columns": list(manifest["model_feature_columns"]),
         "program_model_feature_columns": list(manifest["program_model_feature_columns"]),
         "uint64_trace_schema": True, "complete_generation_layout": True, "aggregates_recomputed": True, "model_boundary_allowlisted": True,
+        "certified_elite": int(category_counts.get("certified_elite", 0)),
+        "certified_safe_useful": int(category_counts.get("certified_safe_useful", 0)),
+        "discovery_only_positive": int(category_counts.get("discovery_only_positive", 0)),
+        "generalization_boundary": int(category_counts.get("generalization_boundary", 0)),
+        "generalization_hard_negative": int(category_counts.get("generalization_hard_negative", 0)),
+        "near_feasible_repair": int(category_counts.get("near_feasible_repair", 0)),
+        "hard_negative": int(category_counts.get("hard_negative", 0)),
+        "structural_diversity": int(category_counts.get("structural_diversity", 0)),
+        "controlled_noop": int(category_counts.get("controlled_noop", 0)),
+        "controlled_noop_rate": float(noop_rate),
+        "category_counts": dict(sorted(category_counts.items())),
     }

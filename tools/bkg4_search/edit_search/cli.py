@@ -4,6 +4,7 @@ import argparse
 import json
 import math
 import subprocess
+import time
 from dataclasses import replace
 from pathlib import Path
 from typing import Any, Mapping, Sequence
@@ -12,7 +13,8 @@ from tools.bkg4_search.module_codec import ModuleGenome
 
 from .archive import SearchArchive
 from .benchmark import benchmark_proposers, load_evaluator_cases_tsv, run_anti_saturation
-from .corpus import SearchCorpusStore, validate_export
+from .corpus import SearchCorpusStore, program_sample_category, select_high_information_program_ids, validate_export
+from .context_bank import CaseBankRole, build_context_bank_from_r0, strategic_probe_schedule
 from .evaluator import ExactCudaEvaluator
 from .goals import build_search_goals, decode_case_contexts
 from .panels import CaseBank, CasePanelManager
@@ -228,13 +230,45 @@ def _recover_search_after_generation(corpus: SearchCorpusStore, archive_path: st
     return archive, engine
 
 
+def _rotating_search_banks(discovery: CaseBank, certification_source: CaseBank) -> tuple[CaseBank, CaseBank, CaseBank]:
+    """Promote one certification mini-panel into search and reserve the other unseen.
+
+    The repair mini-panel is materialized/training-search evidence with an explicit
+    certification_repair provenance role. The held-out mini-panel is external and is
+    the only panel allowed to issue certification labels.
+    """
+    from .context_bank import CaseBankRole, certification_panels
+    discovery_ids = set(discovery.by_id); certification_ids = set(certification_source.by_id)
+    if discovery_ids & certification_ids:
+        raise ValueError("discovery and certification source CaseBanks must be disjoint")
+    panels = certification_panels(certification_source, parts=2)
+    repair = CaseBank(replace(row, role=CaseBankRole.CERTIFICATION_REPAIR.value) for row in panels[0])
+    heldout = CaseBank(replace(row, role=CaseBankRole.CERTIFICATION.value) for row in panels[1])
+    search = CaseBank((*discovery.rows, *repair.rows))
+    if set(search.by_id) & set(heldout.by_id):
+        raise ValueError("rotating repair-search and held-out certification panels overlap")
+    return search, repair, heldout
+
+
+def _assert_ranker_validation_disjoint(search_bank: CaseBank, certification_bank: CaseBank, ranker_validation_bank: CaseBank) -> None:
+    ranker_ids = set(ranker_validation_bank.by_id)
+    if ranker_ids & set(search_bank.by_id) or ranker_ids & set(certification_bank.by_id):
+        raise ValueError("frozen ranker-validation CaseBank overlaps search/certification evidence")
+
+
 def cmd_search(args) -> int:
     archive_path = Path(args.archive)
     archive = SearchArchive.load(archive_path)
     profile = ParentProfile.from_directory(args.parent_dir)
     assert_archive_parent(archive, profile)
     observations = _load_observations(args.observations)
-    bank = CaseBank.load_jsonl(args.case_bank)
+    discovery_bank = CaseBank.load_jsonl(args.case_bank)
+    if not args.certification_bank or not args.ranker_validation_bank:
+        raise ValueError("production search requires disjoint --certification-bank and --ranker-validation-bank")
+    certification_source_bank = CaseBank.load_jsonl(args.certification_bank)
+    ranker_validation_bank = CaseBank.load_jsonl(args.ranker_validation_bank)
+    bank, certification_repair_bank, certification_bank = _rotating_search_banks(discovery_bank, certification_source_bank)
+    _assert_ranker_validation_disjoint(bank, certification_bank, ranker_validation_bank)
     corpus_root = Path(args.corpus)
     if (corpus_root / "corpus_manifest.json").is_file():
         corpus = SearchCorpusStore(corpus_root)
@@ -243,10 +277,23 @@ def cmd_search(args) -> int:
         archive = SearchArchive.load(archive_path)
         assert_archive_parent(archive, profile)
         archive.bind_case_bank(bank.identity(), tuple(bank.by_id))
+        archive.register_external_case_bank("certification", certification_bank.identity(), tuple(certification_bank.by_id))
+        archive.register_external_case_bank("ranker_validation", ranker_validation_bank.identity(), tuple(ranker_validation_bank.by_id))
         validation = _validate_search_corpus_for_resume(corpus_root)
         manifest = json.loads((corpus_root / "corpus_manifest.json").read_text())
         if str(manifest.get("base_identity")) != archive.base_identity:
             raise ValueError("existing exact corpus belongs to a different BKG4 parent")
+        roles = dict(manifest.get("case_roles") or {})
+        expected_roles = {
+            "search_training": bank.identity(),
+            "certification": certification_bank.identity(),
+            "ranker_validation": ranker_validation_bank.identity(),
+        }
+        for role, identity in expected_roles.items():
+            if str(dict(roles.get(role) or {}).get("identity", "")) != identity:
+                raise ValueError(f"existing corpus {role} CaseBank identity differs from production search")
+        if bool(dict(roles.get("certification") or {}).get("materialized_for_training", True)) or bool(dict(roles.get("ranker_validation") or {}).get("materialized_for_training", True)):
+            raise ValueError("certification/frozen-validation cases must never be materialized as training cases")
         exported_generations = {int(x["generation"]) for x in manifest.get("generations", [])}
         claimed = set(int(x) for x in archive.runtime_state.exported_generations)
         if claimed != exported_generations:
@@ -257,6 +304,8 @@ def cmd_search(args) -> int:
         if archive.runtime_state.exported_generations:
             raise ValueError("archive claims exported generations but exact corpus is missing")
         archive.bind_case_bank(bank.identity(), tuple(bank.by_id))
+        archive.register_external_case_bank("certification", certification_bank.identity(), tuple(certification_bank.by_id))
+        archive.register_external_case_bank("ranker_validation", ranker_validation_bank.identity(), tuple(ranker_validation_bank.by_id))
         archive.save(archive_path)
         corpus = SearchCorpusStore.create(corpus_root, profile=profile, case_bank=bank, archive=archive)
         exported_generations = set()
@@ -289,6 +338,7 @@ def cmd_search(args) -> int:
             raise ValueError(f"generation {generation} already exists in exact corpus")
         parent_evals = _latest_parent_evaluations(archive)
         search_goals = build_search_goals(bank, counterexample_ids=tuple(manager.hard_cases)) or search_goals
+        proposal_t0 = time.perf_counter()
         programs = engine.propose_generation(
             archive,
             observations=observations,
@@ -300,11 +350,13 @@ def cmd_search(args) -> int:
             case_contexts=case_contexts,
             case_bank=bank,
         )
+        proposal_wall = time.perf_counter() - proposal_t0
         if not programs:
             raise RuntimeError(f"generation {generation} produced no unique legal candidates")
         audit_due = bool(args.audit_all) or (offset % int(args.recall_audit_every) == 0)
         effective_screen = min(max(1, current_screen_size), max(1, min(len(bank) - 1, int(args.final_size) - 1)))
         effective_stage2 = min(len(programs), max(1, current_stage2_budget))
+        evaluation_t0 = time.perf_counter()
         result = engine.evaluate_round(
             archive,
             programs,
@@ -317,11 +369,20 @@ def cmd_search(args) -> int:
             seed=int(args.seed) + generation * 104729,
             work_dir=Path(args.work_dir) / f"g{generation:06d}",
             audit_all=audit_due,
+            certification_evaluator=evaluator,
+            certification_bank=certification_bank,
+            case_contexts=case_contexts,
+            cegis_max_programs=int(args.cegis_max_programs),
+            cegis_rounds=int(args.cegis_rounds),
+            cegis_candidates_per_round=int(args.cegis_candidates_per_round),
+            max_noop_fraction=float(args.max_noop_fraction),
         )
+        evaluation_wall = time.perf_counter() - evaluation_t0
         recall_refresh = bool(result.stage_recall and manager.refresh_required(result.stage_recall))
         if recall_refresh:
-            current_screen_size = min(max(1, int(args.final_size) - 1), max(effective_screen + 1, int(math.ceil(effective_screen * 1.5))))
-            current_stage2_budget = min(int(args.candidates), max(effective_stage2 + 1, int(math.ceil(effective_stage2 * 1.5))))
+            # Composition is the primary recall control; grow the screen only modestly and
+            # never inflate Stage-2 merely because Stage-1 detection missed a target.
+            current_screen_size = min(max(1, int(args.final_size) - 1), max(effective_screen + 1, int(math.ceil(effective_screen * 1.25))))
         archive.run_config.update({
             "last_search_generation": generation,
             "candidates_per_round": int(args.candidates),
@@ -332,14 +393,56 @@ def cmd_search(args) -> int:
             "adaptive_stage2_budget": int(current_stage2_budget),
             "recall_audit_every": int(args.recall_audit_every),
             "recall_refresh_required": bool(recall_refresh),
-            "case_bank": str(Path(args.case_bank).resolve()),
-            "case_bank_identity": bank.identity(),
+            "discovery_bank": str(Path(args.case_bank).resolve()),
+            "discovery_bank_identity": discovery_bank.identity(),
+            "search_training_bank_identity": bank.identity(),
+            "certification_repair_bank_identity": certification_repair_bank.identity(),
+            "certification_source_bank": str(Path(args.certification_bank).resolve()),
+            "certification_source_bank_identity": certification_source_bank.identity(),
+            "certification_bank_identity": certification_bank.identity(),
+            "ranker_validation_bank": str(Path(args.ranker_validation_bank).resolve()),
+            "ranker_validation_bank_identity": ranker_validation_bank.identity(),
+            "cegis_max_programs": int(args.cegis_max_programs),
+            "cegis_rounds": int(args.cegis_rounds),
+            "cegis_candidates_per_round": int(args.cegis_candidates_per_round),
+            "max_noop_fraction": float(args.max_noop_fraction),
             "observations": str(Path(args.observations).resolve()),
             "evaluator": evaluator.config_record(),
         })
-        corpus.append_exact(generation=generation, archive=archive, program_pairs=result.full_source_pairs)
+        export_metadata = {}
+        for pid in result.full_source_pairs:
+            root_pair = result.full_root_pairs[pid]
+            aggregate = root_pair.certified_aggregate()
+            export_metadata[pid] = {
+                "sample_category": program_sample_category(archive, pid, root_pair),
+                "new_loss_count": int(aggregate["new_loss_count"]),
+                "w2l_count": int(aggregate["w2l_count"]),
+                "severe_regression_count": int(aggregate["severe_regression_count"]),
+                "mean_margin_delta": float(aggregate["mean_margin_delta"]),
+                "emitter": archive.programs[pid].emitter,
+            }
+        export_ids = select_high_information_program_ids(export_metadata, max_noop_fraction=float(args.max_noop_fraction))
+        if not export_ids:
+            raise RuntimeError("generation produced no high-information exact programs after no-op filtering; search more")
+        export_source = {pid: result.full_source_pairs[pid] for pid in export_ids}
+        export_root = {pid: result.full_root_pairs[pid] for pid in export_ids}
+        corpus_t0 = time.perf_counter()
+        corpus.append_exact(generation=generation, archive=archive, program_pairs=export_source, root_pairs=export_root)
+        corpus_wall = time.perf_counter() - corpus_t0
+        recovery_t0 = time.perf_counter()
         archive, engine = _recover_search_after_generation(corpus, archive_path, engine)
+        recovery_wall = time.perf_counter() - recovery_t0
         exported_generations = set(archive.runtime_state.exported_generations)
+        screen_rows = manager.select_screen(effective_screen, seed=int(args.seed) + generation * 104729)
+        screen_composition = {
+            "target_losses": sum(r.baseline_margin < 0 for r in screen_rows),
+            "fragile_wins": sum(0 < r.baseline_margin <= int(args.fragile_margin) for r in screen_rows),
+            "strong_wins": sum(r.baseline_margin > int(args.fragile_margin) for r in screen_rows),
+            "counterexamples": sum(r.case_id in manager.hard_cases for r in screen_rows),
+            "seat0": sum(r.seat == 0 for r in screen_rows),
+            "seat1": sum(r.seat == 1 for r in screen_rows),
+        }
+        round_wall = proposal_wall + evaluation_wall + corpus_wall + recovery_wall
         summary = {
             "generation": generation,
             "proposed": len(programs),
@@ -355,6 +458,19 @@ def cmd_search(args) -> int:
             "production_niches": len(archive.production_niches),
             "exploration_niches": len(archive.exploration_niches),
             "motifs": len(archive.motifs),
+            "certification_classes": {k: sum(v.certification_class.value == k for v in (result.certification_vectors or {}).values()) for k in sorted({v.certification_class.value for v in (result.certification_vectors or {}).values()})},
+            "repair_reports": list(result.repair_reports),
+            "screen_composition": screen_composition,
+            "exported_programs": len(export_ids),
+            "throughput": {
+                "proposal_wall_s": proposal_wall,
+                "evaluation_cuda_wall_s": evaluation_wall,
+                "corpus_wall_s": corpus_wall,
+                "recovery_wall_s": recovery_wall,
+                "round_wall_s": round_wall,
+                "proposal_fraction": proposal_wall / max(round_wall, 1e-12),
+                "unique_proposals_per_s": len(programs) / max(proposal_wall, 1e-12),
+            },
         }
         summaries.append(summary)
         print("ROUND", json.dumps(summary, sort_keys=True), flush=True)
@@ -404,10 +520,28 @@ def _write_json_report(path: str | Path | None, payload: Mapping[str, Any]) -> N
     p.write_text(json.dumps(dict(payload), indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
+def cmd_build_context_bank(args) -> int:
+    base = CaseBank.load_jsonl(args.base_bank)
+    role = CaseBankRole(str(args.role))
+    bank = build_context_bank_from_r0(base, args.r0, role=role)
+    bank.save_jsonl(args.out)
+    schedule = strategic_probe_schedule()
+    payload = {
+        "out": str(Path(args.out).resolve()),
+        "role": role.value,
+        "cases": len(bank),
+        "case_bank_identity": bank.identity(),
+        "probe_schedule": schedule.schema,
+        "probe_steps": list(schedule.probe_steps),
+    }
+    print(json.dumps(payload, sort_keys=True))
+    return 0
+
+
 def cmd_benchmark(args) -> int:
     profile = ParentProfile.from_directory(args.parent_dir)
     observations = _load_observations(args.observations)
-    bank = load_evaluator_cases_tsv(args.cases_tsv)
+    bank = CaseBank.load_jsonl(args.case_bank) if args.case_bank else load_evaluator_cases_tsv(args.cases_tsv)
     root = ModuleGenome(prefix_step=int(args.root_prefix), rules=())
     root.validate(profile.route_ids)
     evaluator = _cuda_evaluator_from_args(profile, args)
@@ -420,6 +554,8 @@ def cmd_benchmark(args) -> int:
         candidate_budget=args.candidate_budget,
         seed=args.seed,
         work_dir=args.work_dir,
+        production_targeted=bool(args.production_targeted),
+        target_screen_size=int(args.target_screen_size),
     )
     payload = {
         **report,
@@ -435,7 +571,7 @@ def cmd_benchmark(args) -> int:
 def cmd_anti_saturation(args) -> int:
     profile = ParentProfile.from_directory(args.parent_dir)
     observations = _load_observations(args.observations)
-    raw_bank = load_evaluator_cases_tsv(args.cases_tsv)
+    raw_bank = CaseBank.load_jsonl(args.case_bank) if args.case_bank else load_evaluator_cases_tsv(args.cases_tsv)
     root = ModuleGenome(prefix_step=int(args.root_prefix), rules=())
     root.validate(profile.route_ids)
     evaluator = _cuda_evaluator_from_args(profile, args)
@@ -512,6 +648,7 @@ def parser() -> argparse.ArgumentParser:
     p = sub.add_parser("search")
     p.add_argument("--archive", required=True); p.add_argument("--parent-dir", required=True)
     p.add_argument("--case-bank", required=True); p.add_argument("--observations", required=True)
+    p.add_argument("--certification-bank"); p.add_argument("--ranker-validation-bank")
     p.add_argument("--evaluator", required=True); p.add_argument("--corpus", required=True); p.add_argument("--work-dir", required=True)
     p.add_argument("--rounds", type=int, default=1); p.add_argument("--start-generation", type=int, required=True)
     p.add_argument("--candidates", type=int, default=4096); p.add_argument("--screen-size", type=int, default=128)
@@ -521,18 +658,30 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--fragile-margin", type=int, default=5000); p.add_argument("--random-anchor-fraction", type=float, default=0.10)
     p.add_argument("--useful-recall-floor", type=float, default=0.90); p.add_argument("--danger-recall-floor", type=float, default=0.98)
     p.add_argument("--recall-audit-every", type=int, default=4)
+    p.add_argument("--cegis-max-programs", type=int, default=8); p.add_argument("--cegis-rounds", type=int, default=3)
+    p.add_argument("--cegis-candidates-per-round", type=int, default=16); p.add_argument("--max-noop-fraction", type=float, default=0.10)
     p.add_argument("--audit-all", action="store_true"); p.add_argument("--report"); p.set_defaults(fn=cmd_search)
 
+    p = sub.add_parser("build-context-bank")
+    p.add_argument("--base-bank", required=True)
+    p.add_argument("--r0", required=True)
+    p.add_argument("--role", required=True, choices=[x.value for x in CaseBankRole])
+    p.add_argument("--out", required=True)
+    p.set_defaults(fn=cmd_build_context_bank)
+
     p = sub.add_parser("benchmark")
-    p.add_argument("--parent-dir", required=True); p.add_argument("--cases-tsv", required=True)
+    p.add_argument("--parent-dir", required=True)
+    g = p.add_mutually_exclusive_group(required=True); g.add_argument("--cases-tsv"); g.add_argument("--case-bank")
     p.add_argument("--observations", required=True); p.add_argument("--evaluator", required=True); p.add_argument("--work-dir", required=True)
     p.add_argument("--candidate-budget", type=int, default=64); p.add_argument("--seed", type=int, required=True)
     p.add_argument("--root-prefix", type=int, default=0); p.add_argument("--device", type=int, default=0); p.add_argument("--tpb", type=int, default=64)
     p.add_argument("--memory-fraction", type=float, default=0.70); p.add_argument("--cuda-visible-devices"); p.add_argument("--report")
+    p.add_argument("--production-targeted", action="store_true"); p.add_argument("--target-screen-size", type=int, default=0)
     p.add_argument("--require-material-improvement", action="store_true"); p.set_defaults(fn=cmd_benchmark)
 
     p = sub.add_parser("anti-saturation")
-    p.add_argument("--parent-dir", required=True); p.add_argument("--cases-tsv", required=True)
+    p.add_argument("--parent-dir", required=True)
+    g = p.add_mutually_exclusive_group(required=True); g.add_argument("--cases-tsv"); g.add_argument("--case-bank")
     p.add_argument("--observations", required=True); p.add_argument("--evaluator", required=True); p.add_argument("--work-dir", required=True)
     p.add_argument("--generations", type=int, default=8); p.add_argument("--candidates-per-generation", type=int, default=24)
     p.add_argument("--screen-size", type=int, default=8); p.add_argument("--final-size", type=int, default=16)

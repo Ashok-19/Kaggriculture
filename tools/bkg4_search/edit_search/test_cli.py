@@ -41,12 +41,19 @@ class EditSearchCliTests(unittest.TestCase):
             SearchArchive.load(archive)
 
     def test_benchmark_and_anti_saturation_commands_are_first_class_cli_surfaces(self):
-        from tools.bkg4_search.edit_search.cli import cmd_anti_saturation, cmd_benchmark, parser
+        from tools.bkg4_search.edit_search.cli import cmd_anti_saturation, cmd_benchmark, cmd_build_context_bank, parser
         common = ["--parent-dir","p","--cases-tsv","c.tsv","--observations","o.jsonl","--evaluator","eval","--work-dir","w","--seed","7"]
         b = parser().parse_args(["benchmark", *common, "--candidate-budget", "32", "--require-material-improvement"])
         self.assertIs(b.fn, cmd_benchmark); self.assertEqual(b.candidate_budget, 32); self.assertTrue(b.require_material_improvement)
         a = parser().parse_args(["anti-saturation", *common, "--generations", "6", "--require-escalation"])
         self.assertIs(a.fn, cmd_anti_saturation); self.assertEqual(a.generations, 6); self.assertTrue(a.require_escalation)
+        rich = parser().parse_args(["benchmark","--parent-dir","p","--case-bank","rich.jsonl","--observations","o","--evaluator","eval","--work-dir","w","--seed","9"])
+        self.assertEqual(rich.case_bank,"rich.jsonl"); self.assertIsNone(rich.cases_tsv)
+        targeted = parser().parse_args(["benchmark","--parent-dir","p","--case-bank","rich.jsonl","--observations","o","--evaluator","eval","--work-dir","w","--seed","10","--production-targeted","--target-screen-size","16"])
+        self.assertTrue(targeted.production_targeted); self.assertEqual(targeted.target_screen_size,16)
+        ctx = parser().parse_args(["build-context-bank","--base-bank","base.jsonl","--r0","r0.b4is","--role","certification","--out","rich.jsonl"])
+        self.assertIs(ctx.fn, cmd_build_context_bank)
+        self.assertEqual(ctx.role,"certification")
 
     def test_parent_change_is_rejected_for_concrete_archive_but_motifs_remain_portable_data(self):
         from tools.bkg4_search.edit_search.cli import assert_archive_parent
@@ -137,5 +144,38 @@ class EditSearchCliTests(unittest.TestCase):
             self.assertIs(got_engine, engine)
             self.assertEqual(got_engine._contrastive_condition_cache[("bank","goal")],(("sentinel",),))
             self.assertEqual(got_archive.root_semantic_id, archive.root_semantic_id)
+
+    def test_search_parser_exposes_certification_roles_cegis_and_noop_cap(self):
+        from tools.bkg4_search.edit_search.cli import parser
+        args=parser().parse_args([
+            "search","--archive","a","--parent-dir","p","--case-bank","d","--certification-bank","c","--ranker-validation-bank","v",
+            "--observations","o","--evaluator","e","--corpus","x","--work-dir","w","--start-generation","1","--seed","7",
+        ])
+        self.assertEqual(args.certification_bank,"c")
+        self.assertEqual(args.ranker_validation_bank,"v")
+        self.assertGreater(args.cegis_max_programs,0)
+        self.assertGreaterEqual(args.cegis_rounds,1)
+        self.assertLessEqual(args.max_noop_fraction,0.10)
+
+    def test_rotating_search_banks_materialize_repair_panel_and_reserve_heldout_certification(self):
+        import tools.bkg4_search.edit_search.cli as cli
+        from tools.bkg4_search.edit_search.panels import CaseBank, CaseRecord
+        discovery=CaseBank([
+            CaseRecord("d0","/tmp/d0",0,1,"d",role="discovery",baseline_margin=-10),
+            CaseRecord("d1","/tmp/d1",1,2,"d",role="discovery",baseline_margin=1000),
+        ])
+        certification=CaseBank([
+            CaseRecord("c0","/tmp/c0",0,11,"a",role="certification",baseline_margin=-10),
+            CaseRecord("c1","/tmp/c1",1,12,"a",role="certification",baseline_margin=1000),
+            CaseRecord("c2","/tmp/c2",0,13,"b",role="certification",baseline_margin=-20),
+            CaseRecord("c3","/tmp/c3",1,14,"b",role="certification",baseline_margin=2000),
+        ])
+        search,repair,heldout=cli._rotating_search_banks(discovery,certification)
+        self.assertEqual(set(search.by_id),set(discovery.by_id)|set(repair.by_id))
+        self.assertFalse(set(search.by_id)&set(heldout.by_id))
+        self.assertTrue(all(x.role=="certification_repair" for x in repair))
+        self.assertTrue(all(x.role=="certification" for x in heldout))
+        frozen=CaseBank([CaseRecord("v0","/tmp/v0",0,99,"v",role="ranker_validation",baseline_margin=0)])
+        cli._assert_ranker_validation_disjoint(search,heldout,frozen)
 
 if __name__=="__main__":unittest.main(verbosity=2)

@@ -226,3 +226,22 @@ Search/corpus readiness is not champion readiness. Before any discovered program
 6. only then use the serialized champion promotion/submission workflow.
 
 See `VALIDATION.md` for the final bounded evidence supporting corpus-generation readiness.
+
+
+## Permanent certified-elite generator (schema v4)
+
+The production search now separates three evidence roles instead of treating discovery success as final truth:
+
+- `search_training`: the discovery bank plus a rotating certification-repair slice; this is the only role visible to proposal/CEGIS and corpus model context;
+- `certification`: a disjoint held-out slice used only to issue `CertificationVector` / `CertificationClass` evidence;
+- `ranker_validation`: frozen by identity and never materialized into training rows.
+
+Discovery quality and certification quality are separate labels. A discovery elite that is unsafe on certification becomes a generalization hard negative; safe-but-inert transfer becomes a generalization boundary. Certified elites require independent safe, active, useful transfer. Search exploitation is certification-aware: certified motifs/donors and certified MCTS states outrank discovery-only states, while unsafe states remain confined to repair/exploration lanes.
+
+The permanent CEGIS cascade repairs root-safety counterexamples with public-state guards, then evaluates repaired descendants exactly. Certified-positive states receive a bounded exact neighborhood over route, threshold, priority, and temporal-window alternatives. High-information corpus sampling retains certified positives, generalization failures, near-feasible repairs, and local elite contrasts while capping controlled no-ops at 10% when alternatives exist.
+
+Proposal generation is cache/batch oriented: deterministic contrastive SearchGoal condition sets persist across restart; MCTS typed neighborhoods cache per semantic state; typed pools are bounded/reused per parent; immutable observation context is built once per generation and parent/goal contexts are shallow derivatives.
+
+The benchmark accepts either legacy `--cases-tsv` or rich `--case-bank`. `--production-targeted --target-screen-size N` is an optional diagnostic that conserves the exact child×case CUDA budget by spending part of the budget on screening and the remainder on full-panel finalists. The primary final discovery benchmark remains the raw equal-budget four-arm comparison, while production safety is governed by the audited adaptive multi-fidelity funnel.
+
+Final measured evidence is recorded in `VALIDATION.md`.

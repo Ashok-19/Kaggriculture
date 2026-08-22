@@ -93,9 +93,9 @@ class EditSearchBenchmarkTests(unittest.TestCase):
             for key in (
                 "unique_valid_proposals", "duplicate_rate", "behavior_changing_rate", "operation_coverage",
                 "target_depth_coverage", "parent_rule_count_coverage", "qd_niches", "safe_useful_per_1000",
-                "target_loss_improving_per_1000", "l2w_per_1000", "strict_safe_l2w_per_1000",
+                "target_loss_improving_per_1000", "l2w_per_1000", "strict_safe_l2w_per_1000", "elite_per_1000",
                 "w2l_rate", "severe_regression_rate", "best_target_improvement", "best_worst_margin_improvement",
-                "useful_diversity", "max_generation_depth",
+                "useful_diversity", "max_generation_depth", "root_feasible_rate", "no_op_rate",
             ):
                 self.assertIn(key, row)
         self.assertGreater(report["proposers"]["permanent_recursive"]["max_generation_depth"], 1)
@@ -103,6 +103,23 @@ class EditSearchBenchmarkTests(unittest.TestCase):
             report["proposers"]["permanent_recursive"]["parent_rule_count_coverage"],
             report["proposers"]["fixed_mutation"]["parent_rule_count_coverage"],
         )
+
+    def test_production_targeted_benchmark_preserves_exact_cuda_budget_and_filters_full_candidates(self):
+        from tools.bkg4_search.edit_search.benchmark import benchmark_proposers
+        with tempfile.TemporaryDirectory() as td:
+            report = benchmark_proposers(
+                root_genome=ModuleGenome(0, ()), route_ids=ROUTES, observations=OBS,
+                panel=bank().rows, evaluator=DeterministicExactOracle(), candidate_budget=24, seed=97,
+                work_dir=Path(td), production_targeted=True, target_screen_size=1,
+            )
+        self.assertTrue(report["production_targeted"])
+        self.assertEqual(report["screen_cases"],1)
+        self.assertEqual(report["full_candidates_per_proposer"],18)
+        for row in report["proposers"].values():
+            self.assertEqual(row["requested_candidates"],24)
+            self.assertEqual(row["evaluated_candidates"],18)
+            self.assertEqual(row["exact_candidate_case_evaluations"],96)
+            self.assertLessEqual(row["no_op_rate"],1.0)
 
     def test_equal_budget_benchmark_enforces_same_root_parent_for_every_arm(self):
         from tools.bkg4_search.edit_search.benchmark import benchmark_proposers

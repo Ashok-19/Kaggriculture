@@ -33,6 +33,15 @@ class EditSearchLoopTests(unittest.TestCase):
         self.assertGreater(a4["lns"], a0["lns"])
         self.assertGreater(a5["evolvability_mcts"], a0["evolvability_mcts"])
         self.assertEqual(sum(a0.values()), 140)
+        stats={
+            "systematic":{"attempts":20,"production_insertions":1,"repair_insertions":15,"useful_safe":0,"unsafe":18,"new_loss":17},
+            "local_refine":{"attempts":20,"production_insertions":10,"repair_insertions":0,"useful_safe":8,"unsafe":1,"new_loss":1},
+        }
+        adaptive=s.allocations(140,escalation_level=0,emitter_stats=stats)
+        self.assertGreater(adaptive["local_refine"],adaptive["systematic"])
+        refill=s.refill_order(stats)
+        self.assertEqual(refill[0],"local_refine")
+        self.assertEqual(refill[-1],"systematic")
         self.assertEqual(sum(a4.values()), 140)
 
     def test_stagnation_monitor_advances_and_records_real_escalation(self):
@@ -68,6 +77,37 @@ class EditSearchLoopTests(unittest.TestCase):
         self.assertIn(child.semantic_id(), sources)
         self.assertTrue(any(archive.genome(x.source_parent_semantic_id).rules for x in proposed))
         self.assertTrue(all(x.child_semantic_id != x.source_parent_semantic_id for x in proposed))
+
+    def test_shared_typed_pool_scales_to_emitter_budget_instead_of_fixed_192_floor(self):
+        from tools.bkg4_search.edit_search import emitters as emitter_module
+        from tools.bkg4_search.edit_search.search import SearchEngine
+        p = root(); archive = SearchArchive.new(root_genome=p, base_identity="b", route_ids=ROUTES, run_id="r", master_seed=1)
+        observations=[{"feature":"OWN_MONEY","index":0,"value":x} for x in (100,500,1000,2500,5000,9000)]
+        requested=[]; real=emitter_module.generate_typed_candidates
+        def wrapped(*args,**kwargs):
+            requested.append(int(kwargs.get("n",0)))
+            return real(*args,**kwargs)
+        with mock.patch.object(emitter_module,"generate_typed_candidates",side_effect=wrapped):
+            rows=SearchEngine(route_ids=ROUTES).propose_generation(archive,observations=observations,total=32,generation=1,seed=13)
+        self.assertEqual(len(rows),32)
+        self.assertTrue(requested)
+        self.assertLessEqual(max(requested),64)
+
+    def test_generation_builds_expanded_base_context_once_across_multiple_parents(self):
+        from tools.bkg4_search.edit_search.archive import SearchArchive
+        from tools.bkg4_search.edit_search.emitters import EmitterContext
+        from tools.bkg4_search.edit_search.search import SearchEngine
+        p=root(); archive=SearchArchive.new(root_genome=p,base_identity="b",route_ids=ROUTES,run_id="r",master_seed=1)
+        first=EditProgram.build(p,(EditAction("CHANGE_ROUTE",3,route=70),),ROUTES,emitter="seed",seed=1)
+        child=first.reconstruct(p,ROUTES); archive.add_program(first,child)
+        archive.consider(first,PairEvaluation.from_states(ev(p.semantic_id(),[100,-10,200]),ev(child.semantic_id(),[110,5,220])))
+        observations=[{"feature":"OWN_MONEY","index":0,"value":x} for x in (100,500,1000,2500,5000,9000)]
+        real=EmitterContext.from_observations
+        with mock.patch.object(EmitterContext,"from_observations",wraps=real) as build:
+            rows=SearchEngine(route_ids=ROUTES).propose_generation(archive,observations=observations,total=32,generation=2,seed=17)
+        self.assertEqual(len(rows),32)
+        self.assertEqual(build.call_count,1)
+        self.assertGreater(len({x.source_parent_semantic_id for x in rows}),1)
 
     def test_lexicase_parent_can_preserve_unique_case_specialist(self):
         from tools.bkg4_search.edit_search.search import lexicase_parent
@@ -338,6 +378,53 @@ class EditSearchLoopTests(unittest.TestCase):
         contrastive = [x for x in programs if x.emitter == "contrastive"]
         self.assertTrue(contrastive)
         self.assertGreater(engine.last_proposal_stats["emitter_raw"].get("contrastive",0),0)
+    def test_certified_progress_prevents_quality_stagnation(self):
+        from tools.bkg4_search.edit_search.search import GenerationSignals, StagnationMonitor
+        base=dict(proposed=32,unique=32,archive_insertions=0,useful_safe=0,target_improvements=0,novelty_mean=1.0,new_niches=0)
+        stalled=GenerationSignals(**base)
+        certified=GenerationSignals(**base,certified_safe_useful=1,certified_elite=1)
+        self.assertTrue(StagnationMonitor.is_stalled(stalled))
+        self.assertFalse(StagnationMonitor.is_stalled(certified))
+
+    def test_certification_quality_map_prefers_certified_state(self):
+        from tools.bkg4_search.edit_search.certification import CertificationClass
+        from tools.bkg4_search.edit_search.search import certification_quality_map
+        rows={"a":CertificationClass.UNCERTIFIED,"b":CertificationClass.CERTIFIED_SAFE_USEFUL,"c":CertificationClass.CERTIFIED_ELITE_FLIP,"d":CertificationClass.GENERALIZATION_HARD_NEGATIVE}
+        q=certification_quality_map(rows)
+        self.assertGreater(q["c"],q["b"])
+        self.assertGreater(q["b"],q["a"])
+        self.assertGreater(q["a"],q["d"])
+
+    def test_archive_quality_map_puts_certified_feasible_above_discovery_and_repair(self):
+        from tools.bkg4_search.edit_search.certification import CertificationClass
+        from tools.bkg4_search.edit_search.search import archive_quality_map
+        p=root(); archive=SearchArchive.new(root_genome=p,base_identity="b",route_ids=ROUTES,run_id="r",master_seed=1)
+        d=EditProgram.build(p,(EditAction("CHANGE_WINDOW",0,prefix_step=145),),ROUTES,emitter="x",seed=1); dc=d.reconstruct(p,ROUTES); archive.add_program(d,dc)
+        r=EditProgram.build(p,(EditAction("CHANGE_WINDOW",0,prefix_step=146),),ROUTES,emitter="x",seed=2); rc=r.reconstruct(p,ROUTES); archive.add_program(r,rc)
+        archive.production_niches={"p":{"child_semantic_id":dc.semantic_id(),"program_id":d.program_id}}
+        archive.repair_niches={"r":{"child_semantic_id":rc.semantic_id(),"program_id":r.program_id,"repair_key":[1]}}
+        q=archive_quality_map(archive,{p.semantic_id():0.0,dc.semantic_id():0.0,rc.semantic_id():0.0},certification_classes={dc.semantic_id():CertificationClass.CERTIFIED_SAFE_USEFUL})
+        self.assertGreater(q[dc.semantic_id()],q[p.semantic_id()])
+        self.assertGreater(q[p.semantic_id()],q[rc.semantic_id()])
+
+    def test_stage2_selection_caps_screen_noops_instead_of_padding(self):
+        from tools.bkg4_search.edit_search.search import select_stage2_finalists
+        p=root()
+        programs=[]; pairs={}
+        parent=ev(p.semantic_id(),[-10,100])
+        for i in range(20):
+            pr=EditProgram.build(p,(EditAction("CHANGE_WINDOW",0,prefix_step=200+i),),ROUTES,emitter="x",seed=i)
+            child=pr.reconstruct(p,ROUTES); programs.append(pr)
+            if i<10:
+                ce=StateEvaluation(child.semantic_id(),"p",("c0","c1"),(-10,100),(0,0),(0,0),(100,101))
+            else:
+                ce=StateEvaluation(child.semantic_id(),"p",("c0","c1"),(-9,101),(1,1),(1,1),(200+i,300+i))
+            pairs[pr.program_id]=PairEvaluation.from_states(parent,ce)
+        selected=select_stage2_finalists(programs,pairs,budget=10,max_noop_fraction=0.10)
+        noops=sum(bool(pairs[x.program_id].certified_aggregate()["exact_noop"]) for x in selected)
+        self.assertLessEqual(noops,1)
+        self.assertEqual(len(selected),10)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

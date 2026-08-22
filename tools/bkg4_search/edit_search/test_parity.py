@@ -23,6 +23,19 @@ class EditSearchParityHarnessTests(unittest.TestCase):
         for g in rows:
             g.validate(routes)
 
+    def test_representative_overlays_cover_temporal_three_and_four_condition_rules(self):
+        from tools.bkg4_search.edit_search.parity import representative_overlays
+
+        routes = (22, 23, 29, 32, 34, 46, 63, 64, 70, 77, 79, 211, 212, 213, 214)
+        rows = representative_overlays(routes)
+        temporal = []
+        for genome in rows:
+            for rule in genome.rules:
+                if any(c.feature in {"STEP", "DAY", "HOUR"} for c in rule.conditions):
+                    temporal.append(rule)
+        self.assertTrue(any(len(rule.conditions) == 3 for rule in temporal))
+        self.assertTrue(any(len(rule.conditions) == 4 for rule in temporal))
+
     def test_b4tp1_transcode_preserves_normalized_actions_and_uint64_seed(self):
         from tools.bkg4_search.edit_search.parity import read_b4tp1, write_b4tp1_from_json
 
