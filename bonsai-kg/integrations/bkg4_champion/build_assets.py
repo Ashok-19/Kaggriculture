@@ -199,7 +199,20 @@ def resolve_runtime_reconciler(module: Dict[str, Any] | None) -> Dict[str, Any] 
     raw = dict(module["runtime_reconciler"])
     defer_names = list(raw.get("defer_slots") or [])
     kind = raw.get("kind")
-    if kind in ("feed_deferral_v1", "feed_deferral_route_override_v1", "feed_deferral_route_value_v1"):
+    if kind == "composite_v1":
+        profiles = [dict(x) for x in raw.get("reconcilers") or ()]
+        if not profiles:
+            raise ValueError("composite_v1 requires reconciler profiles")
+        resolved = []
+        for profile in profiles:
+            nested = dict(module)
+            nested["runtime_reconciler"] = profile
+            item = resolve_runtime_reconciler(nested)
+            if item is None:
+                raise ValueError("composite_v1 contains an empty reconciler")
+            resolved.append(item)
+        raw["reconcilers"] = resolved
+    elif kind in ("feed_deferral_v1", "feed_deferral_route_override_v1", "feed_deferral_route_value_v1"):
         if not defer_names:
             raise ValueError(f"{kind} requires defer_slots")
         raw["defer_slot_names"] = defer_names
@@ -215,6 +228,37 @@ def resolve_runtime_reconciler(module: Dict[str, Any] | None) -> Dict[str, Any] 
                 if not 0 <= route_id <= 65535:
                     raise ValueError("feed_deferral_route_override_v1 route_override_id out of range")
                 raw["route_override_id"] = route_id
+    elif kind == "invariant_unit_rewrite_v1":
+        rewrites = [dict(x) for x in raw.get("rewrites") or ()]
+        slot_names = [str(x.get("slot") or "") for x in rewrites]
+        if not rewrites or any(name not in name_to_slot for name in slot_names):
+            raise ValueError("invariant_unit_rewrite_v1 requires valid rewrite slots")
+        seen_units: set[tuple[int, int]] = set()
+        resolved: List[Dict[str, Any]] = []
+        for row, slot_name in zip(rewrites, slot_names):
+            unit = int(row.get("unit", -1))
+            if not 0 <= unit < 40:
+                raise ValueError("invariant_unit_rewrite_v1 unit out of range")
+            match_op = str(row.get("match_op") or "")
+            replacement_op = str(row.get("replacement_op") or "")
+            if match_op not in bkg4.UNIT_OPS or replacement_op not in bkg4.UNIT_OPS:
+                raise ValueError("invariant_unit_rewrite_v1 unit op is invalid")
+            key = (int(name_to_slot[slot_name]), unit)
+            if key in seen_units:
+                raise ValueError("duplicate invariant unit rewrite authorization")
+            seen_units.add(key)
+            resolved.append({
+                **row,
+                "slot": int(name_to_slot[slot_name]),
+                "unit": unit,
+                "match_op": match_op,
+                "replacement_op": replacement_op,
+                "arg": int(row.get("arg", 0)),
+                "quantity": int(row.get("quantity", 1)),
+            })
+        raw["rewrite_slot_names"] = slot_names
+        raw["rewrite_slots"] = [int(name_to_slot[name]) for name in slot_names]
+        raw["rewrites"] = resolved
     else:
         raise ValueError(f"unsupported runtime reconciler {kind!r}")
     return raw

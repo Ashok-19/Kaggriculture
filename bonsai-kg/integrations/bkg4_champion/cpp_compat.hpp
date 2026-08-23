@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace bonsaikg4_champion {
@@ -100,6 +101,43 @@ inline void apply_cpp_legacy(const kag::Sim& sim, int player, const bonsaikg_v6:
         cpp_materialize_route(pack, static_cast<uint16_t>(s.external_route), step, own.n_units, action);
 }
 
+struct CppInvariantUnitRewrite4 {
+    int slot = -1;
+    int unit = -1;
+    uint8_t match_op = 0;
+    uint8_t replacement_op = 0;
+    uint8_t arg = 0;
+    int16_t quantity = 1;
+};
+
+inline void apply_cpp_invariant_rewrites(const std::vector<int32_t>& bb,
+                                         const std::vector<CppInvariantUnitRewrite4>& rewrites,
+                                         kag::Action& out) {
+    for (const auto& r : rewrites) {
+        if (r.slot < 0 || r.slot >= static_cast<int>(bb.size()) || !bb[r.slot]) continue;
+        if (r.unit < 0 || r.unit >= out.n_units) continue;
+        auto& u = out.units[r.unit];
+        if (u.op != r.match_op) continue;
+        u.op = r.replacement_op;
+        u.arg = r.arg;
+        u.n = r.quantity;
+    }
+}
+
+inline void prepend_cpp_market_intents(const bonsaikg4::ActionResult4& direct, kag::Action& out) {
+    constexpr int cap = 10;  // Kaggriculture max_orders and B4IM apply_post parity.
+    const int n = direct.n_market < cap ? direct.n_market : cap;
+    if (n <= 0) return;
+    const int keep = out.n_orders < (cap - n) ? out.n_orders : (cap - n);
+    for (int i = keep - 1; i >= 0; --i) out.orders[n + i] = out.orders[i];
+    for (int i = 0; i < n; ++i) {
+        out.orders[i].op = direct.market[i].op;
+        out.orders[i].item = direct.market[i].item;
+        out.orders[i].n = direct.market[i].n;
+    }
+    out.n_orders = n + keep;
+}
+
 struct CppChampionState4 {
     std::vector<int32_t> blackboard;
     std::vector<bonsaikg4::NodeState4> node_state;
@@ -115,10 +153,12 @@ struct CppChampionState4 {
 class CppChampionAgent4 {
 public:
     CppChampionAgent4(const std::string& controller_path, const std::string& routes_path, const std::string& legacy_path,
-                      int feed_slot, int feed_count, int strategic_route_slot)
+                      int feed_slot, int feed_count, int strategic_route_slot,
+                      std::vector<CppInvariantUnitRewrite4> invariant_rewrites = {})
         : owned_(bonsaikg4::load_compiled4(controller_path)), policy_(owned_.view()),
           base_pack_(load_extended_route_pack(routes_path)), legacy_pack_(load_extended_route_pack(legacy_path)),
-          feed_slot_(feed_slot), feed_count_(feed_count), strategic_route_slot_(strategic_route_slot) {
+          feed_slot_(feed_slot), feed_count_(feed_count), strategic_route_slot_(strategic_route_slot),
+          invariant_rewrites_(std::move(invariant_rewrites)) {
         if (policy_.n_bb < static_cast<uint16_t>(feed_slot_ + feed_count_)) throw std::runtime_error("feed slots outside BKG4 policy");
         if (strategic_route_slot_ >= 0 && policy_.n_bb <= static_cast<uint16_t>(strategic_route_slot_))
             throw std::runtime_error("strategic route slot outside BKG4 policy");
@@ -135,8 +175,8 @@ public:
 
     void act(CppChampionState4& s, const kag::Sim& sim, int player, kag::Action& out, uint16_t module_route = 0xffffu) const {
         bonsaikg4::CppObservation4 obs(&sim, player);
-        bonsaikg4::ActionResult4 ignored{};
-        const auto status = bonsaikg4::tick4(policy_, s.view(), obs, 0, ignored, nullptr);
+        bonsaikg4::ActionResult4 direct{};
+        const auto status = bonsaikg4::tick4(policy_, s.view(), obs, 10, direct, nullptr);
         if (s.meta.fault || status != bonsaikg4::SUCCESS)
             throw std::runtime_error("BKG4 controller fault/non-success");
         int route = s.blackboard[1];
@@ -147,6 +187,8 @@ public:
         bonsaikg_v6::apply_cpp_engine_exploits(sim, player, out, s.exploit, s.legacy.external_ok);
         for (int u = 0; u < feed_count_ && u < out.n_units; ++u)
             if (s.blackboard[feed_slot_ + u] && out.units[u].op == kag::OP_FEED) out.units[u] = kag::UnitAction{};
+        apply_cpp_invariant_rewrites(s.blackboard, invariant_rewrites_, out);
+        prepend_cpp_market_intents(direct, out);
     }
 
 private:
@@ -157,6 +199,7 @@ private:
     int feed_slot_ = 0;
     int feed_count_ = 0;
     int strategic_route_slot_ = -1;
+    std::vector<CppInvariantUnitRewrite4> invariant_rewrites_;
 };
 
 inline uint64_t cpp_trace_mix(uint64_t h, uint64_t x) {

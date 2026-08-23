@@ -20,6 +20,7 @@ for p in (SEARCH, BKG_PY):
 
 import bonsai_kg_v4 as bkg  # noqa: E402
 from information_state_io import load_r0, registry_manifest  # noqa: E402
+from tools.bkg4_search.invariant_schema import invariant_model_input, module_from_model_input  # noqa: E402,F401
 
 from model import CASE_DIM, EDIT_CAT_COLS, EDIT_NUM_COLS, EditFormerConfig, TREE_CAT_COLS, TREE_NUM_COLS
 

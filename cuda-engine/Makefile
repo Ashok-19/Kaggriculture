@@ -6,12 +6,12 @@ INCLUDES := -Iinclude
 # Exact market parity forbids --use_fast_math. Keep IEEE double operations intact.
 NVCCFLAGS ?= -O3 -std=c++17 -arch=$(ARCH) -lineinfo --compiler-options=-O3,-Wall
 PTXAS ?= -Xptxas=-v
-B4EC_NVCCFLAGS ?= -O3 -std=c++17 -lineinfo
-B4EC_HOST_CXX ?=
+B4EC_NVCCFLAGS ?= -O3 -std=c++17 -arch=$(ARCH) -lineinfo
+B4EC_HOST_CXX ?= g++-9
 B4EC_HOST_FLAG := $(if $(strip $(B4EC_HOST_CXX)),-ccbin $(B4EC_HOST_CXX),)
 BINS := $(BUILD_DIR)/validate $(BUILD_DIR)/bench $(BUILD_DIR)/price_probe
 
-.PHONY: all check validate-parity state-parity snapshot-parity price-parity policy-smoke bench branch-bench tape-bench tape-branch bonsai-search bonsai-eval-one bonsai-branch-cases hybrid-grid clean opening-option-beam bkg4-edit-corpus-eval
+.PHONY: all check validate-parity state-parity snapshot-parity price-parity policy-smoke bench branch-bench tape-bench tape-branch bonsai-search bonsai-eval-one bonsai-branch-cases hybrid-grid clean opening-option-beam bkg4-edit-corpus-eval bkg4-invariant-edit-eval
 all: $(BINS)
 
 check: price-parity validate-parity state-parity snapshot-parity policy-smoke
@@ -53,6 +53,9 @@ $(BUILD_DIR)/bonsai_eval_one: src/bonsai_eval_one.cu include/bonsai_gp.cuh inclu
 	$(NVCC) $(NVCCFLAGS) $(PTXAS) $(INCLUDES) -o $@ $<
 
 $(BUILD_DIR)/bkg4_edit_corpus_eval: src/bkg4_edit_corpus_eval.cu include/tape_io.hpp include/sim.cuh include/pyrandom.cuh include/runtime.cuh ../bonsai-kg/include/bonsai_kg_v4.hpp ../bonsai-kg/include/bonsai_kg_v4_io.hpp ../bonsai-kg/cuda/kag_adapter_v4.cuh ../bonsai-kg/integrations/bkg4_champion/cuda_compat.cuh | $(BUILD_DIR)
+	$(NVCC) $(B4EC_NVCCFLAGS) $(B4EC_HOST_FLAG) -o $@ $<
+
+$(BUILD_DIR)/bkg4_invariant_edit_eval: src/bkg4_invariant_edit_eval.cu include/tape_io.hpp include/sim.cuh include/pyrandom.cuh include/runtime.cuh ../bonsai-kg/include/bonsai_kg_v4.hpp ../bonsai-kg/include/bonsai_kg_v4_io.hpp ../bonsai-kg/include/bkg4_invariant_module.hpp ../bonsai-kg/cuda/kag_adapter_v4.cuh ../bonsai-kg/integrations/bkg4_champion/cuda_compat.cuh | $(BUILD_DIR)
 	$(NVCC) $(B4EC_NVCCFLAGS) $(B4EC_HOST_FLAG) -o $@ $<
 
 $(BUILD_DIR)/opening_crossover: src/opening_crossover.cu include/bonsai_gp.cuh include/observation.cuh include/tape_io.hpp include/sim.cuh include/pyrandom.cuh include/runtime.cuh | $(BUILD_DIR)
@@ -135,6 +138,9 @@ bonsai-branch-cases: $(BUILD_DIR)/bonsai_branch_cases
 
 bkg4-edit-corpus-eval: $(BUILD_DIR)/bkg4_edit_corpus_eval
 	@echo "usage: $(BUILD_DIR)/bkg4_edit_corpus_eval --controller FILE.bkgc --routes FILE.bkv6 --legacy-routes FILE.bkv6 --cases cases.tsv --genomes states.b4gm --out results.b4ec [--device 0]"
+
+bkg4-invariant-edit-eval: $(BUILD_DIR)/bkg4_invariant_edit_eval
+	@echo "usage: $(BUILD_DIR)/bkg4_invariant_edit_eval --controller FILE.bkgc --routes FILE.bkv6 --legacy-routes FILE.bkv6 --cases cases.tsv --candidates states.b4im --out results.b4ic [--device 0]"
 
 clean:
 	rm -rf $(BUILD_DIR)

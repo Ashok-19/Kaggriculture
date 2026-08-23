@@ -19,7 +19,7 @@ for _path in (HERE, BKG_ROOT / "python", V6):
 import bonsai_kg_v4 as bkg4
 from engine_exploits import EngineExploitState, apply_engine_exploits
 from legacy_overlay import LegacyOverlayState, apply_legacy_overlay
-from mechanics_reconciler import apply_feed_deferral
+from mechanics_reconciler import apply_feed_deferral, apply_invariant_unit_rewrites
 
 _V6_RUNTIME_SPEC = importlib.util.spec_from_file_location("bkg4_champion_v6_runtime", V6 / "runtime.py")
 if _V6_RUNTIME_SPEC is None or _V6_RUNTIME_SPEC.loader is None:
@@ -81,18 +81,35 @@ class BKG4ChampionAgent:
         self.route_override_slot = None
         self.route_override_id = None
         self.route_override_value = False
-        if runtime_reconciler is None:
-            self.feed_defer_slots = ()
-        elif runtime_reconciler.get("kind") in ("feed_deferral_v1", "feed_deferral_route_override_v1", "feed_deferral_route_value_v1"):
-            self.feed_defer_slots = tuple(int(x) for x in runtime_reconciler.get("defer_slots") or [])
-            if runtime_reconciler.get("kind") == "feed_deferral_route_override_v1":
-                self.route_override_slot = int(runtime_reconciler["route_override_slot"])
-                self.route_override_id = int(runtime_reconciler["route_override_id"])
-            elif runtime_reconciler.get("kind") == "feed_deferral_route_value_v1":
-                self.route_override_slot = int(runtime_reconciler["route_override_slot"])
-                self.route_override_value = True
-        else:
-            raise CompatibilityError(f"unsupported BKG4 runtime reconciler {runtime_reconciler.get('kind')!r}")
+        self.invariant_rewrites = ()
+        self.feed_defer_slots = ()
+        profiles = [] if runtime_reconciler is None else (
+            list(runtime_reconciler.get("reconcilers") or [])
+            if runtime_reconciler.get("kind") == "composite_v1" else [runtime_reconciler]
+        )
+        if runtime_reconciler is not None and runtime_reconciler.get("kind") == "composite_v1" and not profiles:
+            raise CompatibilityError("composite_v1 has no reconciler profiles")
+        rewrites = []
+        for profile in profiles:
+            kind = profile.get("kind")
+            if kind in ("feed_deferral_v1", "feed_deferral_route_override_v1", "feed_deferral_route_value_v1"):
+                if self.feed_defer_slots:
+                    raise CompatibilityError("multiple feed deferral reconcilers are unsupported")
+                self.feed_defer_slots = tuple(int(x) for x in profile.get("defer_slots") or [])
+                if kind == "feed_deferral_route_override_v1":
+                    self.route_override_slot = int(profile["route_override_slot"])
+                    self.route_override_id = int(profile["route_override_id"])
+                elif kind == "feed_deferral_route_value_v1":
+                    self.route_override_slot = int(profile["route_override_slot"])
+                    self.route_override_value = True
+            elif kind == "invariant_unit_rewrite_v1":
+                rows = [dict(x) for x in profile.get("rewrites") or ()]
+                if not rows:
+                    raise CompatibilityError("invariant_unit_rewrite_v1 has no rewrites")
+                rewrites.extend(rows)
+            else:
+                raise CompatibilityError(f"unsupported BKG4 runtime reconciler {kind!r}")
+        self.invariant_rewrites = tuple(rewrites)
 
     @staticmethod
     def _hands(observation: Dict[str, Any]) -> int:
@@ -132,7 +149,7 @@ class BKG4ChampionAgent:
             self.reset()
         self.last_step = step
 
-        result = self.vm.tick(observation, max_market_orders=0, trace=False)
+        result = self.vm.tick(observation, max_market_orders=10, trace=False)
         if result.fault:
             raise CompatibilityError(f"BKG4 controller fault {result.fault}")
         if result.status != bkg4.STATUS_SUCCESS:
@@ -154,6 +171,12 @@ class BKG4ChampionAgent:
         )
         if self.feed_defer_slots:
             action = apply_feed_deferral(action, self.vm.state.blackboard, self.feed_defer_slots)
+        if self.invariant_rewrites:
+            action = apply_invariant_unit_rewrites(action, self.vm.state.blackboard, self.invariant_rewrites)
+        if result.action.market:
+            direct = bkg4.to_official_action(result.action)["market"]
+            action = dict(action)
+            action["market"] = (list(direct) + list(action.get("market") or []))[:10]
         return action
 
 
