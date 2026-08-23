@@ -15,6 +15,7 @@ from tools.bkg4_search.invariant_search import (
     InvariantSearchBackend,
     local_structural_neighborhood,
     pair_case_rows,
+    pair_relative_case_rows,
 )
 from tools.bkg4_search.invariant_groups import tape_group_id
 from tools.bkg4_search.invariant_schema import make_corpus_record
@@ -163,6 +164,7 @@ class SpecialistFactory:
         seed: int,
         target_goal_ids: Sequence[str] | None = None,
         recursive: bool = False,
+        capability_level: int | None = None,
     ) -> ProposalBatch:
         count = max(0, int(count))
         started = time.perf_counter()
@@ -172,32 +174,50 @@ class SpecialistFactory:
         operator_timing: Counter[str] = Counter()
         if recursive:
             recursive_started = time.perf_counter()
-            for parent_evidence in self.backend.specialist_archive.specialist_elites():
+            research = [
+                evidence for evidence in self.backend.specialist_archive.research.values()
+                if evidence.action_change_count > 0 and evidence.tier != "INERT"
+            ]
+            research.sort(key=lambda evidence: (
+                -int((self._lineages.get(evidence.module.semantic_id()) or SpecialistLineage.root(
+                    evidence.module, parent_controller=self.root_controller,
+                )).depth),
+                -int(bool((self._lineages.get(evidence.module.semantic_id()) or SpecialistLineage.root(
+                    evidence.module, parent_controller=self.root_controller,
+                )).source_goal_id)),
+                -int(evidence.useful_groups),
+                evidence.quality_key(),
+            ))
+            recursive_limit = count if capability_level is None else max(1, count // 2)
+            for parent_evidence in research:
                 parent = parent_evidence.module
                 parent_lineage = self._lineages.get(parent.semantic_id()) or SpecialistLineage.root(
                     parent, parent_controller=self.root_controller,
                 )
                 children = local_structural_neighborhood(
                     parent, route_ids=self.backend.route_ids,
-                    budget=max(8, count // max(1, len(self.backend.specialist_archive.elites))),
+                    budget=max(8, recursive_limit // max(1, len(research))),
                     seed=seed + len(rows) * 1009,
                 )
                 for child in children:
                     sid = child.semantic_id()
                     if sid in self._seen:
                         duplicate_rejections += 1; continue
+                    retrospective = self.backend._goal_for_module(child)
                     lineage = parent_lineage.child(
                         child, operator="local_structural_neighborhood",
                         source_margin_delta=max((row.mean_delta for row in parent_evidence.cohorts), default=0.0),
+                        retrospective_goal_id=(retrospective.goal_id if retrospective is not None else None),
                     )
                     rows.append(child); lineages.append(lineage); self._seen.add(sid); self._lineages[sid] = lineage
-                    if len(rows) >= count:
+                    if len(rows) >= recursive_limit:
                         break
-                if len(rows) >= count:
+                if len(rows) >= recursive_limit:
                     break
             operator_timing["local_neighborhood"] += time.perf_counter() - recursive_started
         previous_level = self.backend.ladder.level
-        self.backend.ladder.level = max(1, previous_level)
+        requested_level = 1 if capability_level is None else max(1, int(capability_level))
+        self.backend.ladder.level = max(requested_level, previous_level)
         try:
             stalled = 0
             attempt = 0
@@ -214,7 +234,15 @@ class SpecialistFactory:
                     sid = module.semantic_id()
                     if sid in self._seen:
                         duplicate_rejections += 1; continue
-                    lineage = SpecialistLineage.root(module, parent_controller=self.root_controller)
+                    origin = self.backend.last_proposal_origins.get(sid)
+                    lineage = SpecialistLineage.root(
+                        module,
+                        parent_controller=self.root_controller,
+                        operator=(origin.operator if origin is not None else "root"),
+                        source_goal_id=(origin.source_goal_id if origin is not None else None),
+                        structural_mechanisms=(origin.structural_mechanisms if origin is not None else None),
+                        retrospective_goal_id=(origin.retrospective_goal_id if origin is not None else None),
+                    )
                     rows.append(module); lineages.append(lineage); self._seen.add(sid); self._lineages[sid] = lineage
                     added += 1
                     if len(rows) >= count:
@@ -473,7 +501,7 @@ def run_proposal_funnel(
         for module in selected_modules
     }
     source_case_rows = {
-        module.semantic_id(): pair_case_rows(
+        module.semantic_id(): pair_relative_case_rows(
             label_round.evaluations[lineage_by_sid[module.semantic_id()].parent_semantic_id]
             if lineage_by_sid[module.semantic_id()].parent_semantic_id else baseline,
             label_round.evaluations[module.semantic_id()],
@@ -622,6 +650,9 @@ def specialist_corpus_records(
                 "depth": lineage.depth,
                 "source_margin_delta": lineage.source_margin_delta,
                 "lineage_id": lineage.lineage_id,
+                "source_goal_id": lineage.source_goal_id,
+                "structural_mechanisms": list(lineage.structural_mechanisms),
+                "retrospective_goal_id": lineage.retrospective_goal_id,
             },
         }
         records.append(make_corpus_record(

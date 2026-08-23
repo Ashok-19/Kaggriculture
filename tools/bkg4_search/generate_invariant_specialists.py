@@ -24,8 +24,12 @@ from tools.bkg4_search.invariant_factory import (
     split_specialist_panels,
 )
 from tools.bkg4_search.invariant_schema import validate_specialist_corpus
-from tools.bkg4_search.invariant_search import InvariantSearchBackend
-from tools.bkg4_search.invariant_specialists import diversity_report, strategic_coverage_matrix
+from tools.bkg4_search.invariant_search import InvariantSearchBackend, default_search_goals
+from tools.bkg4_search.invariant_specialists import (
+    SPECIALIST_QD_DIMENSIONS,
+    diversity_report,
+    strategic_coverage_matrix,
+)
 
 
 def _bank_specs(values: Sequence[str]) -> tuple[tuple[str, Path], ...]:
@@ -108,6 +112,11 @@ def _yield_metrics(evidence) -> dict[str, Any]:
         "hard_negative": count(lambda row: row.tier == "HARD_NEGATIVE"),
         "inert": count(lambda row: row.tier == "INERT"),
     }
+    return {
+        **values,
+        **{f"{name}_rate": value / total for name, value in values.items() if name not in {"candidates", "valid"}},
+        "valid_rate": values["valid"] / total,
+    }
 
 
 def _observed_strategic_domains(evidence) -> list[str]:
@@ -137,10 +146,98 @@ def _observed_strategic_domains(evidence) -> list[str]:
             if rule.sketch.effect_class == "ENGINE_MECHANIC":
                 observed.add("engine_mechanics")
     return sorted(observed)
+
+
+def _operator_evidence(results) -> dict[str, dict[str, Any]]:
+    rows: dict[str, dict[str, Any]] = {}
+    skeletons: dict[str, set[str]] = {}
+    semantics: dict[str, set[str]] = {}
+    for result in results:
+        evidence_by_sid = {item.module.semantic_id(): item for item in result.screen_evidence}
+        for lineage in result.proposal_batch.lineages:
+            operator = str(lineage.operator)
+            item = evidence_by_sid.get(lineage.module.semantic_id())
+            row = rows.setdefault(operator, {
+                "proposals": 0, "canonical_programs": 0, "behavior_changing": 0,
+                "useful": 0, "strong_or_elite": 0,
+            })
+            row["proposals"] += 1
+            semantics.setdefault(operator, set()).add(lineage.module.semantic_id())
+            if item is not None:
+                row["behavior_changing"] += int(item.action_change_count > 0)
+                row["useful"] += int(item.useful_groups > 0)
+                row["strong_or_elite"] += int(item.tier in {"GLOBAL_SAFE", "ELITE_SPECIALIST", "STRONG_SPECIALIST"})
+                skeletons.setdefault(operator, set()).add(repr(item.structural_skeleton))
+    for operator, row in rows.items():
+        row["canonical_programs"] = len(semantics.get(operator, ()))
+        row["unique_skeletons"] = len(skeletons.get(operator, ()))
+    return dict(sorted(rows.items()))
+
+
+def _goal_evidence(results, route_ids: Sequence[int]) -> dict[str, dict[str, int]]:
+    rows = {
+        goal.goal_id: {"generated": 0, "behavior_changing": 0, "useful": 0, "strong": 0, "elite": 0}
+        for goal in default_search_goals(route_ids)
+    }
+    for result in results:
+        evidence_by_sid = {item.module.semantic_id(): item for item in result.screen_evidence}
+        for lineage in result.proposal_batch.lineages:
+            goal_id = lineage.source_goal_id
+            if goal_id not in rows:
+                continue
+            item = evidence_by_sid.get(lineage.module.semantic_id())
+            row = rows[goal_id]
+            row["generated"] += 1
+            if item is None:
+                continue
+            row["behavior_changing"] += int(item.action_change_count > 0)
+            row["useful"] += int(item.useful_groups > 0)
+            row["strong"] += int(item.tier in {"GLOBAL_SAFE", "ELITE_SPECIALIST", "STRONG_SPECIALIST"})
+            row["elite"] += int(item.tier in {"GLOBAL_SAFE", "ELITE_SPECIALIST"})
+    return rows
+
+
+def _depth_evidence(results) -> dict[str, dict[str, int]]:
+    rows: dict[str, dict[str, int]] = {}
+    for result in results:
+        evidence_by_sid = {item.module.semantic_id(): item for item in result.screen_evidence}
+        for lineage in result.proposal_batch.lineages:
+            key = str(int(lineage.depth))
+            row = rows.setdefault(key, {"generated": 0, "behavior_changing": 0, "useful": 0, "strong_or_elite": 0})
+            row["generated"] += 1
+            item = evidence_by_sid.get(lineage.module.semantic_id())
+            if item is not None:
+                row["behavior_changing"] += int(item.action_change_count > 0)
+                row["useful"] += int(item.useful_groups > 0)
+                row["strong_or_elite"] += int(item.tier in {"GLOBAL_SAFE", "ELITE_SPECIALIST", "STRONG_SPECIALIST"})
+    return dict(sorted(rows.items(), key=lambda item: int(item[0])))
+
+
+def _cegis_effectiveness(records: Sequence[dict[str, object]]) -> dict[str, Any]:
+    repairs = [
+        row for row in records
+        if str(row["target_labels"]["lineage"].get("operator")) == "cegis_repair"
+    ]
+    behavior_changed = outcome_changed = improved = worsened = inert = 0
+    for record in repairs:
+        source_rows = record["target_labels"].get("source_relative_case_outcomes", [])
+        changed = any(bool(row.get("behavior_changed_vs_parent", False)) for row in source_rows)
+        outcome = any(int(row.get("margin_delta", 0)) != 0 for row in source_rows)
+        total_delta = sum(int(row.get("margin_delta", 0)) for row in source_rows)
+        behavior_changed += int(changed)
+        outcome_changed += int(outcome)
+        improved += int(total_delta > 0)
+        worsened += int(total_delta < 0)
+        inert += int(not changed and not outcome)
     return {
-        **values,
-        **{f"{name}_rate": value / total for name, value in values.items() if name not in {"candidates", "valid"}},
-        "valid_rate": values["valid"] / total,
+        "repairs_labeled": len(repairs),
+        "behavior_changing_vs_parent": behavior_changed,
+        "outcome_changing_vs_parent": outcome_changed,
+        "outcome_change_rate": outcome_changed / max(1, len(repairs)),
+        "improved_parent_boundary": improved,
+        "worsened_parent_boundary": worsened,
+        "inert": inert,
+        "previous_baseline": {"outcome_changing": 9, "repairs": 134, "rate": 9 / 134},
     }
 
 
@@ -149,7 +246,10 @@ def _followup_batch(factory: SpecialistFactory, *, recursive: int, repairs: int,
     if repairs:
         batches.append(factory.cegis_repairs(limit=repairs))
     if recursive:
-        batches.append(factory.propose(count=recursive, seed=seed, recursive=True))
+        batches.append(factory.propose(
+            count=recursive, seed=seed, recursive=True,
+            capability_level=len(factory.backend.ladder.LEVELS) - 1,
+        ))
     if ablations:
         batches.append(factory.structural_ablations(limit=ablations))
     batches = [batch for batch in batches if batch.modules]
@@ -198,15 +298,18 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         work_dir=str(work / "initial"), enable_cegis=True,
     )
     results = [initial]
-    followup = _followup_batch(
-        factory, recursive=args.recursive, repairs=args.repairs,
-        ablations=args.ablations, seed=args.seed + 1,
-    )
-    if followup.modules:
+    for followup_index in range(max(0, int(args.recursive_rounds))):
+        followup_seed = args.seed + followup_index + 1
+        followup = _followup_batch(
+            factory, recursive=args.recursive, repairs=args.repairs,
+            ablations=(args.ablations if followup_index == 0 else 0), seed=followup_seed,
+        )
+        if not followup.modules:
+            break
         results.append(run_proposal_funnel(
             factory, proposal=followup, screen_panel=screen, label_panel=label,
-            retain_count=min(args.followup_retain, len(followup.modules)), seed=args.seed + 1,
-            work_dir=str(work / "followup"), enable_cegis=True,
+            retain_count=min(args.followup_retain, len(followup.modules)), seed=followup_seed,
+            work_dir=str(work / f"followup-{followup_index + 1}"), enable_cegis=True,
         ))
     records = tuple(
         record for result in results
@@ -257,6 +360,17 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         "tier_yield": _tier_yield(records),
         "screen_yield": _yield_metrics(tuple(item for result in results for item in result.screen_evidence)),
         "label_yield": _yield_metrics(all_labeled),
+        "depth_evidence": _depth_evidence(results),
+        "operator_evidence": _operator_evidence(results),
+        "mechanism_goal_evidence": _goal_evidence(results, profile.route_ids),
+        "cegis_effectiveness": _cegis_effectiveness(records),
+        "qd_descriptor_contract": list(SPECIALIST_QD_DIMENSIONS),
+        "campaign_capability": {
+            "initial_min_level": 1,
+            "followup_level": len(backend.ladder.LEVELS) - 1,
+            "followup_level_name": backend.ladder.LEVELS[-1],
+            "recursive_rounds_requested": int(args.recursive_rounds),
+        },
         "cohort_headroom": _cohort_headroom(records),
         "coverage": [dataclasses.asdict(row) for row in strategic_coverage_matrix(
             profile.route_ids, observed_domains=observed_domains,
@@ -306,6 +420,7 @@ def parser() -> argparse.ArgumentParser:
     out.add_argument("--screen-cases", type=int, default=64)
     out.add_argument("--label-cases", type=int, default=512)
     out.add_argument("--recursive", type=int, default=1024)
+    out.add_argument("--recursive-rounds", type=int, default=2)
     out.add_argument("--repairs", type=int, default=512)
     out.add_argument("--ablations", type=int, default=512)
     out.add_argument("--followup-retain", type=int, default=256)

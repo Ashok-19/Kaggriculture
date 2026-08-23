@@ -17,6 +17,7 @@ from tools.bkg4_search.invariant_factory import (
     split_specialist_panels,
 )
 from tools.bkg4_search.generate_invariant_specialists import combine_offline_banks
+from tools.bkg4_search.generate_invariant_specialists import _yield_metrics
 from tools.bkg4_search.invariant_module import AbstractAction, GuardAtom, InvariantRule, InvariantStrategicModule, LiftedGuard, ModuleSketch
 from tools.bkg4_search.invariant_search import InvariantSearchBackend
 from tools.bkg4_search.invariant_schema import validate_specialist_corpus
@@ -60,6 +61,24 @@ def _route(feature: str, cmp: str, value: int, route: int) -> InvariantStrategic
 
 
 class InvariantFactoryTests(unittest.TestCase):
+    def test_yield_metrics_returns_structured_numbers_for_empty_and_nonempty_input(self):
+        from types import SimpleNamespace
+
+        empty = _yield_metrics(())
+        self.assertIsInstance(empty, dict)
+        self.assertEqual(empty["candidates"], 0)
+        self.assertEqual(empty["valid_rate"], 0.0)
+        rows = (
+            SimpleNamespace(action_change_count=1, useful_groups=2, tier="ELITE_SPECIALIST", production_safe=False, l2w_groups=1),
+            SimpleNamespace(action_change_count=0, useful_groups=0, tier="INERT", production_safe=False, l2w_groups=0),
+        )
+        metrics = _yield_metrics(rows)
+        self.assertEqual(metrics["candidates"], 2)
+        self.assertEqual(metrics["behavior_changing"], 1)
+        self.assertEqual(metrics["elite_specialist"], 1)
+        self.assertEqual(metrics["inert"], 1)
+        self.assertIsInstance(metrics["behavior_changing_rate"], float)
+
     def test_factory_fills_large_unique_batches_with_real_skeleton_diversity(self):
         backend = InvariantSearchBackend(route_ids=(29, 64, 70, 211, 212), evaluator=HashEvaluator())
         factory = SpecialistFactory(backend, root_controller="parent")
@@ -82,6 +101,25 @@ class InvariantFactoryTests(unittest.TestCase):
         recursive = factory.propose(count=32, seed=5, recursive=True)
         self.assertTrue(any(lineage.depth > 0 for lineage in recursive.lineages))
         self.assertTrue(all(lineage.root_controller == "parent" for lineage in recursive.lineages))
+
+    def test_recursive_factory_can_refine_a_screened_child_to_real_depth_two(self):
+        backend = InvariantSearchBackend(route_ids=(29, 64, 70, 211, 212), evaluator=HashEvaluator())
+        factory = SpecialistFactory(backend, root_controller="parent")
+        panel = tuple(
+            CaseRecord(f"c{i}", f"t{i}", 0, i + 1, "cash" if i < 4 else "late", role="discovery")
+            for i in range(8)
+        )
+        roots = factory.propose(count=128, seed=301)
+        factory.screen(roots, panel, work_dir="unused", panel_id="roots")
+        depth_one = factory.propose(count=32, seed=303, recursive=True)
+        factory.screen(depth_one, panel, work_dir="unused", panel_id="depth-one")
+        depth_two = factory.propose(count=32, seed=305, recursive=True)
+        descendants = [lineage for lineage in depth_two.lineages if lineage.depth >= 2]
+        self.assertTrue(descendants)
+        for lineage in descendants:
+            self.assertIsNotNone(lineage.parent_semantic_id)
+            self.assertNotEqual(lineage.module.semantic_id(), lineage.parent_semantic_id)
+
 
     def test_offline_cohort_loader_normalizes_identity_to_label_only_metadata(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -204,6 +242,14 @@ class InvariantFactoryTests(unittest.TestCase):
         self.assertTrue(any(record["target_labels"]["lineage"]["depth"] > 0 for record in records))
         self.assertTrue(all(record["target_labels"]["source_relative_case_outcomes"] for record in records))
         self.assertGreater(result.exact_games, (24 + 1) * 8 + (12 + 1) * 8)
+        self.assertTrue(all(
+            "behavior_changed_vs_parent" in row
+            for record in records for row in record["target_labels"]["source_relative_case_outcomes"]
+        ))
+        self.assertTrue(any(
+            record["target_labels"]["lineage"].get("source_goal_id")
+            for record in records
+        ))
 
     def test_specialist_screen_and_label_panels_are_tape_disjoint(self):
         rows = tuple(

@@ -109,6 +109,13 @@ B4IM_HD bool is_unit_feature(uint16_t f) {
 
 B4IM_HD bool is_tile_feature(uint16_t f);
 
+B4IM_HD bool guard_key_less(const GuardBin& a, const GuardBin& b) {
+    if (a.feature_id != b.feature_id) return a.feature_id < b.feature_id;
+    if (a.cmp != b.cmp) return a.cmp < b.cmp;
+    if (a.arg != b.arg) return a.arg < b.arg;
+    return a.value < b.value;
+}
+
 B4IM_HD bool valid_candidate(const Candidate& c) {
     if (!magic_ok(c) || c.header.version != B4IM1_VERSION || c.header.n_rules > B4IM1_MAX_RULES ||
         c.header.flags != 0 || c.header.reserved != 0) return false;
@@ -121,11 +128,16 @@ B4IM_HD bool valid_candidate(const Candidate& c) {
             const GuardBin& g = r.guards[gi];
             if (g.feature_id > LAST_FEATURE_V1 || g.cmp > C_GE || g.arg_mode > ARG_BOUND_UNIT) return false;
             if (g.feature_id == F_OWN_INVENTORY && r.domain != DOMAIN_EACH_OWN_UNIT) return false;
+            if (r.domain == DOMAIN_GLOBAL && (is_unit_feature(g.feature_id) || is_tile_feature(g.feature_id))) return false;
             uint8_t expected = ARG_CONST;
             if (r.domain == DOMAIN_EACH_OWN_UNIT && is_tile_feature(g.feature_id)) expected = ARG_BOUND_TILE;
             else if (r.domain == DOMAIN_EACH_OWN_UNIT && is_unit_feature(g.feature_id)) expected = ARG_BOUND_UNIT;
             if (g.feature_id == F_OWN_INVENTORY) expected = ARG_CONST;
             if (g.arg_mode != expected) return false;
+            if ((expected == ARG_BOUND_TILE || expected == ARG_BOUND_UNIT) && g.arg != 0) return false;
+            const bool entry_order_bad = gi > 0 && gi < r.n_guard && !guard_key_less(r.guards[gi - 1], g);
+            const bool exit_order_bad = gi > r.n_guard && !guard_key_less(r.guards[gi - 1], g);
+            if (entry_order_bad || exit_order_bad) return false;
         }
         for (int gi = r.n_guard + r.n_exit; gi < B4IM1_MAX_GUARDS; ++gi)
             if (!bytes_zero(r.guards[gi])) return false;

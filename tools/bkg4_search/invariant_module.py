@@ -73,6 +73,16 @@ _TILE_ARG_FEATURES = {
 _HIGH_CARD_EQ = {"OWN_MONEY", "OPP_MONEY", "MARKET_PRICE", "MARKET_INVENTORY"}
 
 
+def _guard_atom_canonical_key(atom: "GuardAtom") -> tuple[int, int, int, int]:
+    """Stable semantic ordering for conjunction atoms in feature-registry-v1."""
+    return (
+        int(bkg.FEATURES[atom.feature]),
+        int(_CMP[atom.cmp]),
+        int(atom.arg),
+        int(atom.value),
+    )
+
+
 def _enum_value(table: Mapping[str, int], name: str, label: str) -> int:
     if name not in table:
         raise ValueError(f"unknown {label} {name}")
@@ -112,9 +122,9 @@ class GuardAtom:
             raise ValueError("guard value must fit int32")
         if not -(1 << 31) <= int(self.arg) < (1 << 31):
             raise ValueError("guard arg must fit int32")
-        if lifted_domain == "EACH_OWN_UNIT" and self.feature in _TILE_ARG_FEATURES:
+        if lifted_domain == "EACH_OWN_UNIT" and self.feature in (_UNIT_ARG_FEATURES | _TILE_ARG_FEATURES):
             if int(self.arg) != 0:
-                raise ValueError("lifted tile guard cannot carry a concrete tile id")
+                raise ValueError("lifted bound unit/tile guard requires canonical arg=0")
             return
         if self.feature in _UNIT_ARG_FEATURES and not 0 <= int(self.arg) < 40:
             raise ValueError("unit feature arg out of range")
@@ -135,6 +145,10 @@ class LiftedGuard:
             raise ValueError("duplicate guard atom")
         for atom in self.atoms:
             atom.validate(lifted_domain=lifted_domain)
+
+    def canonicalized(self, *, lifted_domain: str) -> "LiftedGuard":
+        self.validate(lifted_domain=lifted_domain)
+        return LiftedGuard(tuple(sorted(self.atoms, key=_guard_atom_canonical_key)))
 
 
 @dataclass(frozen=True)
@@ -226,6 +240,14 @@ class InvariantRule:
     action: AbstractAction
     exit_guard: LiftedGuard = field(default_factory=LiftedGuard)
 
+    def canonicalized(self) -> "InvariantRule":
+        self.validate(production=False, multi_tape_support=0)
+        return dataclasses.replace(
+            self,
+            guard=self.guard.canonicalized(lifted_domain=self.domain),
+            exit_guard=self.exit_guard.canonicalized(lifted_domain=self.domain),
+        )
+
     def validate(self, *, production: bool, multi_tape_support: int) -> None:
         self.sketch.validate()
         if self.domain not in _DOMAINS:
@@ -236,6 +258,11 @@ class InvariantRule:
             atom.feature == "OWN_INVENTORY" for atom in (*self.guard.atoms, *self.exit_guard.atoms)
         ):
             raise ValueError("OWN_INVENTORY requires an EACH_OWN_UNIT bound unit and item")
+        if self.domain == "GLOBAL" and any(
+            atom.feature in (_UNIT_ARG_FEATURES | _TILE_ARG_FEATURES)
+            for atom in (*self.guard.atoms, *self.exit_guard.atoms)
+        ):
+            raise ValueError("invariant rejects concrete unit/tile identity in GLOBAL guard")
         if len(self.guard.atoms) + len(self.exit_guard.atoms) > MAX_GUARDS_TOTAL:
             raise ValueError(f"entry+exit guard exceeds {MAX_GUARDS_TOTAL} atoms")
         self.action.validate()
@@ -259,8 +286,6 @@ class InvariantRule:
                     raise ValueError("production invariant rejects exact STEP patch")
                 if atom.feature in _HIGH_CARD_EQ and atom.cmp == "EQ":
                     raise ValueError("production invariant rejects high-cardinality exact equality")
-                if self.domain == "GLOBAL" and atom.feature in (_UNIT_ARG_FEATURES | _TILE_ARG_FEATURES):
-                    raise ValueError("production invariant rejects concrete unit/tile identity")
 
 
 @dataclass(frozen=True)
@@ -273,7 +298,12 @@ class InvariantStrategicModule:
         for rule in self.rules:
             rule.validate(production=production, multi_tape_support=multi_tape_support)
 
+    def canonicalized(self) -> "InvariantStrategicModule":
+        self.validate()
+        return InvariantStrategicModule(tuple(rule.canonicalized() for rule in self.rules))
+
     def canonical(self) -> dict[str, Any]:
+        normalized = self.canonicalized()
         return {
             "grammar_id": GRAMMAR_ID,
             "schema_version": 1,
@@ -285,7 +315,7 @@ class InvariantStrategicModule:
                     "exit_guard": {"atoms": [dataclasses.asdict(a) for a in r.exit_guard.atoms]},
                     "action": dataclasses.asdict(r.action),
                 }
-                for r in self.rules
+                for r in normalized.rules
             ],
         }
 
@@ -450,7 +480,7 @@ def _action_params(action: AbstractAction) -> tuple[int, int, int, int, int]:
 
 
 def pack_candidate(module: InvariantStrategicModule) -> bytes:
-    module.validate()
+    module = module.canonicalized()
     raw = bytearray(_HEADER.pack(B4IM1_MAGIC, B4IM1_VERSION, len(module.rules), 0, 0))
     for ri in range(MAX_RULES):
         if ri < len(module.rules):

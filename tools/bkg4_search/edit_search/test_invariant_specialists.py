@@ -132,6 +132,52 @@ class InvariantSpecialistTests(unittest.TestCase):
         self.assertIn("unit", rewrite_meta.action_domains)
         self.assertFalse(route_meta.compatible_with(composition_metadata(other_route)))
         self.assertTrue(route_meta.compatible_with(rewrite_meta))
+        issues = route_meta.compatibility_issues(composition_metadata(other_route))
+        self.assertIn("route_controller_conflict", issues)
+        self.assertIn("blackboard_read_write_hazard", issues)
+
+    def test_screen_quota_never_exceeds_limit_when_tier_rounding_sums_above_limit(self):
+        from dataclasses import replace
+        from tools.bkg4_search.invariant_specialists import select_screen_quota
+
+        base = analyze_specialist(
+            _route("OWN_MONEY", 500),
+            (GroupOutcome("a", False, False, True, True, 0, 1000),),
+            cohort_by_group={"a": "x"}, activation_count=1, action_change_count=1,
+        )
+        tiers = (
+            ("GLOBAL_SAFE", 20), ("ELITE_SPECIALIST", 40), ("STRONG_SPECIALIST", 17),
+            ("BOUNDARY_SPECIALIST", 323), ("HARD_NEGATIVE", 382), ("INERT", 242),
+        )
+        rows = []
+        index = 0
+        for tier, count in tiers:
+            for _ in range(count):
+                module = _route("OWN_MONEY", 500 + index)
+                rows.append(replace(base, module=module, tier=tier, structural_skeleton=("s", index)))
+                index += 1
+        selected = select_screen_quota(rows, limit=128, seed=20260824)
+        self.assertEqual(len(selected), 128)
+        self.assertEqual(len({row.module.semantic_id() for row in selected}), 128)
+
+    def test_specialist_qd_preserves_distinct_guard_families(self):
+        outcomes = (
+            GroupOutcome("a", False, False, True, True, 0, 1000),
+            GroupOutcome("b", False, False, True, True, 0, 1000),
+        )
+        archive = SpecialistArchive()
+        money = analyze_specialist(
+            _route("OWN_MONEY", 500), outcomes,
+            cohort_by_group={"a": "same", "b": "same"}, activation_count=2, action_change_count=2,
+        )
+        phase = analyze_specialist(
+            _route("DAY", 5), outcomes,
+            cohort_by_group={"a": "same", "b": "same"}, activation_count=2, action_change_count=2,
+        )
+        self.assertTrue(archive.consider(money))
+        self.assertTrue(archive.consider(phase))
+        self.assertEqual(len(archive.elites), 2)
+
 
     def test_quota_selection_preserves_specialist_and_diversity_classes(self):
         modules = tuple(_route("OWN_MONEY" if i < 4 else "DAY", i + 1, 70 + i) for i in range(8))
@@ -228,12 +274,49 @@ class InvariantSpecialistTests(unittest.TestCase):
         self.assertTrue(any(rule.action.kind == "UNIT_REWRITE" for module in modules for rule in module.rules))
         self.assertTrue(any(rule.action.kind == "MARKET_INTENT" for module in modules for rule in module.rules))
 
+    def test_targeted_proposals_preserve_source_goal_separately_from_retrospective_classification(self):
+        backend = InvariantSearchBackend(route_ids=(70, 212), evaluator=object())
+        modules = backend.propose(
+            n=16, seed=171,
+            target_goal_ids=("starving_animal_rescue",),
+        )
+        origins = [backend.last_proposal_origins[module.semantic_id()] for module in modules]
+        self.assertTrue(all(origin.source_goal_id == "starving_animal_rescue" for origin in origins))
+        self.assertTrue(all(origin.retrospective_goal_id for origin in origins))
+        self.assertTrue(all(origin.structural_mechanisms for origin in origins))
+
+    def test_high_ladder_proposals_materially_surface_advanced_operators(self):
+        class PositiveEvaluator:
+            def evaluate(self, modules, panel, *, work_dir, panel_id):
+                out = {}
+                for index, module in enumerate(modules):
+                    baseline = index == 0
+                    out[module.semantic_id()] = StateEvaluation(
+                        module.semantic_id(), panel_id, tuple(row.case_id for row in panel),
+                        tuple(0 if baseline else 100 for _ in panel),
+                        tuple(0 if baseline else 1 for _ in panel),
+                        tuple(0 if baseline else 2 for _ in panel),
+                        tuple(index + 1 for _ in panel),
+                    )
+                return out
+
+        panel = tuple(CaseRecord(f"c{i}", f"tape-{i}", 0, i + 1, "x", role="discovery") for i in range(8))
+        backend = InvariantSearchBackend(route_ids=(29, 64, 70, 211, 212), evaluator=PositiveEvaluator())
+        roots = backend.propose(n=160, seed=181)
+        backend.evaluate_batch(roots, panel, work_dir="unused", panel_id="operator-roots")
+        backend.ladder.level = backend.ladder.LEVELS.index("new_structural_skeleton")
+        advanced = backend.propose(n=160, seed=183)
+        operators = {backend.last_proposal_origins[module.semantic_id()].operator for module in advanced}
+        self.assertTrue({"lns", "local_neighborhood", "mcts"} <= operators)
+        self.assertIn("recombination", operators)
+
+
     def test_proposal_profile_exposes_operator_costs(self):
         backend = InvariantSearchBackend(route_ids=(70, 212), evaluator=object())
         backend.ladder.level = 5
         backend.propose(n=64, seed=19)
         expected = {
-            "goal_construction", "composition", "boundary_solver", "local_neighborhood",
+            "goal_construction", "composition", "boundary_solver", "lns", "local_neighborhood",
             "recombination", "mcts", "cegis", "canonical_dedupe",
         }
         self.assertEqual(set(backend.last_proposal_profile), expected)

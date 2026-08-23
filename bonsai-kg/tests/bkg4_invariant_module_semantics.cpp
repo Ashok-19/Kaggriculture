@@ -43,10 +43,10 @@ Candidate feed_candidate() {
     auto& r=c.rules[0]; r.domain=DOMAIN_EACH_OWN_UNIT; r.control=CONTROL_INSTANT; r.action=ACTION_UNIT_REWRITE; r.n_guard=4; r.effect=2;
     r.authority=bonsaikg4::AUTH_COMMITTED_STRATEGY;
     r.p0=bonsaikg4::U_FEED; r.p1=bonsaikg4::U_PASS; r.p2=0; r.p3=1;
-    r.guards[0]=G(bonsaikg4::F_OWN_TILE_HAS_ANIMAL,bonsaikg4::C_EQ,ARG_BOUND_TILE,0,1);
-    r.guards[1]=G(bonsaikg4::F_OWN_TILE_ITEM,bonsaikg4::C_EQ,ARG_BOUND_TILE,0,10);
-    r.guards[2]=G(bonsaikg4::F_OWN_TILE_CONSECUTIVE_UNFED,bonsaikg4::C_EQ,ARG_BOUND_TILE,0,0);
-    r.guards[3]=G(bonsaikg4::F_OWN_TILE_PENDING_CARE_BONUS,bonsaikg4::C_EQ,ARG_BOUND_TILE,0,0);
+    r.guards[0]=G(bonsaikg4::F_OWN_TILE_ITEM,bonsaikg4::C_EQ,ARG_BOUND_TILE,0,10);
+    r.guards[1]=G(bonsaikg4::F_OWN_TILE_CONSECUTIVE_UNFED,bonsaikg4::C_EQ,ARG_BOUND_TILE,0,0);
+    r.guards[2]=G(bonsaikg4::F_OWN_TILE_PENDING_CARE_BONUS,bonsaikg4::C_EQ,ARG_BOUND_TILE,0,0);
+    r.guards[3]=G(bonsaikg4::F_OWN_TILE_HAS_ANIMAL,bonsaikg4::C_EQ,ARG_BOUND_TILE,0,1);
     return c;
 }
 
@@ -65,6 +65,18 @@ int main() {
         bad.rules[0].domain=DOMAIN_GLOBAL;bad.rules[0].control=CONTROL_INSTANT;bad.rules[0].action=ACTION_ROUTE_OVERRIDE;
         bad.rules[0].effect=1;bad.rules[0].p0=70;bad.rules[0].n_guard=1;
         bad.rules[0].guards[0]=G(bonsaikg4::F_OWN_INVENTORY,bonsaikg4::C_GE,ARG_CONST,0,1);
+        assert(!valid_candidate(bad));
+        bad=feed_candidate();bad.rules[0].guards[0].arg=7;assert(!valid_candidate(bad));
+        bad=Candidate{};std::memcpy(bad.header.magic,"B4IM",4);bad.header.version=1;bad.header.n_rules=1;
+        bad.rules[0].domain=DOMAIN_GLOBAL;bad.rules[0].control=CONTROL_INSTANT;bad.rules[0].action=ACTION_ROUTE_OVERRIDE;
+        bad.rules[0].effect=1;bad.rules[0].p0=70;bad.rules[0].n_guard=1;
+        bad.rules[0].guards[0]=G(bonsaikg4::F_OWN_WORKER_X,bonsaikg4::C_EQ,ARG_CONST,1,4);
+        assert(!valid_candidate(bad));
+        bad=Candidate{};std::memcpy(bad.header.magic,"B4IM",4);bad.header.version=1;bad.header.n_rules=1;
+        bad.rules[0].domain=DOMAIN_GLOBAL;bad.rules[0].control=CONTROL_INSTANT;bad.rules[0].action=ACTION_ROUTE_OVERRIDE;
+        bad.rules[0].effect=1;bad.rules[0].p0=70;bad.rules[0].n_guard=2;
+        bad.rules[0].guards[0]=G(bonsaikg4::F_OWN_MONEY,bonsaikg4::C_GE,ARG_CONST,0,500);
+        bad.rules[0].guards[1]=G(bonsaikg4::F_DAY,bonsaikg4::C_GE,ARG_CONST,0,1);
         assert(!valid_candidate(bad));
     }
     {

@@ -74,6 +74,22 @@ class InvariantEditFormerDataTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "padded"):
             module_from_invariant_arrays(cat, encoded["b4im_num"], encoded["b4im_mask"])
 
+    def test_model_arrays_collapse_reversed_guard_order(self):
+        first = InvariantStrategicModule((InvariantRule(
+            ModuleSketch("route", "INSTANT", "ROUTE_MODE"), "GLOBAL",
+            LiftedGuard((GuardAtom("DAY", "GE", 1), GuardAtom("OWN_MONEY", "GE", 500))),
+            AbstractAction("ROUTE_OVERRIDE", route_id=70),
+        ),))
+        reversed_ = InvariantStrategicModule((InvariantRule(
+            ModuleSketch("route", "INSTANT", "ROUTE_MODE"), "GLOBAL",
+            LiftedGuard((GuardAtom("OWN_MONEY", "GE", 500), GuardAtom("DAY", "GE", 1))),
+            AbstractAction("ROUTE_OVERRIDE", route_id=70),
+        ),))
+        a = invariant_module_arrays(first)
+        b = invariant_module_arrays(reversed_)
+        for key in ("b4im_cat", "b4im_num", "b4im_mask"):
+            self.assertTrue(np.array_equal(a[key], b[key]))
+
     def test_corpus_adapter_batches_and_keeps_skeletons_split_disjoint(self):
         modules = []
         goals = default_search_goals((29, 64, 70, 211))

@@ -102,6 +102,22 @@ class InvariantSchemaTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "forbidden|noncanonical"):
             module_from_model_input(model_input)
 
+    def test_stale_noncanonical_guard_order_fails_closed_on_resume(self):
+        module = InvariantStrategicModule((InvariantRule(
+            ModuleSketch("route", "INSTANT", "ROUTE_MODE"), "GLOBAL",
+            LiftedGuard((GuardAtom("DAY", "GE", 1), GuardAtom("OWN_MONEY", "GE", 500))),
+            AbstractAction("ROUTE_OVERRIDE", route_id=70),
+        ),))
+        model_input = invariant_model_input(module)
+        stale_ast = module.canonical()
+        stale_ast["rules"][0]["guard"]["atoms"].reverse()
+        from tools.bkg4_search.invariant_schema import _encode
+        stale_tokens = []
+        _encode(stale_ast, stale_tokens)
+        model_input["tokens"] = stale_tokens
+        with self.assertRaisesRegex(ValueError, "noncanonical"):
+            module_from_model_input(model_input)
+
     def test_corpus_record_rejects_unknown_top_level_fields(self):
         record = make_corpus_record(
             representative_module(), labels={},

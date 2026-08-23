@@ -22,6 +22,19 @@ SPECIALIST_TIERS = (
     "INERT",
 )
 
+SPECIALIST_QD_DIMENSIONS = (
+    "mechanism_effect",
+    "lifted_domain",
+    "control_pattern",
+    "action_family",
+    "guard_family",
+    "target_cohort",
+    "activation_topology",
+    "support_breadth",
+    "risk_profile",
+    "structural_complexity",
+)
+
 
 @dataclass(frozen=True)
 class SpecialistTierThresholds:
@@ -66,20 +79,82 @@ class CompositionMetadata:
     action_domains: tuple[str, ...]
     authorities: tuple[int, ...]
     feature_dependencies: tuple[str, ...]
-    activation_guards: tuple[tuple[tuple[str, str, int], ...], ...]
+    activation_guards: tuple[tuple[tuple[str, str, int, int], ...], ...]
+    exit_guards: tuple[tuple[tuple[str, str, int, int], ...], ...]
     target_mechanisms: tuple[str, ...]
     side_effects: tuple[str, ...]
+    action_signatures: tuple[tuple[Any, ...], ...]
+    rule_bb_reads: tuple[tuple[str, ...], ...]
+    rule_bb_writes: tuple[tuple[str, ...], ...]
+
+    def compatibility_issues(self, other: "CompositionMetadata") -> tuple[str, ...]:
+        issues: set[str] = set()
+        for left_index, left_action in enumerate(self.action_signatures):
+            left_guard = self.activation_guards[left_index]
+            for right_index, right_action in enumerate(other.action_signatures):
+                right_guard = other.activation_guards[right_index]
+                if not _guards_may_overlap(left_guard, right_guard):
+                    continue
+                left_reads = set(self.rule_bb_reads[left_index])
+                left_writes = set(self.rule_bb_writes[left_index])
+                right_reads = set(other.rule_bb_reads[right_index])
+                right_writes = set(other.rule_bb_writes[right_index])
+                if left_writes & (right_reads | right_writes) or right_writes & left_reads:
+                    issues.add("blackboard_read_write_hazard")
+                left_domain = str(left_action[0]); right_domain = str(right_action[0])
+                if left_domain == right_domain == "route":
+                    issues.add("route_controller_conflict")
+                elif left_domain == right_domain == "unit":
+                    _, left_match, left_op, left_arg, left_qty = left_action
+                    _, right_match, right_op, right_arg, right_qty = right_action
+                    if (
+                        (left_match == right_match and (left_op, left_arg, left_qty) != (right_op, right_arg, right_qty))
+                        or left_op == right_match or right_op == left_match
+                    ):
+                        issues.add("unit_rewrite_conflict")
+                elif left_domain == right_domain == "market":
+                    _, left_op, left_item, left_qty, left_auth, left_priority = left_action
+                    _, right_op, right_item, right_qty, right_auth, right_priority = right_action
+                    same_target = (left_op, left_item) == (right_op, right_item)
+                    same_effect = (left_qty, left_auth, left_priority) == (right_qty, right_auth, right_priority)
+                    if same_target and not same_effect:
+                        issues.add("market_intent_conflict")
+        return tuple(sorted(issues))
 
     def compatible_with(self, other: "CompositionMetadata") -> bool:
-        if set(self.bb_writes) & (set(other.bb_reads) | set(other.bb_writes)):
+        return not self.compatibility_issues(other)
+
+
+def _guards_may_overlap(
+    first: Sequence[tuple[str, str, int, int]],
+    second: Sequence[tuple[str, str, int, int]],
+) -> bool:
+    """Conservatively prove whether two integer conjunctions can be active together."""
+    bounds: dict[tuple[str, int], list[Any]] = {}
+    for feature, cmp, arg, value in (*first, *second):
+        key = (str(feature), int(arg))
+        low, high, excluded = bounds.setdefault(key, [None, None, set()])
+        value = int(value)
+        if cmp == "EQ":
+            low = value if low is None else max(low, value)
+            high = value if high is None else min(high, value)
+        elif cmp == "NE":
+            excluded.add(value)
+        elif cmp == "GE":
+            low = value if low is None else max(low, value)
+        elif cmp == "GT":
+            low = value + 1 if low is None else max(low, value + 1)
+        elif cmp == "LE":
+            high = value if high is None else min(high, value)
+        elif cmp == "LT":
+            high = value - 1 if high is None else min(high, value - 1)
+        bounds[key] = [low, high, excluded]
+    for low, high, excluded in bounds.values():
+        if low is not None and high is not None and low > high:
             return False
-        if set(other.bb_writes) & set(self.bb_reads):
+        if low is not None and high is not None and low == high and low in excluded:
             return False
-        exclusive = {"route", "market"}
-        return not any(
-            domain in exclusive and domain in other.action_domains
-            for domain in self.action_domains
-        )
+    return True
 
 
 @dataclass(frozen=True)
@@ -102,6 +177,7 @@ class SpecialistEvidence:
     structural_complexity: int
     structural_skeleton: tuple[Any, ...]
     composition: CompositionMetadata
+    guard_families: tuple[str, ...]
 
     def niche_key(self) -> tuple[Any, ...]:
         rules = self.module.rules
@@ -110,6 +186,7 @@ class SpecialistEvidence:
             tuple(rule.domain for rule in rules),
             tuple(rule.sketch.control_pattern for rule in rules),
             tuple(rule.action.kind for rule in rules),
+            self.guard_families,
             self.target_cohorts,
             self.activation_topology,
             self.support_breadth,
@@ -232,6 +309,10 @@ def analyze_specialist(
         structural_complexity=complexity,
         structural_skeleton=structural_skeleton(module),
         composition=composition_metadata(module),
+        guard_families=tuple(sorted({
+            _guard_family(atom.feature)
+            for rule in module.rules for atom in (*rule.guard.atoms, *rule.exit_guard.atoms)
+        })),
     )
 
 
@@ -318,40 +399,59 @@ def diversity_report(
 
 
 def composition_metadata(module: InvariantStrategicModule) -> CompositionMetadata:
-    module.validate()
+    module = module.canonicalized()
     reads: set[str] = set()
     writes: set[str] = set()
     domains: set[str] = set()
     authorities: set[int] = set()
     features: set[str] = set()
     guards = []
+    exits = []
     effects: set[str] = set()
     side_effects: set[str] = set()
-    for index, rule in enumerate(module.rules):
-        atoms = (*rule.guard.atoms, *rule.exit_guard.atoms)
-        features.update(atom.feature for atom in atoms)
-        guards.append(tuple((atom.feature, atom.cmp, int(atom.arg)) for atom in atoms))
+    action_signatures = []
+    rule_reads = []
+    rule_writes = []
+    for rule in module.rules:
+        entry = tuple((atom.feature, atom.cmp, int(atom.arg), int(atom.value)) for atom in rule.guard.atoms)
+        exit_ = tuple((atom.feature, atom.cmp, int(atom.arg), int(atom.value)) for atom in rule.exit_guard.atoms)
+        features.update(atom.feature for atom in (*rule.guard.atoms, *rule.exit_guard.atoms))
+        guards.append(entry); exits.append(exit_)
         effects.add(rule.sketch.effect_class)
         kind = rule.action.kind
+        local_reads: set[str] = set()
+        local_writes: set[str] = set()
         if kind in {"ROUTE_OVERRIDE", "COMMITTED_ROUTE"}:
             domains.add("route")
+            local_writes.add("strategic_route")
             side_effects.add("route_selection")
-        if kind == "COMMITTED_ROUTE":
-            slot = f"invariant_mode_r{index}"
-            reads.add(slot); writes.add(slot)
-            side_effects.add("persistent_mode")
+            action_signatures.append(("route", kind, int(rule.action.route_id)))
+            if kind == "COMMITTED_ROUTE":
+                side_effects.add("persistent_mode")
         elif kind == "UNIT_REWRITE":
             domains.add("unit")
-            writes.add(f"invariant_rewrite_r{index}")
             side_effects.add("unit_action_replacement")
+            action_signatures.append((
+                "unit", int(rule.action.match_op), int(rule.action.unit_op),
+                int(rule.action.unit_arg), int(rule.action.quantity),
+            ))
         elif kind == "MARKET_INTENT":
             domains.add("market")
             authorities.add(int(rule.action.authority))
             side_effects.add("market_order_prepend")
+            action_signatures.append((
+                "market", int(rule.action.market_op), int(rule.action.item), int(rule.action.quantity),
+                int(rule.action.authority), int(rule.action.priority),
+            ))
+        else:
+            action_signatures.append(("noop", kind))
+        reads.update(local_reads); writes.update(local_writes)
+        rule_reads.append(tuple(sorted(local_reads))); rule_writes.append(tuple(sorted(local_writes)))
     return CompositionMetadata(
         tuple(sorted(reads)), tuple(sorted(writes)), tuple(sorted(domains)),
-        tuple(sorted(authorities)), tuple(sorted(features)), tuple(guards),
-        tuple(sorted(effects)), tuple(sorted(side_effects)),
+        tuple(sorted(authorities)), tuple(sorted(features)), tuple(guards), tuple(exits),
+        tuple(sorted(effects)), tuple(sorted(side_effects)), tuple(action_signatures),
+        tuple(rule_reads), tuple(rule_writes),
     )
 
 
@@ -403,7 +503,8 @@ def select_screen_quota(
             if len(selected) >= limit:
                 return
 
-    select_representatives(lambda row: tuple(rule.action.kind for rule in row.module.rules))
+    if len(selected) < limit:
+        select_representatives(lambda row: tuple(rule.action.kind for rule in row.module.rules))
     if len(selected) < limit:
         select_representatives(lambda row: tuple(rule.sketch.effect_class for rule in row.module.rules))
     if len(selected) < limit:
@@ -425,12 +526,34 @@ class SpecialistLineage:
     depth: int
     source_margin_delta: float
     lineage_id: str
+    source_goal_id: str | None
+    structural_mechanisms: tuple[str, ...]
+    retrospective_goal_id: str | None
+
+    @staticmethod
+    def _mechanisms(module: InvariantStrategicModule) -> tuple[str, ...]:
+        return tuple(sorted({
+            f"{rule.sketch.effect_class}:{rule.action.kind}" for rule in module.rules
+        }))
 
     @classmethod
-    def root(cls, module: InvariantStrategicModule, *, parent_controller: str) -> "SpecialistLineage":
+    def root(
+        cls,
+        module: InvariantStrategicModule,
+        *,
+        parent_controller: str,
+        operator: str = "root",
+        source_goal_id: str | None = None,
+        structural_mechanisms: Sequence[str] | None = None,
+        retrospective_goal_id: str | None = None,
+    ) -> "SpecialistLineage":
         module.validate()
         lineage_id = hashlib.sha256(f"{parent_controller}\0{module.semantic_id()}".encode()).hexdigest()
-        return cls(module, str(parent_controller), None, "root", 0, 0.0, lineage_id)
+        mechanisms = tuple(structural_mechanisms) if structural_mechanisms is not None else cls._mechanisms(module)
+        return cls(
+            module, str(parent_controller), None, str(operator), 0, 0.0, lineage_id,
+            source_goal_id, mechanisms, retrospective_goal_id,
+        )
 
     def child(
         self,
@@ -438,14 +561,21 @@ class SpecialistLineage:
         *,
         operator: str,
         source_margin_delta: float,
+        source_goal_id: str | None = None,
+        structural_mechanisms: Sequence[str] | None = None,
+        retrospective_goal_id: str | None = None,
     ) -> "SpecialistLineage":
         module.validate()
         lineage_id = hashlib.sha256(
             f"{self.lineage_id}\0{operator}\0{module.semantic_id()}".encode()
         ).hexdigest()
+        mechanisms = tuple(structural_mechanisms) if structural_mechanisms is not None else self._mechanisms(module)
         return SpecialistLineage(
             module, self.root_controller, self.module.semantic_id(), str(operator),
             self.depth + 1, float(source_margin_delta), lineage_id,
+            self.source_goal_id if source_goal_id is None else source_goal_id,
+            mechanisms,
+            self.retrospective_goal_id if retrospective_goal_id is None else retrospective_goal_id,
         )
 
 

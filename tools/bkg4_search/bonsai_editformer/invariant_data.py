@@ -65,7 +65,7 @@ class InvariantArraySplit:
 
 def invariant_module_arrays(module: InvariantStrategicModule) -> dict[str, np.ndarray]:
     """Encode a canonical B4IM AST into fixed-shape, model-ready integer arrays."""
-    module.validate()
+    module = module.canonicalized()
     cat = np.zeros((B4IM_TOKEN_CAP, B4IM_CAT_COLS), dtype=np.int16)
     num = np.zeros((B4IM_TOKEN_CAP, B4IM_NUM_COLS), dtype=np.int32)
     mask = np.zeros(B4IM_TOKEN_CAP, dtype=bool)

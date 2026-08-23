@@ -14,6 +14,7 @@ from tools.bkg4_search.invariant_module import (
     pack_candidate,
     unpack_candidate,
 )
+from tools.bkg4_search.invariant_search import structural_skeleton
 
 
 class InvariantModuleTests(unittest.TestCase):
@@ -37,6 +38,85 @@ class InvariantModuleTests(unittest.TestCase):
         b = InvariantStrategicModule.from_dict(a.canonical())
         self.assertEqual(a.semantic_id(), b.semantic_id())
         self.assertEqual(a.canonical(), b.canonical())
+
+    def test_guard_conjunction_order_collapses_to_one_canonical_program(self):
+        def route(atoms):
+            return InvariantStrategicModule((InvariantRule(
+                ModuleSketch("route", "INSTANT", "ROUTE_MODE"), "GLOBAL",
+                LiftedGuard(tuple(atoms)), AbstractAction("ROUTE_OVERRIDE", route_id=70),
+            ),))
+
+        first = route((GuardAtom("DAY", "GE", 1), GuardAtom("OWN_MONEY", "GE", 500)))
+        reversed_ = route((GuardAtom("OWN_MONEY", "GE", 500), GuardAtom("DAY", "GE", 1)))
+        self.assertEqual(first.canonical(), reversed_.canonical())
+        self.assertEqual(pack_candidate(first), pack_candidate(reversed_))
+        self.assertEqual(first.semantic_id(), reversed_.semantic_id())
+        self.assertEqual(structural_skeleton(first), structural_skeleton(reversed_))
+
+    def test_canonicalization_is_idempotent(self):
+        module = InvariantStrategicModule((InvariantRule(
+            ModuleSketch("route", "INSTANT", "ROUTE_MODE"), "GLOBAL",
+            LiftedGuard((GuardAtom("OWN_MONEY", "GE", 500), GuardAtom("DAY", "GE", 1))),
+            AbstractAction("ROUTE_OVERRIDE", route_id=70),
+        ),))
+        once = module.canonicalized()
+        twice = once.canonicalized()
+        self.assertEqual(once, twice)
+        self.assertEqual(once.canonical(), module.canonical())
+
+    def test_duplicate_atoms_still_fail_under_canonicalization(self):
+        atom = GuardAtom("DAY", "GE", 1)
+        module = InvariantStrategicModule((InvariantRule(
+            ModuleSketch("route", "INSTANT", "ROUTE_MODE"), "GLOBAL",
+            LiftedGuard((atom, atom)), AbstractAction("ROUTE_OVERRIDE", route_id=70),
+        ),))
+        with self.assertRaisesRegex(ValueError, "duplicate guard atom"):
+            module.canonicalized()
+
+    def test_lifted_bound_unit_rejects_ignored_concrete_arg_alias(self):
+        module = InvariantStrategicModule((InvariantRule(
+            ModuleSketch("maintenance", "INSTANT", "REDUCE_MAINTENANCE_BACKLOG"),
+            "EACH_OWN_UNIT", LiftedGuard((GuardAtom("OWN_WORKER_X", "EQ", 4, arg=17),)),
+            AbstractAction("UNIT_REWRITE", match_op=15, unit_op=0),
+        ),))
+        with self.assertRaisesRegex(ValueError, "bound unit.*arg|noncanonical"):
+            module.validate()
+
+    def test_ordinary_validation_rejects_concrete_worker_and_tile_identity(self):
+        fixtures = (
+            GuardAtom("OWN_WORKER_X", "EQ", 4, arg=17),
+            GuardAtom("OWN_WORKER_TILE", "EQ", 44, arg=3),
+            GuardAtom("OWN_TILE_KIND", "EQ", 1, arg=17),
+        )
+        for atom in fixtures:
+            with self.subTest(atom=atom):
+                module = InvariantStrategicModule((InvariantRule(
+                    ModuleSketch("route", "INSTANT", "ROUTE_MODE"), "GLOBAL",
+                    LiftedGuard((atom,)), AbstractAction("ROUTE_OVERRIDE", route_id=70),
+                ),))
+                with self.assertRaisesRegex(ValueError, "identity"):
+                    module.validate()
+
+    def test_ordinary_identity_guard_hardening_preserves_legal_args(self):
+        legal = (
+            InvariantStrategicModule((InvariantRule(
+                ModuleSketch("market", "INSTANT", "CREATE_FINANCING_RUNWAY"), "GLOBAL",
+                LiftedGuard((GuardAtom("MARKET_PRICE", "GE", 10, arg=6), GuardAtom("OWN_SHED", "GE", 1, arg=6))),
+                AbstractAction("MARKET_INTENT", market_op=6, item=6, quantity=1, authority=5, priority=200),
+            ),)),
+            InvariantStrategicModule((InvariantRule(
+                ModuleSketch("maintenance", "INSTANT", "REDUCE_MAINTENANCE_BACKLOG"), "EACH_OWN_UNIT",
+                LiftedGuard((GuardAtom("OWN_WORKER_X", "GE", 4, arg=0),)),
+                AbstractAction("UNIT_REWRITE", match_op=15, unit_op=0),
+            ),)),
+            InvariantStrategicModule((InvariantRule(
+                ModuleSketch("recovery", "INSTANT", "RECOVER_RESOURCE_INVARIANT"), "EACH_OWN_UNIT",
+                LiftedGuard((GuardAtom("OWN_INVENTORY", "GE", 1, arg=0),)),
+                AbstractAction("UNIT_REWRITE", match_op=17, unit_op=15),
+            ),)),
+        )
+        for module in legal:
+            module.validate()
 
     def test_b4im1_is_fixed_256_byte_roundtrip(self):
         module = self.feed_deferral()

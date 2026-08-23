@@ -214,14 +214,50 @@ class InvariantSearchTests(unittest.TestCase):
         b = InvariantStrategicModule((rule("ACCELERATE_EXPANSION", AbstractAction("ROUTE_OVERRIDE", route_id=64)),))
         self.assertIsNone(recombine_compatible(a, b))
 
-    def test_recombination_rejects_two_competing_market_controllers(self):
+    def test_recombination_accepts_authority_priority_compatible_market_pair(self):
         a = InvariantStrategicModule((rule(
-            "CREATE_FINANCING_RUNWAY", AbstractAction("MARKET_INTENT", market_op=6, item=4, quantity=1),
+            "CREATE_FINANCING_RUNWAY", AbstractAction("MARKET_INTENT", market_op=6, item=4, quantity=1, authority=5, priority=220),
         ),))
         b = InvariantStrategicModule((rule(
-            "CREATE_FINANCING_RUNWAY", AbstractAction("MARKET_INTENT", market_op=6, item=5, quantity=1),
+            "CREATE_FINANCING_RUNWAY", AbstractAction("MARKET_INTENT", market_op=6, item=5, quantity=1, authority=5, priority=200),
         ),))
-        self.assertIsNone(recombine_compatible(a, b))
+        child = recombine_compatible(a, b)
+        self.assertIsNotNone(child)
+        self.assertEqual(len(child.rules), 2)
+
+    def test_recombination_rejects_overlapping_conflicting_unit_rewrites(self):
+        def rewrite(unit_op):
+            return InvariantStrategicModule((InvariantRule(
+                ModuleSketch("recovery", "INSTANT", "RECOVER_RESOURCE_INVARIANT"), "EACH_OWN_UNIT",
+                LiftedGuard((GuardAtom("OWN_TILE_HAS_ANIMAL", "EQ", 1),)),
+                AbstractAction("UNIT_REWRITE", match_op=0, unit_op=unit_op),
+            ),))
+        self.assertIsNone(recombine_compatible(rewrite(15), rewrite(17)))
+
+    def test_recombination_accepts_overlapping_nonconflicting_domains(self):
+        route_module = InvariantStrategicModule((rule(
+            "ROUTE_MODE", AbstractAction("ROUTE_OVERRIDE", route_id=29), feature="OWN_MONEY",
+        ),))
+        market_module = InvariantStrategicModule((rule(
+            "CREATE_FINANCING_RUNWAY", AbstractAction("MARKET_INTENT", market_op=6, item=5, quantity=1, authority=5, priority=200),
+            feature="OWN_MONEY",
+        ),))
+        child = recombine_compatible(route_module, market_module)
+        self.assertIsNotNone(child)
+        self.assertEqual(len(child.rules), 2)
+
+    def test_recombination_rejects_rule_count_overflow(self):
+        first = InvariantStrategicModule((
+            rule("ROUTE_MODE", AbstractAction("ROUTE_OVERRIDE", route_id=29)),
+            rule("CREATE_FINANCING_RUNWAY", AbstractAction("MARKET_INTENT", market_op=6, item=4, quantity=1, authority=5, priority=220)),
+        ))
+        second = InvariantStrategicModule((
+            rule("ACCELERATE_EXPANSION", AbstractAction("MARKET_INTENT", market_op=1, quantity=1, authority=3, priority=180)),
+            InvariantRule(ModuleSketch("recovery", "INSTANT", "RECOVER_RESOURCE_INVARIANT"), "EACH_OWN_UNIT",
+                LiftedGuard((GuardAtom("OWN_TILE_CONSECUTIVE_UNFED", "GE", 1),)),
+                AbstractAction("UNIT_REWRITE", match_op=0, unit_op=15)),
+        ))
+        self.assertIsNone(recombine_compatible(first, second))
 
     def test_large_neighborhood_changes_subprogram_not_identity(self):
         goals = default_search_goals((29, 64, 70))
@@ -284,6 +320,41 @@ class InvariantSearchTests(unittest.TestCase):
         self.assertEqual(len(proposed), 1)
         self.assertNotEqual(proposed[0].semantic_id(), original.semantic_id())
         self.assertIn("OWN_MONEY", {x.feature for x in proposed[0].rules[0].guard.atoms})
+
+    def test_public_boundary_cegis_repair_suppresses_weaker_fallback_repairs(self):
+        class BoundaryEvaluator:
+            def evaluate(self, modules, panel, *, work_dir, panel_id):
+                case_ids = tuple(x.case_id for x in panel)
+                out = {}
+                for index, module in enumerate(modules):
+                    baseline = index == 0
+                    margins = (100, 100, 100) if baseline else (110, 120, -10)
+                    out[module.semantic_id()] = StateEvaluation(
+                        module.semantic_id(), panel_id, case_ids, margins,
+                        tuple(0 if baseline else 1 for _ in case_ids),
+                        tuple(0 if baseline else 1 for _ in case_ids),
+                        tuple(index + 1 for _ in case_ids),
+                    )
+                return out
+
+        panel = (
+            context_case("a", "tape-a", own_money=100),
+            context_case("b", "tape-b", own_money=90),
+            context_case("c", "tape-c", own_money=10),
+        )
+        backend = InvariantSearchBackend(route_ids=(29, 70), evaluator=BoundaryEvaluator())
+        backend.ladder.level = backend.ladder.LEVELS.index("grouped_cegis")
+        original = InvariantStrategicModule((rule(
+            "CREATE_FINANCING_RUNWAY",
+            AbstractAction("MARKET_INTENT", market_op=6, item=6),
+            feature="OWN_SHED",
+        ),))
+        backend.evaluate_batch((original,), panel, work_dir="unused", panel_id="boundary")
+        repairs = backend.consume_cegis_repairs()
+        self.assertEqual(len(repairs), 1)
+        parent_sid, repaired = repairs[0]
+        self.assertEqual(parent_sid, original.semantic_id())
+        self.assertIn("OWN_MONEY", {atom.feature for atom in repaired.rules[0].guard.atoms})
 
     def test_grouped_cegis_repair_is_idempotent_when_default_guard_already_exists(self):
         panel = (

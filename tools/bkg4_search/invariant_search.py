@@ -70,6 +70,14 @@ class SearchGoal:
 
 
 @dataclass(frozen=True)
+class ProposalOrigin:
+    operator: str
+    source_goal_id: str | None
+    structural_mechanisms: tuple[str, ...]
+    retrospective_goal_id: str | None
+
+
+@dataclass(frozen=True)
 class SemanticDescriptor:
     effects: tuple[str, ...]
     domains: tuple[str, ...]
@@ -288,6 +296,8 @@ def semantic_descriptor(module: InvariantStrategicModule, *, activation_topology
 
 def structural_skeleton(module: InvariantStrategicModule) -> tuple[Any, ...]:
     """Constant-free program shape used to measure real mechanism coverage."""
+    module = module.canonicalized()
+
     def action_shape(action: AbstractAction) -> tuple[Any, ...]:
         if action.kind in {"ROUTE_OVERRIDE", "COMMITTED_ROUTE"}:
             return (action.kind, "parent_route")
@@ -790,15 +800,12 @@ def mechanism_anchors(route_ids: Sequence[int]) -> tuple[InvariantStrategicModul
 
 
 def recombine_compatible(a: InvariantStrategicModule, b: InvariantStrategicModule) -> InvariantStrategicModule | None:
-    """Combine compatible semantic subtrees; competing route controllers are never stacked blindly."""
-    exclusive_domains = (
-        {"ROUTE_OVERRIDE", "COMMITTED_ROUTE"},
-        {"MARKET_INTENT"},
-        {"UNIT_REWRITE"},
-    )
-    for kinds in exclusive_domains:
-        if any(r.action.kind in kinds for r in a.rules) and any(r.action.kind in kinds for r in b.rules):
-            return None
+    """Combine only modules whose computed composition metadata proves no direct conflict."""
+    from tools.bkg4_search.invariant_specialists import composition_metadata
+
+    a.validate(); b.validate()
+    if not composition_metadata(a).compatible_with(composition_metadata(b)):
+        return None
     rules: list[InvariantRule] = []
     seen: set[str] = set()
     for r in (*a.rules, *b.rules):
@@ -1092,6 +1099,24 @@ def pair_case_rows(baseline: StateEvaluation, candidate: StateEvaluation) -> tup
     return tuple(rows)
 
 
+def pair_relative_case_rows(parent: StateEvaluation, candidate: StateEvaluation) -> tuple[dict[str, Any], ...]:
+    """Pair exact child outcomes against its immediate parent, including trace-level change."""
+    rows = [dict(row) for row in pair_case_rows(parent, candidate)]
+    for index, row in enumerate(rows):
+        parent_trace = int(parent.trace_hashes[index])
+        candidate_trace = int(candidate.trace_hashes[index])
+        row.update({
+            "parent_trace_hash": parent_trace,
+            "candidate_trace_hash": candidate_trace,
+            "behavior_changed_vs_parent": parent_trace != candidate_trace,
+            "parent_action_changes": int(parent.action_changes[index]),
+            "candidate_action_changes": int(candidate.action_changes[index]),
+            "parent_activations": int(parent.activations[index]),
+            "candidate_activations": int(candidate.activations[index]),
+        })
+    return tuple(rows)
+
+
 def guard_evidence_key(atom: GuardAtom) -> str:
     return f"{atom.feature}:{int(atom.arg)}"
 
@@ -1201,10 +1226,11 @@ class InvariantSearchBackend:
         self._threshold_evidence: dict[str, dict[str, dict[str, set[tuple[int, bool, bool]]]]] = {}
         self.last_proposal_profile = {
             name: 0.0 for name in (
-                "goal_construction", "composition", "boundary_solver", "local_neighborhood",
+                "goal_construction", "composition", "boundary_solver", "lns", "local_neighborhood",
                 "recombination", "mcts", "cegis", "canonical_dedupe",
             )
         }
+        self.last_proposal_origins: dict[str, ProposalOrigin] = {}
 
     def _merge_threshold_evidence(
         self,
@@ -1273,8 +1299,24 @@ class InvariantSearchBackend:
         n = max(0, int(n))
         profile = {name: 0.0 for name in self.last_proposal_profile}
         evidence = self.threshold_evidence()
+        origins: dict[str, ProposalOrigin] = {}
+
+        def note(module: InvariantStrategicModule, operator: str, source_goal_id: str | None = None) -> None:
+            sid = module.semantic_id()
+            mechanisms = tuple(sorted({
+                f"{rule.sketch.effect_class}:{rule.action.kind}" for rule in module.rules
+            }))
+            origins.setdefault(sid, ProposalOrigin(str(operator), source_goal_id, mechanisms, None))
+
+        def source_goal(module: InvariantStrategicModule) -> str | None:
+            origin = origins.get(module.semantic_id())
+            if origin is not None and origin.source_goal_id:
+                return origin.source_goal_id
+            goal = self._goal_for_module(module)
+            return goal.goal_id if goal is not None else None
         if n == 0:
             self.last_proposal_profile = profile
+            self.last_proposal_origins = {}
             return ()
         started = time.perf_counter()
         selected_goals = self.goals
@@ -1287,21 +1329,25 @@ class InvariantSearchBackend:
             if not selected_goals:
                 raise ValueError("targeted proposal mode requires at least one goal")
         rows: list[InvariantStrategicModule] = []
-        advanced: list[InvariantStrategicModule] = [] if target_goal_ids is not None else list(mechanism_anchors(self.route_ids))
-        goal_rows: list[tuple[InvariantStrategicModule, ...]] = []
+        advanced: list[InvariantStrategicModule] = []
+        if target_goal_ids is None:
+            for module in mechanism_anchors(self.route_ids):
+                advanced.append(module); note(module, "mechanism_anchor")
+        goal_rows: list[tuple[SearchGoal, tuple[InvariantStrategicModule, ...]]] = []
         for gi, goal in enumerate(selected_goals):
-            goal_rows.append(emit_skeletons(goal, n=n, seed=seed + gi * 65537, route_ids=self.route_ids))
-        for index in range(max((len(x) for x in goal_rows), default=0)):
-            for family in goal_rows:
+            goal_rows.append((goal, emit_skeletons(goal, n=n, seed=seed + gi * 65537, route_ids=self.route_ids)))
+        for index in range(max((len(family) for _, family in goal_rows), default=0)):
+            for goal, family in goal_rows:
                 if index < len(family):
-                    rows.append(family[index])
+                    module = family[index]
+                    rows.append(module); note(module, "goal_emitter", goal.goal_id)
         profile["goal_construction"] += time.perf_counter() - started
         if self.ladder.level >= 1:
             started = time.perf_counter()
-            advanced.extend(self.portable_route_seeds)
-            advanced.extend(compose_structural_modules(
-                rows, budget=max(1, n // 3), seed=seed,
-            ))
+            for module in self.portable_route_seeds:
+                advanced.append(module); note(module, "portable_seed")
+            for module in compose_structural_modules(rows, budget=max(1, n // 3), seed=seed):
+                advanced.append(module); note(module, "structural_composition")
             profile["composition"] += time.perf_counter() - started
         if self.ladder.level >= 2:
             started = time.perf_counter()
@@ -1323,7 +1369,8 @@ class InvariantSearchBackend:
                         child = InvariantStrategicModule(tuple(rules)); child.validate()
                         if child.semantic_id() != m.semantic_id():
                             solved.append(child)
-            advanced.extend(solved)
+            for module in solved:
+                advanced.append(module); note(module, "boundary_solver", source_goal(module))
             profile["boundary_solver"] += time.perf_counter() - started
         specialist_modules = tuple(
             evidence.module for evidence in self.specialist_archive.specialist_elites()
@@ -1331,36 +1378,69 @@ class InvariantSearchBackend:
         elites = tuple(dict.fromkeys((*self.archive.production_modules(), *specialist_modules)))
         if self.ladder.level >= 3 and elites:
             started = time.perf_counter()
+            lns_parents = sorted(elites, key=lambda module: (-len(module.rules), module.semantic_id()))
+            for i, parent in enumerate(lns_parents[:max(1, n // 16)]):
+                goal = self._goal_for_module(parent) or selected_goals[i % len(selected_goals)]
+                child = large_neighborhood(parent, goal, seed=seed + i * 8191, route_ids=self.route_ids)
+                if child.semantic_id() != parent.semantic_id():
+                    advanced.append(child); note(child, "lns", source_goal(parent) or goal.goal_id)
+            profile["lns"] += time.perf_counter() - started
+            started = time.perf_counter()
             for i, parent in enumerate(elites[:max(1, n // 8)]):
-                advanced.extend(local_structural_neighborhood(
+                children = local_structural_neighborhood(
                     parent, route_ids=self.route_ids, budget=max(2, n // max(1, len(elites))), seed=seed + i,
-                ))
+                )
+                for child in children:
+                    advanced.append(child); note(child, "local_neighborhood", source_goal(parent))
             profile["local_neighborhood"] += time.perf_counter() - started
         if self.ladder.level >= 4 and len(elites) >= 2:
             started = time.perf_counter()
-            for i in range(min(len(elites) - 1, max(1, n // 12))):
-                child = recombine_compatible(elites[i], elites[i + 1])
-                if child is not None: advanced.append(child)
+            recombined = 0
+            recombination_limit = max(1, n // 12)
+            pool = elites[:min(len(elites), 32)]
+            for i, first in enumerate(pool):
+                for second in pool[i + 1:]:
+                    child = recombine_compatible(first, second)
+                    if child is None:
+                        continue
+                    advanced.append(child); note(child, "recombination")
+                    recombined += 1
+                    if recombined >= recombination_limit:
+                        break
+                if recombined >= recombination_limit:
+                    break
             profile["recombination"] += time.perf_counter() - started
         if self.ladder.level >= 5:
             started = time.perf_counter()
-            advanced.extend(structural_mcts(elites or (InvariantStrategicModule(),), self.goals, budget=max(1, n // 6), seed=seed, route_ids=self.route_ids))
+            for module in structural_mcts(
+                elites or (InvariantStrategicModule(),), self.goals,
+                budget=max(1, n // 6), seed=seed, route_ids=self.route_ids,
+            ):
+                advanced.append(module); note(module, "mcts")
             profile["mcts"] += time.perf_counter() - started
         if self.ladder.level >= 6 and self._cegis_queue:
             started = time.perf_counter()
-            advanced = list(self._cegis_queue.values()) + advanced
-            self._cegis_queue.clear()
-            self._cegis_parent.clear()
+            queued = list(self._cegis_queue.items())
+            queued_modules = []
+            for sid, module in queued:
+                queued_modules.append(module); note(module, "cegis_repair")
+            advanced = queued_modules + advanced
+            self._cegis_queue.clear(); self._cegis_parent.clear()
             profile["cegis"] += time.perf_counter() - started
         if self.ladder.level >= 7:
             started = time.perf_counter()
             engine_goals = tuple(goal for goal in selected_goals if goal.effect_class == "ENGINE_MECHANIC")
             for gi, goal in enumerate(engine_goals):
-                advanced.extend(emit_skeletons(goal, n=max(1, n // max(1, len(engine_goals))), seed=seed + gi * 7919, route_ids=self.route_ids))
+                for module in emit_skeletons(
+                    goal, n=max(1, n // max(1, len(engine_goals))),
+                    seed=seed + gi * 7919, route_ids=self.route_ids,
+                ):
+                    advanced.append(module); note(module, "engine_goal_emitter", goal.goal_id)
             profile["goal_construction"] += time.perf_counter() - started
         if self.ladder.level >= 8 and specialist_modules:
             started = time.perf_counter()
-            advanced.extend(compose_structural_modules(specialist_modules, budget=max(1, n // 2), seed=seed))
+            for module in compose_structural_modules(specialist_modules, budget=max(1, n // 2), seed=seed):
+                advanced.append(module); note(module, "specialist_composition")
             from tools.bkg4_search.invariant_factory import compose_gated_specialists
             gated = 0
             for index, first in enumerate(specialist_modules):
@@ -1369,7 +1449,7 @@ class InvariantSearchBackend:
                         child = compose_gated_specialists(first, second)
                     except ValueError:
                         continue
-                    advanced.append(child); gated += 1
+                    advanced.append(child); note(child, "specialist_gating"); gated += 1
                     if gated >= max(1, n // 4):
                         break
                 if gated >= max(1, n // 4):
@@ -1378,17 +1458,46 @@ class InvariantSearchBackend:
         if self.ladder.level >= 9 and specialist_modules:
             started = time.perf_counter()
             for i, parent in enumerate(specialist_modules[:max(1, n // 4)]):
-                advanced.extend(local_structural_neighborhood(parent, route_ids=self.route_ids, budget=8, seed=seed + i * 3571))
+                for child in local_structural_neighborhood(
+                    parent, route_ids=self.route_ids, budget=8, seed=seed + i * 3571,
+                ):
+                    advanced.append(child); note(child, "local_neighborhood", source_goal(parent))
             profile["local_neighborhood"] += time.perf_counter() - started
         started = time.perf_counter()
+        # Preserve at least one candidate from every advanced operator that produced a
+        # canonical program instead of allowing early high-volume operators to starve later ones.
+        buckets: dict[str, list[InvariantStrategicModule]] = {}
+        for module in advanced:
+            operator = origins.get(module.semantic_id(), ProposalOrigin("unknown", None, (), None)).operator
+            buckets.setdefault(operator, []).append(module)
+        ordered_advanced: list[InvariantStrategicModule] = []
+        operator_order = tuple(buckets)
+        cursor = 0
+        while operator_order and any(buckets[name] for name in operator_order):
+            name = operator_order[cursor % len(operator_order)]
+            if buckets[name]:
+                ordered_advanced.append(buckets[name].pop(0))
+            cursor += 1
         seen: set[str] = set(); unique: list[InvariantStrategicModule] = []
-        for m in (*advanced, *rows):
+        for m in (*ordered_advanced, *rows):
             sid = m.semantic_id()
-            if sid in seen: continue
+            if sid in seen:
+                continue
             seen.add(sid); unique.append(m)
-            if len(unique) >= n: break
+            if len(unique) >= n:
+                break
+        final_origins: dict[str, ProposalOrigin] = {}
+        for module in unique:
+            sid = module.semantic_id()
+            base = origins.get(sid, ProposalOrigin("unknown", None, (), None))
+            retrospective = self._goal_for_module(module)
+            final_origins[sid] = replace(
+                base,
+                retrospective_goal_id=(retrospective.goal_id if retrospective is not None else None),
+            )
         profile["canonical_dedupe"] += time.perf_counter() - started
         self.last_proposal_profile = profile
+        self.last_proposal_origins = final_origins
         return tuple(unique)
 
     def evaluate_batch(
@@ -1441,6 +1550,7 @@ class InvariantSearchBackend:
             elite_specialists += int(evidence.tier in {"GLOBAL_SAFE", "ELITE_SPECIALIST"})
             strong_specialists += int(evidence.tier == "STRONG_SPECIALIST")
             boundary_specialists += int(evidence.tier == "BOUNDARY_SPECIALIST")
+            boundary_queued = False
             if self.ladder.level >= 6 and evidence.useful_groups >= 2 and evidence.harmed_groups:
                 from tools.bkg4_search.invariant_specialists import specialist_boundary_guards
                 boundary_rows = specialist_boundary_guards(outcomes, panel, limit=4)
@@ -1461,12 +1571,22 @@ class InvariantSearchBackend:
                     repaired = InvariantStrategicModule(tuple(repaired_rules))
                     repaired.validate()
                     self._queue_cegis_repair(m, repaired)
+                    boundary_queued = True
                     break
             if self.ladder.level >= 6 and not qual.production:
+                if boundary_queued:
+                    continue
                 counterexamples = grouped_counterexample_rows(rows, case_to_tape)
                 failure_class = classify_grouped_counterexamples(counterexamples)
                 if derived and any(x.useful for x in outcomes) and any(x.margin_delta < 0 for x in outcomes):
                     failure_class = "unstable_constant"
+                if goal is not None and any(x.useful for x in outcomes) and any(x.margin_delta < 0 for x in outcomes):
+                    structural = large_neighborhood(
+                        m, goal,
+                        seed=int(m.semantic_id()[:8], 16) ^ len(counterexamples),
+                        route_ids=self.route_ids,
+                    )
+                    self._queue_cegis_repair(m, structural)
                 repaired = cegis_repair(
                     m, failure_class, route_ids=self.route_ids, goal=goal,
                     threshold_samples=(self.threshold_evidence().get(goal.goal_id, {}) if goal is not None else {}),
