@@ -218,10 +218,10 @@ class StagnationMonitor:
         unique_rate = s.unique / max(1, s.proposed)
         # Novel research behavior is useful evidence, but it must not reset a search
         # that is making no progress toward feasibility or strategic repair.
-        certified_progress = s.certified_safe_useful > 0 or s.certified_elite > 0 or s.repair_to_feasible > 0 or s.generalization_improved > 0
-        objective_plateau = s.useful_safe <= 0 and s.target_improvements <= 0 and s.repair_insertions <= 0 and not certified_progress
+        search_progress = s.repair_to_feasible > 0
+        objective_plateau = s.useful_safe <= 0 and s.target_improvements <= 0 and s.repair_insertions <= 0 and not search_progress
         search_collapse = unique_rate < 0.35 or float(s.duplicate_rate) >= 0.70 or float(s.underfill_rate) >= 0.50
-        archive_plateau = s.production_insertions <= 0 and s.repair_insertions <= 0 and s.useful_safe <= 0 and not certified_progress
+        archive_plateau = s.production_insertions <= 0 and s.repair_insertions <= 0 and s.useful_safe <= 0 and not search_progress
         return search_collapse or objective_plateau or archive_plateau
 
     def observe(self, signals: GenerationSignals) -> EscalationEvent:
@@ -292,38 +292,19 @@ def archive_quality_map(
     *,
     certification_classes: Mapping[str, CertificationClass | str] | None = None,
 ) -> dict[str, float]:
-    """Lexicographic search-state quality with certification dominating local panel score."""
-    classes: dict[str, CertificationClass] = {}
-    if certification_classes is not None:
-        classes = {str(k): (v if isinstance(v, CertificationClass) else CertificationClass(str(v))) for k, v in certification_classes.items()}
-    else:
-        for pid, raw in archive.certification_evidence.items():
-            program = archive.programs.get(str(pid))
-            if program is None:
-                continue
-            vector = archive.certification_vector(str(pid))
-            if vector is None:
-                continue
-            sid = program.child_semantic_id
-            prior = classes.get(sid)
-            if prior is None or certification_rank(vector.certification_class) < certification_rank(prior):
-                classes[sid] = vector.certification_class
+    """Search-local state quality; held-out certification is deliberately ignored.
+
+    `certification_classes` remains accepted for compatibility with diagnostics, but it
+    is intentionally not consumed. Certification is a label sink: it may describe a
+    candidate after proposal, but must never alter future parents, donors, MCTS quality,
+    emitter allocation, or neighborhood construction.
+    """
+    _ = certification_classes
     production = set(archive.production_parent_state_ids())
     repair = set(archive.repair_parent_state_ids(limit=max(16, len(archive.states))))
     out: dict[str, float] = {}
     for sid, local in local_quality.items():
-        cls = classes.get(str(sid))
-        if cls in {CertificationClass.CERTIFIED_ELITE_FLIP, CertificationClass.CERTIFIED_ELITE_MARGIN}:
-            band = 1000.0 if cls == CertificationClass.CERTIFIED_ELITE_FLIP else 950.0
-        elif cls == CertificationClass.CERTIFIED_SAFE_USEFUL:
-            band = 900.0
-        elif cls == CertificationClass.CERTIFIED_SAFE_INCREMENTAL:
-            band = 800.0
-        elif cls == CertificationClass.GENERALIZATION_HARD_NEGATIVE:
-            band = 50.0
-        elif cls == CertificationClass.GENERALIZATION_BOUNDARY:
-            band = 150.0
-        elif sid in production:
+        if sid in production:
             band = 600.0
         elif sid in repair:
             band = 250.0
@@ -881,10 +862,9 @@ class SearchEngine:
                     unsafe=int(not assessment.root.feasible),
                     new_loss=int(assessment.root.violation.new_losses > 0),
                 )
-                # Production runs defer motif reuse until independent certification. Diagnostic/
-                # legacy rounds without a certification bank may still retain discovery-only motifs
-                # as exploratory evidence; certified motif counters dominate ranking when available.
-                if assessment.high_quality_supervision and (certification_evaluator is None or certification_bank is None):
+                # Motifs are search-local evidence only. Held-out certification must not
+                # change whether a motif exists or how it is ranked in future proposals.
+                if assessment.high_quality_supervision:
                     archive.observe_motif(program, root_pair, certification=None)
             if bool(screen_root_pairs[program.program_id].certified_aggregate()["strict_safe"]):
                 for row in root_pair.case_rows:
@@ -906,9 +886,7 @@ class SearchEngine:
                 if assessment is None:
                     continue
                 root_assessment = assessment.root
-                if root_assessment.feasible and root_assessment.behavior_changing and (
-                    root_assessment.safe_useful or root_assessment.elite
-                ):
+                if root_assessment.feasible and root_assessment.behavior_changing:
                     candidates_for_cert.append(program)
             if candidates_for_cert:
                 batch = certify_programs_exact(
@@ -917,11 +895,8 @@ class SearchEngine:
                     generation=generation, work_dir=Path(work_dir) / "certification", spec=safety_spec,
                 )
                 certification_vectors.update(batch.vectors)
-            for program in candidates_for_cert:
-                archive.observe_motif(
-                    program, full_root_pairs[program.program_id],
-                    certification=certification_vectors.get(program.program_id),
-                )
+            # Certification vectors are labels only; motif search state was already
+            # updated from authoritative discovery truth above.
 
         repair_reports: list[dict[str, object]] = []
         if case_contexts and int(cegis_max_programs) > 0:
@@ -969,7 +944,7 @@ class SearchEngine:
                     terminal_assessment = safety_spec.assess(root_pair)
                     if (
                         certification_evaluator is not None and certification_bank is not None
-                        and terminal_assessment.feasible and terminal_assessment.safe_useful
+                        and terminal_assessment.feasible and terminal_assessment.behavior_changing
                     ):
                         terminal_batch = certify_programs_exact(
                             archive, (terminal_program,), {terminal_program.program_id: root_pair},
@@ -980,26 +955,21 @@ class SearchEngine:
                         )
                         terminal_vector = terminal_batch.vectors[terminal_program.program_id]
                         certification_vectors[terminal_program.program_id] = terminal_vector
-                    archive.observe_motif(terminal_program, root_pair, certification=terminal_vector)
+                    archive.observe_motif(terminal_program, root_pair, certification=None)
 
-        # High-information neighborhoods around independently certified positives.
-        # Certification quality chooses source states, but candidate construction sees
-        # only their public tree/edit structure; every neighbor must re-earn search
-        # feasibility and held-out certification through exact evaluation.
+        # High-information neighborhoods around discovery-safe/useful positives.
+        # Source selection is intentionally independent of held-out certification; each
+        # neighbor is certified only after search-local construction and exact evaluation.
         if certification_evaluator is not None and certification_bank is not None and int(certified_neighborhood_budget) > 0:
             source_rows: list[tuple[tuple[object, ...], EditProgram]] = []
-            for pid, raw in archive.certification_evidence.items():
-                program = archive.programs.get(str(pid))
-                if program is None:
-                    continue
-                vector = archive.certification_vector(str(pid))
-                if vector is None or not vector.certified_positive:
+            for program in full_programs:
+                assessment = assessments.get(program.program_id)
+                if assessment is None or not assessment.high_quality_supervision:
                     continue
                 source_rows.append(((
-                    certification_rank(vector.certification_class),
-                    int(bool(vector.temporal)),
-                    -float(vector.certification_mean_margin_delta),
-                    str(pid),
+                    assessment.root.production_key(program_length=program.program_length),
+                    int(program.generation_depth),
+                    str(program.program_id),
                 ), program))
             source_rows.sort(key=lambda row: row[0])
             chosen_sources = [program for _, program in source_rows[:2]]

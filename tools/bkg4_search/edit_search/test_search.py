@@ -378,13 +378,13 @@ class EditSearchLoopTests(unittest.TestCase):
         contrastive = [x for x in programs if x.emitter == "contrastive"]
         self.assertTrue(contrastive)
         self.assertGreater(engine.last_proposal_stats["emitter_raw"].get("contrastive",0),0)
-    def test_certified_progress_prevents_quality_stagnation(self):
+    def test_certification_labels_never_reset_search_stagnation(self):
         from tools.bkg4_search.edit_search.search import GenerationSignals, StagnationMonitor
         base=dict(proposed=32,unique=32,archive_insertions=0,useful_safe=0,target_improvements=0,novelty_mean=1.0,new_niches=0)
         stalled=GenerationSignals(**base)
-        certified=GenerationSignals(**base,certified_safe_useful=1,certified_elite=1)
+        certified=GenerationSignals(**base,certified_safe_useful=9,certified_elite=9,generalization_improved=9)
         self.assertTrue(StagnationMonitor.is_stalled(stalled))
-        self.assertFalse(StagnationMonitor.is_stalled(certified))
+        self.assertTrue(StagnationMonitor.is_stalled(certified),"held-out certification labels must never alter future search escalation")
 
     def test_certification_quality_map_prefers_certified_state(self):
         from tools.bkg4_search.edit_search.certification import CertificationClass
@@ -395,7 +395,7 @@ class EditSearchLoopTests(unittest.TestCase):
         self.assertGreater(q["b"],q["a"])
         self.assertGreater(q["a"],q["d"])
 
-    def test_archive_quality_map_puts_certified_feasible_above_discovery_and_repair(self):
+    def test_archive_quality_map_ignores_certification_labels_for_search(self):
         from tools.bkg4_search.edit_search.certification import CertificationClass
         from tools.bkg4_search.edit_search.search import archive_quality_map
         p=root(); archive=SearchArchive.new(root_genome=p,base_identity="b",route_ids=ROUTES,run_id="r",master_seed=1)
@@ -403,9 +403,12 @@ class EditSearchLoopTests(unittest.TestCase):
         r=EditProgram.build(p,(EditAction("CHANGE_WINDOW",0,prefix_step=146),),ROUTES,emitter="x",seed=2); rc=r.reconstruct(p,ROUTES); archive.add_program(r,rc)
         archive.production_niches={"p":{"child_semantic_id":dc.semantic_id(),"program_id":d.program_id}}
         archive.repair_niches={"r":{"child_semantic_id":rc.semantic_id(),"program_id":r.program_id,"repair_key":[1]}}
-        q=archive_quality_map(archive,{p.semantic_id():0.0,dc.semantic_id():0.0,rc.semantic_id():0.0},certification_classes={dc.semantic_id():CertificationClass.CERTIFIED_SAFE_USEFUL})
-        self.assertGreater(q[dc.semantic_id()],q[p.semantic_id()])
-        self.assertGreater(q[p.semantic_id()],q[rc.semantic_id()])
+        local={p.semantic_id():0.0,dc.semantic_id():0.0,rc.semantic_id():0.0}
+        q0=archive_quality_map(archive,local)
+        q1=archive_quality_map(archive,local,certification_classes={dc.semantic_id():CertificationClass.CERTIFIED_ELITE_FLIP,rc.semantic_id():CertificationClass.GENERALIZATION_HARD_NEGATIVE})
+        self.assertEqual(q0,q1,"held-out certification evidence must be a label sink, never a search-quality input")
+        self.assertGreater(q0[dc.semantic_id()],q0[rc.semantic_id()])
+        self.assertGreaterEqual(q0[p.semantic_id()],q0[rc.semantic_id()])
 
     def test_stage2_selection_caps_screen_noops_instead_of_padding(self):
         from tools.bkg4_search.edit_search.search import select_stage2_finalists

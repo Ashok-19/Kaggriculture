@@ -109,7 +109,7 @@ class EditSearchMultiFidelityTests(unittest.TestCase):
         self.assertTrue(any(x["child_semantic_id"] == programs[1].child_semantic_id for x in archive.production_niches.values()))
 
 
-    def test_round_expands_new_certified_positive_into_exact_certified_neighborhood(self):
+    def test_round_expands_discovery_positive_neighborhood_without_using_certification_for_source_selection(self):
         from tools.bkg4_search.edit_search.search import SearchEngine
         root = ModuleGenome(0, ())
         archive = SearchArchive.new(root_genome=root, base_identity="base", route_ids=(64,70,22), run_id="r", master_seed=1)
@@ -136,9 +136,14 @@ class EditSearchMultiFidelityTests(unittest.TestCase):
                     margins=[]; actions=[]; activations=[]; traces=[]
                     for i,cid in enumerate(ids):
                         b=baseline[cid]
-                        if not genome.rules: m=b
-                        elif route==64: m=(600 if b < 0 else b)
-                        else: m=b+10
+                        if not genome.rules:
+                            m=b
+                        elif route==64:
+                            m=(600 if b < 0 else b)
+                        elif cid.startswith("c") and route==70 and b > 0:
+                            m=-1  # held-out certification rejects the discovery source
+                        else:
+                            m=b+10
                         margins.append(m); actions.append(0 if not genome.rules else 1); activations.append(0 if not genome.rules else 2); traces.append((100 if not genome.rules else 1000)+i+route)
                     out[genome.semantic_id()]=StateEvaluation(genome.semantic_id(),panel_id,ids,tuple(margins),tuple(actions),tuple(activations),tuple(traces))
                 return out
@@ -152,11 +157,63 @@ class EditSearchMultiFidelityTests(unittest.TestCase):
                 work_dir=Path(td),audit_all=True,certification_evaluator=NeighborhoodOracle(),
                 certification_bank=cert,certified_neighborhood_budget=24,
             )
+        self.assertFalse(result.certification_vectors[source.program_id].certified_positive)
         elite=[pid for pid,v in result.certification_vectors.items() if v.certified_elite]
-        self.assertTrue(elite)
+        self.assertTrue(elite,"discovery-positive source must still seed a local neighborhood even when its held-out certificate fails")
         self.assertTrue(any(archive.programs[pid].emitter=="certified_neighborhood" for pid in elite))
         self.assertTrue(all(pid in result.full_root_pairs and pid in result.full_source_pairs for pid in elite))
         self.assertEqual(result.stage_recall["useful_recall"],1.0)
         self.assertEqual(result.stage_recall["danger_recall"],1.0)
+
+
+    def test_safe_incremental_discovery_state_is_still_independently_certified(self):
+        """Certification eligibility is safety/behavior based, not discovery-reward based."""
+        from tools.bkg4_search.edit_search.search import SearchEngine
+        root = ModuleGenome(0, ())
+        archive = SearchArchive.new(root_genome=root, base_identity="base", route_ids=ROUTES, run_id="r", master_seed=1)
+        program = EditProgram.build(root, (EditAction("CHANGE_WINDOW",0,prefix_step=145),), ROUTES, emitter="contrastive", seed=1)
+        archive.add_program(program, program.reconstruct(root, ROUTES))
+        search = CaseBank([
+            CaseRecord("s0","/tmp/s0",0,1,"loss",protected=False,baseline_margin=-100),
+            CaseRecord("s1","/tmp/s1",1,2,"fragile",protected=True,baseline_margin=1000),
+            CaseRecord("s2","/tmp/s2",0,3,"strong",protected=True,baseline_margin=9000),
+            CaseRecord("s3","/tmp/s3",1,4,"strong",protected=True,baseline_margin=10000),
+        ])
+        cert = CaseBank([
+            CaseRecord("c0","/tmp/c0",0,11,"loss",protected=False,baseline_margin=-100),
+            CaseRecord("c1","/tmp/c1",1,12,"fragile",protected=True,baseline_margin=1000),
+            CaseRecord("c2","/tmp/c2",0,13,"strong",protected=True,baseline_margin=9000),
+            CaseRecord("c3","/tmp/c3",1,14,"strong",protected=True,baseline_margin=10000),
+        ])
+        class Oracle:
+            def evaluate(self, genomes, panel, *, work_dir, panel_id):
+                ids=tuple(x.case_id for x in panel); out={}
+                for genome in genomes:
+                    margins=[]; actions=[]; activations=[]; traces=[]
+                    for i,case in enumerate(panel):
+                        b=case.baseline_margin
+                        if genome.semantic_id()==root.semantic_id():
+                            m=b; changed=0
+                        elif case.case_id.startswith("s"):
+                            m=b + (10 if b < 0 else -100); changed=1
+                        else:
+                            m=100 if b < 0 else b; changed=1
+                        margins.append(m); actions.append(changed); activations.append(changed); traces.append(100+i+(1000 if changed else 0))
+                    out[genome.semantic_id()]=StateEvaluation(genome.semantic_id(),panel_id,ids,tuple(margins),tuple(actions),tuple(activations),tuple(traces))
+                return out
+        manager=CasePanelManager(search,random_anchor_fraction=0.0)
+        with tempfile.TemporaryDirectory() as td:
+            result=SearchEngine(route_ids=ROUTES).evaluate_round(
+                archive,[program],evaluator=Oracle(),panel_manager=manager,
+                screen_size=2,final_size=4,stage2_budget=1,generation=1,seed=7,
+                work_dir=Path(td),audit_all=True,certification_evaluator=Oracle(),certification_bank=cert,
+                certified_neighborhood_budget=0,
+            )
+        search_pair=result.full_root_pairs[program.program_id]
+        self.assertTrue(search_pair.certified_aggregate()["strict_safe"])
+        self.assertTrue(search_pair.certified_aggregate()["behavior_changing"])
+        self.assertLess(search_pair.certified_aggregate()["mean_margin_delta"],0)
+        self.assertIn(program.program_id,result.certification_vectors,"safe incremental discovery states must still be tested on independent certification")
+        self.assertTrue(result.certification_vectors[program.program_id].certified_positive)
 
 if __name__ == "__main__": unittest.main(verbosity=2)

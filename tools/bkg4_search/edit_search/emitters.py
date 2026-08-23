@@ -566,7 +566,7 @@ class MotifEmitter(SearchEmitter):
             return []
         ranked = sorted(
             context.motifs,
-            key=lambda x: (-int(x.get("certified_elite_hits", 0)), -int(x.get("certified_hits", 0)), -int(x.get("safe_useful_hits", 0)), -int(x.get("l2w_total", 0)), str(x.get("motif_id", ""))),
+            key=lambda x: (-int(x.get("safe_useful_hits", 0)), -int(x.get("l2w_total", 0)), -float(x.get("mean_delta_sum", 0.0)), str(x.get("motif_id", ""))),
         )
         out: list[EditProgram] = []
         seen: set[str] = set()

@@ -429,7 +429,7 @@ def evaluate_certified_neighborhood_exact(
         source_pairs[program.program_id] = source_pair
         archive.consider(program, root_pair, source_pair=source_pair)
         assessment = spec.assess(root_pair)
-        if assessment.feasible and assessment.behavior_changing and assessment.safe_useful:
+        if assessment.feasible and assessment.behavior_changing:
             cert_candidates.append(program)
 
     vectors: dict[str, CertificationVector] = {}
@@ -444,8 +444,9 @@ def evaluate_certified_neighborhood_exact(
             panel_parts=panel_parts, spec=spec,
         )
         vectors.update(certified.vectors)
+        # Held-out certification is a label sink; motif reuse remains discovery-driven.
         for program in cert_candidates:
-            archive.observe_motif(program, root_pairs[program.program_id], certification=vectors.get(program.program_id))
+            archive.observe_motif(program, root_pairs[program.program_id], certification=None)
 
     return CertifiedNeighborhoodBatch(programs, vectors, root_pairs, source_pairs)
 
@@ -467,9 +468,10 @@ def certify_program(
 ) -> CertificationVector:
     """Classify discovery quality and independent transfer without collapsing them.
 
-    Individual certified positives require every supplied certification panel to be
-    hard-feasible. Cohort-level gates may tolerate lower retention, but a program that
-    is known unsafe on any certification panel is never promoted as a certified positive.
+    Discovery usefulness is deliberately not a prerequisite for certification: a state
+    may be strict-safe/active but locally negative on the search bank and still express
+    a robust strategic improvement on independent trajectories. Individual certified
+    positives still require every supplied certification panel to be hard-feasible.
     """
     spec = spec or SafetySpec()
     dq = discovery_quality(discovery_pair, spec)

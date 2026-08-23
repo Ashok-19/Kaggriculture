@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
@@ -195,8 +196,15 @@ class CasePanelManager:
         )
         return tuple(ranked[: self.counterexample_memory_limit])
 
+    def active_counterexamples(self, screen_size: int) -> tuple[str, ...]:
+        n = max(0, int(screen_size))
+        if n <= 0:
+            return ()
+        cap = max(1, int(math.floor(n * self.counterexample_screen_fraction)))
+        return self.compressed_counterexamples()[:cap]
+
     def screen_composition(self, panel: Sequence[CaseRecord]) -> dict[str, int]:
-        ce = set(self.compressed_counterexamples())
+        ce = set(self.active_counterexamples(len(panel)))
         return {
             "counterexamples": sum(x.case_id in ce for x in panel),
             "target_losses": sum(x.baseline_margin < 0 for x in panel),
@@ -239,18 +247,21 @@ class CasePanelManager:
         selected: list[CaseRecord] = []
         used: set[str] = set()
         if self.production_mode:
-            # Counterexamples are adversarial memory, not the whole screen. Allocate
-            # minimum target/protected coverage first, then a bounded CE quota.
+            # Counterexamples are adversarial memory, not the whole screen. Reserve
+            # base outcome/protected coverage from non-priority rows first, then add a
+            # globally bounded active-CE quota. Historical hard cases outside that
+            # active quota may still appear as ordinary stratified anchors.
             loss_n = max(2, int(round(n * 0.25))) if n >= 8 else max(1, n // 4)
             fragile_n = max(2, int(round(n * 0.20))) if n >= 8 else max(1, n // 5)
             strong_n = max(2, int(round(n * 0.15))) if n >= 8 else max(1, n // 5)
-            ce_n = min(max(1, int(round(n * self.counterexample_screen_fraction))), max(0, n - loss_n - fragile_n - strong_n))
-            losses = [r for r in self.bank if r.baseline_margin < 0]
-            fragile = [r for r in self.bank if r.protected and 0 < r.baseline_margin <= self.fragile_margin]
-            strong = [r for r in self.bank if r.protected and r.baseline_margin > self.fragile_margin]
+            active_ce = set(self.active_counterexamples(n))
+            ce_n = len(active_ce)
+            losses = [r for r in self.bank if r.baseline_margin < 0 and r.case_id not in active_ce]
+            fragile = [r for r in self.bank if r.protected and 0 < r.baseline_margin <= self.fragile_margin and r.case_id not in active_ce]
+            strong = [r for r in self.bank if r.protected and r.baseline_margin > self.fragile_margin and r.case_id not in active_ce]
             for rows, count, salt in ((losses, loss_n, 0x1055), (fragile, fragile_n, 0xF12A), (strong, strong_n, 0x57A0)):
                 selected.extend(self._pick_balanced(rows, min(count, n-len(selected)), seed=seed ^ salt, used=used))
-            ce_rows = [self.bank.by_id[cid] for cid in self.compressed_counterexamples() if cid in self.bank.by_id]
+            ce_rows = [self.bank.by_id[cid] for cid in self.active_counterexamples(n) if cid in self.bank.by_id]
             selected.extend(self._pick_balanced(ce_rows, min(ce_n, n-len(selected)), seed=seed ^ 0xCE61, used=used))
         else:
             for cid in self.compressed_counterexamples():
