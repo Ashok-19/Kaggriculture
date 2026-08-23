@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import json
 import unittest
 
 from tools.bkg4_search.invariant_module import (
@@ -17,7 +18,10 @@ from tools.bkg4_search.invariant_schema import (
     module_from_model_input,
     validate_corpus_records,
     validate_quality_gated_corpus,
+    validate_specialist_corpus,
 )
+from tools.bkg4_search.invariant_specialists import SpecialistLineage, analyze_specialist
+from tools.bkg4_search.invariant_groups import GroupOutcome
 
 
 def representative_module() -> InvariantStrategicModule:
@@ -142,6 +146,76 @@ class InvariantSchemaTests(unittest.TestCase):
         bad_provenance["provenance"]["exact_evaluator"] = False
         with self.assertRaisesRegex(ValueError, "exact CUDA provenance"):
             validate_quality_gated_corpus((bad_provenance,))
+
+    def test_specialist_corpus_retains_mixed_downside_as_structured_labels(self):
+        module = representative_module()
+        evidence = analyze_specialist(
+            module,
+            (
+                GroupOutcome("help-a", False, False, True, True, 1, 4000),
+                GroupOutcome("help-b", False, False, True, True, 0, 2500),
+                GroupOutcome("harm-c", True, True, True, False, 0, -6000),
+            ),
+            cohort_by_group={"help-a": "regime-a", "help-b": "regime-a", "harm-c": "regime-b"},
+            activation_count=30, action_change_count=12,
+        )
+        lineage = SpecialistLineage.root(module, parent_controller="parent")
+        record = make_corpus_record(
+            module,
+            labels={
+                "exact_data_role": "specialist_discovery",
+                "source_quality": "elite_specialist",
+                "specialist_categories": ["elite_specialist", "high_risk_specialist", "generalization_boundary", "counter_specialist", "margin_specialist"],
+                "specialist_tier": evidence.tier,
+                "activation_count": evidence.activation_count,
+                "action_change_count": evidence.action_change_count,
+                "useful_groups": evidence.useful_groups,
+                "harmed_groups": list(evidence.harmed_groups),
+                "target_cohorts": list(evidence.target_cohorts),
+                "group_outcomes": [row.__dict__ for row in evidence.outcomes],
+                "cohort_outcomes": [row.__dict__ for row in evidence.cohorts],
+                "source_relative_case_outcomes": [{"margin_delta": 1}],
+                "source_relative_mean_delta": 1.0, "source_relative_l2w": 0, "source_relative_w2l": 0,
+                "composition": evidence.composition.__dict__,
+                "composition_relationships": {"compatible": [], "conflicting": ["other"]},
+                "lineage": lineage.__dict__ | {"module": module.canonical()},
+            },
+            provenance={
+                "exact_evaluator": True, "data_role": "specialist_discovery",
+                "parent": "parent", "controller": "parent", "candidate_abi": "B4IM1/v1",
+                "evaluator_abi": "B4IC1/v1", "feature_registry": 1,
+            },
+        )
+        report = validate_specialist_corpus((record,))
+        self.assertEqual(report["elite_specialist"], 1)
+        self.assertEqual(report["mixed_risk_rows"], 1)
+        self.assertEqual(report["category_high_risk_specialist"], 1)
+        self.assertEqual(report["category_generalization_boundary"], 1)
+        encoded = json.dumps(record["model_input"], sort_keys=True)
+        self.assertNotIn("regime-a", encoded)
+        self.assertNotIn("help-a", encoded)
+
+    def test_specialist_corpus_rejects_fake_elite_without_repeat_support(self):
+        module = representative_module()
+        record = make_corpus_record(
+            module,
+            labels={
+                "exact_data_role": "specialist_discovery", "source_quality": "elite_specialist",
+                "specialist_tier": "ELITE_SPECIALIST", "activation_count": 1, "action_change_count": 1,
+                "useful_groups": 1, "harmed_groups": [], "target_cohorts": ["x"],
+                "specialist_categories": ["elite_specialist"],
+                "group_outcomes": [{"group_id": "one", "useful": True}],
+                "cohort_outcomes": [], "source_relative_case_outcomes": [{"margin_delta": 1}],
+                "source_relative_mean_delta": 1.0, "source_relative_l2w": 0, "source_relative_w2l": 0,
+                "composition": {}, "composition_relationships": {"compatible": [], "conflicting": []}, "lineage": {},
+            },
+            provenance={
+                "exact_evaluator": True, "data_role": "specialist_discovery", "parent": "parent", "controller": "parent",
+                "candidate_abi": "B4IM1/v1", "evaluator_abi": "B4IC1/v1", "feature_registry": 1,
+            },
+        )
+        with self.assertRaisesRegex(ValueError, "repeat support"):
+            validate_specialist_corpus((record,))
 
 
 if __name__ == "__main__":

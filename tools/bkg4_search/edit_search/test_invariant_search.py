@@ -214,6 +214,15 @@ class InvariantSearchTests(unittest.TestCase):
         b = InvariantStrategicModule((rule("ACCELERATE_EXPANSION", AbstractAction("ROUTE_OVERRIDE", route_id=64)),))
         self.assertIsNone(recombine_compatible(a, b))
 
+    def test_recombination_rejects_two_competing_market_controllers(self):
+        a = InvariantStrategicModule((rule(
+            "CREATE_FINANCING_RUNWAY", AbstractAction("MARKET_INTENT", market_op=6, item=4, quantity=1),
+        ),))
+        b = InvariantStrategicModule((rule(
+            "CREATE_FINANCING_RUNWAY", AbstractAction("MARKET_INTENT", market_op=6, item=5, quantity=1),
+        ),))
+        self.assertIsNone(recombine_compatible(a, b))
+
     def test_large_neighborhood_changes_subprogram_not_identity(self):
         goals = default_search_goals((29, 64, 70))
         parent = InvariantStrategicModule((rule("ROUTE_MODE", AbstractAction("ROUTE_OVERRIDE", route_id=29)),))

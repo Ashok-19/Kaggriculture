@@ -22,6 +22,13 @@ CORPUS_SOURCE_QUALITIES = frozenset({
     "crossfit_positive", "discovery_boundary", "unsafe_negative",
     "inert_negative", "safe_negative",
 })
+SPECIALIST_SOURCE_QUALITIES = frozenset({
+    "global_safe", "elite_specialist", "strong_specialist", "boundary_specialist",
+    "high_risk_specialist", "hard_negative", "inert", "cegis_repair",
+    "local_neighbor", "structural_ablation", "narrow_specialist", "l2w_specialist",
+    "margin_specialist", "counter_specialist", "generalization_boundary",
+    "incompatible_specialist_pair",
+})
 
 
 def _encode(value: Any, out: list[str]) -> None:
@@ -241,5 +248,82 @@ def validate_quality_gated_corpus(records: Sequence[Mapping[str, Any]]) -> dict[
         **qualities,
         "structural_skeletons": len(all_skeletons),
         "positive_structural_skeletons": len(positive_skeletons),
+        "exact_cuda_labels": True,
+    }
+
+
+def validate_specialist_corpus(records: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    """Validate exact specialist labels without imposing global deployment safety."""
+    from tools.bkg4_search.invariant_search import structural_skeleton
+
+    base = validate_corpus_records(records)
+    if base["duplicate_semantics"]:
+        raise ValueError("specialist corpus contains duplicate semantics")
+    qualities = {name: 0 for name in sorted(SPECIALIST_SOURCE_QUALITIES)}
+    categories = {name: 0 for name in sorted(SPECIALIST_SOURCE_QUALITIES)}
+    skeletons = set()
+    positive_skeletons = set()
+    mixed_risk = 0
+    for index, record in enumerate(records):
+        provenance = record["provenance"]
+        exact = (
+            provenance.get("exact_evaluator") is True
+            and provenance.get("data_role") == "specialist_discovery"
+            and provenance.get("controller")
+            and provenance.get("candidate_abi") == "B4IM1/v1"
+            and provenance.get("evaluator_abi") == "B4IC1/v1"
+            and int(provenance.get("feature_registry", 0)) == 1
+        )
+        if not exact:
+            raise ValueError(f"specialist corpus row {index} lacks exact CUDA provenance")
+        labels = record.get("target_labels")
+        if not isinstance(labels, Mapping) or labels.get("exact_data_role") != "specialist_discovery":
+            raise ValueError(f"specialist corpus row {index} has invalid exact data role")
+        quality = str(labels.get("source_quality", ""))
+        if quality not in SPECIALIST_SOURCE_QUALITIES:
+            raise ValueError(f"specialist corpus row {index} has invalid source quality")
+        qualities[quality] += 1
+        required = ("specialist_tier", "specialist_categories", "activation_count", "action_change_count", "useful_groups",
+                    "harmed_groups", "target_cohorts", "group_outcomes", "cohort_outcomes",
+                    "source_relative_case_outcomes", "source_relative_mean_delta",
+                    "source_relative_l2w", "source_relative_w2l",
+                    "composition", "composition_relationships", "lineage")
+        missing = [field for field in required if field not in labels]
+        if missing:
+            raise ValueError(f"specialist corpus row {index} lacks applicability labels: {missing}")
+        if not isinstance(labels["group_outcomes"], list) or not labels["group_outcomes"]:
+            raise ValueError(f"specialist corpus row {index} has no per-group truth")
+        row_categories = labels["specialist_categories"]
+        if not isinstance(row_categories, list) or not row_categories:
+            raise ValueError(f"specialist corpus row {index} has invalid specialist categories")
+        if len(set(row_categories)) != len(row_categories) or any(
+            str(category) not in SPECIALIST_SOURCE_QUALITIES for category in row_categories
+        ):
+            raise ValueError(f"specialist corpus row {index} has unknown/duplicate specialist category")
+        for category in row_categories:
+            categories[str(category)] += 1
+        relationships = labels["composition_relationships"]
+        if not isinstance(relationships, Mapping) or set(relationships) != {"compatible", "conflicting"}:
+            raise ValueError(f"specialist corpus row {index} has invalid composition relationships")
+        useful = int(labels["useful_groups"])
+        changes = int(labels["action_change_count"])
+        harmed = tuple(str(value) for value in labels["harmed_groups"])
+        if quality in {"elite_specialist", "strong_specialist", "global_safe"}:
+            if useful < 2 or changes <= 0:
+                raise ValueError(f"specialist corpus row {index} positive lacks repeat support")
+            positive_skeletons.add(structural_skeleton(module_from_model_input(record["model_input"])))
+        if quality == "boundary_specialist" and (useful < 1 or not harmed):
+            raise ValueError(f"specialist corpus row {index} boundary lacks help/harm contrast")
+        if quality == "inert" and changes != 0:
+            raise ValueError(f"specialist corpus row {index} inert row changes behavior")
+        mixed_risk += int(useful > 0 and bool(harmed))
+        skeletons.add(structural_skeleton(module_from_model_input(record["model_input"])))
+    return {
+        **base,
+        **qualities,
+        **{f"category_{name}": count for name, count in categories.items()},
+        "structural_skeletons": len(skeletons),
+        "positive_structural_skeletons": len(positive_skeletons),
+        "mixed_risk_rows": mixed_risk,
         "exact_cuda_labels": True,
     }

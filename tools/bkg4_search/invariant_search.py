@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import math
 import random
+import time
 from dataclasses import dataclass, field, replace
 from typing import Any, Callable, Iterable, Mapping, Sequence
 
@@ -109,6 +110,9 @@ class SearchRound:
     exact_candidate_cases: int
     capability: CapabilityEvent
     evaluations: Mapping[str, StateEvaluation]
+    specialist_elites: int = 0
+    strong_specialists: int = 0
+    boundary_specialists: int = 0
 
 
 @dataclass(frozen=True)
@@ -190,6 +194,9 @@ class CapabilityLadder:
         "compatible_recombination",
         "structural_mcts",
         "grouped_cegis",
+        "engine_mechanic_specialist",
+        "specialist_composition",
+        "new_structural_skeleton",
     )
 
     def __init__(self, *, patience: int = 2):
@@ -396,6 +403,34 @@ def default_search_goals(route_ids: Sequence[int]) -> tuple[SearchGoal, ...]:
             ("OWN_TILE_FED", "OWN_TILE_CARED"),
             "Suppress already-satisfied animal maintenance work so the representation can learn safe relational action-rewrite boundaries.",
         ),
+        SearchGoal("opening_route_regime", "ROUTE_MODE", "GLOBAL", "ROUTE_OVERRIDE",
+            ("DAY", "OWN_MONEY", "OWN_UNITS"), "Select a parent opening lane from public phase, capital, and labor state."),
+        SearchGoal("midgame_production_route", "ROUTE_MODE", "GLOBAL", "ROUTE_OVERRIDE",
+            ("DAY", "OWN_LAND", "OWN_UNITS", "OWN_SHED_TOTAL"), "Select a production route during a bounded midgame capacity regime."),
+        SearchGoal("late_game_route", "ROUTE_MODE", "GLOBAL", "ROUTE_OVERRIDE",
+            ("DAY", "OWN_MONEY", "OWN_SHED_TOTAL"), "Select a conversion route when remaining season length makes capital recovery dominant."),
+        SearchGoal("endgame_liquidation", "CREATE_FINANCING_RUNWAY", "GLOBAL", "MARKET_INTENT",
+            ("DAY", "OWN_SHED", "MARKET_PRICE"), "Liquidate bounded output inventory near season end before held value expires."),
+        SearchGoal("market_scarcity_liquidation", "CREATE_FINANCING_RUNWAY", "GLOBAL", "MARKET_INTENT",
+            ("MARKET_PRICE", "MARKET_INVENTORY", "OWN_SHED"), "Sell output inventory into a public scarcity-price regime."),
+        SearchGoal("fertilizer_replenishment", "RECOVER_RESOURCE_INVARIANT", "GLOBAL", "MARKET_INTENT",
+            ("OWN_SHED", "OWN_MONEY", "DAY"), "Buy bounded fertilizer when a productive phase has capital but lacks the input."),
+        SearchGoal("crop_input_procurement", "RECOVER_RESOURCE_INVARIANT", "GLOBAL", "MARKET_INTENT",
+            ("OWN_SEED", "OWN_MONEY", "DAY"), "Buy bounded crop seed input before a phase-specific production lane."),
+        SearchGoal("animal_acquisition", "ACCELERATE_EXPANSION", "GLOBAL", "MARKET_INTENT",
+            ("OWN_SHED", "OWN_MONEY", "DAY"), "Acquire one animal under a bounded capital and lifecycle regime."),
+        SearchGoal("land_unlock_timing", "ACCELERATE_EXPANSION", "GLOBAL", "MARKET_INTENT",
+            ("OWN_LAND", "OWN_MONEY", "DAY"), "Authorize one land unlock only while its production payback remains available."),
+        SearchGoal("weed_recovery", "RECOVER_RESOURCE_INVARIANT", "EACH_OWN_UNIT", "UNIT_REWRITE",
+            ("OWN_TILE_KIND", "DAY"), "Rewrite low-priority bound-unit work to DIG while standing on a weed."),
+        SearchGoal("animal_collection_priority", "PRESERVE_PRODUCTION_SAVE_FEED", "EACH_OWN_UNIT", "UNIT_REWRITE",
+            ("OWN_TILE_HAS_ANIMAL", "OWN_TILE_YIELD", "OWN_TILE_FED"), "Prioritize collection of accumulated animal product after maintenance is satisfied."),
+        SearchGoal("inventory_evacuation", "RECOVER_RESOURCE_INVARIANT", "EACH_OWN_UNIT", "UNIT_REWRITE",
+            ("OWN_INVENTORY", "OWN_WORKER_X", "OWN_WORKER_Y"), "Replace low-value work with DROP when a bound worker carries material at the shed boundary."),
+        SearchGoal("market_order_cap_protection", "ENGINE_MECHANIC", "GLOBAL", "ROUTE_OVERRIDE",
+            ("OWN_HIRES_TODAY", "OWN_MONEY", "HOUR"), "Route away from redundant market orders when the ten-order processing cap is congested."),
+        SearchGoal("production_deadline_recovery", "ENGINE_MECHANIC", "EACH_OWN_UNIT", "UNIT_REWRITE",
+            ("STEP", "OWN_TILE_MAX_LIFESPAN_STEP", "OWN_TILE_YIELD"), "Prioritize harvest over lower-value work at a public production deadline."),
     )
 
 
@@ -579,6 +614,121 @@ def _goal_candidates(goal: SearchGoal, route_ids: Sequence[int]) -> list[Invaria
                         LiftedGuard((GuardAtom("OWN_MONEY", "LE", cash), GuardAtom("OWN_SHED_TOTAL", "GE", shed))),
                         AbstractAction("ROUTE_OVERRIDE", route_id=int(route)),
                     )))
+    elif goal.goal_id in {"opening_route_regime", "midgame_production_route", "late_game_route"}:
+        windows = {
+            "opening_route_regime": ((0, 0), (0, 1), (1, 3), (0, 5)),
+            "midgame_production_route": ((4, 9), (7, 14), (10, 18), (14, 21)),
+            "late_game_route": ((19, 24), (22, 27), (25, 29), (27, 29)),
+        }[goal.goal_id]
+        for route in route_ids:
+            for start, end in windows:
+                for feature, comparator, value in (
+                    ("OWN_MONEY", "GE", 500), ("OWN_MONEY", "LE", 2000),
+                    ("OWN_UNITS", "GE", 2), ("OWN_SHED_TOTAL", "GE", 50),
+                ):
+                    out.append(_module(InvariantRule(
+                        ModuleSketch("route", "INSTANT", goal.effect_class), "GLOBAL",
+                        LiftedGuard((
+                            GuardAtom("DAY", "GE", start), GuardAtom("DAY", "LE", end),
+                            GuardAtom(feature, comparator, value),
+                        )), AbstractAction("ROUTE_OVERRIDE", route_id=int(route)),
+                    )))
+    elif goal.goal_id == "endgame_liquidation":
+        for day in (24, 26, 27, 28, 29):
+            for item in range(8):
+                for quantity in (1, 2, 4, 8):
+                    out.append(_module(InvariantRule(
+                        ModuleSketch("market", "INSTANT", goal.effect_class), "GLOBAL",
+                        LiftedGuard((GuardAtom("DAY", "GE", day), GuardAtom("OWN_SHED", "GE", quantity, arg=item))),
+                        AbstractAction("MARKET_INTENT", market_op=6, item=item, quantity=quantity, authority=5, priority=245),
+                    )))
+    elif goal.goal_id == "market_scarcity_liquidation":
+        for item in range(8):
+            for price in (25, 50, 100, 200, 500):
+                for quantity in (1, 2, 4):
+                    out.append(_module(InvariantRule(
+                        ModuleSketch("market", "INSTANT", goal.effect_class), "GLOBAL",
+                        LiftedGuard((GuardAtom("MARKET_PRICE", "GE", price, arg=item), GuardAtom("OWN_SHED", "GE", quantity, arg=item))),
+                        AbstractAction("MARKET_INTENT", market_op=6, item=item, quantity=quantity, authority=5, priority=235),
+                    )))
+    elif goal.goal_id == "fertilizer_replenishment":
+        for day_end in (7, 14, 21, 27):
+            for cash in (100, 250, 500, 1000, 2000):
+                for quantity in (1, 2, 4):
+                    out.append(_module(InvariantRule(
+                        ModuleSketch("recovery", "INSTANT", goal.effect_class), "GLOBAL",
+                        LiftedGuard((GuardAtom("DAY", "LE", day_end), GuardAtom("OWN_SHED", "LE", 1, arg=8), GuardAtom("OWN_MONEY", "GE", cash))),
+                        AbstractAction("MARKET_INTENT", market_op=4, item=8, quantity=quantity, authority=4, priority=205),
+                    )))
+    elif goal.goal_id == "crop_input_procurement":
+        for crop in range(5):
+            for day_end in (3, 7, 14, 21):
+                for cash in (25, 100, 250, 500, 1000):
+                    out.append(_module(InvariantRule(
+                        ModuleSketch("recovery", "INSTANT", goal.effect_class), "GLOBAL",
+                        LiftedGuard((GuardAtom("DAY", "LE", day_end), GuardAtom("OWN_SEED", "LE", 0, arg=crop), GuardAtom("OWN_MONEY", "GE", cash))),
+                        AbstractAction("MARKET_INTENT", market_op=3, item=crop, quantity=1, authority=4, priority=200),
+                    )))
+    elif goal.goal_id == "animal_acquisition":
+        for animal in (9, 10, 11):
+            for day_end in (7, 14, 21):
+                for cash in (500, 1000, 2500, 5000):
+                    out.append(_module(InvariantRule(
+                        ModuleSketch("expansion", "INSTANT", goal.effect_class), "GLOBAL",
+                        LiftedGuard((GuardAtom("DAY", "LE", day_end), GuardAtom("OWN_SHED", "LE", 0, arg=animal), GuardAtom("OWN_MONEY", "GE", cash))),
+                        AbstractAction("MARKET_INTENT", market_op=5, item=animal, quantity=1, authority=3, priority=185),
+                    )))
+    elif goal.goal_id == "land_unlock_timing":
+        for land in (25, 50, 75):
+            for day_end in (7, 14, 21):
+                for cash in (1000, 2000, 4000, 8000):
+                    out.append(_module(InvariantRule(
+                        ModuleSketch("expansion", "INSTANT", goal.effect_class), "GLOBAL",
+                        LiftedGuard((GuardAtom("DAY", "LE", day_end), GuardAtom("OWN_LAND", "LE", land), GuardAtom("OWN_MONEY", "GE", cash))),
+                        AbstractAction("MARKET_INTENT", market_op=2, quantity=1, authority=3, priority=190),
+                    )))
+    elif goal.goal_id == "weed_recovery":
+        for match in (0, 9, 11, 16, 17):
+            for day_end in (7, 14, 21, 29):
+                out.append(_module(InvariantRule(
+                    ModuleSketch("recovery", "INSTANT", goal.effect_class), "EACH_OWN_UNIT",
+                    LiftedGuard((GuardAtom("OWN_TILE_KIND", "EQ", 2), GuardAtom("DAY", "LE", day_end))),
+                    AbstractAction("UNIT_REWRITE", match_op=match, unit_op=12),
+                )))
+    elif goal.goal_id == "animal_collection_priority":
+        for match in (0, 16, 17):
+            for yield_units in (1, 2, 4, 8):
+                out.append(_module(InvariantRule(
+                    ModuleSketch("animal_lifecycle", "INSTANT", goal.effect_class), "EACH_OWN_UNIT",
+                    LiftedGuard((GuardAtom("OWN_TILE_HAS_ANIMAL", "EQ", 1), GuardAtom("OWN_TILE_YIELD", "GE", yield_units), GuardAtom("OWN_TILE_FED", "EQ", 1))),
+                    AbstractAction("UNIT_REWRITE", match_op=match, unit_op=10),
+                )))
+    elif goal.goal_id == "inventory_evacuation":
+        for item in range(12):
+            for x, y in ((4, 4), (5, 4), (4, 5), (5, 5)):
+                for match in (0, 1, 2, 3, 4):
+                    out.append(_module(InvariantRule(
+                        ModuleSketch("recovery", "INSTANT", goal.effect_class), "EACH_OWN_UNIT",
+                        LiftedGuard((GuardAtom("OWN_INVENTORY", "GE", 1, arg=item), GuardAtom("OWN_WORKER_X", "EQ", x), GuardAtom("OWN_WORKER_Y", "EQ", y))),
+                        AbstractAction("UNIT_REWRITE", match_op=match, unit_op=6),
+                    )))
+    elif goal.goal_id == "market_order_cap_protection":
+        for route in route_ids:
+            for hour in (0, 4, 8, 12, 16, 20):
+                for hires in (1, 2, 4, 8):
+                    out.append(_module(InvariantRule(
+                        ModuleSketch("engine_mechanic", "INSTANT", goal.effect_class), "GLOBAL",
+                        LiftedGuard((GuardAtom("HOUR", "GE", hour), GuardAtom("OWN_HIRES_TODAY", "GE", hires))),
+                        AbstractAction("ROUTE_OVERRIDE", route_id=int(route)),
+                    )))
+    elif goal.goal_id == "production_deadline_recovery":
+        for match in (0, 9, 11, 16, 17):
+            for deadline in (480, 576, 624, 672, 696):
+                out.append(_module(InvariantRule(
+                    ModuleSketch("engine_mechanic", "INSTANT", goal.effect_class), "EACH_OWN_UNIT",
+                    LiftedGuard((GuardAtom("STEP", "GE", deadline), GuardAtom("OWN_TILE_KIND", "EQ", 5), GuardAtom("OWN_TILE_YIELD", "GE", 1), GuardAtom("OWN_TILE_MAX_LIFESPAN_STEP", "LE", 720))),
+                    AbstractAction("UNIT_REWRITE", match_op=match, unit_op=10),
+                )))
     elif goal.goal_id == "maintenance_redundancy":
         out.extend((
             _module(InvariantRule(ModuleSketch("maintenance", "INSTANT", goal.effect_class), "EACH_OWN_UNIT",
@@ -641,9 +791,14 @@ def mechanism_anchors(route_ids: Sequence[int]) -> tuple[InvariantStrategicModul
 
 def recombine_compatible(a: InvariantStrategicModule, b: InvariantStrategicModule) -> InvariantStrategicModule | None:
     """Combine compatible semantic subtrees; competing route controllers are never stacked blindly."""
-    route_kinds = {"ROUTE_OVERRIDE", "COMMITTED_ROUTE"}
-    if any(r.action.kind in route_kinds for r in a.rules) and any(r.action.kind in route_kinds for r in b.rules):
-        return None
+    exclusive_domains = (
+        {"ROUTE_OVERRIDE", "COMMITTED_ROUTE"},
+        {"MARKET_INTENT"},
+        {"UNIT_REWRITE"},
+    )
+    for kinds in exclusive_domains:
+        if any(r.action.kind in kinds for r in a.rules) and any(r.action.kind in kinds for r in b.rules):
+            return None
     rules: list[InvariantRule] = []
     seen: set[str] = set()
     for r in (*a.rules, *b.rules):
@@ -707,6 +862,113 @@ def large_neighborhood(parent: InvariantStrategicModule, goal: SearchGoal, *, se
     if out.semantic_id() == parent.semantic_id() and len(donors) > 1:
         rules[idx] = donors[1].rules[0]; out = InvariantStrategicModule(tuple(rules[:MAX_RULES])); out.validate()
     return out
+
+
+def local_structural_neighborhood(
+    parent: InvariantStrategicModule,
+    *,
+    route_ids: Sequence[int],
+    budget: int,
+    seed: int,
+) -> tuple[InvariantStrategicModule, ...]:
+    """Generate bounded structural contrasts around a useful specialist."""
+    parent.validate()
+    budget = max(0, int(budget))
+    if budget == 0 or not parent.rules:
+        return ()
+    candidates: list[InvariantStrategicModule] = []
+    for rule_index, rule in enumerate(parent.rules):
+        atoms = list(rule.guard.atoms)
+        for atom_index, atom in enumerate(atoms):
+            for comparator in ("LE", "GE", "LT", "GT"):
+                if comparator == atom.cmp:
+                    continue
+                changed = list(atoms); changed[atom_index] = replace(atom, cmp=comparator)
+                rules = list(parent.rules); rules[rule_index] = replace(rule, guard=LiftedGuard(tuple(changed)))
+                candidates.append(InvariantStrategicModule(tuple(rules)))
+            for value in sorted({atom.value - max(1, abs(atom.value) // 2), atom.value + max(1, abs(atom.value) // 2)}):
+                changed = list(atoms); changed[atom_index] = replace(atom, value=value)
+                rules = list(parent.rules); rules[rule_index] = replace(rule, guard=LiftedGuard(tuple(changed)))
+                candidates.append(InvariantStrategicModule(tuple(rules)))
+        if atoms:
+            rules = list(parent.rules); rules[rule_index] = replace(rule, guard=LiftedGuard(tuple(atoms[:-1])))
+            candidates.append(InvariantStrategicModule(tuple(rules)))
+        if len(atoms) + len(rule.exit_guard.atoms) < MAX_GUARDS_TOTAL:
+            alternatives = (
+                GuardAtom("DAY", "GE", 1), GuardAtom("OWN_MONEY", "GE", 500),
+                GuardAtom("OWN_SHED_TOTAL", "GE", 75), GuardAtom("OWN_UNITS", "GE", 2),
+            ) if rule.domain == "GLOBAL" else (
+                GuardAtom("OWN_TILE_KIND", "NE", 1), GuardAtom("OWN_TILE_YIELD", "GE", 1),
+                GuardAtom("OWN_INVENTORY", "GE", 1, arg=0),
+            )
+            for extra in alternatives:
+                if extra in atoms:
+                    continue
+                rules = list(parent.rules); rules[rule_index] = replace(rule, guard=LiftedGuard(tuple((*atoms, extra))))
+                candidates.append(InvariantStrategicModule(tuple(rules)))
+                if atoms:
+                    replacement = list(atoms); replacement[0] = extra
+                    rules = list(parent.rules); rules[rule_index] = replace(rule, guard=LiftedGuard(tuple(replacement)))
+                    candidates.append(InvariantStrategicModule(tuple(rules)))
+        if rule.action.kind in {"ROUTE_OVERRIDE", "COMMITTED_ROUTE"}:
+            for route in route_ids:
+                if int(route) == int(rule.action.route_id):
+                    continue
+                rules = list(parent.rules); rules[rule_index] = replace(rule, action=replace(rule.action, route_id=int(route)))
+                candidates.append(InvariantStrategicModule(tuple(rules)))
+            if rule.action.kind == "ROUTE_OVERRIDE" and atoms:
+                atom = atoms[0]
+                exit_cmp = "GE" if atom.cmp in {"LE", "LT"} else "LE"
+                rules = list(parent.rules); rules[rule_index] = replace(
+                    rule,
+                    sketch=replace(rule.sketch, control_pattern="COMMITTED"),
+                    action=replace(rule.action, kind="COMMITTED_ROUTE"),
+                    exit_guard=LiftedGuard((replace(atom, cmp=exit_cmp),)),
+                )
+                candidates.append(InvariantStrategicModule(tuple(rules)))
+        elif rule.action.kind == "MARKET_INTENT":
+            quantity = int(rule.action.quantity)
+            for candidate_quantity in sorted({1, max(1, quantity - 1), quantity + 1, min(32767, quantity * 2)}):
+                if candidate_quantity == quantity:
+                    continue
+                rules = list(parent.rules)
+                rules[rule_index] = replace(rule, action=replace(rule.action, quantity=candidate_quantity))
+                candidates.append(InvariantStrategicModule(tuple(rules)))
+            for priority in sorted({max(0, rule.action.priority - 16), min(255, rule.action.priority + 16)}):
+                if priority == rule.action.priority:
+                    continue
+                rules = list(parent.rules)
+                rules[rule_index] = replace(rule, action=replace(rule.action, priority=priority))
+                candidates.append(InvariantStrategicModule(tuple(rules)))
+        elif rule.action.kind == "UNIT_REWRITE":
+            for match_op in (0, 9, 11, 15, 16, 17):
+                if match_op == rule.action.match_op:
+                    continue
+                rules = list(parent.rules)
+                rules[rule_index] = replace(rule, action=replace(rule.action, match_op=match_op))
+                candidates.append(InvariantStrategicModule(tuple(rules)))
+            for unit_op in (0, 6, 9, 10, 12, 15, 17):
+                if unit_op == rule.action.unit_op:
+                    continue
+                rules = list(parent.rules)
+                rules[rule_index] = replace(
+                    rule, action=replace(rule.action, unit_op=unit_op, unit_arg=0, quantity=1),
+                )
+                candidates.append(InvariantStrategicModule(tuple(rules)))
+    rng = random.Random(int(seed) ^ 0x4E45494748424F52)
+    rng.shuffle(candidates)
+    unique: dict[str, InvariantStrategicModule] = {}
+    for candidate in candidates:
+        try:
+            candidate.validate()
+        except ValueError:
+            continue
+        if candidate.semantic_id() == parent.semantic_id():
+            continue
+        unique.setdefault(candidate.semantic_id(), candidate)
+        if len(unique) >= budget:
+            break
+    return tuple(unique.values())
 
 
 def structural_mcts(
@@ -917,6 +1179,7 @@ class InvariantSearchBackend:
         archive: InvariantSearchArchive | None = None,
         ladder: CapabilityLadder | None = None,
         portable_route_seeds: Sequence[ModuleGenome] = (),
+        specialist_archive: Any | None = None,
     ):
         self.route_ids = tuple(int(x) for x in route_ids)
         if not self.route_ids:
@@ -924,13 +1187,24 @@ class InvariantSearchBackend:
         self.evaluator = evaluator
         self.goals = tuple(goals or default_search_goals(self.route_ids))
         self.archive = archive or InvariantSearchArchive()
+        if specialist_archive is None:
+            from tools.bkg4_search.invariant_specialists import SpecialistArchive
+            specialist_archive = SpecialistArchive()
+        self.specialist_archive = specialist_archive
         self.ladder = ladder or CapabilityLadder()
         self.portable_route_seeds = tuple(
             translate_route_genome(genome, route_ids=self.route_ids)
             for genome in portable_route_seeds
         )
         self._cegis_queue: dict[str, InvariantStrategicModule] = {}
+        self._cegis_parent: dict[str, str] = {}
         self._threshold_evidence: dict[str, dict[str, dict[str, set[tuple[int, bool, bool]]]]] = {}
+        self.last_proposal_profile = {
+            name: 0.0 for name in (
+                "goal_construction", "composition", "boundary_solver", "local_neighborhood",
+                "recombination", "mcts", "cegis", "canonical_dedupe",
+            )
+        }
 
     def _merge_threshold_evidence(
         self,
@@ -955,6 +1229,25 @@ class InvariantSearchBackend:
             for goal, keys in sorted(self._threshold_evidence.items())
         }
 
+    def _queue_cegis_repair(
+        self,
+        parent: InvariantStrategicModule,
+        repaired: InvariantStrategicModule,
+    ) -> None:
+        sid = repaired.semantic_id()
+        if sid == parent.semantic_id():
+            return
+        self._cegis_queue[sid] = repaired
+        self._cegis_parent[sid] = parent.semantic_id()
+
+    def consume_cegis_repairs(self) -> tuple[tuple[str, InvariantStrategicModule], ...]:
+        rows = tuple(
+            (self._cegis_parent.get(sid, ""), module)
+            for sid, module in self._cegis_queue.items()
+        )
+        self._cegis_queue.clear(); self._cegis_parent.clear()
+        return rows
+
     def _goal_for_module(self, module: InvariantStrategicModule) -> SearchGoal | None:
         if not module.rules:
             return None
@@ -975,25 +1268,43 @@ class InvariantSearchBackend:
         *,
         n: int,
         seed: int,
+        target_goal_ids: Sequence[str] | None = None,
     ) -> tuple[InvariantStrategicModule, ...]:
         n = max(0, int(n))
+        profile = {name: 0.0 for name in self.last_proposal_profile}
         evidence = self.threshold_evidence()
-        if n == 0: return ()
+        if n == 0:
+            self.last_proposal_profile = profile
+            return ()
+        started = time.perf_counter()
+        selected_goals = self.goals
+        if target_goal_ids is not None:
+            wanted = {str(value) for value in target_goal_ids}
+            unknown = sorted(wanted - {goal.goal_id for goal in self.goals})
+            if unknown:
+                raise ValueError(f"unknown targeted specialist goals: {unknown}")
+            selected_goals = tuple(goal for goal in self.goals if goal.goal_id in wanted)
+            if not selected_goals:
+                raise ValueError("targeted proposal mode requires at least one goal")
         rows: list[InvariantStrategicModule] = []
-        advanced: list[InvariantStrategicModule] = list(mechanism_anchors(self.route_ids))
+        advanced: list[InvariantStrategicModule] = [] if target_goal_ids is not None else list(mechanism_anchors(self.route_ids))
         goal_rows: list[tuple[InvariantStrategicModule, ...]] = []
-        for gi, goal in enumerate(self.goals):
+        for gi, goal in enumerate(selected_goals):
             goal_rows.append(emit_skeletons(goal, n=n, seed=seed + gi * 65537, route_ids=self.route_ids))
         for index in range(max((len(x) for x in goal_rows), default=0)):
             for family in goal_rows:
                 if index < len(family):
                     rows.append(family[index])
+        profile["goal_construction"] += time.perf_counter() - started
         if self.ladder.level >= 1:
+            started = time.perf_counter()
             advanced.extend(self.portable_route_seeds)
             advanced.extend(compose_structural_modules(
                 rows, budget=max(1, n // 3), seed=seed,
             ))
+            profile["composition"] += time.perf_counter() - started
         if self.ladder.level >= 2:
+            started = time.perf_counter()
             # Boundary solver alters only a scalar on an already chosen structure.
             solved: list[InvariantStrategicModule] = []
             for m in rows:
@@ -1013,25 +1324,71 @@ class InvariantSearchBackend:
                         if child.semantic_id() != m.semantic_id():
                             solved.append(child)
             advanced.extend(solved)
-        elites = self.archive.production_modules()
+            profile["boundary_solver"] += time.perf_counter() - started
+        specialist_modules = tuple(
+            evidence.module for evidence in self.specialist_archive.specialist_elites()
+        )
+        elites = tuple(dict.fromkeys((*self.archive.production_modules(), *specialist_modules)))
         if self.ladder.level >= 3 and elites:
+            started = time.perf_counter()
             for i, parent in enumerate(elites[:max(1, n // 8)]):
-                advanced.append(large_neighborhood(parent, self.goals[(i + seed) % len(self.goals)], seed=seed + i, route_ids=self.route_ids))
+                advanced.extend(local_structural_neighborhood(
+                    parent, route_ids=self.route_ids, budget=max(2, n // max(1, len(elites))), seed=seed + i,
+                ))
+            profile["local_neighborhood"] += time.perf_counter() - started
         if self.ladder.level >= 4 and len(elites) >= 2:
+            started = time.perf_counter()
             for i in range(min(len(elites) - 1, max(1, n // 12))):
                 child = recombine_compatible(elites[i], elites[i + 1])
                 if child is not None: advanced.append(child)
+            profile["recombination"] += time.perf_counter() - started
         if self.ladder.level >= 5:
+            started = time.perf_counter()
             advanced.extend(structural_mcts(elites or (InvariantStrategicModule(),), self.goals, budget=max(1, n // 6), seed=seed, route_ids=self.route_ids))
+            profile["mcts"] += time.perf_counter() - started
         if self.ladder.level >= 6 and self._cegis_queue:
+            started = time.perf_counter()
             advanced = list(self._cegis_queue.values()) + advanced
             self._cegis_queue.clear()
+            self._cegis_parent.clear()
+            profile["cegis"] += time.perf_counter() - started
+        if self.ladder.level >= 7:
+            started = time.perf_counter()
+            engine_goals = tuple(goal for goal in selected_goals if goal.effect_class == "ENGINE_MECHANIC")
+            for gi, goal in enumerate(engine_goals):
+                advanced.extend(emit_skeletons(goal, n=max(1, n // max(1, len(engine_goals))), seed=seed + gi * 7919, route_ids=self.route_ids))
+            profile["goal_construction"] += time.perf_counter() - started
+        if self.ladder.level >= 8 and specialist_modules:
+            started = time.perf_counter()
+            advanced.extend(compose_structural_modules(specialist_modules, budget=max(1, n // 2), seed=seed))
+            from tools.bkg4_search.invariant_factory import compose_gated_specialists
+            gated = 0
+            for index, first in enumerate(specialist_modules):
+                for second in specialist_modules[index + 1:]:
+                    try:
+                        child = compose_gated_specialists(first, second)
+                    except ValueError:
+                        continue
+                    advanced.append(child); gated += 1
+                    if gated >= max(1, n // 4):
+                        break
+                if gated >= max(1, n // 4):
+                    break
+            profile["composition"] += time.perf_counter() - started
+        if self.ladder.level >= 9 and specialist_modules:
+            started = time.perf_counter()
+            for i, parent in enumerate(specialist_modules[:max(1, n // 4)]):
+                advanced.extend(local_structural_neighborhood(parent, route_ids=self.route_ids, budget=8, seed=seed + i * 3571))
+            profile["local_neighborhood"] += time.perf_counter() - started
+        started = time.perf_counter()
         seen: set[str] = set(); unique: list[InvariantStrategicModule] = []
         for m in (*advanced, *rows):
             sid = m.semantic_id()
             if sid in seen: continue
             seen.add(sid); unique.append(m)
             if len(unique) >= n: break
+        profile["canonical_dedupe"] += time.perf_counter() - started
+        self.last_proposal_profile = profile
         return tuple(unique)
 
     def evaluate_batch(
@@ -1053,7 +1410,15 @@ class InvariantSearchBackend:
         exact = self.evaluator.evaluate(batch, panel, work_dir=work_dir, panel_id=panel_id)
         baseline = exact[baseline_module.semantic_id()]
         case_to_tape = {c.case_id: tape_group_id(c) for c in panel}
+        cohort_by_tape: dict[str, str] = {}
+        for case in panel:
+            tape = tape_group_id(case)
+            cohort = str(case.family or "unclassified")
+            previous = cohort_by_tape.setdefault(tape, cohort)
+            if previous != cohort:
+                raise ValueError(f"tape group {tape} spans multiple specialist cohorts")
         useful = production = inserted = unsafe = 0
+        specialist_inserted = elite_specialists = strong_specialists = boundary_specialists = 0
         for m in modules:
             rows = pair_case_rows(baseline, exact[m.semantic_id()])
             outcomes = group_outcomes_from_case_rows(rows, case_to_tape)
@@ -1066,6 +1431,37 @@ class InvariantSearchBackend:
             useful += int(any(x.useful for x in outcomes))
             unsafe += int(any(x.new_loss or x.severe_regression for x in outcomes))
             inserted += int(self.archive.consider(m, outcomes))
+            from tools.bkg4_search.invariant_specialists import analyze_specialist
+            evidence = analyze_specialist(
+                m, outcomes, cohort_by_group=cohort_by_tape,
+                activation_count=sum(exact[m.semantic_id()].activations),
+                action_change_count=sum(exact[m.semantic_id()].action_changes),
+            )
+            specialist_inserted += int(self.specialist_archive.consider(evidence))
+            elite_specialists += int(evidence.tier in {"GLOBAL_SAFE", "ELITE_SPECIALIST"})
+            strong_specialists += int(evidence.tier == "STRONG_SPECIALIST")
+            boundary_specialists += int(evidence.tier == "BOUNDARY_SPECIALIST")
+            if self.ladder.level >= 6 and evidence.useful_groups >= 2 and evidence.harmed_groups:
+                from tools.bkg4_search.invariant_specialists import specialist_boundary_guards
+                boundary_rows = specialist_boundary_guards(outcomes, panel, limit=4)
+                for boundary in boundary_rows:
+                    repaired_rules = list(m.rules)
+                    target_index = next((
+                        index for index, rule in enumerate(repaired_rules)
+                        if rule.domain == "GLOBAL"
+                        and len(rule.guard.atoms) + len(rule.exit_guard.atoms) < MAX_GUARDS_TOTAL
+                        and boundary.atom not in rule.guard.atoms
+                    ), None)
+                    if target_index is None:
+                        break
+                    rule = repaired_rules[target_index]
+                    repaired_rules[target_index] = replace(
+                        rule, guard=LiftedGuard((*rule.guard.atoms, boundary.atom)),
+                    )
+                    repaired = InvariantStrategicModule(tuple(repaired_rules))
+                    repaired.validate()
+                    self._queue_cegis_repair(m, repaired)
+                    break
             if self.ladder.level >= 6 and not qual.production:
                 counterexamples = grouped_counterexample_rows(rows, case_to_tape)
                 failure_class = classify_grouped_counterexamples(counterexamples)
@@ -1075,16 +1471,17 @@ class InvariantSearchBackend:
                     m, failure_class, route_ids=self.route_ids, goal=goal,
                     threshold_samples=(self.threshold_evidence().get(goal.goal_id, {}) if goal is not None else {}),
                 )
-                if repaired.semantic_id() != m.semantic_id():
-                    self._cegis_queue[repaired.semantic_id()] = repaired
+                self._queue_cegis_repair(m, repaired)
         capability = self.ladder.observe(
             attempted=len(modules), unique=len({m.semantic_id() for m in modules}), useful=useful,
-            production_qualified=production, archive_insertions=inserted,
+            production_qualified=production, archive_insertions=inserted + specialist_inserted,
         )
         return SearchRound(
             attempted=len(modules), unique=len({m.semantic_id() for m in modules}), duplicate_rate=0.0,
             useful=useful, production_qualified=production, archive_insertions=inserted, unsafe=unsafe,
             exact_candidate_cases=len(batch) * len(panel), capability=capability, evaluations=exact,
+            specialist_elites=elite_specialists, strong_specialists=strong_specialists,
+            boundary_specialists=boundary_specialists,
         )
 
     def search(
@@ -1129,7 +1526,7 @@ class InvariantSearchBackend:
             raise ValueError("cross-fit top_k must be positive")
         if (
             self.archive.research or self.archive.elites or self._threshold_evidence
-            or self._cegis_queue or self.ladder.level or self.ladder._stalled
+            or self._cegis_queue or self._cegis_parent or self.ladder.level or self.ladder._stalled
         ):
             raise ValueError("cross-fit requires a pristine backend with no prior search evidence")
         split = internal_crossfit_split(panel, selection_fraction=selection_fraction, seed=seed)
@@ -1159,6 +1556,7 @@ class InvariantSearchBackend:
             tuple(sorted(repr(x) for x in self.archive.elites)),
             repr(self.threshold_evidence()),
             tuple(sorted(self._cegis_queue)),
+            tuple(sorted(self._cegis_parent.items())),
         )
         baseline_module = InvariantStrategicModule()
         selection_evaluations = self.evaluator.evaluate(
@@ -1203,6 +1601,7 @@ class InvariantSearchBackend:
             tuple(sorted(repr(x) for x in self.archive.elites)),
             repr(self.threshold_evidence()),
             tuple(sorted(self._cegis_queue)),
+            tuple(sorted(self._cegis_parent.items())),
         )
         if post_selection_state != search_state:
             raise AssertionError("one-shot selection mutated invariant search state")

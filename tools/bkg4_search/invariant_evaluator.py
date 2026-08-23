@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import os
+import re
 import struct
 import subprocess
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Sequence
@@ -89,6 +91,7 @@ class InvariantExactCudaEvaluator:
         self.tpb = int(tpb)
         self.memory_fraction = float(memory_fraction)
         self.cuda_visible_devices = cuda_visible_devices
+        self.profile_history: list[dict[str, object]] = []
         if self.device < 0 or self.tpb <= 0 or not (0.10 <= self.memory_fraction <= 0.90):
             raise ValueError("invalid invariant CUDA evaluator configuration")
         if int(profile.bkg4_abi) != 4 or int(profile.feature_registry) != 1:
@@ -117,6 +120,7 @@ class InvariantExactCudaEvaluator:
         if len(set(case_ids)) != len(case_ids):
             raise ValueError("exact invariant CUDA panel contains duplicate case IDs")
 
+        total_started = time.perf_counter()
         root = Path(work_dir)
         root.mkdir(parents=True, exist_ok=True)
         stem = f"{str(panel_id).replace('/', '_')}_{len(modules)}x{len(panel)}"
@@ -124,8 +128,10 @@ class InvariantExactCudaEvaluator:
         cases_path = root / f"{stem}.cases.tsv"
         result_path = root / f"{stem}.b4ic"
         log_path = root / f"{stem}.cuda.log"
+        pack_started = time.perf_counter()
         candidates_path.write_bytes(pack_file(modules))
         cases_path.write_text("\n".join(c.evaluator_tsv() for c in panel) + "\n", encoding="utf-8")
+        pack_seconds = time.perf_counter() - pack_started
         cmd = [
             str(self.binary),
             "--controller", str(self.profile.controller_path),
@@ -144,10 +150,13 @@ class InvariantExactCudaEvaluator:
         env = os.environ.copy()
         if self.cuda_visible_devices is not None:
             env["CUDA_VISIBLE_DEVICES"] = str(self.cuda_visible_devices)
+        process_started = time.perf_counter()
         proc = subprocess.run(cmd, text=True, capture_output=True, env=env, check=False)
+        process_seconds = time.perf_counter() - process_started
         log_path.write_text(proc.stdout + proc.stderr, encoding="utf-8")
         if proc.returncode:
             raise RuntimeError(f"exact B4IC1 CUDA evaluator failed rc={proc.returncode}: {(proc.stderr or proc.stdout)[-4000:]}")
+        decode_started = time.perf_counter()
         rows = load_invariant_results(result_path)
         if len(rows) != len(modules) or any(len(row) != len(panel) for row in rows):
             raise ValueError("exact B4IC1 result dimensions do not match requested batch")
@@ -162,6 +171,16 @@ class InvariantExactCudaEvaluator:
                 activations=tuple(int(x.activations) for x in row),
                 trace_hashes=tuple(int(x.action_trace_hash) for x in row),
             )
+        decode_seconds = time.perf_counter() - decode_started
+        gpu = re.search(r"gpu_ms=([0-9.]+).*games_s=([0-9.]+)", proc.stdout + proc.stderr)
+        self.profile_history.append({
+            "panel_id": str(panel_id), "candidates": len(modules), "cases": len(panel),
+            "games": len(modules) * len(panel), "packing_seconds": pack_seconds,
+            "cuda_process_seconds": process_seconds, "result_decode_seconds": decode_seconds,
+            "total_seconds": time.perf_counter() - total_started,
+            "gpu_kernel_seconds": float(gpu.group(1)) / 1000.0 if gpu else None,
+            "gpu_games_per_second": float(gpu.group(2)) if gpu else None,
+        })
         return out
 
     def config_record(self) -> dict[str, object]:
