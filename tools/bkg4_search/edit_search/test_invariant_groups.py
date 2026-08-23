@@ -84,6 +84,17 @@ class InvariantGroupTests(unittest.TestCase):
         self.assertTrue(solved.interval_lo <= solved.threshold <= solved.interval_hi)
         self.assertGreater(solved.boundary_margin, 0)
 
+    def test_constant_solver_runtime_depends_on_boundaries_not_integer_span(self):
+        samples = {
+            "low": [(-1_000_000_000, False, True)],
+            "high": [(1_000_000_000, True, False)],
+        }
+        solved = solve_cross_tape_threshold(samples, comparator="GE")
+        self.assertEqual(solved.harmed_protected, 0)
+        self.assertEqual(solved.support_groups, 1)
+        self.assertLess(solved.interval_lo, solved.interval_hi)
+        self.assertTrue(solved.interval_lo <= solved.threshold <= solved.interval_hi)
+
     def test_activation_without_action_or_terminal_change_is_not_behavior(self):
         outcomes = group_outcomes_from_case_rows(({
             "case_id": "a", "baseline_margin": 10, "candidate_margin": 10,

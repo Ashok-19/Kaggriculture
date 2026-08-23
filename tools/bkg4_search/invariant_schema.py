@@ -10,9 +10,18 @@ SCHEMA_ID = "bkg4_invariant_model_ast_v1"
 CORPUS_RECORD_VERSION = 1
 FORBIDDEN_MODEL_TERMS = (
     "tape_path", "tape_id", "replay_id", "episode_id", "seed", "opponent",
-    "recursion", "team_identity", "certification", "holdout", "validation_membership",
-    "outcome", "margin_delta", "candidate_margin", "qualification_status",
+    "recursion", "team_identity", "certification", "holdout", "heldout", "validation_membership",
+    "outcome", "margin_delta", "candidate_margin", "qualification_status", "search_rank",
+    "search_score", "useful_group", "group_support", "evaluator_margin",
 )
+MODEL_INPUT_FIELDS = frozenset({"schema", "grammar", "tokens"})
+CORPUS_RECORD_FIELDS = frozenset({
+    "record_version", "semantic_id", "canonical_ast", "model_input", "target_labels", "provenance",
+})
+CORPUS_SOURCE_QUALITIES = frozenset({
+    "crossfit_positive", "discovery_boundary", "unsafe_negative",
+    "inert_negative", "safe_negative",
+})
 
 
 def _encode(value: Any, out: list[str]) -> None:
@@ -99,10 +108,14 @@ def module_from_model_input(model_input: Mapping[str, Any]) -> InvariantStrategi
     obj, pos = _decode(tuple(str(x) for x in tokens))
     if pos != len(tokens) or not isinstance(obj, dict):
         raise ValueError("invalid trailing invariant AST tokens")
-    return InvariantStrategicModule.from_dict(obj)
+    _scan_forbidden(obj)
+    module = InvariantStrategicModule.from_dict(obj)
+    if dict(model_input) != invariant_model_input(module):
+        raise ValueError("noncanonical invariant model input")
+    return module
 
 
-def _assert_model_input_safe(model_input: Mapping[str, Any]) -> None:
+def _scan_forbidden(value: Any) -> None:
     def walk(value: Any) -> None:
         if isinstance(value, Mapping):
             for key, item in value.items():
@@ -113,7 +126,14 @@ def _assert_model_input_safe(model_input: Mapping[str, Any]) -> None:
         elif isinstance(value, (list, tuple)):
             for item in value:
                 walk(item)
-    walk(model_input)
+    walk(value)
+
+
+def _assert_model_input_safe(model_input: Mapping[str, Any]) -> None:
+    _scan_forbidden(model_input)
+    fields = frozenset(str(x) for x in model_input)
+    if fields != MODEL_INPUT_FIELDS:
+        raise ValueError(f"unexpected model input fields: {sorted(fields - MODEL_INPUT_FIELDS)}")
 
 
 def make_corpus_record(
@@ -140,6 +160,9 @@ def validate_corpus_records(records: Sequence[Mapping[str, Any]]) -> dict[str, A
     semantics: set[str] = set()
     duplicates = 0
     for index, record in enumerate(records):
+        fields = frozenset(str(x) for x in record)
+        if fields != CORPUS_RECORD_FIELDS:
+            raise ValueError(f"invariant corpus row fields mismatch at {index}: {sorted(fields ^ CORPUS_RECORD_FIELDS)}")
         if int(record.get("record_version", 0)) != CORPUS_RECORD_VERSION:
             raise ValueError(f"invariant corpus row {index} has an incompatible version")
         model_input = record.get("model_input")
@@ -159,3 +182,64 @@ def validate_corpus_records(records: Sequence[Mapping[str, Any]]) -> dict[str, A
         semantics.add(sid)
     return {"rows": len(records), "unique_semantics": len(semantics), "duplicate_semantics": duplicates}
 
+
+def validate_quality_gated_corpus(records: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    """Validate exact provenance and keep robust positives distinct from contrast rows."""
+    from tools.bkg4_search.invariant_search import structural_skeleton
+
+    base = validate_corpus_records(records)
+    if base["duplicate_semantics"]:
+        raise ValueError("quality-gated invariant corpus contains duplicate semantics")
+    qualities = {name: 0 for name in sorted(CORPUS_SOURCE_QUALITIES)}
+    positive_skeletons = set()
+    all_skeletons = set()
+    for index, record in enumerate(records):
+        provenance = record["provenance"]
+        required_provenance = (
+            provenance.get("exact_evaluator") is True
+            and provenance.get("data_role") == "discovery"
+            and provenance.get("controller")
+            and provenance.get("candidate_abi") == "B4IM1/v1"
+            and provenance.get("evaluator_abi") == "B4IC1/v1"
+            and int(provenance.get("feature_registry", 0)) == 1
+        )
+        if not required_provenance:
+            raise ValueError(f"invariant corpus row {index} lacks exact CUDA provenance")
+        labels = record.get("target_labels")
+        if not isinstance(labels, Mapping) or labels.get("exact_data_role") != "discovery":
+            raise ValueError(f"invariant corpus row {index} has invalid exact discovery labels")
+        quality = str(labels.get("source_quality", ""))
+        if quality not in CORPUS_SOURCE_QUALITIES:
+            raise ValueError(f"invariant corpus row {index} has invalid source quality")
+        qualities[quality] += 1
+        module = module_from_model_input(record["model_input"])
+        skeleton = structural_skeleton(module)
+        all_skeletons.add(skeleton)
+        if quality != "crossfit_positive":
+            continue
+        fitness = labels.get("fitness")
+        qualification = labels.get("qualification")
+        robust = (
+            isinstance(fitness, Mapping)
+            and isinstance(qualification, Mapping)
+            and int(fitness.get("unsafe_groups", -1)) == 0
+            and int(fitness.get("useful_groups", 0)) >= 2
+            and bool(qualification.get("production"))
+            and int(labels.get("crossfit_fold_support", 0)) >= 2
+            and int(labels.get("outer_fold_support", 0)) >= 2
+            and int(labels.get("action_change_count", 0)) > 0
+        )
+        if not robust:
+            raise ValueError(
+                f"crossfit positive row {index} is not safe and production-qualified"
+            )
+        positive_skeletons.add(skeleton)
+    if not qualities["crossfit_positive"] or not positive_skeletons:
+        raise ValueError("quality-gated invariant corpus has no robust positive source")
+    return {
+        **base,
+        **qualities,
+        "structural_skeletons": len(all_skeletons),
+        "positive_structural_skeletons": len(positive_skeletons),
+        "exact_cuda_labels": True,
+    }

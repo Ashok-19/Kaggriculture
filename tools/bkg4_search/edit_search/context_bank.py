@@ -46,7 +46,7 @@ def strategic_probe_schedule() -> StrategicProbeSchedule:
     It samples multiple frames per phase rather than learning one narrow step-270 region.
     """
     windows = (
-        StrategicWindow("early", 0, 143, (48, 72, 96, 120)),
+        StrategicWindow("early", 0, 143, (24, 48, 72, 96, 120)),
         StrategicWindow("early_mid", 144, 287, (144, 168, 192, 216, 240, 264)),
         StrategicWindow("mid", 288, 431, (288, 336, 360, 384)),
         StrategicWindow("late_mid", 432, 575, (432, 480, 504, 528)),

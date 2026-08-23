@@ -45,6 +45,7 @@ class MultiTemporalContextBankTests(unittest.TestCase):
         for window in schedule.windows:
             self.assertGreaterEqual(len(window.probe_steps), 2)
         self.assertLess(max(schedule.windows[0].probe_steps), min(schedule.windows[-1].probe_steps))
+        self.assertIn(24, schedule.probe_steps)
         self.assertIn(72, schedule.probe_steps)
         self.assertIn(288, schedule.probe_steps)
         self.assertIn(648, schedule.probe_steps)

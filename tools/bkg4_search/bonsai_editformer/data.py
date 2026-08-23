@@ -21,8 +21,18 @@ for p in (SEARCH, BKG_PY):
 import bonsai_kg_v4 as bkg  # noqa: E402
 from information_state_io import load_r0, registry_manifest  # noqa: E402
 from tools.bkg4_search.invariant_schema import invariant_model_input, module_from_model_input  # noqa: E402,F401
+from tools.bkg4_search.bonsai_editformer.invariant_data import (  # noqa: E402,F401
+    invariant_corpus_arrays,
+    invariant_grouped_split,
+    invariant_module_arrays,
+    invariant_numeric_batch,
+    module_from_invariant_arrays,
+)
 
-from model import CASE_DIM, EDIT_CAT_COLS, EDIT_NUM_COLS, EditFormerConfig, TREE_CAT_COLS, TREE_NUM_COLS
+try:  # Package imports for tests/tools; direct imports remain supported by existing scripts.
+    from .model import CASE_DIM, EDIT_CAT_COLS, EDIT_NUM_COLS, EditFormerConfig, TREE_CAT_COLS, TREE_NUM_COLS
+except ImportError:  # pragma: no cover - exercised by script entrypoints
+    from model import CASE_DIM, EDIT_CAT_COLS, EDIT_NUM_COLS, EditFormerConfig, TREE_CAT_COLS, TREE_NUM_COLS
 
 ROUTES = (22, 23, 29, 32, 34, 46, 63, 64, 70, 77, 79, 211, 212, 213, 214)
 ROUTE_POS = {x: i + 1 for i, x in enumerate(ROUTES)}

@@ -90,8 +90,10 @@ class ModuleSketch:
             raise ValueError(f"unknown control pattern {self.control_pattern}")
         if self.effect_class not in _EFFECTS:
             raise ValueError(f"unknown effect class {self.effect_class}")
-        if not self.domain or len(self.domain) > 64:
-            raise ValueError("invalid sketch domain")
+        if self.domain != _EFFECT_DOMAINS[self.effect_class]:
+            raise ValueError(
+                f"effect domain mismatch for {self.effect_class}: {self.domain!r} != {_EFFECT_DOMAINS[self.effect_class]!r}"
+            )
 
 
 @dataclass(frozen=True)
@@ -151,15 +153,44 @@ class AbstractAction:
     def validate(self) -> None:
         if self.kind not in _ACTIONS:
             raise ValueError(f"unknown abstract action {self.kind}")
-        if self.kind in ("ROUTE_OVERRIDE", "COMMITTED_ROUTE") and not 0 <= int(self.route_id) <= 65535:
-            raise ValueError("route_id out of range")
+        if self.kind == "NOOP":
+            if (
+                int(self.route_id), int(self.match_op), int(self.unit_op), int(self.unit_arg),
+                int(self.quantity), int(self.market_op), int(self.item), int(self.authority),
+                int(self.priority),
+            ) != (0, 0, 0, 0, 1, 0, 0, 3, 0):
+                raise ValueError("noncanonical NOOP action payload")
+        if self.kind in ("ROUTE_OVERRIDE", "COMMITTED_ROUTE"):
+            if not 0 <= int(self.route_id) <= 32767:
+                raise ValueError("route_id out of B4IM1 int16 range")
+            if (
+                int(self.match_op), int(self.unit_op), int(self.unit_arg), int(self.quantity),
+                int(self.market_op), int(self.item), int(self.authority), int(self.priority),
+            ) != (0, 0, 0, 1, 0, 0, 3, 0):
+                raise ValueError("noncanonical route action payload")
         if self.kind == "UNIT_REWRITE":
+            if (
+                int(self.route_id), int(self.market_op), int(self.item),
+                int(self.authority), int(self.priority),
+            ) != (0, 0, 0, 3, 0):
+                raise ValueError("noncanonical unit rewrite action payload")
             if int(self.match_op) not in _UNIT_OP_NAMES or int(self.unit_op) not in _UNIT_OP_NAMES:
                 raise ValueError("unit rewrite op out of range")
             if not -32768 <= int(self.quantity) <= 32767:
                 raise ValueError("unit quantity out of int16 range")
+            op = _UNIT_OP_NAMES[int(self.unit_op)]
+            if op == "PLANT":
+                if not 0 <= int(self.unit_arg) < 5 or int(self.quantity) != 1:
+                    raise ValueError("noncanonical PLANT rewrite payload")
+            elif op in {"PICKUP", "PLACE"}:
+                if not 0 <= int(self.unit_arg) < 12 or int(self.quantity) < 1:
+                    raise ValueError(f"invalid {op} rewrite payload")
+            elif int(self.unit_arg) != 0 or int(self.quantity) != 1:
+                raise ValueError(f"noncanonical {op} rewrite payload")
         if self.kind == "MARKET_INTENT":
-            if int(self.market_op) not in _MARKET_OP_NAMES:
+            if any(int(x) != 0 for x in (self.route_id, self.match_op, self.unit_op, self.unit_arg)):
+                raise ValueError("noncanonical market intent action payload")
+            if int(self.market_op) not in _MARKET_OP_NAMES or _MARKET_OP_NAMES[int(self.market_op)] == "NONE":
                 raise ValueError("market op out of range")
             if not 0 <= int(self.item) < 12:
                 raise ValueError("market item out of range")
@@ -169,6 +200,22 @@ class AbstractAction:
                 raise ValueError("authority out of range")
             if not 0 <= int(self.priority) <= 255:
                 raise ValueError("priority out of range")
+            op = _MARKET_OP_NAMES[int(self.market_op)]
+            item = int(self.item)
+            quantity = int(self.quantity)
+            valid = quantity >= 1
+            if op in {"HIRE", "BUY_LAND"}:
+                valid = valid and item == 0 and quantity == 1
+            elif op == "BUY_SEED":
+                valid = valid and 0 <= item < 5
+            elif op == "BUY_PRODUCT":
+                valid = valid and item in {0, 8}
+            elif op == "BUY_ANIMAL":
+                valid = valid and 9 <= item <= 11
+            elif op == "SELL":
+                valid = valid and 0 <= item < 9
+            if not valid:
+                raise ValueError(f"invalid {op} market payload")
 
 
 @dataclass(frozen=True)
@@ -185,11 +232,23 @@ class InvariantRule:
             raise ValueError(f"unknown lifted domain {self.domain}")
         self.guard.validate(lifted_domain=self.domain)
         self.exit_guard.validate(lifted_domain=self.domain)
+        if self.domain != "EACH_OWN_UNIT" and any(
+            atom.feature == "OWN_INVENTORY" for atom in (*self.guard.atoms, *self.exit_guard.atoms)
+        ):
+            raise ValueError("OWN_INVENTORY requires an EACH_OWN_UNIT bound unit and item")
         if len(self.guard.atoms) + len(self.exit_guard.atoms) > MAX_GUARDS_TOTAL:
             raise ValueError(f"entry+exit guard exceeds {MAX_GUARDS_TOTAL} atoms")
         self.action.validate()
+        allowed = {"GLOBAL": {"NOOP", "ROUTE_OVERRIDE", "MARKET_INTENT", "COMMITTED_ROUTE"}, "EACH_OWN_UNIT": {"UNIT_REWRITE"}}
+        if self.action.kind not in allowed[self.domain]:
+            raise ValueError(f"unsupported domain/action combination {self.domain}+{self.action.kind}")
+        committed = self.sketch.control_pattern == "COMMITTED"
+        if committed != (self.action.kind == "COMMITTED_ROUTE"):
+            raise ValueError(f"unsupported control/action combination {self.sketch.control_pattern}+{self.action.kind}")
         if self.sketch.control_pattern == "COMMITTED" and not self.exit_guard.atoms:
             raise ValueError("committed control pattern requires exit guard")
+        if not committed and self.exit_guard.atoms:
+            raise ValueError("instant control pattern cannot carry an exit guard")
         if self.action.kind == "COMMITTED_ROUTE" and self.sketch.control_pattern != "COMMITTED":
             raise ValueError("COMMITTED_ROUTE requires COMMITTED control pattern")
         if production:
@@ -468,6 +527,8 @@ def unpack_candidate(raw: bytes) -> InvariantStrategicModule:
         ))
     out = InvariantStrategicModule(tuple(rules))
     out.validate()
+    if pack_candidate(out) != raw:
+        raise ValueError("noncanonical B4IM1 candidate encoding")
     return out
 
 

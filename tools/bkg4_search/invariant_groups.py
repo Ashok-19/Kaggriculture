@@ -229,22 +229,35 @@ def solve_cross_tape_threshold(
     # Find the complete integer interval with exactly the same primary classification
     # (harmed protected, support groups, beneficial hits). This is the stable threshold basin.
     signature = (harmed, support, hits)
-    equivalent = []
     lo_scan = values[0] - 2
     hi_scan = values[-1] + 2
-    for t in range(lo_scan, hi_scan + 1):
-        h = sum(prot and _passes(v, t, comparator) for _, v, _, prot in rows)
-        gs = {g for g, v, pos, _ in rows if pos and _passes(v, t, comparator)}
-        bh = sum(pos and _passes(v, t, comparator) for _, v, pos, _ in rows)
+    # The classification is constant between observed decision boundaries. Enumerating
+    # those intervals keeps runtime proportional to evidence size, not the int32 span.
+    transition_offset = 1 if comparator in {"GE", "LT"} else 0
+    changes = {lo_scan, hi_scan + 1}
+    changes.update(
+        value + transition_offset
+        for value in values
+        if lo_scan < value + transition_offset <= hi_scan
+    )
+    intervals = tuple(
+        (start, end - 1)
+        for start, end in zip(sorted(changes), sorted(changes)[1:])
+        if start < end
+    )
+    interval_lo = interval_hi = best_t
+    for start, end in intervals:
+        if not start <= best_t <= end:
+            continue
+        probe = start
+        h = sum(prot and _passes(v, probe, comparator) for _, v, _, prot in rows)
+        gs = {g for g, v, pos, _ in rows if pos and _passes(v, probe, comparator)}
+        bh = sum(pos and _passes(v, probe, comparator) for _, v, pos, _ in rows)
         if (int(h), len(gs), int(bh)) == signature:
-            equivalent.append(t)
-    if equivalent:
-        interval_lo, interval_hi = min(equivalent), max(equivalent)
-        # Prefer the center of the broad stable interval, with deterministic lower tie.
-        chosen = (interval_lo + interval_hi) // 2
-    else:
-        interval_lo = interval_hi = best_t
-        chosen = best_t
+            interval_lo, interval_hi = start, end
+        break
+    # Prefer the center of the broad stable interval, with deterministic lower tie.
+    chosen = (interval_lo + interval_hi) // 2
     boundary_margin = min(abs(v - chosen) for _, v, _, _ in rows)
     score = (harmed, -support, -hits, -(interval_hi - interval_lo), -boundary_margin)
     return ThresholdSolution(comparator, chosen, interval_lo, interval_hi, support, hits, harmed, boundary_margin, score)

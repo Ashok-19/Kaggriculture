@@ -95,22 +95,70 @@ B4IM_HD bool magic_ok(const Candidate& c) {
            c.header.magic[2] == 'I' && c.header.magic[3] == 'M';
 }
 
+template <class T>
+B4IM_HD bool bytes_zero(const T& value) {
+    const auto* p = reinterpret_cast<const uint8_t*>(&value);
+    for (int i = 0; i < static_cast<int>(sizeof(T)); ++i) if (p[i] != 0) return false;
+    return true;
+}
+
+B4IM_HD bool is_unit_feature(uint16_t f) {
+    return f == F_OWN_WORKER_X || f == F_OWN_WORKER_Y || f == F_OPP_WORKER_X ||
+           f == F_OPP_WORKER_Y || f == F_OWN_WORKER_TILE || f == F_OPP_WORKER_TILE;
+}
+
+B4IM_HD bool is_tile_feature(uint16_t f);
+
 B4IM_HD bool valid_candidate(const Candidate& c) {
     if (!magic_ok(c) || c.header.version != B4IM1_VERSION || c.header.n_rules > B4IM1_MAX_RULES ||
         c.header.flags != 0 || c.header.reserved != 0) return false;
     for (int ri = 0; ri < c.header.n_rules; ++ri) {
         const RuleBin& r = c.rules[ri];
         if (r.domain > DOMAIN_EACH_OWN_UNIT || r.control > CONTROL_COMMITTED || r.action > ACTION_COMMITTED_ROUTE ||
-            r.n_guard + r.n_exit > B4IM1_MAX_GUARDS || r.authority > MAX_AUTHORITY || r.priority > 255 || r.reserved != 0)
+            r.n_guard + r.n_exit > B4IM1_MAX_GUARDS || r.effect > 8 || r.authority > MAX_AUTHORITY || r.reserved != 0)
             return false;
         for (int gi = 0; gi < r.n_guard + r.n_exit; ++gi) {
             const GuardBin& g = r.guards[gi];
             if (g.feature_id > LAST_FEATURE_V1 || g.cmp > C_GE || g.arg_mode > ARG_BOUND_UNIT) return false;
+            if (g.feature_id == F_OWN_INVENTORY && r.domain != DOMAIN_EACH_OWN_UNIT) return false;
+            uint8_t expected = ARG_CONST;
+            if (r.domain == DOMAIN_EACH_OWN_UNIT && is_tile_feature(g.feature_id)) expected = ARG_BOUND_TILE;
+            else if (r.domain == DOMAIN_EACH_OWN_UNIT && is_unit_feature(g.feature_id)) expected = ARG_BOUND_UNIT;
+            if (g.feature_id == F_OWN_INVENTORY) expected = ARG_CONST;
+            if (g.arg_mode != expected) return false;
         }
-        if ((r.action == ACTION_COMMITTED_ROUTE || r.control == CONTROL_COMMITTED) && r.n_exit == 0) return false;
-        if (r.action == ACTION_UNIT_REWRITE && r.domain != DOMAIN_EACH_OWN_UNIT) return false;
-        if (r.action == ACTION_MARKET_INTENT && r.domain != DOMAIN_GLOBAL) return false;
+        for (int gi = r.n_guard + r.n_exit; gi < B4IM1_MAX_GUARDS; ++gi)
+            if (!bytes_zero(r.guards[gi])) return false;
+        if (r.domain == DOMAIN_GLOBAL && r.action == ACTION_UNIT_REWRITE) return false;
+        if (r.domain == DOMAIN_EACH_OWN_UNIT && r.action != ACTION_UNIT_REWRITE) return false;
+        if ((r.action == ACTION_COMMITTED_ROUTE) != (r.control == CONTROL_COMMITTED)) return false;
+        if (r.control == CONTROL_COMMITTED && r.n_exit == 0) return false;
+        if (r.control == CONTROL_INSTANT && r.n_exit != 0) return false;
+        if (r.action != ACTION_MARKET_INTENT &&
+            (r.authority != AUTH_COMMITTED_STRATEGY || r.priority != 0)) return false;
+        if (r.action == ACTION_NOOP && (r.p0 || r.p1 || r.p2 || r.p3 || r.p4)) return false;
+        if ((r.action == ACTION_ROUTE_OVERRIDE || r.action == ACTION_COMMITTED_ROUTE) &&
+            (r.p0 < 0 || r.p1 || r.p2 || r.p3 || r.p4)) return false;
+        if (r.action == ACTION_UNIT_REWRITE) {
+            if (r.p0 < U_PASS || r.p0 > U_CARE || r.p1 < U_PASS || r.p1 > U_CARE || r.p4) return false;
+            if (r.p1 == U_PLANT) {
+                if (r.p2 < 0 || r.p2 >= 5 || r.p3 != 1) return false;
+            } else if (r.p1 == U_PICKUP || r.p1 == U_PLACE) {
+                if (r.p2 < 0 || r.p2 >= 12 || r.p3 < 1) return false;
+            } else if (r.p2 != 0 || r.p3 != 1) return false;
+        }
+        if (r.action == ACTION_MARKET_INTENT) {
+            if (r.p0 < M_HIRE || r.p0 > M_SELL || r.p2 < 1 ||
+                r.p3 != r.authority || r.p4 != r.priority) return false;
+            if ((r.p0 == M_HIRE || r.p0 == M_BUY_LAND) && (r.p1 != 0 || r.p2 != 1)) return false;
+            if (r.p0 == M_BUY_SEED && (r.p1 < 0 || r.p1 >= 5)) return false;
+            if (r.p0 == M_BUY_PRODUCT && r.p1 != 0 && r.p1 != 8) return false;
+            if (r.p0 == M_BUY_ANIMAL && (r.p1 < 9 || r.p1 > 11)) return false;
+            if (r.p0 == M_SELL && (r.p1 < 0 || r.p1 >= 9)) return false;
+        }
     }
+    for (int ri = c.header.n_rules; ri < B4IM1_MAX_RULES; ++ri)
+        if (!bytes_zero(c.rules[ri])) return false;
     return true;
 }
 

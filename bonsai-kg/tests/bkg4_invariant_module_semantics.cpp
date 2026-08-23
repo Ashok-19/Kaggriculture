@@ -41,6 +41,7 @@ GuardBin G(uint16_t feature, uint8_t cmp, uint8_t mode, int arg, int value) {
 Candidate feed_candidate() {
     Candidate c{}; std::memcpy(c.header.magic,"B4IM",4); c.header.version=1; c.header.n_rules=1;
     auto& r=c.rules[0]; r.domain=DOMAIN_EACH_OWN_UNIT; r.control=CONTROL_INSTANT; r.action=ACTION_UNIT_REWRITE; r.n_guard=4; r.effect=2;
+    r.authority=bonsaikg4::AUTH_COMMITTED_STRATEGY;
     r.p0=bonsaikg4::U_FEED; r.p1=bonsaikg4::U_PASS; r.p2=0; r.p3=1;
     r.guards[0]=G(bonsaikg4::F_OWN_TILE_HAS_ANIMAL,bonsaikg4::C_EQ,ARG_BOUND_TILE,0,1);
     r.guards[1]=G(bonsaikg4::F_OWN_TILE_ITEM,bonsaikg4::C_EQ,ARG_BOUND_TILE,0,10);
@@ -54,6 +55,19 @@ Candidate feed_candidate() {
 int main() {
     static_assert(sizeof(Candidate)==256, "B4IM1 candidate ABI must be 256 bytes");
     {
+        auto bad=feed_candidate();bad.rules[0].domain=DOMAIN_EACH_OWN_UNIT;bad.rules[0].action=ACTION_ROUTE_OVERRIDE;
+        assert(!valid_candidate(bad));
+        bad=feed_candidate();bad.rules[1].p0=70;assert(!valid_candidate(bad));
+        bad=feed_candidate();bad.rules[0].guards[4].value=1;assert(!valid_candidate(bad));
+        bad=feed_candidate();bad.rules[0].p4=1;assert(!valid_candidate(bad));
+        bad=feed_candidate();bad.rules[0].authority=2;assert(!valid_candidate(bad));
+        bad=Candidate{};std::memcpy(bad.header.magic,"B4IM",4);bad.header.version=1;bad.header.n_rules=1;
+        bad.rules[0].domain=DOMAIN_GLOBAL;bad.rules[0].control=CONTROL_INSTANT;bad.rules[0].action=ACTION_ROUTE_OVERRIDE;
+        bad.rules[0].effect=1;bad.rules[0].p0=70;bad.rules[0].n_guard=1;
+        bad.rules[0].guards[0]=G(bonsaikg4::F_OWN_INVENTORY,bonsaikg4::C_GE,ARG_CONST,0,1);
+        assert(!valid_candidate(bad));
+    }
+    {
         auto c=feed_candidate(); RuntimeState s{}; Obs obs{}; auto d=evaluate(c,s,obs);
         assert(d.activations==1); assert((d.rewrite_masks[0]&1ull)!=0); assert((d.rewrite_masks[0]&2ull)==0);
         Action a{}; a.n_units=2; a.units[0].op=bonsaikg4::U_FEED; a.units[1].op=bonsaikg4::U_FEED;
@@ -64,6 +78,7 @@ int main() {
     {
         Candidate c{}; std::memcpy(c.header.magic,"B4IM",4); c.header.version=1; c.header.n_rules=1;
         auto& r=c.rules[0]; r.domain=DOMAIN_EACH_OWN_UNIT; r.control=CONTROL_INSTANT; r.action=ACTION_UNIT_REWRITE; r.n_guard=1; r.effect=6;
+        r.authority=bonsaikg4::AUTH_COMMITTED_STRATEGY;
         r.p0=bonsaikg4::U_CARE; r.p1=bonsaikg4::U_FEED; r.p2=0; r.p3=1;
         r.guards[0]=G(bonsaikg4::F_OWN_INVENTORY,bonsaikg4::C_GE,ARG_CONST,0,1);
         RuntimeState s{}; Obs obs{}; auto d=evaluate(c,s,obs);
@@ -73,6 +88,7 @@ int main() {
         Candidate c{}; std::memcpy(c.header.magic,"B4IM",4); c.header.version=1; c.header.n_rules=1;
         auto& r=c.rules[0]; r.domain=DOMAIN_GLOBAL; r.control=CONTROL_INSTANT; r.action=ACTION_MARKET_INTENT; r.n_guard=1; r.effect=3;
         r.p0=bonsaikg4::M_SELL; r.p1=5; r.p2=2; r.p3=bonsaikg4::AUTH_COMMITTED_STRATEGY; r.p4=20;
+        r.authority=bonsaikg4::AUTH_COMMITTED_STRATEGY; r.priority=20;
         r.guards[0]=G(bonsaikg4::F_OWN_SHED,bonsaikg4::C_GE,ARG_CONST,5,2);
         Obs obs{};obs.shed_milk=3;RuntimeState s{};auto d=evaluate(c,s,obs);Action a{};a.n_orders=1;a.orders[0].op=bonsaikg4::M_HIRE;
         apply_post(c,d,a,10);assert(a.n_orders==2);assert(a.orders[0].op==bonsaikg4::M_SELL);assert(a.orders[0].item==5);assert(a.orders[0].n==2);
@@ -80,6 +96,7 @@ int main() {
     {
         Candidate c{};std::memcpy(c.header.magic,"B4IM",4);c.header.version=1;c.header.n_rules=1;
         auto& r=c.rules[0];r.domain=DOMAIN_GLOBAL;r.control=CONTROL_COMMITTED;r.action=ACTION_COMMITTED_ROUTE;r.n_guard=1;r.n_exit=1;r.effect=4;r.p0=70;
+        r.authority=bonsaikg4::AUTH_COMMITTED_STRATEGY;
         r.guards[0]=G(bonsaikg4::F_OWN_MONEY,bonsaikg4::C_GE,ARG_CONST,0,6000);
         r.guards[1]=G(bonsaikg4::F_OWN_MONEY,bonsaikg4::C_LE,ARG_CONST,0,2500);
         RuntimeState s{};Obs o{};o.money=7000;auto d=evaluate(c,s,o);assert(d.route_override==70);o.money=4000;d=evaluate(c,s,o);assert(d.route_override==70);o.money=2000;d=evaluate(c,s,o);assert(d.route_override==bonsaikg4::NONE_U16);

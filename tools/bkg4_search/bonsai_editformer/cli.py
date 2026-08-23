@@ -129,8 +129,9 @@ def to_jax(batch):
     import jax.numpy as jnp
     out={}
     for k,v in batch.items():
-        if k in ("tree_cat","edit_cat","tree_parent","tree_depth","tree_rule","group"): out[k]=jnp.asarray(v,dtype=jnp.int32)
-        elif k in ("tree_mask","edit_mask","case_mask"): out[k]=jnp.asarray(v,dtype=bool)
+        if k in ("tree_cat","edit_cat","tree_parent","tree_depth","tree_rule","group",
+                 "b4im_cat","b4im_num","b4im_parent","b4im_depth","b4im_rule"): out[k]=jnp.asarray(v,dtype=jnp.int32)
+        elif k in ("tree_mask","edit_mask","case_mask","b4im_mask"): out[k]=jnp.asarray(v,dtype=bool)
         else: out[k]=jnp.asarray(v,dtype=jnp.float32)
     return out
 

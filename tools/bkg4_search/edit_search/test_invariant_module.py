@@ -138,6 +138,69 @@ class InvariantModuleTests(unittest.TestCase):
         self.assertIn("invariant_mode", str(distilled["blackboard"]))
         self.assertIn("OWN_MONEY", str(distilled["tree"]))
 
+    def test_schema_rejects_domain_action_and_control_combinations_without_semantics(self):
+        invalid = (
+            InvariantRule(
+                ModuleSketch("route", "INSTANT", "ROUTE_MODE"),
+                "EACH_OWN_UNIT", LiftedGuard(), AbstractAction("ROUTE_OVERRIDE", route_id=70),
+            ),
+            InvariantRule(
+                ModuleSketch("recovery", "INSTANT", "RECOVER_RESOURCE_INVARIANT"),
+                "GLOBAL", LiftedGuard(), AbstractAction("UNIT_REWRITE", match_op=17, unit_op=15),
+            ),
+            InvariantRule(
+                ModuleSketch("route", "COMMITTED", "ROUTE_MODE"),
+                "GLOBAL", LiftedGuard(), AbstractAction("ROUTE_OVERRIDE", route_id=70),
+                LiftedGuard((GuardAtom("OWN_MONEY", "GE", 1),)),
+            ),
+        )
+        for rule in invalid:
+            with self.subTest(rule=rule):
+                with self.assertRaisesRegex(ValueError, "domain/action|control/action"):
+                    InvariantStrategicModule((rule,)).validate()
+
+    def test_schema_rejects_noncanonical_sketch_and_action_payloads(self):
+        bad_sketch = InvariantStrategicModule((InvariantRule(
+            ModuleSketch("arbitrary-domain", "INSTANT", "ROUTE_MODE"),
+            "GLOBAL", LiftedGuard(), AbstractAction("ROUTE_OVERRIDE", route_id=70),
+        ),))
+        with self.assertRaisesRegex(ValueError, "effect domain"):
+            bad_sketch.validate()
+
+        bad_feed = InvariantStrategicModule((InvariantRule(
+            ModuleSketch("recovery", "INSTANT", "RECOVER_RESOURCE_INVARIANT"),
+            "EACH_OWN_UNIT", LiftedGuard(),
+            AbstractAction("UNIT_REWRITE", match_op=17, unit_op=15, unit_arg=6, quantity=2),
+        ),))
+        with self.assertRaisesRegex(ValueError, "payload"):
+            bad_feed.validate()
+
+        noncanonical = (
+            AbstractAction("NOOP", route_id=70),
+            AbstractAction("ROUTE_OVERRIDE", route_id=70, match_op=1),
+            AbstractAction("UNIT_REWRITE", match_op=17, unit_op=0, market_op=1),
+            AbstractAction("MARKET_INTENT", market_op=1, route_id=70),
+        )
+        for action in noncanonical:
+            with self.subTest(action=action):
+                with self.assertRaisesRegex(ValueError, "noncanonical"):
+                    action.validate()
+
+    def test_unpack_rejects_nonzero_inactive_payload(self):
+        raw = bytearray(pack_candidate(self.feed_deferral()))
+        raw[-1] = 1
+        with self.assertRaisesRegex(ValueError, "noncanonical"):
+            unpack_candidate(bytes(raw))
+
+    def test_global_inventory_guard_is_rejected_because_it_cannot_bind_unit_and_item(self):
+        module = InvariantStrategicModule((InvariantRule(
+            ModuleSketch("route", "INSTANT", "ROUTE_MODE"), "GLOBAL",
+            LiftedGuard((GuardAtom("OWN_INVENTORY", "GE", 1, arg=0),)),
+            AbstractAction("ROUTE_OVERRIDE", route_id=70),
+        ),))
+        with self.assertRaisesRegex(ValueError, "OWN_INVENTORY.*bound unit"):
+            module.validate()
+
 
 if __name__ == "__main__":
     unittest.main()

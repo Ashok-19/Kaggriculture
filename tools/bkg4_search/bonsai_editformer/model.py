@@ -36,6 +36,7 @@ class EditFormerConfig:
     use_rank_loss: bool = True
     use_heuristic_residual: bool = True
     compute_dtype: str = "bfloat16"
+    candidate_schema: str = "legacy"
 
     @property
     def head_dim(self) -> int:
@@ -191,42 +192,67 @@ class BonsaiEditFormer(nn.Module):
     def __call__(self, batch: dict[str, jax.Array], *, train: bool = False) -> dict[str, jax.Array]:
         cfg = self.cfg
         dtype = _dtype(cfg.compute_dtype)
-        tc, tn = batch["tree_cat"], batch["tree_num"]
-        tm = batch["tree_mask"].astype(bool)
 
         def emb(name, vocab, ids):
             return nn.Embed(vocab, cfg.d_model, dtype=dtype, param_dtype=jnp.float32, name=name)(ids)
 
-        tree = (
-            emb("tree_type", 8, tc[..., 0]) + emb("tree_feature", 40, tc[..., 1]) +
-            emb("tree_cmp", 8, tc[..., 2]) + emb("tree_route", 20, tc[..., 3]) +
-            emb("tree_parent_kind", 4, tc[..., 4]) + emb("tree_ordinal", 12, tc[..., 5]) +
-            nn.Dense(cfg.d_model, dtype=dtype, param_dtype=jnp.float32, name="tree_num_proj")(tn)
-        )
+        invariant = cfg.candidate_schema == "b4im1"
+        if invariant:
+            bc = batch["b4im_cat"].astype(jnp.int32)
+            raw_num = batch["b4im_num"].astype(jnp.float32)
+            bn = jnp.sign(raw_num) * jnp.log1p(jnp.abs(raw_num)) / jnp.log(float(1 << 31))
+            tm = batch["b4im_mask"].astype(bool)
+            tree_parent = batch["b4im_parent"]
+            tree_depth = batch["b4im_depth"]
+            tree_rule = batch["b4im_rule"]
+            tree = (
+                emb("b4im_token", 4, bc[..., 0]) + emb("b4im_rule_index", 5, bc[..., 1]) +
+                emb("b4im_domain_phase", 4, bc[..., 2]) + emb("b4im_control_ordinal", 7, bc[..., 3]) +
+                emb("b4im_effect_feature", 64, bc[..., 4]) + emb("b4im_action_cmp", 8, bc[..., 5]) +
+                emb("b4im_reserved6", 2, bc[..., 6]) + emb("b4im_reserved7", 2, bc[..., 7]) +
+                nn.Dense(cfg.d_model, dtype=dtype, param_dtype=jnp.float32, name="b4im_num_proj")(bn)
+            )
+        elif cfg.candidate_schema == "legacy":
+            tc, tn = batch["tree_cat"], batch["tree_num"]
+            tm = batch["tree_mask"].astype(bool)
+            tree_parent = batch["tree_parent"]
+            tree_depth = batch["tree_depth"]
+            tree_rule = batch["tree_rule"]
+            tree = (
+                emb("tree_type", 8, tc[..., 0]) + emb("tree_feature", 40, tc[..., 1]) +
+                emb("tree_cmp", 8, tc[..., 2]) + emb("tree_route", 20, tc[..., 3]) +
+                emb("tree_parent_kind", 4, tc[..., 4]) + emb("tree_ordinal", 12, tc[..., 5]) +
+                nn.Dense(cfg.d_model, dtype=dtype, param_dtype=jnp.float32, name="tree_num_proj")(tn)
+            )
+        else:
+            raise ValueError(f"unsupported candidate schema {cfg.candidate_schema!r}")
         tree = tree * tm[..., None]
         for i in range(cfg.tree_blocks):
             tree = TransformerBlock(cfg, f"tree{i}", structural=True)(
-                tree, tm, batch["tree_parent"], batch["tree_depth"], batch["tree_rule"], train=train
+                tree, tm, tree_parent, tree_depth, tree_rule, train=train
             )
         tree_pool = tree[:, 0]
 
-        ec, en = batch["edit_cat"], batch["edit_num"]
-        em = batch["edit_mask"].astype(bool)
-        if cfg.use_edit_delta:
-            edit = (
-                emb("edit_type", 8, ec[..., 0]) + emb("edit_feature", 40, ec[..., 1]) +
-                emb("edit_cmp", 8, ec[..., 2]) + emb("edit_route", 20, ec[..., 3]) +
-                emb("edit_ordinal", 12, ec[..., 4]) +
-                nn.Dense(cfg.d_model, dtype=dtype, param_dtype=jnp.float32, name="edit_num_proj")(en)
-            )
+        if invariant:
+            edit_pool = jnp.sum(tree * tm[..., None], axis=1) / jnp.maximum(jnp.sum(tm, axis=1, keepdims=True), 1)
         else:
-            edit = jnp.zeros((*ec.shape[:2], cfg.d_model), dtype=dtype)
-        edit = edit * em[..., None]
-        edit = nn.LayerNorm(dtype=jnp.float32, name="edit_ln")(edit).astype(dtype)
-        edit = nn.Dense(cfg.ffn_dim // 2, dtype=dtype, param_dtype=jnp.float32, name="edit_ff1")(edit)
-        edit = nn.gelu(edit)
-        edit = nn.Dense(cfg.d_model, dtype=dtype, param_dtype=jnp.float32, name="edit_ff2")(edit)
-        edit_pool = jnp.sum(edit * em[..., None], axis=1) / jnp.maximum(jnp.sum(em, axis=1, keepdims=True), 1)
+            ec, en = batch["edit_cat"], batch["edit_num"]
+            em = batch["edit_mask"].astype(bool)
+            if cfg.use_edit_delta:
+                edit = (
+                    emb("edit_type", 8, ec[..., 0]) + emb("edit_feature", 40, ec[..., 1]) +
+                    emb("edit_cmp", 8, ec[..., 2]) + emb("edit_route", 20, ec[..., 3]) +
+                    emb("edit_ordinal", 12, ec[..., 4]) +
+                    nn.Dense(cfg.d_model, dtype=dtype, param_dtype=jnp.float32, name="edit_num_proj")(en)
+                )
+            else:
+                edit = jnp.zeros((*ec.shape[:2], cfg.d_model), dtype=dtype)
+            edit = edit * em[..., None]
+            edit = nn.LayerNorm(dtype=jnp.float32, name="edit_ln")(edit).astype(dtype)
+            edit = nn.Dense(cfg.ffn_dim // 2, dtype=dtype, param_dtype=jnp.float32, name="edit_ff1")(edit)
+            edit = nn.gelu(edit)
+            edit = nn.Dense(cfg.d_model, dtype=dtype, param_dtype=jnp.float32, name="edit_ff2")(edit)
+            edit_pool = jnp.sum(edit * em[..., None], axis=1) / jnp.maximum(jnp.sum(em, axis=1, keepdims=True), 1)
 
         cm = batch["case_mask"].astype(bool)
         if cfg.use_activation_context:
