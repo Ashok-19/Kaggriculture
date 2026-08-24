@@ -58,7 +58,6 @@ GPU_MEMORY_FRACTION = 0.70
 DISK_RESERVE_BYTES = 12 * 1024**3
 MINIMUM_SHARD_SECONDS = 15 * 60
 MONITOR_INTERVAL_SECONDS = 60
-IDLE_GPU_LIMIT_SAMPLES = 5
 
 PUBLISH_CORPUS = False
 CORPUS_DATASET = "ashok205/kaggriculture-b4im-elite-specialist-corpus"
@@ -250,7 +249,8 @@ for physical_gpu in (0, 1):
 print({gpu: {"pid": row["pid"], "uuid": row["uuid"], "seed_namespace": BASE_SEED + gpu * 1_000_000_000} for gpu, row in workers.items()})
 '''),
         _code(r'''
-# Low-frequency utilization/progress monitor and idle-GPU watchdog.
+# Low-frequency utilization/progress monitor. Proposal generation and shard
+# serialization are CPU phases, so low instantaneous GPU use is not a failure.
 from IPython.display import clear_output
 
 def progress_bar(fraction, width=30):
@@ -259,7 +259,6 @@ def progress_bar(fraction, width=30):
     return "[" + "#" * filled + "-" * (width - filled) + "]"
 
 utilization_samples = []
-idle_counts = {0: 0, 1: 0}
 while any(row["process"].poll() is None for row in workers.values()) and time.monotonic() < HARD_EXIT_DEADLINE:
     snapshot = run(["nvidia-smi", "--query-gpu=index,uuid,utilization.gpu,utilization.memory,memory.used", "--format=csv,noheader,nounits"], check=False).stdout
     by_gpu = {}
@@ -270,10 +269,6 @@ while any(row["process"].poll() is None for row in workers.values()) and time.mo
     for gpu, worker in workers.items():
         heartbeat = OUTPUT_ROOT / f"island{gpu}/heartbeat.json"
         sample["workers"][str(gpu)] = json.loads(heartbeat.read_text()) if heartbeat.is_file() else {"pid": worker["pid"], "warming_up": True}
-        active = worker["process"].poll() is None
-        idle_counts[gpu] = idle_counts[gpu] + 1 if active and by_gpu.get(gpu, {}).get("gpu_util", 0) < 5 else 0
-        if idle_counts[gpu] >= IDLE_GPU_LIMIT_SAMPLES:
-            raise RuntimeError(f"GPU{gpu} remained unexpectedly idle while its worker was active")
     utilization_samples.append(sample)
     generation_fraction = (time.monotonic() - PIPELINE_STARTED_MONOTONIC) / max(1, GENERATION_DEADLINE - PIPELINE_STARTED_MONOTONIC)
     clear_output(wait=True)
