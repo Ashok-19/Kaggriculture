@@ -4,7 +4,10 @@ import copy
 import hashlib
 import unittest
 
-from tools.bkg4_search.bonsai_editformer.invariant_data import invariant_corpus_arrays
+from tools.bkg4_search.bonsai_editformer.invariant_data import (
+    invariant_corpus_arrays,
+    invariant_grouped_split,
+)
 from tools.bkg4_search.edit_search.fitness import StateEvaluation
 from tools.bkg4_search.invariant_module import (
     AbstractAction,
@@ -15,7 +18,12 @@ from tools.bkg4_search.invariant_module import (
     ModuleSketch,
 )
 from tools.bkg4_search.invariant_schema import make_corpus_record, validate_specialist_corpus
-from tools.bkg4_search.invariant_search import pair_relative_case_rows
+from tools.bkg4_search.invariant_search import (
+    default_search_goals,
+    emit_skeletons,
+    pair_relative_case_rows,
+    structural_skeleton,
+)
 from tools.bkg4_search.invariant_specialists import SpecialistLineage
 
 
@@ -156,6 +164,31 @@ def _fixture() -> tuple[dict, dict, dict]:
     return root_record, child_record, grand_record
 
 
+def _split_ready_specialist_roots() -> tuple[dict, dict]:
+    """Return two valid specialist roots guaranteed onto opposite 50/50 split buckets."""
+    selected: dict[bool, InvariantStrategicModule] = {}
+    goals = default_search_goals((29, 64, 70, 211))
+    for index, goal in enumerate(goals):
+        for module in emit_skeletons(
+            goal, n=8, seed=500 + index, route_ids=(29, 64, 70, 211),
+        ):
+            key = repr(structural_skeleton(module))
+            held_out = int(hashlib.sha256(key.encode()).hexdigest()[:8], 16) % 2 == 0
+            selected.setdefault(held_out, module)
+            if len(selected) == 2:
+                records = []
+                for chosen in (selected[False], selected[True]):
+                    lineage = SpecialistLineage.root(chosen, parent_controller="parent-controller")
+                    records.append(_record(
+                        lineage,
+                        root_semantic_id=chosen.semantic_id(),
+                        source_rows=[{"case_id": "root", "margin_delta": 0}],
+                        parent_evidence=None,
+                    ))
+                return tuple(records)
+    raise AssertionError("could not construct opposite specialist split buckets")
+
+
 class InvariantLineageIntegrityTests(unittest.TestCase):
     def test_valid_internal_root_child_grandchild_lineage_passes(self):
         records = _fixture()
@@ -259,6 +292,87 @@ class InvariantLineageIntegrityTests(unittest.TestCase):
             validate_specialist_corpus((bad,))
         with self.assertRaises(ValueError):
             invariant_corpus_arrays((bad,))
+
+
+    def test_model_ingestion_rejects_specialist_role_mismatch_or_missing_marker(self):
+        root, _, _ = _fixture()
+        cases = []
+
+        bad = copy.deepcopy(root)
+        bad["target_labels"]["exact_data_role"] = "corrupted_role"
+        cases.append(("corrupted_target_role", bad))
+
+        bad = copy.deepcopy(root)
+        del bad["target_labels"]["exact_data_role"]
+        cases.append(("missing_target_role", bad))
+
+        bad = copy.deepcopy(root)
+        bad["provenance"]["data_role"] = "corrupted_role"
+        cases.append(("corrupted_provenance_role", bad))
+
+        bad = copy.deepcopy(root)
+        del bad["provenance"]["data_role"]
+        cases.append(("missing_provenance_role", bad))
+
+        bad = copy.deepcopy(root)
+        bad["provenance"]["data_role"] = "corrupted_role"
+        bad["target_labels"]["exact_data_role"] = "corrupted_role"
+        cases.append(("both_roles_corrupted", bad))
+
+        bad = copy.deepcopy(root)
+        del bad["provenance"]["data_role"]
+        del bad["target_labels"]["exact_data_role"]
+        cases.append(("both_roles_missing", bad))
+
+        bad = copy.deepcopy(root)
+        bad["provenance"]["data_role"] = 7
+        bad["target_labels"]["exact_data_role"] = None
+        cases.append(("both_roles_malformed", bad))
+
+        for name, bad in cases:
+            with self.subTest(name=name):
+                with self.assertRaises(ValueError):
+                    invariant_corpus_arrays((bad,))
+
+    def test_model_ingestion_role_mismatch_cannot_hide_corrupted_lineage(self):
+        root, _, _ = _fixture()
+        bad = copy.deepcopy(root)
+        bad["target_labels"]["exact_data_role"] = "corrupted_role"
+        lineage = bad["target_labels"]["lineage"]
+        lineage["depth"] = 2
+        lineage["parent_semantic_id"] = "bogus-parent-semantic-id"
+        lineage["root_semantic_id"] = "bogus-root-semantic-id"
+        with self.assertRaises(ValueError):
+            validate_specialist_corpus((bad,))
+        with self.assertRaises(ValueError):
+            invariant_corpus_arrays((bad,))
+
+    def test_grouped_split_rejects_specialist_role_corruption_and_missing_marker(self):
+        records = _split_ready_specialist_roots()
+        split = invariant_grouped_split(records, validation_fraction=0.5)
+        self.assertTrue(split.train_indices)
+        self.assertTrue(split.validation_indices)
+
+        for name, mutate in (
+            ("corrupted_target_role", lambda row: row["target_labels"].__setitem__("exact_data_role", "corrupted_role")),
+            ("missing_target_role", lambda row: row["target_labels"].pop("exact_data_role")),
+        ):
+            bad_records = copy.deepcopy(records)
+            for row in bad_records:
+                mutate(row)
+            with self.subTest(name=name):
+                with self.assertRaises(ValueError):
+                    invariant_grouped_split(bad_records, validation_fraction=0.5)
+
+        bad_records = copy.deepcopy(records)
+        for row in bad_records:
+            row["target_labels"]["exact_data_role"] = "corrupted_role"
+        lineage = bad_records[0]["target_labels"]["lineage"]
+        lineage["depth"] = 2
+        lineage["parent_semantic_id"] = "bogus-parent-semantic-id"
+        lineage["root_semantic_id"] = "bogus-root-semantic-id"
+        with self.assertRaises(ValueError):
+            invariant_grouped_split(bad_records, validation_fraction=0.5)
 
     def test_stale_lineage_schema_fails_closed(self):
         root, _, _ = _fixture()

@@ -192,11 +192,32 @@ def module_from_invariant_arrays(
 
 
 def _validate_model_corpus(records: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
-    specialist = [
-        isinstance(record.get("target_labels"), Mapping)
-        and record["target_labels"].get("exact_data_role") == "specialist_discovery"
-        for record in records
-    ]
+    specialist_role = "specialist_discovery"
+    specialist_label_markers = frozenset({
+        "lineage", "specialist_tier", "specialist_categories",
+    })
+    specialist = []
+    for index, record in enumerate(records):
+        provenance = record.get("provenance")
+        labels = record.get("target_labels")
+        provenance_role = provenance.get("data_role") if isinstance(provenance, Mapping) else None
+        label_role = labels.get("exact_data_role") if isinstance(labels, Mapping) else None
+        specialist_payload = (
+            isinstance(labels, Mapping)
+            and bool(specialist_label_markers.intersection(labels))
+        )
+        claims_specialist = (
+            provenance_role == specialist_role
+            or label_role == specialist_role
+            or specialist_payload
+        )
+        if claims_specialist and (
+            provenance_role != specialist_role or label_role != specialist_role
+        ):
+            raise ValueError(
+                f"model corpus row {index} has inconsistent specialist validation role"
+            )
+        specialist.append(claims_specialist)
     if any(specialist):
         if not all(specialist):
             raise ValueError("model corpus cannot mix specialist and non-specialist validation contracts")
