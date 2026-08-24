@@ -156,6 +156,11 @@ print(json.dumps({"production_gpus": gpus[:2]}, indent=2))
 # NVCC/host compatibility varies across Kaggle images, so probe installed compilers by
 # compiling instead of assuming g++-9 exists or that the newest g++ is compatible.
 BUILD_ROOT.mkdir(parents=True, exist_ok=True)
+nvcc_candidates = [shutil.which("nvcc"), Path("/usr/local/cuda/bin/nvcc")]
+nvcc_candidates.extend(sorted(Path("/usr/local").glob("cuda-*/bin/nvcc"), reverse=True))
+nvcc = next((str(path) for path in nvcc_candidates if path and Path(path).is_file()), None)
+if nvcc is None:
+    raise RuntimeError("nvcc not found; confirm the Kaggle T4 x2 accelerator is enabled")
 compiler_candidates = []
 for name in ("g++-9", "g++-10", "g++-11", "g++-12", "g++-13", "g++"):
     path = shutil.which(name)
@@ -169,7 +174,7 @@ for candidate in compiler_candidates:
     evaluator_candidate.unlink(missing_ok=True)
     attempt = run([
         "make", "-C", str(RUNTIME_ROOT / "cuda-engine"), "bkg4-invariant-edit-eval",
-        "ARCH=sm_75", f"BUILD_DIR={BUILD_ROOT}", f"B4EC_HOST_CXX={candidate}",
+        "ARCH=sm_75", f"BUILD_DIR={BUILD_ROOT}", f"NVCC={nvcc}", f"B4EC_HOST_CXX={candidate}",
     ], check=False)
     if attempt.returncode == 0 and evaluator_candidate.is_file():
         make = attempt; host_cxx = candidate; break
@@ -185,7 +190,7 @@ if cuobjdump is None:
 elf = run([cuobjdump, "--list-elf", EVALUATOR]).stdout + run([cuobjdump, "--dump-elf", EVALUATOR]).stdout
 if "sm_75" not in elf or "sm_86" in elf:
     raise RuntimeError("compiled evaluator is not a native sm_75-only artifact")
-print({"evaluator": str(EVALUATOR), "architecture": "sm_75", "fast_math": False, "host_cxx": host_cxx})
+print({"evaluator": str(EVALUATOR), "architecture": "sm_75", "fast_math": False, "nvcc": nvcc, "host_cxx": host_cxx})
 '''),
         _code(r'''
 # Architecture translation gate: exact fixture must match independently on GPU0 and GPU1.
