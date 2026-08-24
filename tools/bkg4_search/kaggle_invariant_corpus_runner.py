@@ -161,6 +161,7 @@ def run_worker(args: argparse.Namespace) -> dict[str, Any]:
     shard_id = len(list(island_root.glob("shard-*/shard_manifest.json")))
     durations: list[float] = []
     totals = {"raw_proposals": 0, "screened": 0, "labeled": 0, "exact_games": 0, "faults": 0, "shards": 0}
+    worker_started = time.monotonic()
     while shard_id < args.max_shards:
         remaining = float(args.generation_deadline_monotonic) - time.monotonic()
         predicted = max(float(args.minimum_shard_seconds), (max(durations[-3:]) * 1.25 if durations else 0.0))
@@ -204,10 +205,25 @@ def run_worker(args: argparse.Namespace) -> dict[str, Any]:
                 continue
             totals[key] += int(counters.get(key, 0))
         totals["shards"] += 1
-        heartbeat = {"island": args.island, "shard": shard_id, "seed": seed, "duration_seconds": duration, "remaining_seconds": float(args.generation_deadline_monotonic) - time.monotonic(), "free_disk_bytes": shutil.disk_usage(output).free, "totals": totals}
+        worker_elapsed = max(time.monotonic() - worker_started, 1e-9)
+        heartbeat = {
+            "island": args.island, "shard": shard_id, "seed": seed,
+            "duration_seconds": duration, "elapsed_seconds": worker_elapsed,
+            "remaining_seconds": float(args.generation_deadline_monotonic) - time.monotonic(),
+            "free_disk_bytes": shutil.disk_usage(output).free, "totals": totals,
+            "edits_per_second": totals["labeled"] / worker_elapsed,
+            "games_per_second": totals["exact_games"] / worker_elapsed,
+        }
         (island_root / "heartbeat.json").write_text(json.dumps(heartbeat, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         shard_id += 1
-    final = {"island": args.island, "finished": True, "totals": totals, "durations": durations, "visible_devices": os.environ.get("CUDA_VISIBLE_DEVICES")}
+    worker_elapsed = max(time.monotonic() - worker_started, 1e-9)
+    final = {
+        "island": args.island, "finished": True, "totals": totals, "durations": durations,
+        "visible_devices": os.environ.get("CUDA_VISIBLE_DEVICES"),
+        "elapsed_seconds": worker_elapsed,
+        "edits_per_second": totals["labeled"] / worker_elapsed,
+        "games_per_second": totals["exact_games"] / worker_elapsed,
+    }
     (island_root / "worker_report.json").write_text(json.dumps(final, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return final
 

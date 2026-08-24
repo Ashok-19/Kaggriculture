@@ -251,6 +251,13 @@ print({gpu: {"pid": row["pid"], "uuid": row["uuid"], "seed_namespace": BASE_SEED
 '''),
         _code(r'''
 # Low-frequency utilization/progress monitor and idle-GPU watchdog.
+from IPython.display import clear_output
+
+def progress_bar(fraction, width=30):
+    fraction = min(1.0, max(0.0, fraction))
+    filled = int(width * fraction)
+    return "[" + "#" * filled + "-" * (width - filled) + "]"
+
 utilization_samples = []
 idle_counts = {0: 0, 1: 0}
 while any(row["process"].poll() is None for row in workers.values()) and time.monotonic() < HARD_EXIT_DEADLINE:
@@ -268,7 +275,19 @@ while any(row["process"].poll() is None for row in workers.values()) and time.mo
         if idle_counts[gpu] >= IDLE_GPU_LIMIT_SAMPLES:
             raise RuntimeError(f"GPU{gpu} remained unexpectedly idle while its worker was active")
     utilization_samples.append(sample)
-    print(json.dumps(sample, sort_keys=True))
+    generation_fraction = (time.monotonic() - PIPELINE_STARTED_MONOTONIC) / max(1, GENERATION_DEADLINE - PIPELINE_STARTED_MONOTONIC)
+    clear_output(wait=True)
+    print(f"Corpus generation {progress_bar(generation_fraction)} {min(100, generation_fraction * 100):5.1f}%")
+    for gpu in (0, 1):
+        heartbeat = sample["workers"][str(gpu)]
+        totals = heartbeat.get("totals", {})
+        print(
+            f"GPU{gpu} {progress_bar(generation_fraction)} "
+            f"shards={totals.get('shards', 0):4d} edits={totals.get('labeled', 0):8d} "
+            f"edits/s={heartbeat.get('edits_per_second', 0.0):8.3f} "
+            f"games={totals.get('exact_games', 0):12d} games/s={heartbeat.get('games_per_second', 0.0):10.1f} "
+            f"util={by_gpu.get(gpu, {}).get('gpu_util', 0):3d}%"
+        )
     if time.monotonic() >= GENERATION_DEADLINE and all(worker["process"].poll() is not None for worker in workers.values()):
         break
     time.sleep(min(MONITOR_INTERVAL_SECONDS, max(1, HARD_EXIT_DEADLINE - time.monotonic())))

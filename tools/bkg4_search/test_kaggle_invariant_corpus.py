@@ -110,6 +110,7 @@ class KaggleInvariantCorpusTests(unittest.TestCase):
             "CUDA_VISIBLE_DEVICES", "Select Kaggle T4 x2 accelerator and restart",
             "PUBLISH_CORPUS", "support_manifest.json", "run-smoke", "calibrate",
             "worker", "merge", "nvidia-smi",
+            "edits/s", "games/s",
         ):
             self.assertIn(marker, code)
         builder.validate_notebook(json.dumps(notebook))
