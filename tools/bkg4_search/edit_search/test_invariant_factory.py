@@ -246,9 +246,15 @@ class InvariantFactoryTests(unittest.TestCase):
             "behavior_changed_vs_parent" in row
             for record in records for row in record["target_labels"]["source_relative_case_outcomes"]
         ))
-        self.assertTrue(any(
-            record["target_labels"]["lineage"].get("source_goal_id")
+        self.assertTrue(all(
+            record["target_labels"]["lineage"]["root_semantic_id"]
             for record in records
+            if record["target_labels"]["lineage"]["depth"] > 0
+        ))
+        self.assertTrue(all(
+            record["target_labels"]["lineage"]["parent_evidence"] is not None
+            for record in records
+            if record["target_labels"]["lineage"]["depth"] > 0
         ))
 
     def test_specialist_screen_and_label_panels_are_tape_disjoint(self):

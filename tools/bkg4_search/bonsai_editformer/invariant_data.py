@@ -14,7 +14,11 @@ from tools.bkg4_search.invariant_module import (
     ModuleSketch,
     bkg,
 )
-from tools.bkg4_search.invariant_schema import module_from_model_input, validate_corpus_records
+from tools.bkg4_search.invariant_schema import (
+    module_from_model_input,
+    validate_corpus_records,
+    validate_specialist_corpus,
+)
 from tools.bkg4_search.invariant_search import structural_skeleton
 
 
@@ -187,9 +191,22 @@ def module_from_invariant_arrays(
     return module
 
 
+def _validate_model_corpus(records: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    specialist = [
+        isinstance(record.get("target_labels"), Mapping)
+        and record["target_labels"].get("exact_data_role") == "specialist_discovery"
+        for record in records
+    ]
+    if any(specialist):
+        if not all(specialist):
+            raise ValueError("model corpus cannot mix specialist and non-specialist validation contracts")
+        return validate_specialist_corpus(records)
+    return validate_corpus_records(records)
+
+
 def invariant_corpus_arrays(records: Sequence[Mapping[str, Any]]) -> dict[str, np.ndarray]:
     """Materialize validated invariant corpus rows for batching/ranker integration."""
-    validate_corpus_records(records)
+    _validate_model_corpus(records)
     n = len(records)
     arrays = {
         "b4im_cat": np.zeros((n, B4IM_TOKEN_CAP, B4IM_CAT_COLS), np.int16),
@@ -234,7 +251,7 @@ def invariant_grouped_split(
     validation_fraction: float = 0.20,
 ) -> InvariantArraySplit:
     """Keep constant variants of one structural mechanism on the same side."""
-    validate_corpus_records(records)
+    _validate_model_corpus(records)
     if not 0.10 <= float(validation_fraction) <= 0.50:
         raise ValueError("validation_fraction must be between 0.10 and 0.50")
     buckets = max(2, round(1.0 / float(validation_fraction)))

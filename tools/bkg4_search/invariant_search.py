@@ -73,8 +73,21 @@ class SearchGoal:
 class ProposalOrigin:
     operator: str
     source_goal_id: str | None
+    source_goal_path: tuple[str, ...]
     structural_mechanisms: tuple[str, ...]
     retrospective_goal_id: str | None
+
+
+@dataclass(frozen=True)
+class MctsProposal:
+    module: InvariantStrategicModule
+    source_goal_path: tuple[str, ...]
+
+    @property
+    def source_goal_id(self) -> str:
+        if not self.source_goal_path:
+            raise ValueError("MCTS proposal has no generating-goal path")
+        return self.source_goal_path[-1]
 
 
 @dataclass(frozen=True)
@@ -986,8 +999,8 @@ def structural_mcts(
     seed: int,
     route_ids: Sequence[int],
     quality: Mapping[str, float] | None = None,
-) -> tuple[InvariantStrategicModule, ...]:
-    """Bounded grammar-expansion MCTS/UCB. Scalar thresholds are not expanded here."""
+) -> tuple[MctsProposal, ...]:
+    """Bounded grammar-expansion MCTS/UCB with exact generating-goal provenance."""
     roots = tuple(roots) or (InvariantStrategicModule(),)
     goals = tuple(goals)
     if not goals or budget <= 0:
@@ -995,7 +1008,8 @@ def structural_mcts(
     q = dict(quality or {})
     visits: dict[str, int] = {m.semantic_id(): 1 for m in roots}
     reward: dict[str, float] = {m.semantic_id(): float(q.get(m.semantic_id(), 0.0)) for m in roots}
-    frontier = list(roots); emitted: dict[str, InvariantStrategicModule] = {}
+    goal_paths: dict[str, tuple[str, ...]] = {m.semantic_id(): () for m in roots}
+    frontier = list(roots); emitted: dict[str, MctsProposal] = {}
     rng = random.Random(int(seed))
     for step in range(int(budget)):
         total = sum(visits.values()) + 1
@@ -1005,9 +1019,14 @@ def structural_mcts(
         parent = max(frontier, key=ucb)
         goal = goals[(step + rng.randrange(len(goals))) % len(goals)]
         child = large_neighborhood(parent, goal, seed=seed + step * 1009, route_ids=route_ids)
-        sid = child.semantic_id(); visits[parent.semantic_id()] = visits.get(parent.semantic_id(), 1) + 1
+        parent_sid = parent.semantic_id()
+        sid = child.semantic_id(); visits[parent_sid] = visits.get(parent_sid, 1) + 1
         if sid not in emitted:
-            emitted[sid] = child; frontier.append(child); visits[sid] = 1; reward[sid] = float(q.get(sid, 0.0))
+            path = (*goal_paths.get(parent_sid, ()), goal.goal_id)
+            proposal = MctsProposal(child, tuple(path))
+            emitted[sid] = proposal
+            goal_paths[sid] = proposal.source_goal_path
+            frontier.append(child); visits[sid] = 1; reward[sid] = float(q.get(sid, 0.0))
     return tuple(emitted.values())
 
 
@@ -1301,12 +1320,21 @@ class InvariantSearchBackend:
         evidence = self.threshold_evidence()
         origins: dict[str, ProposalOrigin] = {}
 
-        def note(module: InvariantStrategicModule, operator: str, source_goal_id: str | None = None) -> None:
+        def note(
+            module: InvariantStrategicModule,
+            operator: str,
+            source_goal_id: str | None = None,
+            source_goal_path: Sequence[str] | None = None,
+        ) -> None:
             sid = module.semantic_id()
             mechanisms = tuple(sorted({
                 f"{rule.sketch.effect_class}:{rule.action.kind}" for rule in module.rules
             }))
-            origins.setdefault(sid, ProposalOrigin(str(operator), source_goal_id, mechanisms, None))
+            path = tuple(str(value) for value in source_goal_path) if source_goal_path is not None else (() if source_goal_id is None else (str(source_goal_id),))
+            if source_goal_id is not None and (not path or path[-1] != str(source_goal_id)):
+                raise ValueError("source goal path must end at source_goal_id")
+            direct_goal = path[-1] if path else None
+            origins.setdefault(sid, ProposalOrigin(str(operator), direct_goal, path, mechanisms, None))
 
         def source_goal(module: InvariantStrategicModule) -> str | None:
             origin = origins.get(module.semantic_id())
@@ -1412,11 +1440,16 @@ class InvariantSearchBackend:
             profile["recombination"] += time.perf_counter() - started
         if self.ladder.level >= 5:
             started = time.perf_counter()
-            for module in structural_mcts(
+            for proposal in structural_mcts(
                 elites or (InvariantStrategicModule(),), self.goals,
                 budget=max(1, n // 6), seed=seed, route_ids=self.route_ids,
             ):
-                advanced.append(module); note(module, "mcts")
+                module = proposal.module
+                advanced.append(module)
+                note(
+                    module, "mcts", proposal.source_goal_id,
+                    source_goal_path=proposal.source_goal_path,
+                )
             profile["mcts"] += time.perf_counter() - started
         if self.ladder.level >= 6 and self._cegis_queue:
             started = time.perf_counter()
@@ -1468,7 +1501,7 @@ class InvariantSearchBackend:
         # canonical program instead of allowing early high-volume operators to starve later ones.
         buckets: dict[str, list[InvariantStrategicModule]] = {}
         for module in advanced:
-            operator = origins.get(module.semantic_id(), ProposalOrigin("unknown", None, (), None)).operator
+            operator = origins.get(module.semantic_id(), ProposalOrigin("unknown", None, (), (), None)).operator
             buckets.setdefault(operator, []).append(module)
         ordered_advanced: list[InvariantStrategicModule] = []
         operator_order = tuple(buckets)
@@ -1489,7 +1522,7 @@ class InvariantSearchBackend:
         final_origins: dict[str, ProposalOrigin] = {}
         for module in unique:
             sid = module.semantic_id()
-            base = origins.get(sid, ProposalOrigin("unknown", None, (), None))
+            base = origins.get(sid, ProposalOrigin("unknown", None, (), (), None))
             retrospective = self._goal_for_module(module)
             final_origins[sid] = replace(
                 base,

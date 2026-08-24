@@ -19,6 +19,10 @@ from tools.bkg4_search.invariant_search import (
 )
 from tools.bkg4_search.invariant_groups import tape_group_id
 from tools.bkg4_search.invariant_schema import make_corpus_record
+from tools.bkg4_search.invariant_lineage import (
+    SPECIALIST_LINEAGE_SCHEMA_VERSION,
+    make_parent_evidence,
+)
 from tools.bkg4_search.invariant_specialists import (
     DiversityReport,
     SpecialistEvidence,
@@ -157,6 +161,62 @@ class SpecialistFactory:
             raise KeyError(f"unknown specialist lineage module {semantic_id}")
         return lineage.module
 
+    def lineage_for_semantic_id(self, semantic_id: str) -> SpecialistLineage:
+        lineage = self._lineages.get(str(semantic_id))
+        if lineage is None:
+            raise KeyError(f"unknown specialist lineage {semantic_id}")
+        return lineage
+
+    def ancestry_for_lineage(self, lineage: SpecialistLineage) -> tuple[SpecialistLineage, ...]:
+        """Return the durable root-through-parent chain for one specialist child."""
+        if lineage.depth == 0:
+            return ()
+        chain: list[SpecialistLineage] = []
+        parent_sid = lineage.parent_semantic_id
+        seen = {lineage.module.semantic_id()}
+        while parent_sid is not None:
+            if parent_sid in seen:
+                raise ValueError("specialist lineage contains an ancestry cycle")
+            seen.add(parent_sid)
+            parent = self.lineage_for_semantic_id(parent_sid)
+            chain.append(parent)
+            parent_sid = parent.parent_semantic_id
+        chain.reverse()
+        if len(chain) != lineage.depth:
+            raise ValueError("specialist lineage depth does not match ancestry length")
+        if not chain or chain[0].depth != 0 or chain[0].root_semantic_id != lineage.root_semantic_id:
+            raise ValueError("specialist lineage has an inconsistent root ancestry")
+        for expected_depth, row in enumerate(chain):
+            if row.depth != expected_depth or row.root_semantic_id != lineage.root_semantic_id:
+                raise ValueError("specialist ancestry depth/root mismatch")
+            if expected_depth and row.parent_semantic_id != chain[expected_depth - 1].module.semantic_id():
+                raise ValueError("specialist ancestry parent mismatch")
+        if chain[-1].module.semantic_id() != lineage.parent_semantic_id:
+            raise ValueError("specialist immediate parent is not the ancestry tail")
+        return tuple(chain)
+
+    def _legacy_recursive_source_priority(self, lineage: SpecialistLineage) -> int:
+        """Preserve pre-lineage-v2 recursive ordering while provenance becomes more exact."""
+        current = lineage
+        seen: set[str] = set()
+        while True:
+            sid = current.module.semantic_id()
+            if sid in seen:
+                return 0
+            seen.add(sid)
+            # Genuine campaign MCTS roots had no source-goal metadata. Recovering that
+            # provenance must not promote them in the recursive parent ordering.
+            if current.depth == 0 and current.operator == "mcts":
+                return 0
+            if current.source_goal_id:
+                return 1
+            if current.parent_semantic_id is None:
+                return 0
+            parent = self._lineages.get(current.parent_semantic_id)
+            if parent is None:
+                return 0
+            current = parent
+
     def propose(
         self,
         *,
@@ -182,9 +242,11 @@ class SpecialistFactory:
                 -int((self._lineages.get(evidence.module.semantic_id()) or SpecialistLineage.root(
                     evidence.module, parent_controller=self.root_controller,
                 )).depth),
-                -int(bool((self._lineages.get(evidence.module.semantic_id()) or SpecialistLineage.root(
-                    evidence.module, parent_controller=self.root_controller,
-                )).source_goal_id)),
+                -self._legacy_recursive_source_priority(
+                    self._lineages.get(evidence.module.semantic_id()) or SpecialistLineage.root(
+                        evidence.module, parent_controller=self.root_controller,
+                    )
+                ),
                 -int(evidence.useful_groups),
                 evidence.quality_key(),
             ))
@@ -194,6 +256,7 @@ class SpecialistFactory:
                 parent_lineage = self._lineages.get(parent.semantic_id()) or SpecialistLineage.root(
                     parent, parent_controller=self.root_controller,
                 )
+                self._lineages.setdefault(parent.semantic_id(), parent_lineage)
                 children = local_structural_neighborhood(
                     parent, route_ids=self.backend.route_ids,
                     budget=max(8, recursive_limit // max(1, len(research))),
@@ -240,6 +303,7 @@ class SpecialistFactory:
                         parent_controller=self.root_controller,
                         operator=(origin.operator if origin is not None else "root"),
                         source_goal_id=(origin.source_goal_id if origin is not None else None),
+                        source_goal_path=(origin.source_goal_path if origin is not None else None),
                         structural_mechanisms=(origin.structural_mechanisms if origin is not None else None),
                         retrospective_goal_id=(origin.retrospective_goal_id if origin is not None else None),
                     )
@@ -385,6 +449,8 @@ class SpecialistFunnelResult:
     root_controller: str
     proposal_batch: ProposalBatch
     selected_lineages: Mapping[str, SpecialistLineage]
+    ancestry_by_semantic_id: Mapping[str, tuple[SpecialistLineage, ...]]
+    parent_evaluations: Mapping[str, StateEvaluation]
     screen_evidence: tuple[SpecialistEvidence, ...]
     labeled_evidence: tuple[SpecialistEvidence, ...]
     case_rows: Mapping[str, tuple[Mapping[str, object], ...]]
@@ -474,6 +540,10 @@ def run_proposal_funnel(
         lineage.module.semantic_id(): lineage for lineage in proposal.lineages
         if lineage.module.semantic_id() in selected_semantic_ids
     }
+    ancestry_by_sid = {
+        sid: factory.ancestry_for_lineage(lineage)
+        for sid, lineage in lineage_by_sid.items()
+    }
     parent_modules: dict[str, InvariantStrategicModule] = {}
     for lineage in lineage_by_sid.values():
         if lineage.parent_semantic_id and lineage.parent_semantic_id not in selected_semantic_ids:
@@ -508,11 +578,18 @@ def run_proposal_funnel(
         )
         for module in selected_modules
     }
+    parent_evaluations = {
+        sid: label_round.evaluations[lineage.parent_semantic_id]
+        for sid, lineage in lineage_by_sid.items()
+        if lineage.parent_semantic_id is not None
+    }
     exact_games = (len(proposal.modules) + 1) * len(screen_panel) + (len(evaluation_modules) + 1) * len(label_panel)
     return SpecialistFunnelResult(
         root_controller=factory.root_controller,
         proposal_batch=proposal,
         selected_lineages=lineage_by_sid,
+        ancestry_by_semantic_id=ancestry_by_sid,
+        parent_evaluations=parent_evaluations,
         screen_evidence=screen_evidence,
         labeled_evidence=labeled,
         case_rows=case_rows,
@@ -575,6 +652,11 @@ def specialist_corpus_records(
         sid = evidence.module.semantic_id()
         lineage = result.selected_lineages[sid]
         composition = evidence.composition
+        ancestry = result.ancestry_by_semantic_id[sid]
+        parent_evidence = (
+            None if lineage.parent_semantic_id is None
+            else make_parent_evidence(ancestry, result.parent_evaluations[sid])
+        )
         case_outcomes = list(result.case_rows[sid])
         source_outcomes = list(result.source_case_rows[sid])
         group_deltas = [float(row.margin_delta) for row in evidence.outcomes]
@@ -644,15 +726,19 @@ def specialist_corpus_records(
                 "compatible": sorted(compatible), "conflicting": sorted(conflicting),
             },
             "lineage": {
+                "lineage_schema_version": SPECIALIST_LINEAGE_SCHEMA_VERSION,
                 "root_controller": lineage.root_controller,
+                "root_semantic_id": lineage.root_semantic_id,
                 "parent_semantic_id": lineage.parent_semantic_id,
                 "operator": lineage.operator,
                 "depth": lineage.depth,
                 "source_margin_delta": lineage.source_margin_delta,
                 "lineage_id": lineage.lineage_id,
                 "source_goal_id": lineage.source_goal_id,
+                "source_goal_path": list(lineage.source_goal_path),
                 "structural_mechanisms": list(lineage.structural_mechanisms),
                 "retrospective_goal_id": lineage.retrospective_goal_id,
+                "parent_evidence": parent_evidence,
             },
         }
         records.append(make_corpus_record(

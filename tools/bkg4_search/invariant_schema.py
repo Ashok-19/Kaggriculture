@@ -259,6 +259,8 @@ def validate_specialist_corpus(records: Sequence[Mapping[str, Any]]) -> dict[str
     base = validate_corpus_records(records)
     if base["duplicate_semantics"]:
         raise ValueError("specialist corpus contains duplicate semantics")
+    from tools.bkg4_search.invariant_lineage import validate_specialist_lineage_graph
+    lineage_report = validate_specialist_lineage_graph(records)
     qualities = {name: 0 for name in sorted(SPECIALIST_SOURCE_QUALITIES)}
     categories = {name: 0 for name in sorted(SPECIALIST_SOURCE_QUALITIES)}
     skeletons = set()
@@ -320,6 +322,7 @@ def validate_specialist_corpus(records: Sequence[Mapping[str, Any]]) -> dict[str
         skeletons.add(structural_skeleton(module_from_model_input(record["model_input"])))
     return {
         **base,
+        **lineage_report,
         **qualities,
         **{f"category_{name}": count for name, count in categories.items()},
         "structural_skeletons": len(skeletons),

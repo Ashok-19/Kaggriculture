@@ -45,6 +45,24 @@ def representative_module() -> InvariantStrategicModule:
     ))
 
 
+def _root_lineage_labels(lineage: SpecialistLineage) -> dict:
+    return {
+        "lineage_schema_version": 2,
+        "root_controller": lineage.root_controller,
+        "root_semantic_id": lineage.root_semantic_id,
+        "parent_semantic_id": lineage.parent_semantic_id,
+        "operator": lineage.operator,
+        "depth": lineage.depth,
+        "source_margin_delta": lineage.source_margin_delta,
+        "lineage_id": lineage.lineage_id,
+        "source_goal_id": lineage.source_goal_id,
+        "source_goal_path": list(lineage.source_goal_path),
+        "structural_mechanisms": list(lineage.structural_mechanisms),
+        "retrospective_goal_id": lineage.retrospective_goal_id,
+        "parent_evidence": None,
+    }
+
+
 class InvariantSchemaTests(unittest.TestCase):
     def test_canonical_ast_round_trips_losslessly_through_model_tokens(self):
         module = representative_module()
@@ -194,7 +212,7 @@ class InvariantSchemaTests(unittest.TestCase):
                 "source_relative_mean_delta": 1.0, "source_relative_l2w": 0, "source_relative_w2l": 0,
                 "composition": evidence.composition.__dict__,
                 "composition_relationships": {"compatible": [], "conflicting": ["other"]},
-                "lineage": lineage.__dict__ | {"module": module.canonical()},
+                "lineage": _root_lineage_labels(lineage),
             },
             provenance={
                 "exact_evaluator": True, "data_role": "specialist_discovery",
@@ -223,7 +241,8 @@ class InvariantSchemaTests(unittest.TestCase):
                 "group_outcomes": [{"group_id": "one", "useful": True}],
                 "cohort_outcomes": [], "source_relative_case_outcomes": [{"margin_delta": 1}],
                 "source_relative_mean_delta": 1.0, "source_relative_l2w": 0, "source_relative_w2l": 0,
-                "composition": {}, "composition_relationships": {"compatible": [], "conflicting": []}, "lineage": {},
+                "composition": {}, "composition_relationships": {"compatible": [], "conflicting": []},
+                "lineage": _root_lineage_labels(SpecialistLineage.root(module, parent_controller="parent")),
             },
             provenance={
                 "exact_evaluator": True, "data_role": "specialist_discovery", "parent": "parent", "controller": "parent",

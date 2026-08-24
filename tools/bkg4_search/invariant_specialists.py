@@ -521,12 +521,14 @@ def select_screen_quota(
 class SpecialistLineage:
     module: InvariantStrategicModule
     root_controller: str
+    root_semantic_id: str
     parent_semantic_id: str | None
     operator: str
     depth: int
     source_margin_delta: float
     lineage_id: str
     source_goal_id: str | None
+    source_goal_path: tuple[str, ...]
     structural_mechanisms: tuple[str, ...]
     retrospective_goal_id: str | None
 
@@ -544,15 +546,21 @@ class SpecialistLineage:
         parent_controller: str,
         operator: str = "root",
         source_goal_id: str | None = None,
+        source_goal_path: Sequence[str] | None = None,
         structural_mechanisms: Sequence[str] | None = None,
         retrospective_goal_id: str | None = None,
     ) -> "SpecialistLineage":
         module.validate()
-        lineage_id = hashlib.sha256(f"{parent_controller}\0{module.semantic_id()}".encode()).hexdigest()
+        semantic_id = module.semantic_id()
+        lineage_id = hashlib.sha256(f"{parent_controller}\0{semantic_id}".encode()).hexdigest()
         mechanisms = tuple(structural_mechanisms) if structural_mechanisms is not None else cls._mechanisms(module)
+        goal_path = tuple(str(value) for value in source_goal_path) if source_goal_path is not None else (() if source_goal_id is None else (str(source_goal_id),))
+        if source_goal_id is not None and (not goal_path or goal_path[-1] != str(source_goal_id)):
+            raise ValueError("source goal path must end at source_goal_id")
+        direct_goal = goal_path[-1] if goal_path else None
         return cls(
-            module, str(parent_controller), None, str(operator), 0, 0.0, lineage_id,
-            source_goal_id, mechanisms, retrospective_goal_id,
+            module, str(parent_controller), semantic_id, None, str(operator), 0, 0.0, lineage_id,
+            direct_goal, goal_path, mechanisms, retrospective_goal_id,
         )
 
     def child(
@@ -562,6 +570,7 @@ class SpecialistLineage:
         operator: str,
         source_margin_delta: float,
         source_goal_id: str | None = None,
+        source_goal_path: Sequence[str] | None = None,
         structural_mechanisms: Sequence[str] | None = None,
         retrospective_goal_id: str | None = None,
     ) -> "SpecialistLineage":
@@ -570,11 +579,19 @@ class SpecialistLineage:
             f"{self.lineage_id}\0{operator}\0{module.semantic_id()}".encode()
         ).hexdigest()
         mechanisms = tuple(structural_mechanisms) if structural_mechanisms is not None else self._mechanisms(module)
+        if source_goal_path is not None:
+            goal_path = tuple(str(value) for value in source_goal_path)
+        elif source_goal_id is not None:
+            goal_path = (str(source_goal_id),)
+        else:
+            goal_path = ()
+        if source_goal_id is not None and (not goal_path or goal_path[-1] != str(source_goal_id)):
+            raise ValueError("source goal path must end at source_goal_id")
+        direct_goal = goal_path[-1] if goal_path else None
         return SpecialistLineage(
-            module, self.root_controller, self.module.semantic_id(), str(operator),
+            module, self.root_controller, self.root_semantic_id, self.module.semantic_id(), str(operator),
             self.depth + 1, float(source_margin_delta), lineage_id,
-            self.source_goal_id if source_goal_id is None else source_goal_id,
-            mechanisms,
+            direct_goal, goal_path, mechanisms,
             self.retrospective_goal_id if retrospective_goal_id is None else retrospective_goal_id,
         )
 
