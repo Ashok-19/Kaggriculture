@@ -333,7 +333,9 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     activation_profiles = tuple(item.activation_topology for item in all_labeled)
     observed_domains = _observed_strategic_domains(all_labeled)
     labeled_diversity = diversity_report(tuple(item.module for item in all_labeled), activation_profiles=activation_profiles)
-    saturation = _saturation_curve(profile, evaluator, seed=args.seed + 900000)
+    saturation = [] if bool(getattr(args, "skip_saturation", False)) else _saturation_curve(
+        profile, evaluator, seed=args.seed + 900000,
+    )
     elapsed = time.perf_counter() - started
     exact_games = sum(result.exact_games for result in results)
     screen_seconds = sum(float(result.timing_seconds["screen_exact"]) for result in results)
@@ -428,6 +430,10 @@ def parser() -> argparse.ArgumentParser:
     out.add_argument("--device", type=int, default=0)
     out.add_argument("--tpb", type=int, default=64)
     out.add_argument("--memory-fraction", type=float, default=0.70)
+    out.add_argument(
+        "--skip-saturation", action="store_true",
+        help="skip the 256/1024/4096/10000 reporting-only proposal sweep (production shards)",
+    )
     return out
 
 
