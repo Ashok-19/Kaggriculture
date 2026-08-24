@@ -31,6 +31,7 @@ from tools.bkg4_search.invariant_specialists import (
     analyze_specialist,
     calibrate_specialist_thresholds,
     diversity_report,
+    select_corpus_quota,
     select_screen_quota,
 )
 
@@ -461,6 +462,9 @@ class SpecialistFunnelResult:
     screen_cases: int
     label_cases: int
     tier_thresholds: SpecialistTierThresholds
+    screen_selected_count: int
+    exact_labeled_count: int
+    final_retained_count: int
 
 
 def _calibrated_evidence(
@@ -492,6 +496,7 @@ def run_specialist_funnel(
     retain_count: int,
     seed: int,
     work_dir: str,
+    label_count: int | None = None,
     enable_cegis: bool = False,
 ) -> SpecialistFunnelResult:
     """Generate broadly, exact-screen once, quota-select, then exact-label once."""
@@ -499,7 +504,7 @@ def run_specialist_funnel(
     proposal = factory.propose(count=proposal_count, seed=seed)
     return run_proposal_funnel(
         factory, proposal=proposal, screen_panel=screen_panel, label_panel=label_panel,
-        retain_count=retain_count, seed=seed, work_dir=work_dir,
+        retain_count=retain_count, label_count=label_count, seed=seed, work_dir=work_dir,
         total_started=total_started, enable_cegis=enable_cegis,
     )
 
@@ -513,6 +518,7 @@ def run_proposal_funnel(
     retain_count: int,
     seed: int,
     work_dir: str,
+    label_count: int | None = None,
     total_started: float | None = None,
     enable_cegis: bool = False,
 ) -> SpecialistFunnelResult:
@@ -530,10 +536,11 @@ def run_proposal_funnel(
     screen_seconds = time.perf_counter() - screen_started
     screen_evidence, tier_thresholds = _calibrated_evidence(raw_screen_evidence, screen_panel)
     select_started = time.perf_counter()
-    selected = select_screen_quota(screen_evidence, limit=retain_count, seed=seed)
+    screen_limit = retain_count if label_count is None else max(retain_count, int(label_count))
+    selected = select_screen_quota(screen_evidence, limit=screen_limit, seed=seed)
     select_seconds = time.perf_counter() - select_started
     selected_modules = tuple(row.module for row in selected)
-    if len(selected_modules) != min(max(0, int(retain_count)), len(screen_evidence)):
+    if len(selected_modules) != min(max(0, int(screen_limit)), len(screen_evidence)):
         raise RuntimeError("specialist funnel selection underfilled")
     selected_semantic_ids = {module.semantic_id() for module in selected_modules}
     lineage_by_sid = {
@@ -565,12 +572,14 @@ def run_proposal_funnel(
     empty = InvariantStrategicModule()
     baseline = label_round.evaluations[empty.semantic_id()]
     raw_labeled = tuple(label_backend.specialist_archive.research[module.semantic_id()] for module in selected_modules)
-    labeled, _ = _calibrated_evidence(raw_labeled, label_panel, thresholds=tier_thresholds)
-    case_rows = {
+    exact_labeled, label_thresholds = _calibrated_evidence(raw_labeled, label_panel)
+    labeled = select_corpus_quota(exact_labeled, limit=retain_count, seed=seed, lineages=lineage_by_sid)
+    final_semantic_ids = {row.module.semantic_id() for row in labeled}
+    case_rows_all = {
         module.semantic_id(): pair_case_rows(baseline, label_round.evaluations[module.semantic_id()])
         for module in selected_modules
     }
-    source_case_rows = {
+    source_case_rows_all = {
         module.semantic_id(): pair_relative_case_rows(
             label_round.evaluations[lineage_by_sid[module.semantic_id()].parent_semantic_id]
             if lineage_by_sid[module.semantic_id()].parent_semantic_id else baseline,
@@ -578,7 +587,7 @@ def run_proposal_funnel(
         )
         for module in selected_modules
     }
-    parent_evaluations = {
+    parent_evaluations_all = {
         sid: label_round.evaluations[lineage.parent_semantic_id]
         for sid, lineage in lineage_by_sid.items()
         if lineage.parent_semantic_id is not None
@@ -587,13 +596,13 @@ def run_proposal_funnel(
     return SpecialistFunnelResult(
         root_controller=factory.root_controller,
         proposal_batch=proposal,
-        selected_lineages=lineage_by_sid,
-        ancestry_by_semantic_id=ancestry_by_sid,
-        parent_evaluations=parent_evaluations,
+        selected_lineages={sid: row for sid, row in lineage_by_sid.items() if sid in final_semantic_ids},
+        ancestry_by_semantic_id={sid: row for sid, row in ancestry_by_sid.items() if sid in final_semantic_ids},
+        parent_evaluations={sid: row for sid, row in parent_evaluations_all.items() if sid in final_semantic_ids},
         screen_evidence=screen_evidence,
         labeled_evidence=labeled,
-        case_rows=case_rows,
-        source_case_rows=source_case_rows,
+        case_rows={sid: row for sid, row in case_rows_all.items() if sid in final_semantic_ids},
+        source_case_rows={sid: row for sid, row in source_case_rows_all.items() if sid in final_semantic_ids},
         tier_counts=dict(sorted(Counter(row.tier for row in labeled).items())),
         timing_seconds={
             "proposal": proposal.generation_seconds,
@@ -605,7 +614,10 @@ def run_proposal_funnel(
         exact_games=exact_games,
         screen_cases=len(screen_panel),
         label_cases=len(label_panel),
-        tier_thresholds=tier_thresholds,
+        tier_thresholds=label_thresholds,
+        screen_selected_count=len(selected_modules),
+        exact_labeled_count=len(exact_labeled),
+        final_retained_count=len(labeled),
     )
 
 

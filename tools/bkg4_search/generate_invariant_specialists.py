@@ -276,6 +276,8 @@ def _saturation_curve(profile: ParentProfile, evaluator: InvariantExactCudaEvalu
 
 def run(args: argparse.Namespace) -> dict[str, Any]:
     started = time.perf_counter()
+    label_retain = args.retain if args.label_retain is None else args.label_retain
+    followup_label_retain = args.followup_retain if args.followup_label_retain is None else args.followup_label_retain
     profile = ParentProfile.from_directory(args.parent)
     loaded = [load_offline_specialist_bank(path, cohort_kind=kind) for kind, path in _bank_specs(args.bank)]
     bank = combine_offline_banks(loaded)
@@ -295,7 +297,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     initial = run_specialist_funnel(
         factory, screen_panel=screen, label_panel=label,
         proposal_count=args.proposals, retain_count=args.retain, seed=args.seed,
-        work_dir=str(work / "initial"), enable_cegis=True,
+        work_dir=str(work / "initial"), label_count=label_retain, enable_cegis=True,
     )
     results = [initial]
     for followup_index in range(max(0, int(args.recursive_rounds))):
@@ -309,7 +311,8 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         results.append(run_proposal_funnel(
             factory, proposal=followup, screen_panel=screen, label_panel=label,
             retain_count=min(args.followup_retain, len(followup.modules)), seed=followup_seed,
-            work_dir=str(work / f"followup-{followup_index + 1}"), enable_cegis=True,
+            work_dir=str(work / f"followup-{followup_index + 1}"),
+            label_count=min(followup_label_retain, len(followup.modules)), enable_cegis=True,
         ))
     records = tuple(
         record for result in results
@@ -380,7 +383,9 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         "corpus": {**corpus_validation, "path": str(corpus_path), "array_shapes": {key: list(value.shape) for key, value in arrays.items()}},
         "rounds": [{
             "proposals": len(result.proposal_batch.modules),
-            "retained": len(result.labeled_evidence),
+            "screen_retained": result.screen_selected_count,
+            "exact_labeled": result.exact_labeled_count,
+            "retained": result.final_retained_count,
             "tier_counts": result.tier_counts,
             "tier_thresholds": dataclasses.asdict(result.tier_thresholds),
             "timing_seconds": result.timing_seconds,
@@ -419,6 +424,7 @@ def parser() -> argparse.ArgumentParser:
     out.add_argument("--work-dir", required=True)
     out.add_argument("--proposals", type=int, default=4096)
     out.add_argument("--retain", type=int, default=512)
+    out.add_argument("--label-retain", type=int, default=None, help="screen shortlist sent to exact large-panel labeling; defaults to --retain")
     out.add_argument("--screen-cases", type=int, default=64)
     out.add_argument("--label-cases", type=int, default=512)
     out.add_argument("--recursive", type=int, default=1024)
@@ -426,6 +432,7 @@ def parser() -> argparse.ArgumentParser:
     out.add_argument("--repairs", type=int, default=512)
     out.add_argument("--ablations", type=int, default=512)
     out.add_argument("--followup-retain", type=int, default=256)
+    out.add_argument("--followup-label-retain", type=int, default=None, help="follow-up shortlist sent to exact labeling; defaults to --followup-retain")
     out.add_argument("--seed", type=int, default=20260823)
     out.add_argument("--device", type=int, default=0)
     out.add_argument("--tpb", type=int, default=64)

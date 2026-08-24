@@ -517,6 +517,113 @@ def select_screen_quota(
     return tuple(selected)
 
 
+FINAL_CORPUS_TIER_FRACTIONS = {
+    "ELITE_SPECIALIST": 0.40,
+    "STRONG_SPECIALIST": 0.25,
+    "GLOBAL_SAFE": 0.08,
+    "BOUNDARY_SPECIALIST": 0.12,
+    "HARD_NEGATIVE": 0.12,
+    "INERT": 0.03,
+}
+
+
+def _training_quality_key(evidence: SpecialistEvidence) -> tuple[Any, ...]:
+    """Rank information value within a tier; lower is better."""
+    best = max((row.mean_delta for row in evidence.cohorts), default=0.0)
+    effect = max((abs(float(row.margin_delta)) for row in evidence.outcomes), default=0.0)
+    failures = sum(bool(row.new_loss or row.severe_regression) for row in evidence.outcomes)
+    if evidence.tier == "HARD_NEGATIVE":
+        value = (-failures, -evidence.behavior_groups, -effect, -evidence.action_change_count)
+    elif evidence.tier == "INERT":
+        value = (0, 0, 0, 0)
+    else:
+        value = (-evidence.l2w_groups, -evidence.useful_groups, -best, len(evidence.harmed_groups))
+    return (*value, evidence.module.semantic_id())
+
+
+def _diverse_tier_order(
+    rows: Sequence[SpecialistEvidence],
+    lineages: Mapping[str, SpecialistLineage] | None = None,
+) -> list[SpecialistEvidence]:
+    """Round-robin structural skeletons while preserving quality inside each skeleton."""
+    buckets: dict[str, list[SpecialistEvidence]] = {}
+    for row in rows:
+        buckets.setdefault(repr(row.structural_skeleton), []).append(row)
+    for skeleton, bucket in tuple(buckets.items()):
+        lineage_buckets: dict[tuple[Any, ...], list[SpecialistEvidence]] = {}
+        for row in bucket:
+            lineage = (lineages or {}).get(row.module.semantic_id())
+            key = (lineage.operator, lineage.source_goal_id, lineage.depth) if lineage else ("unknown", None, 0)
+            lineage_buckets.setdefault(key, []).append(row)
+        for lineage_rows in lineage_buckets.values():
+            lineage_rows.sort(key=_training_quality_key)
+        bucket = []
+        offset = 0
+        while True:
+            added = False
+            for key in sorted(lineage_buckets, key=repr):
+                if offset < len(lineage_buckets[key]):
+                    bucket.append(lineage_buckets[key][offset]); added = True
+            if not added:
+                break
+            offset += 1
+        buckets[skeleton] = bucket
+    keys = sorted(buckets, key=lambda key: (_training_quality_key(buckets[key][0]), key))
+    ordered: list[SpecialistEvidence] = []
+    offset = 0
+    while True:
+        added = False
+        for key in keys:
+            if offset < len(buckets[key]):
+                ordered.append(buckets[key][offset])
+                added = True
+        if not added:
+            return ordered
+        offset += 1
+
+
+def select_corpus_quota(
+    evidences: Sequence[SpecialistEvidence],
+    *,
+    limit: int,
+    seed: int,
+    lineages: Mapping[str, SpecialistLineage] | None = None,
+) -> tuple[SpecialistEvidence, ...]:
+    """Select exact-labeled training rows by tier, information value, and diversity."""
+    del seed  # Selection is deterministic; retained for a stable public API.
+    limit = max(0, int(limit))
+    if limit == 0:
+        return ()
+    unique: dict[str, SpecialistEvidence] = {}
+    for evidence in evidences:
+        sid = evidence.module.semantic_id()
+        previous = unique.get(sid)
+        if previous is None or _training_quality_key(evidence) < _training_quality_key(previous):
+            unique[sid] = evidence
+    target = min(limit, len(unique))
+    buckets = {
+        tier: _diverse_tier_order([row for row in unique.values() if row.tier == tier], lineages)
+        for tier in SPECIALIST_TIERS
+    }
+    selected: list[SpecialistEvidence] = []
+    seen: set[str] = set()
+    for tier in FINAL_CORPUS_TIER_FRACTIONS:
+        quota = min(len(buckets[tier]), int(round(target * FINAL_CORPUS_TIER_FRACTIONS[tier])))
+        for row in buckets[tier][:min(quota, target - len(selected))]:
+            selected.append(row)
+            seen.add(row.module.semantic_id())
+    if len(selected) < target:
+        remaining = [
+            row for tier in FINAL_CORPUS_TIER_FRACTIONS for row in buckets[tier]
+            if row.module.semantic_id() not in seen
+        ]
+        for row in remaining:
+            selected.append(row)
+            if len(selected) >= target:
+                break
+    return tuple(selected)
+
+
 @dataclass(frozen=True)
 class SpecialistLineage:
     module: InvariantStrategicModule

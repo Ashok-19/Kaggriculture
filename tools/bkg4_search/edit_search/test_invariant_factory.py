@@ -207,6 +207,19 @@ class InvariantFactoryTests(unittest.TestCase):
         self.assertEqual(report["rows"], 24)
         self.assertEqual(report["unique_semantics"], 24)
 
+    def test_funnel_separates_screen_shortlist_exact_labels_and_final_rows(self):
+        panel = tuple(CaseRecord(f"c{i}", f"t{i}", 0, i + 1, "mixed", role="discovery") for i in range(8))
+        backend = InvariantSearchBackend(route_ids=(29, 64, 70, 211, 212), evaluator=HashEvaluator())
+        result = run_specialist_funnel(
+            SpecialistFactory(backend, root_controller="parent"),
+            screen_panel=panel, label_panel=panel, proposal_count=96,
+            label_count=40, retain_count=20, seed=79, work_dir="unused",
+        )
+        self.assertEqual(result.screen_selected_count, 40)
+        self.assertEqual(result.exact_labeled_count, 40)
+        self.assertEqual(result.final_retained_count, 20)
+        self.assertEqual(len(result.labeled_evidence), 20)
+
     def test_factory_exports_real_cegis_repairs_and_structural_ablations(self):
         panel = tuple(
             CaseRecord(f"c{i}", f"t{i}", 0, i + 1, "cash" if i < 4 else "late", role="discovery")

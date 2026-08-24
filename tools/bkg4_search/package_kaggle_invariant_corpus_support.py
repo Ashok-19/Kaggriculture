@@ -24,21 +24,63 @@ from tools.bkg4_search.invariant_module import (
     pack_file,
 )
 from tools.bkg4_search.kaggle_invariant_corpus import sha256_file
+from tools.bkg4_search.invariant_specialists import FINAL_CORPUS_TIER_FRACTIONS
 
 ROOT = Path(__file__).resolve().parents[2]
 FROZEN_SOURCE_COMMIT = "c012c2c6c1de18fc250cf9e5425c3aea1f1d273c"
 SUPPORT_SCHEMA_VERSION = 1
-SUPPORT_PACKAGE_VERSION = "2026-08-24-v1"
+SUPPORT_PACKAGE_VERSION = "2026-08-24-v3"
 SUPPORT_DATASET = "ashok205/kaggriculture-b4im-elite-corpus-support"
 SUPPORT_TITLE = "Kaggriculture B4IM Elite Specialist Corpus Support"
 CURRENT_PARENT = "bonsai-kg/integrations/bkg4_champion/champions/w33_s172_expansion_v1"
 VALIDATED_CORPUS = ROOT / "scratch/b4im_elite_factory/final_hardening_20260824/rebuild_lineage_v2_preserved_final/corpus/invariant_specialists_exact_cuda.jsonl"
+FRESH_ARCHIVE_DATASET = "ashok205/kaggriculture-top10-replay-archive"
+FRESH_ARCHIVE_DATE = "2026-08-23"
+FRESH_ARCHIVE_ROOT = ROOT / "scratch/top10_archive_20260824"
+FRESH_CURRENT_BANK = ROOT / "scratch/bkg4_search/current_archive_aug23/cases.jsonl"
+SMOKE_BANK_SOURCE = ROOT / "scratch/bkg4_search/current_shifted_aug20/current140_cases.jsonl"
 
 BANK_SOURCES = {
-    "current_top": ROOT / "scratch/bkg4_search/current_shifted_aug20/current140_cases.jsonl",
+    "current_top": FRESH_CURRENT_BANK,
     "historical_top": ROOT / "scratch/bkg4_search/current_shifted_aug20/historical336_cases.jsonl",
     "hard_current": ROOT / "scratch/bkg4_search/hard_capability_aug20/current_ryo_bank/cases.jsonl",
 }
+
+
+def _materialize_fresh_current_bank() -> None:
+    manifest = json.loads((FRESH_ARCHIVE_ROOT / "archive_manifest.json").read_text(encoding="utf-8"))
+    shard = FRESH_ARCHIVE_ROOT / f"replays_{FRESH_ARCHIVE_DATE}.parquet"
+    provenance = FRESH_CURRENT_BANK.with_suffix(".manifest.json")
+    expected = {
+        "archive_dataset": FRESH_ARCHIVE_DATASET,
+        "archive_manifest_sha256": manifest["manifest_sha256"],
+        "archive_date": FRESH_ARCHIVE_DATE,
+        "source_shard_sha256": manifest["files"][shard.name]["sha256"],
+        "max_replays": 192,
+    }
+    if FRESH_CURRENT_BANK.is_file() and provenance.is_file():
+        if json.loads(provenance.read_text(encoding="utf-8")) == expected:
+            return
+    from tools.edit_corpus.pipeline import stream_replay_shard_to_cases
+
+    tape_dir = FRESH_CURRENT_BANK.parent / "tapes"
+    if FRESH_CURRENT_BANK.parent.exists():
+        shutil.rmtree(FRESH_CURRENT_BANK.parent)
+    tapes, cases, _ = stream_replay_shard_to_cases(
+        shard, date=FRESH_ARCHIVE_DATE, out_dir=tape_dir, max_replays=192,
+    )
+    if len(cases) < 640 or len(tapes) < 320:
+        raise RuntimeError(f"fresh archive did not yield panel capacity: tapes={len(tapes)} cases={len(cases)}")
+    rows = []
+    for case in cases:
+        rows.append({
+            "case_id": case["case_id"], "tape": case["runtime_tape_path"],
+            "seat": int(case["seat"]), "seed": int(case["prov_seed"]),
+            "team": str(case["prov_team_name"]), "role": f"current_archive_{FRESH_ARCHIVE_DATE}",
+            "protected": 1, "own_history": 0, "archive_date": FRESH_ARCHIVE_DATE,
+        })
+    FRESH_CURRENT_BANK.write_text("".join(json.dumps(row, sort_keys=True) + "\n" for row in rows), encoding="utf-8")
+    provenance.write_text(json.dumps(expected, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 REQUIRED_PATHS = tuple(sorted((
     "bonsai-kg/cuda/kag_adapter.cuh",
@@ -182,13 +224,21 @@ def _write_smoke_fixture(stage: Path, bank_paths: Sequence[str]) -> dict[str, An
     fixture.mkdir(parents=True, exist_ok=True)
     modules = smoke_modules()
     (fixture / "candidates.b4im").write_bytes(pack_file(modules))
-    loaded = [load_offline_specialist_bank(stage / path, cohort_kind=Path(path).stem) for path in bank_paths]
-    bank = combine_offline_banks(loaded)
-    cases = tuple(sorted(bank.cases, key=lambda row: row.case_id)[:4])
+    del bank_paths
+    expected_source = ROOT / "tools/bkg4_search/fixtures/b4im_t4_smoke_expected.json"
+    if not expected_source.is_file():
+        raise FileNotFoundError(f"committed exact smoke expectations are missing: {expected_source}")
+    expected = json.loads(expected_source.read_text(encoding="utf-8"))
+    smoke_bank = load_offline_specialist_bank(SMOKE_BANK_SOURCE, cohort_kind="current_top")
+    by_id = {case.case_id: case for case in smoke_bank.cases}
+    cases = tuple(by_id[case_id] for case_id in expected["case_ids"])
     case_lines = []
     for case in cases:
         fields = case.evaluator_tsv().split("\t")
-        fields[0] = f"../tapes/{Path(case.tape_path).name}"
+        tape = Path(case.tape_path)
+        name = f"{sha256_file(tape)}.json"
+        _copy(tape, stage / "tapes" / name)
+        fields[0] = f"../tapes/{name}"
         case_lines.append("\t".join(fields))
     (fixture / "cases.tsv").write_text("\n".join(case_lines) + "\n", encoding="utf-8")
     template = {
@@ -200,10 +250,6 @@ def _write_smoke_fixture(stage: Path, bank_paths: Sequence[str]) -> dict[str, An
         "case_ids": [case.case_id for case in cases],
         "expected_records": None,
     }
-    expected_source = ROOT / "tools/bkg4_search/fixtures/b4im_t4_smoke_expected.json"
-    if not expected_source.is_file():
-        raise FileNotFoundError(f"committed exact smoke expectations are missing: {expected_source}")
-    expected = json.loads(expected_source.read_text(encoding="utf-8"))
     for key in ("candidate_kinds", "semantic_ids"):
         if expected.get(key) != template[key]:
             raise ValueError(f"exact smoke fixture {key} does not match packaged candidates")
@@ -219,7 +265,7 @@ def _validate_portable_banks(stage: Path, bank_paths: Sequence[str]) -> dict[str
     for case in bank.cases:
         if not Path(case.tape_path).is_file():
             raise FileNotFoundError(case.tape_path)
-    screen, label = split_specialist_panels(bank.cases, screen_cases=64, label_cases=400, seed=20260824)
+    screen, label = split_specialist_panels(bank.cases, screen_cases=128, label_cases=512, seed=20260824)
     return {
         "cases": len(bank.cases),
         "tape_groups": len({case.tape_path for case in bank.cases}),
@@ -241,6 +287,7 @@ def _inventory(stage: Path) -> dict[str, Any]:
 
 
 def build_support_dataset(output: str | Path, *, force: bool = False) -> dict[str, Any]:
+    _materialize_fresh_current_bank()
     output = Path(output)
     if not output.is_absolute():
         output = ROOT / output
@@ -279,8 +326,19 @@ def build_support_dataset(output: str | Path, *, force: bool = False) -> dict[st
         "bkg4_abi": 4,
         "feature_registry": 1,
         "fast_math": False,
+        "selection": {
+            "screen_cases": 128, "label_cases": 512,
+            "policy": "specialist_quality_diversity_v1",
+            "tier_fractions": FINAL_CORPUS_TIER_FRACTIONS,
+            "semantic_dedup": True, "skeleton_round_robin": True,
+        },
         "parent": {"path": CURRENT_PARENT, "canonical_identity": identity["combined_agent_identity"], "controller_semantic_hash": identity["controller_semantic_hash"], "route_ids": identity["v6_route_pack"]["route_ids"], "route_count": identity["v6_route_pack"]["route_count"]},
         "banks": bank_paths,
+        "fresh_archive": {
+            "dataset": FRESH_ARCHIVE_DATASET,
+            "date": FRESH_ARCHIVE_DATE,
+            "manifest_sha256": json.loads((FRESH_ARCHIVE_ROOT / "archive_manifest.json").read_text(encoding="utf-8"))["manifest_sha256"],
+        },
         "bank_sources": bank_sources,
         "bank_validation": bank_validation,
         "packaged_tape_count": tape_count,

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from collections import Counter
 
 from tools.bkg4_search.edit_search.fitness import StateEvaluation
 from tools.bkg4_search.edit_search.panels import CaseRecord
@@ -21,6 +22,7 @@ from tools.bkg4_search.invariant_specialists import (
     calibrate_specialist_thresholds,
     composition_metadata,
     diversity_report,
+    select_corpus_quota,
     select_screen_quota,
     specialist_boundary_guards,
     strategic_coverage_matrix,
@@ -52,6 +54,20 @@ def _market(quantity: int = 1) -> InvariantStrategicModule:
 
 
 class InvariantSpecialistTests(unittest.TestCase):
+    def _forced_evidence(self, index: int, tier: str, *, feature: str = "OWN_MONEY", l2w: int = 0, delta: int = 1000):
+        module = _route(feature, index + 1, 1000 + index)
+        useful = tier not in {"HARD_NEGATIVE", "INERT"}
+        active = tier != "INERT"
+        outcomes = (
+            GroupOutcome(f"{index}:a", tier == "HARD_NEGATIVE", tier == "HARD_NEGATIVE", active, useful, l2w, delta),
+            GroupOutcome(f"{index}:b", False, False, active, useful, l2w, delta),
+        )
+        return analyze_specialist(
+            module, outcomes, cohort_by_group={f"{index}:a": "cohort", f"{index}:b": "cohort"},
+            activation_count=20 if active else 0, action_change_count=10 if active else 0,
+            force_tier=tier,
+        )
+
     def test_tier_thresholds_are_calibrated_from_repeat_positive_cohorts(self):
         values = [100.0, 200.0, 400.0, 800.0, 1600.0]
         thresholds = calibrate_specialist_thresholds(values)
@@ -93,6 +109,15 @@ class InvariantSpecialistTests(unittest.TestCase):
             activation_count=100, action_change_count=50,
         )
         self.assertEqual(evidence.tier, "BOUNDARY_SPECIALIST")
+
+    def test_global_safe_is_classified_separately_from_specialists(self):
+        evidence = analyze_specialist(
+            _route("OWN_MONEY", 500),
+            (GroupOutcome("a", False, False, True, True, 0, 500), GroupOutcome("b", False, False, True, True, 0, 600)),
+            cohort_by_group={"a": "broad", "b": "broad"}, activation_count=8, action_change_count=4,
+        )
+        self.assertTrue(evidence.production_safe)
+        self.assertEqual(evidence.tier, "GLOBAL_SAFE")
 
     def test_inert_and_hard_negative_classes_are_explicit(self):
         inert = analyze_specialist(
@@ -219,6 +244,44 @@ class InvariantSpecialistTests(unittest.TestCase):
         self.assertGreaterEqual(counts["HARD_NEGATIVE"], 10)
         self.assertGreaterEqual(counts["INERT"], 8)
         self.assertGreaterEqual(counts["ELITE_SPECIALIST"], 12)
+
+    def test_final_corpus_selection_keeps_specialists_negatives_and_boundaries(self):
+        rows = []
+        for tier_index, tier in enumerate(SPECIALIST_TIERS):
+            rows.extend(self._forced_evidence(tier_index * 100 + i, tier, l2w=int(tier == "ELITE_SPECIALIST"), delta=3000 if tier != "HARD_NEGATIVE" else -5000) for i in range(20))
+        selected = select_corpus_quota(rows, limit=60, seed=7)
+        counts = Counter(row.tier for row in selected)
+        self.assertEqual(len(selected), 60)
+        self.assertGreater(counts["ELITE_SPECIALIST"], counts["GLOBAL_SAFE"])
+        self.assertGreater(counts["HARD_NEGATIVE"], 0)
+        self.assertGreater(counts["BOUNDARY_SPECIALIST"], 0)
+        self.assertGreater(counts["INERT"], 0)
+
+    def test_final_corpus_selection_prefers_repeated_l2w_and_is_deterministic(self):
+        l2w = self._forced_evidence(1, "ELITE_SPECIALIST", l2w=1, delta=4000)
+        weak = self._forced_evidence(2, "ELITE_SPECIALIST", delta=100)
+        inert = self._forced_evidence(3, "INERT", delta=0)
+        first = select_corpus_quota((weak, inert, l2w), limit=1, seed=99)
+        second = select_corpus_quota((inert, l2w, weak), limit=1, seed=99)
+        self.assertEqual(first[0].module.semantic_id(), l2w.module.semantic_id())
+        self.assertEqual([row.module.semantic_id() for row in first], [row.module.semantic_id() for row in second])
+
+    def test_final_corpus_selection_deduplicates_semantics_and_fills_from_other_tiers(self):
+        elite = self._forced_evidence(10, "ELITE_SPECIALIST", l2w=1)
+        alternatives = [self._forced_evidence(20 + i, "HARD_NEGATIVE", delta=-2000) for i in range(6)]
+        selected = select_corpus_quota((elite, elite, elite, *alternatives), limit=5, seed=5)
+        semantic_ids = [row.module.semantic_id() for row in selected]
+        self.assertEqual(len(selected), 5)
+        self.assertEqual(len(semantic_ids), len(set(semantic_ids)))
+        self.assertIn("HARD_NEGATIVE", {row.tier for row in selected})
+
+    def test_final_corpus_selection_prevents_one_skeleton_from_dominating(self):
+        dominant = [self._forced_evidence(100 + i, "ELITE_SPECIALIST", feature="OWN_MONEY", l2w=1) for i in range(20)]
+        diverse = [self._forced_evidence(200 + i, "ELITE_SPECIALIST", feature="DAY", l2w=1) for i in range(4)]
+        selected = select_corpus_quota((*dominant, *diverse), limit=8, seed=3)
+        skeletons = Counter(repr(row.structural_skeleton) for row in selected)
+        self.assertGreaterEqual(len(skeletons), 2)
+        self.assertLess(max(skeletons.values()), len(selected))
 
     def test_lineage_preserves_recursive_parent_and_source_relative_effect(self):
         root = _route("OWN_MONEY", 500)

@@ -45,15 +45,17 @@ BUILD_ROOT = Path("/kaggle/working/b4im_cuda_build")
 TOTAL_WALLTIME_SECONDS = 10 * 60 * 60
 FINAL_RESERVE_SECONDS = 45 * 60
 BASE_SEED = 2026082400
-SCREEN_CASES = 64
-LABEL_CASES = 400
+SCREEN_CASES = 128
+LABEL_CASES = 512
 SHARD_PROPOSALS = 20_000
-RETAINED_PER_SHARD = 2_048
+SCREEN_SHORTLIST_PER_SHARD = 4_096
+FINAL_RETAINED_PER_SHARD = 2_048
 RECURSIVE = 4_096
 RECURSIVE_ROUNDS = 2
 CEGIS_REPAIRS = 1_024
 ABLATIONS = 1_024
 FOLLOWUP_RETAIN = 1_024
+FOLLOWUP_SCREEN_SHORTLIST = 2_048
 GPU_MEMORY_FRACTION = 0.70
 DISK_RESERVE_BYTES = 12 * 1024**3
 MINIMUM_SHARD_SECONDS = 15 * 60
@@ -234,11 +236,13 @@ for physical_gpu in (0, 1):
         "worker", "--support", str(RUNTIME_ROOT), "--binary", str(EVALUATOR), "--output", str(OUTPUT_ROOT),
         "--island", str(physical_gpu), "--base-seed", str(BASE_SEED),
         "--generation-deadline-monotonic", str(GENERATION_DEADLINE),
-        "--proposals", str(SHARD_PROPOSALS), "--retain", str(RETAINED_PER_SHARD),
+        "--proposals", str(SHARD_PROPOSALS), "--retain", str(FINAL_RETAINED_PER_SHARD),
+        "--label-retain", str(SCREEN_SHORTLIST_PER_SHARD),
         "--screen-cases", str(SCREEN_CASES), "--label-cases", str(LABEL_CASES),
         "--recursive", str(RECURSIVE), "--recursive-rounds", str(RECURSIVE_ROUNDS),
         "--repairs", str(CEGIS_REPAIRS), "--ablations", str(ABLATIONS),
         "--followup-retain", str(FOLLOWUP_RETAIN), "--tpb", str(calibration["chosen_tpb"]),
+        "--followup-label-retain", str(FOLLOWUP_SCREEN_SHORTLIST),
         "--memory-fraction", str(calibration["chosen_memory_fraction"]),
         "--disk-floor-bytes", str(DISK_RESERVE_BYTES), "--minimum-shard-seconds", str(MINIMUM_SHARD_SECONDS),
     ]
@@ -347,12 +351,14 @@ metadata_bytes = sum(path.stat().st_size for path in OUTPUT_ROOT.glob("island*/s
 npz_bytes = sum(path.stat().st_size for path in OUTPUT_ROOT.glob("island*/shard-*/training_arrays.npz"))
 exact_games = sum(int(manifest["counters"].get("exact_games", 0)) for manifest in shard_manifests)
 raw_proposals = sum(int(manifest["counters"].get("raw_proposals", 0)) for manifest in shard_manifests)
+screen_retained = sum(int(manifest["counters"].get("screen_retained", 0)) for manifest in shard_manifests)
+exact_labeled = sum(int(manifest["counters"].get("exact_labeled", 0)) for manifest in shard_manifests)
 labeled = sum(int(manifest["counts"]["rows"]) for manifest in shard_manifests)
 wall = time.monotonic() - PIPELINE_STARTED_MONOTONIC
 final_report = {
     "hardware": {"gpus": gpus[:2], "calibration": calibrations, "average_gpu_utilization": average_gpu_util},
     "support": {"dataset": SUPPORT_DATASET, "package_version": support_manifest["support_package_version"], "source_commit": support_manifest["source_commit"], "implementation_commit": support_manifest["implementation_commit"], "parent": support_manifest["parent"]["canonical_identity"], "candidate_abi": "B4IM1/v1", "result_abi": "B4IC1/v1", "bkg4_abi": 4},
-    "corpus": {"total_raw_proposals": raw_proposals, "unique_screened_candidates": raw_proposals, "fully_labeled_candidates": labeled, "final_deduplicated_training_rows": merge_report["deduplicated_rows"], "shard_count": merge_report["shards"], "exact_cuda_games": exact_games, "fault_count": 0},
+    "corpus": {"total_raw_proposals": raw_proposals, "unique_screened_candidates": raw_proposals, "screen_retained_candidates": screen_retained, "exact_large_panel_labeled_candidates": exact_labeled, "final_retained_candidates": labeled, "final_deduplicated_training_rows": merge_report["deduplicated_rows"], "shard_count": merge_report["shards"], "exact_cuda_games": exact_games, "fault_count": 0},
     "diversity": {"skeletons": merge_report["skeletons"], "qd_niches": sum(int(manifest["counts"]["qd_niches"]) for manifest in shard_manifests), "depth_distribution": sum_counter("depths"), "tier_distribution": merge_report["tiers"]},
     "quality": {name: merge_report["tiers"].get(name, 0) for name in ("GLOBAL_SAFE", "ELITE_SPECIALIST", "STRONG_SPECIALIST", "BOUNDARY_SPECIALIST", "HARD_NEGATIVE", "INERT", "L2W")},
     "search": {"operators": sum_counter("operators"), "source_goals": sum_counter("source_goals")},

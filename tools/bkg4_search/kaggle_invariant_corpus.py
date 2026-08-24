@@ -165,6 +165,7 @@ def write_validated_shard(
     np.savez_compressed(pending / "training_arrays.npz", **arrays)
     labels = [record["target_labels"] for record in records]
     lineage = [row["lineage"] for row in labels]
+    skeleton_counts = Counter(str(row["skeleton_id"]) for row in compact)
     manifest: dict[str, Any] = {
         "schema_version": 1,
         "island": int(island),
@@ -180,6 +181,8 @@ def write_validated_shard(
             "skeletons": len({row["skeleton_id"] for row in compact}),
             "qd_niches": len({str(row["qd_niche"]) for row in compact}),
             "tiers": _counter(str(row["specialist_tier"]) for row in labels),
+            "l2w": sum(int(row.get("l2w_groups", 0)) > 0 for row in labels),
+            "top10_skeleton_concentration": sum(count for _, count in skeleton_counts.most_common(10)) / len(records),
             "depths": _counter(str(row["depth"]) for row in lineage),
             "operators": _counter(str(row["operator"]) for row in lineage),
             "source_goals": _counter(str(row.get("source_goal_id") or "none") for row in lineage),

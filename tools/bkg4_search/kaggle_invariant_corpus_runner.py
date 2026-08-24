@@ -42,6 +42,9 @@ def load_support(support: str | Path) -> tuple[Path, dict[str, Any]]:
     for key, value in required.items():
         if manifest.get(key) != value:
             raise ValueError(f"support provenance mismatch for {key}: {manifest.get(key)!r} != {value!r}")
+    selection = manifest.get("selection", {})
+    if selection.get("policy") != "specialist_quality_diversity_v1" or int(selection.get("screen_cases", 0)) != 128 or int(selection.get("label_cases", 0)) != 512:
+        raise ValueError("support does not contain the corrected specialist-aware 128/512 selection pipeline")
     for rel, meta in manifest["files"].items():
         path = support / rel
         if not path.is_file() or path.stat().st_size != int(meta["bytes"]) or sha256_file(path) != str(meta["sha256"]):
@@ -53,7 +56,8 @@ def load_support(support: str | Path) -> tuple[Path, dict[str, Any]]:
     banks = _load_banks(support, manifest)
     if len(banks.cases) != int(manifest["bank_validation"]["cases"]):
         raise ValueError("support bank case count mismatch")
-    split_specialist_panels(banks.cases, screen_cases=64, label_cases=400, seed=20260824)
+    panel = manifest["bank_validation"]
+    split_specialist_panels(banks.cases, screen_cases=int(panel["screen_cases"]), label_cases=int(panel["label_cases"]), seed=20260824)
     return support, manifest
 
 
@@ -65,9 +69,9 @@ def _load_banks(support: Path, manifest: Mapping[str, Any]):
     return combine_offline_banks(loaded)
 
 
-def _panel_record(support: Path, manifest: Mapping[str, Any], seed: int) -> tuple[dict[str, Any], dict[str, Any]]:
+def _panel_record(support: Path, manifest: Mapping[str, Any], seed: int, screen_cases: int, label_cases: int) -> tuple[dict[str, Any], dict[str, Any]]:
     bank = _load_banks(support, manifest)
-    screen, label = split_specialist_panels(bank.cases, screen_cases=64, label_cases=400, seed=seed)
+    screen, label = split_specialist_panels(bank.cases, screen_cases=screen_cases, label_cases=label_cases, seed=seed)
 
     def record(name: str, cases) -> dict[str, Any]:
         ids = sorted(case.case_id for case in cases)
@@ -114,7 +118,8 @@ def calibrate(
     output = Path(output).resolve()
     profile = ParentProfile.from_directory(support / manifest["parent"]["path"])
     bank = _load_banks(support, manifest)
-    screen, _ = split_specialist_panels(bank.cases, screen_cases=64, label_cases=400, seed=seed)
+    panel = manifest["bank_validation"]
+    screen, _ = split_specialist_panels(bank.cases, screen_cases=int(panel["screen_cases"]), label_cases=int(panel["label_cases"]), seed=seed)
     producer = InvariantExactCudaEvaluator(profile, binary=binary, device=device, tpb=64, memory_fraction=0.50)
     modules = SpecialistFactory(InvariantSearchBackend(route_ids=profile.route_ids, evaluator=producer), root_controller=profile.combined_agent_identity).propose(count=candidates, seed=seed).modules
     choices = []
@@ -138,10 +143,12 @@ def _generator_args(args: argparse.Namespace, shard_seed: int, work: Path) -> ar
         "--parent", str(args.support / args.manifest["parent"]["path"]),
         "--evaluator", str(args.binary), "--work-dir", str(work),
         "--proposals", str(args.proposals), "--retain", str(args.retain),
+        "--label-retain", str(args.label_retain),
         "--screen-cases", str(args.screen_cases), "--label-cases", str(args.label_cases),
         "--recursive", str(args.recursive), "--recursive-rounds", str(args.recursive_rounds),
         "--repairs", str(args.repairs), "--ablations", str(args.ablations),
         "--followup-retain", str(args.followup_retain), "--seed", str(shard_seed),
+        "--followup-label-retain", str(args.followup_label_retain),
         "--device", "0", "--tpb", str(args.tpb), "--memory-fraction", str(args.memory_fraction),
         "--skip-saturation",
     ]
@@ -160,7 +167,7 @@ def run_worker(args: argparse.Namespace) -> dict[str, Any]:
         return report
     shard_id = len(list(island_root.glob("shard-*/shard_manifest.json")))
     durations: list[float] = []
-    totals = {"raw_proposals": 0, "screened": 0, "labeled": 0, "exact_games": 0, "faults": 0, "shards": 0}
+    totals = {"raw_proposals": 0, "screened": 0, "screen_retained": 0, "exact_labeled": 0, "labeled": 0, "exact_games": 0, "faults": 0, "shards": 0}
     worker_started = time.monotonic()
     while shard_id < args.max_shards:
         remaining = float(args.generation_deadline_monotonic) - time.monotonic()
@@ -176,11 +183,13 @@ def run_worker(args: argparse.Namespace) -> dict[str, Any]:
         report = run_generator(_generator_args(args, seed, work))
         corpus = work / "corpus/invariant_specialists_exact_cuda.jsonl"
         records = [json.loads(line) for line in corpus.read_text(encoding="utf-8").splitlines() if line.strip()]
-        screen_panel, label_panel = _panel_record(args.support, args.manifest, seed)
+        screen_panel, label_panel = _panel_record(args.support, args.manifest, seed, args.screen_cases, args.label_cases)
         rounds = report["rounds"]
         counters = {
             "raw_proposals": sum(int(row["proposals"]) for row in rounds),
             "screened": sum(int(row["proposals"]) for row in rounds),
+            "screen_retained": sum(int(row["screen_retained"]) for row in rounds),
+            "exact_labeled": sum(int(row["exact_labeled"]) for row in rounds),
             "labeled": len(records),
             "exact_games": int(report["throughput"]["exact_games"]),
             "faults": 0,
@@ -249,13 +258,15 @@ def parser() -> argparse.ArgumentParser:
     worker.add_argument("--generation-deadline-monotonic", type=float, required=True)
     worker.add_argument("--proposals", type=int, default=20_000)
     worker.add_argument("--retain", type=int, default=2_048)
-    worker.add_argument("--screen-cases", type=int, default=64)
-    worker.add_argument("--label-cases", type=int, default=400)
+    worker.add_argument("--label-retain", type=int, default=4_096)
+    worker.add_argument("--screen-cases", type=int, default=128)
+    worker.add_argument("--label-cases", type=int, default=512)
     worker.add_argument("--recursive", type=int, default=4_096)
     worker.add_argument("--recursive-rounds", type=int, default=2)
     worker.add_argument("--repairs", type=int, default=1_024)
     worker.add_argument("--ablations", type=int, default=1_024)
     worker.add_argument("--followup-retain", type=int, default=1_024)
+    worker.add_argument("--followup-label-retain", type=int, default=2_048)
     worker.add_argument("--tpb", type=int, default=64)
     worker.add_argument("--memory-fraction", type=float, default=0.70)
     worker.add_argument("--disk-floor-bytes", type=int, default=12 * 1024**3)

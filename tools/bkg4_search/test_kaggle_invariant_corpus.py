@@ -33,6 +33,8 @@ class KaggleInvariantCorpusTests(unittest.TestCase):
         self.assertIn("tools/bkg4_search/bonsai_editformer/invariant_data.py", required)
         self.assertEqual(list(self.package.REQUIRED_PATHS), sorted(required))
         self.assertFalse(any(path.startswith("scratch/") for path in required))
+        self.assertEqual(self.package.FRESH_ARCHIVE_DATASET, "ashok205/kaggriculture-top10-replay-archive")
+        self.assertEqual(self.package.FRESH_ARCHIVE_DATE, "2026-08-23")
 
     def test_safe_extract_rejects_traversal_and_links(self):
         with tempfile.TemporaryDirectory() as td:
@@ -111,6 +113,8 @@ class KaggleInvariantCorpusTests(unittest.TestCase):
             "PUBLISH_CORPUS", "support_manifest.json", "run-smoke", "calibrate",
             "worker", "merge", "nvidia-smi",
             "edits/s", "games/s",
+            "SCREEN_CASES = 128", "LABEL_CASES = 512",
+            "SCREEN_SHORTLIST_PER_SHARD", "FINAL_RETAINED_PER_SHARD",
         ):
             self.assertIn(marker, code)
         builder.validate_notebook(json.dumps(notebook))
