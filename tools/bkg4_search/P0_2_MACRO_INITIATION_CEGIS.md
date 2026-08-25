@@ -1,7 +1,7 @@
 # P0.2 MACRO INITIATION CEGIS VALIDATED
 
-Date: 2026-08-25  
-Team: ReCurSiON  
+Date: 2026-08-25
+Team: ReCurSiON
 Stage: bounded macro/subtree representation + public-state initiation-set CEGIS + safe BKG4 integration
 
 P0.2 validates the first concrete planning-to-Bonsai synthesis link. The P0.1 route435 continuation can be represented as an ordinary bounded BKG4 route macro, given a compact legal public-state initiation gate, and composed with the accepted 345-node parent without protected regressions on the bounded certification panels.
