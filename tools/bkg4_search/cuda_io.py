@@ -7,7 +7,7 @@ ROOT=Path(__file__).resolve().parents[2];sys.path.insert(0,str(ROOT/'bonsai-kg/p
 import bonsai_kg_v4 as b
 from tools.bkg4_search.module_codec import ModuleGenome
 
-COND=struct.Struct('<HBBhHi');RULE_HEAD=struct.Struct('<BBH');GEN_HEAD=struct.Struct('<HBB');FILE_HEAD=struct.Struct('<8sII');RESULT_HEAD=struct.Struct('<8sIII');RESULT=struct.Struct('<iiHH')
+COND=struct.Struct('<HBBhHi');RULE_HEAD=struct.Struct('<BBH');GEN_HEAD=struct.Struct('<HBB');FILE_HEAD=struct.Struct('<8sII');RESULT_HEAD=struct.Struct('<8sIII');RESULT=struct.Struct('<iiHH');FRAGMENT_RESULT_HEAD=struct.Struct('<8sIIIII')
 assert COND.size==12
 ROUTE_RULE_SIZE=RULE_HEAD.size+4*COND.size
 GENOME_SIZE=GEN_HEAD.size+8*ROUTE_RULE_SIZE
@@ -41,3 +41,18 @@ def load_results(path:str|Path):
   for c in range(nc):one.append(RESULT.unpack_from(raw,off));off+=RESULT.size
   rows.append(one)
  return rows
+
+
+def load_fragment_results(path:str|Path):
+ raw=Path(path).read_bytes()
+ if len(raw)<FRAGMENT_RESULT_HEAD.size:raise ValueError('short fragment result header')
+ magic,version,ncand,nc,start_index,total_candidates=FRAGMENT_RESULT_HEAD.unpack_from(raw,0)
+ if magic!=b'B4FR1\0\0\0' or version!=1:raise ValueError('bad fragment result header')
+ off=FRAGMENT_RESULT_HEAD.size;expected=off+ncand*nc*RESULT.size
+ if len(raw)!=expected:raise ValueError(f'fragment result size mismatch {len(raw)} != {expected}')
+ rows=[]
+ for _ in range(ncand):
+  one=[]
+  for _ in range(nc):one.append(RESULT.unpack_from(raw,off));off+=RESULT.size
+  rows.append(one)
+ return {'candidates':ncand,'cases':nc,'start_index':start_index,'total_candidates':total_candidates},rows

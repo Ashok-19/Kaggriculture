@@ -11,7 +11,7 @@ B4EC_HOST_CXX ?= g++-9
 B4EC_HOST_FLAG := $(if $(strip $(B4EC_HOST_CXX)),-ccbin $(B4EC_HOST_CXX),)
 BINS := $(BUILD_DIR)/validate $(BUILD_DIR)/bench $(BUILD_DIR)/price_probe
 
-.PHONY: all check validate-parity state-parity snapshot-parity price-parity policy-smoke bench branch-bench tape-bench tape-branch bonsai-search bonsai-eval-one bonsai-branch-cases hybrid-grid clean opening-option-beam bkg4-edit-corpus-eval bkg4-invariant-edit-eval
+.PHONY: all check validate-parity state-parity snapshot-parity price-parity policy-smoke bench branch-bench tape-bench tape-branch bonsai-search bonsai-eval-one bonsai-branch-cases hybrid-grid clean opening-option-beam bkg4-edit-corpus-eval bkg4-invariant-edit-eval bkg4-fragment-eval bkg4-information-state-capture
 all: $(BINS)
 
 check: price-parity validate-parity state-parity snapshot-parity policy-smoke
@@ -57,6 +57,12 @@ $(BUILD_DIR)/bkg4_edit_corpus_eval: src/bkg4_edit_corpus_eval.cu include/tape_io
 
 $(BUILD_DIR)/bkg4_invariant_edit_eval: src/bkg4_invariant_edit_eval.cu include/tape_io.hpp include/sim.cuh include/pyrandom.cuh include/runtime.cuh ../bonsai-kg/include/bonsai_kg_v4.hpp ../bonsai-kg/include/bonsai_kg_v4_io.hpp ../bonsai-kg/include/bkg4_invariant_module.hpp ../bonsai-kg/cuda/kag_adapter_v4.cuh ../bonsai-kg/integrations/bkg4_champion/cuda_compat.cuh | $(BUILD_DIR)
 	$(NVCC) $(B4EC_NVCCFLAGS) $(B4EC_HOST_FLAG) -o $@ $<
+
+$(BUILD_DIR)/bkg4_fragment_eval: src/bkg4_fragment_eval.cu include/tape_io.hpp include/sim.cuh include/pyrandom.cuh include/runtime.cuh ../bonsai-kg/include/bonsai_kg_v4.hpp ../bonsai-kg/include/bonsai_kg_v4_io.hpp ../bonsai-kg/cuda/kag_adapter_v4.cuh ../bonsai-kg/integrations/bkg4_champion/cuda_compat.cuh ../bonsai-kg/integrations/bkg4_champion/extended_route_pack.hpp | $(BUILD_DIR)
+	$(NVCC) $(NVCCFLAGS) $(INCLUDES) -o $@ $<
+
+$(BUILD_DIR)/bkg4_information_state_capture: src/bkg4_information_state_capture.cu include/tape_io.hpp include/sim.cuh include/pyrandom.cuh include/runtime.cuh ../bonsai-kg/include/bonsai_kg_v4.hpp ../bonsai-kg/include/bonsai_kg_v4_io.hpp ../bonsai-kg/cuda/kag_adapter_v4.cuh ../bonsai-kg/integrations/bkg4_champion/cuda_compat.cuh ../bonsai-kg/integrations/bkg4_champion/extended_route_pack.hpp | $(BUILD_DIR)
+	$(NVCC) $(NVCCFLAGS) $(INCLUDES) -o $@ $<
 
 $(BUILD_DIR)/opening_crossover: src/opening_crossover.cu include/bonsai_gp.cuh include/observation.cuh include/tape_io.hpp include/sim.cuh include/pyrandom.cuh include/runtime.cuh | $(BUILD_DIR)
 	$(NVCC) $(NVCCFLAGS) $(PTXAS) $(INCLUDES) -o $@ $<
@@ -141,6 +147,12 @@ bkg4-edit-corpus-eval: $(BUILD_DIR)/bkg4_edit_corpus_eval
 
 bkg4-invariant-edit-eval: $(BUILD_DIR)/bkg4_invariant_edit_eval
 	@echo "usage: $(BUILD_DIR)/bkg4_invariant_edit_eval --controller FILE.bkgc --routes FILE.bkv6 --legacy-routes FILE.bkv6 --cases cases.tsv --candidates states.b4im --out results.b4ic [--device 0]"
+
+bkg4-fragment-eval: $(BUILD_DIR)/bkg4_fragment_eval
+	@echo "usage: $(BUILD_DIR)/bkg4_fragment_eval --controller FILE.bkgc --routes FILE.bkv6 --legacy-routes FILE.bkv6 --cases cases.tsv --donors donors.txt --out results.b4fr [--starts csv --durations csv --grid-out grid.tsv]"
+
+bkg4-information-state-capture: $(BUILD_DIR)/bkg4_information_state_capture
+	@echo "usage: $(BUILD_DIR)/bkg4_information_state_capture --controller FILE.bkgc --routes FILE.bkv6 --legacy-routes FILE.bkv6 --cases cases.tsv --probes probes.txt --out states.b4is --truth-out truth.b4is"
 
 clean:
 	rm -rf $(BUILD_DIR)

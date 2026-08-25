@@ -120,3 +120,20 @@ Composed controller: 345 nodes, BB23, state0, semantic hash `8c5d7cd0e32574cbe34
 Validation: current140 98W/42L (4 net flips vs 315 parent), historical336/screen61/fresh24/sealed24 no outcome regressions, controller parity 0 mismatches/2876 ticks, route materializer 0/18 mismatches, source-backed ReCurSiON 0/4 regressions, official Python canary64 39W/25L.
 
 Machine evidence: `tools/bkg4_search/SPECIALIST_STACK_345_TERMINAL.json`.
+
+
+## 2026-08-25 — P0.1 regret-guided counterfactual CUDA macro search
+
+| Experiment | Scope | Result | Decision |
+|---|---:|---|---|
+| Current-parent hard-loss recheck | 10 terminal U/W/M-unflippable cases vs 345-node `w33_s172_expansion_v1` | All 10 remain losses; Ryo margins improve only +94…+98 vs old references | **Hard set still authoritative** |
+| Coarse coherent donor-fragment search | 38 source-backed top-10 routes × 17 checkpoints × 24/48/72 horizons; live BKG4 rollout | 19,390 exact CUDA games, bad=0; 2 isolated Ryo L→W; early Izzoudine basin improves 9/10 but no Arman flip | **Deepen only evidence-backed basins** |
+| Refined/hierarchical search | finer starts/horizons, public hybrids, two-stage route continuations | Large deficit reductions but no additional legal post-reveal flips | **Vocabulary/checkpoint limits matter** |
+| Early-checkpoint all-route search | 64 coherent routes × steps 0/24/48/72 × horizons 24…192 | Arman cases 18/19 flip strongly at step48; later rejected after exact-state analysis | **Hindsight signal only** |
+| Step48 complete legal-state capture | 61 cases × full registry/BB/compat/runtime | Support cells are mixed-sign under identical complete legal state | **Reject future-dependent early macro** |
+| Post-reveal route435 transfer | step156 × 48, full 61-case screen | `PIZZA→PIZZA` 2/2 positive and 2/2 L→W; `PET→PIZZA` 2/2 positive with 1 L→W; other supported cohorts positive; ungated global use unsafe | **Capability discovery validated; gating deferred** |
+| Route435 component ablation | 8 supported cases | full macro 8/8 positive, 3 L→W, 0 harmful; market-only 5/8 positive/3 harmful; units-only 4/8 positive/4 harmful | **Co-adapted multi-stage macro, not isolated edit** |
+
+P0.1 terminal verdict: **VALIDATED.** Deeper CUDA counterfactual planning found a recurring post-reveal production/worker/market continuation that flips an authoritative U/W/M-unflippable hard loss and transfers across independent legal-state cohorts. The campaign also found a search-control failure: existing route79 can flip one hard case when searched at a longer/earlier window than the old ORACLE-M grid. The next stage should add a bounded macro/subtree representation plus initiation-set CEGIS; do not resume corpus/EditFormer generation for this result.
+
+Permanent evidence: `tools/bkg4_search/P0_1_REGRET_GUIDED_MACRO_SEARCH.md`.
