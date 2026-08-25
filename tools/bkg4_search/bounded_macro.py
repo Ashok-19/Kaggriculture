@@ -203,3 +203,69 @@ def validate_nonoverlapping_macro_windows(macros: Sequence[BoundedRouteMacro]) -
                     f"{left.name}[{left.start_step},{left.end_step}] vs "
                     f"{right.name}[{right.start_step},{right.end_step}]"
                 )
+
+
+@dataclass(frozen=True)
+class ExactRoutePreemption:
+    """One evidence-backed precedence rule for an existing strategic-route owner.
+
+    This is deliberately not a general scheduler. When the preemptor authorizes,
+    it clears one named incumbent latch before setting its own latch. Both route
+    owners must have the same exact window, so no restoration state is required.
+    """
+
+    preemptor_name: str
+    preemptor_route_id: int
+    preempted_name: str
+    preempted_route_id: int
+    preempted_active_slot: str
+    start_step: int
+    end_step: int
+    evidence_kind: str
+
+    @property
+    def resume_policy(self) -> str:
+        return "both_windows_end_together"
+
+    def validate(self, macro: BoundedRouteMacro) -> None:
+        macro.validate()
+        if self.preemptor_name != macro.name or int(self.preemptor_route_id) != int(macro.route_id):
+            raise ValueError("exact route preemption preemptor does not match macro")
+        if (int(self.start_step), int(self.end_step)) != (macro.start_step, macro.end_step):
+            raise ValueError("exact route preemption window must match macro window")
+        if not self.preempted_name or not self.preempted_active_slot:
+            raise ValueError("exact route preemption requires a named incumbent and active slot")
+        if not 0 <= int(self.preempted_route_id) <= 65535:
+            raise ValueError("preempted route id out of range")
+        if int(self.preempted_route_id) == int(self.preemptor_route_id):
+            raise ValueError("preemptor and preempted route ids must differ")
+        if self.preempted_active_slot == macro.active_slot:
+            raise ValueError("preempted active slot must be owned by the incumbent")
+        if not self.evidence_kind:
+            raise ValueError("exact route preemption requires evidence kind")
+        _check_identity_free(self.evidence_kind, "composition.evidence_kind")
+
+    def canonical(self) -> dict[str, Any]:
+        return {
+            "kind": "exact_route_preemption_v1",
+            "preemptor": {"name": self.preemptor_name, "route_id": int(self.preemptor_route_id)},
+            "preempted": {
+                "name": self.preempted_name,
+                "route_id": int(self.preempted_route_id),
+                "active_slot": self.preempted_active_slot,
+            },
+            "overlap_window": [int(self.start_step), int(self.end_step)],
+            "resume_policy": self.resume_policy,
+            "evidence_kind": self.evidence_kind,
+        }
+
+    def specialist_tree(self, macro: BoundedRouteMacro, *, route_override_slot: str) -> dict[str, Any]:
+        self.validate(macro)
+        tree = macro.specialist_tree(route_override_slot=route_override_slot)
+        authorization = tree["children"][0]["then"]["child"]["children"]
+        authorization.insert(-1, {
+            "type": "SetBlackboard",
+            "slot": self.preempted_active_slot,
+            "value": 0,
+        })
+        return tree

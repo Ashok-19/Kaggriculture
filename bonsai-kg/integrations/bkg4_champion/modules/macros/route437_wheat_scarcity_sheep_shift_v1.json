@@ -1,0 +1,37 @@
+{
+  "base_route_id": 64,
+  "duration": 24,
+  "gate_clauses": [
+    [
+      {
+        "cmp": "GE",
+        "feature": "MARKET_PRICE",
+        "index": 0,
+        "value": 38
+      },
+      {
+        "cmp": "GE",
+        "feature": "OPP_MONEY",
+        "index": 0,
+        "value": 15750
+      },
+      {
+        "cmp": "NE",
+        "feature": "SHOP_AT",
+        "index": 2,
+        "value": 1
+      }
+    ]
+  ],
+  "kind": "bounded_route_macro_v1",
+  "name": "route437_wheat_scarcity_sheep_shift_v1",
+  "provenance": {
+    "discovery": "P0.4_regret_guided_cuda_composition_search",
+    "fragment_sha256": "175853bd7517328c7a72d84f13cb149ef376221602b1bd911783dad920e0010c",
+    "source_kind": "source_backed_route_archive",
+    "source_route_id": 437
+  },
+  "route_id": 218,
+  "schema": 1,
+  "start_step": 264
+}

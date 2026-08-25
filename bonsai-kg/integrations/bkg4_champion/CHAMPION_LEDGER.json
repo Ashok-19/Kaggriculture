@@ -255,6 +255,36 @@
         "route410_fragment_sha256": "954edb5db3adf1833c906dc9631b53c038a1e67c3fe818bb721f035b58ade0db"
       },
       "machine_evidence": "tools/bkg4_search/P0_3_SYNTHESIZER_REPEATABILITY.md"
+    },
+    {
+      "name": "route437_wheat_scarcity_sheep_shift_v1",
+      "status": "accepted_into_bkg4_lineage_not_default_submission",
+      "parent": "route410_wheat_liquidity_expansion_v1",
+      "asset_dir": "bonsai-kg/integrations/bkg4_champion/champions/route437_wheat_scarcity_sheep_shift_v1",
+      "module_source": "bonsai-kg/integrations/bkg4_champion/modules/animal_feed_deferral_plus_day2_plus_hire4_plus_fert_wool_plus_w33_s172_plus_route435_plus_route410_plus_route437_wheat_scarcity_sheep_shift_v1.json",
+      "controller_semantic_hash": "4e611d80f0bbb38bd696aa3dbb8a5e9e903be556e4ceafa233b5cb5685597be6",
+      "combined_agent_identity": "357dbb9489b26a8fb424de592da92e45e2c0ac28d8a450a5e6e1b5791ade9d29",
+      "nodes": 398,
+      "blackboard_slots": 26,
+      "state_slots": 0,
+      "max_depth": 11,
+      "static_max_visits": 312,
+      "max_live_intents": 0,
+      "rule": "At step 264, if WHEAT price is at least 38, public opponent money is at least 15750, and the third shop is not BRUNCH_SPOT, latch bounded route 218 through step 287. Route218 explicitly suppresses the overlapping route213 latch for their shared window. The source-backed route437 fragment shifts the day-11 animal allocation from cows to sheep and executes a co-adapted care, watering and planting schedule.",
+      "evidence": {
+        "regret_search": {"target_cases": 20, "coarse_candidates": 2049, "coarse_games": 40980, "coarse_gpu_ms": 8322.46, "coarse_games_per_second": 4924.0, "faults": 0},
+        "cegis_core": {"records": 585, "final_activated": 4, "final_positive": 4, "final_harmful": 0, "final_loss_to_win": 3, "final_win_to_loss": 0, "worst_delta": 2691, "aggregate_delta": 21811, "mixed_exact_cells": 0},
+        "rejected_gate_counterexample": {"gate": "MELON inventory <=10065 and third shop YARN_STORE", "archive_activated": 7, "archive_positive": 1, "archive_harmful": 6, "worst_delta": -13331, "aggregate_delta": -18932},
+        "independent_fresh949": {"records": 80, "activated": 2, "positive": 2, "harmful": 0, "loss_to_win": 0, "win_to_loss": 0, "both_seats": true, "worst_delta": 1129, "aggregate_delta": 2303},
+        "independent_archive766": {"records": 766, "activated": 2, "positive": 2, "harmful": 0, "loss_to_win": 0, "win_to_loss": 0, "both_seats": true, "worst_delta": 3775, "aggregate_delta": 7809},
+        "composed_exact_cuda": {"records": 1511, "gate_activations": 8, "inactive_parent_exact": 1503, "active_macro_exact": 8, "piecewise_mismatches": 0, "positive_activations": 8, "harmful_activations": 0, "loss_to_win": 3, "win_to_loss": 0, "worst_delta": 1129, "aggregate_delta": 31923, "faults": 0},
+        "protected_regression": {"unique_records": 1466, "protected_parent_wins": 969, "protected_negative_deltas": 0, "win_to_loss": 0, "recur_sion_self_history_records": 8, "self_history_activations": 0, "route217_support_changed": 0, "route216_support_changed": 0, "route213_support_changed": 0},
+        "composition": {"conflict": ["TEMPORAL_CONFLICT", "ROUTE_AUTHORITY_CONFLICT", "PREEMPTION_CONFLICT"], "preemptor_route": 218, "preempted_route": 213, "window": [264, 287], "suppressed_slot": "fert_wool_expansion_v1_active", "resume_policy": "both_windows_end_together"},
+        "component_ablation": {"accepted_support_records": 8, "full_positive": 8, "full_aggregate_delta": 31923, "no_extra_melon_exact_same": 8, "cow_reversion_harmful": 5, "cow_reversion_aggregate_delta": -1228},
+        "cpu_cuda_macro_parity": {"records": 171, "mismatches": 0, "route217_window": [120, 137], "route216_window": [156, 203], "route218_window": [264, 287], "route213_collision_resolves_to": 218},
+        "route437_fragment_sha256": "175853bd7517328c7a72d84f13cb149ef376221602b1bd911783dad920e0010c"
+      },
+      "machine_evidence": "tools/bkg4_search/P0_4_THIRD_SPECIALIST_SYNTHESIS.md"
     }
   ],
   "submission_status": "not_submitted",

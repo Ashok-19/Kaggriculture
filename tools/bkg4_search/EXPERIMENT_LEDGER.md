@@ -189,3 +189,27 @@ Final P0.3 gate: `STEP == 120 && MARKET_INVENTORY[WHEAT] <= 9937 && OPP_MONEY <=
 Accepted research lineage: `route410_wheat_liquidity_expansion_v1`, route217, steps120..137; 380 nodes / 25 BB / 0 state, semantic hash `b2edd5dd76b936b6ea469009eb75b587531cef2f1be62939254b924f2e245edc`, combined identity `494bdfb4aa785088c3ebc23ac1fa2b71db8f51a26f861bea6480a7c457322413`. `default_runtime` remains unchanged; no submission performed.
 
 P0.3 terminal verdict: **VALIDATED.** The planning → bounded macro → public-state CEGIS → deterministic BKG4 pipeline has now produced two materially distinct independently transferring specialists: route435's midgame strawberry-glut production rebalance and route410's day-5 wheat-drawdown liquidity/labor expansion. Continue Phase C with at least one more distinct specialist before making automatic composition the main implementation stage, unless the next natural capability exposes an actual overlap/resource conflict first.
+
+
+## 2026-08-25 — P0.4 third specialist and exact route-authority preemption
+
+| Experiment | Scope | Result | Decision |
+|---|---:|---|---|
+| Current P0.3 frontier refresh | screen61 + current140 against 380-node route410 parent | screen61 29W/32L; current140 101W/39L; worst -49,506 | **Search actual remaining frontier** |
+| Coarse coherent CUDA search | 64 donors × 8 starts × 4 horizons on target20 | 40,980 games, bad=0; route437@264x24 gives 10 positive / 4 L→W / +55,859 on target20 | **Refine route437** |
+| Window refinement | starts240..288 × durations12..48 on current140 | 264x24 remains best by L→W; ungated 32 positive / 102 harmful | **Specialist gate required** |
+| Initial MELON/YARN gate | core585 then broad archive766 | core 8/8 positive / 3 L→W; archive 7 activations with 6 harmful, worst -13,331 | **Reject overfit gate** |
+| Final counterexample-guided gate | `WHEAT price>=38 && OPP_MONEY>=15750 && SHOP_AT[2]!=BRUNCH` | core 4/4 positive / 3 L→W; fresh 2/2 positive; archive 2/2 positive; validation/sealed excluded; no harms/mixed cells | **Freeze and synthesize** |
+| Threshold audit | money one-dollar sweep, WHEAT price/inventory neighbors, shop counterexamples | money safe begins at15,729; selected15,750; price37 mixed, price38 safe; admitting third Brunch adds 4 harms | **Boundaries explicit** |
+| Causal CUDA ablation | 8 accepted support + 4 Brunch counterexamples | smaller MELON sale exactly unchanged; COW reversion makes 5/8 support harmful and aggregate -1,228; base WHEAT/fert timing remains 8/8 positive | **Private sheep allocation is causal** |
+| Exact composition | route218 and route213 share steps264..287/slot19 | `ExactRoutePreemption` clears route213 latch only on route218 authorization; both windows end together | **Minimum precedence rule implemented** |
+| Full compiled CUDA certification | cert745 + archive766, parent/challenger/teacher piecewise | 1,511 records: 1,503 inactive exact parent, 8 active exact teacher, 8 positive, 3 L→W, 0 harmful/W→L, worst +1,129, bad=0 | **End-to-end pass** |
+| Protected preservation | 1,466 unique records | 969 parent wins with zero negative delta; self-history 0/8 activations; route217 0/12 changed, route216 0/16 changed, route213 0/51 changed | **Regression pass** |
+| CPU/CUDA collision parity | steps119..289 including simultaneous route213/218 authorization | 171/171 exact; route217/216/218 boundaries correct; collision resolves to218; parent return at288 | **Parity pass** |
+| Closure tests | focused P0.2/P0.3/P0.4 + adjacent P0.1/contrastive | 29/29 focused + 13/13 adjacent | **Implementation pass** |
+
+Final P0.4 gate: `STEP == 264 && MARKET_PRICE[WHEAT] >= 38 && OPP_MONEY >= 15750 && SHOP_AT[2] != BRUNCH_SPOT`.
+
+Accepted research lineage: `route437_wheat_scarcity_sheep_shift_v1`, route218, steps264..287; 398 nodes / 26 BB / 0 state, semantic hash `4e611d80f0bbb38bd696aa3dbb8a5e9e903be556e4ceafa233b5cb5685597be6`, combined identity `357dbb9489b26a8fb424de592da92e45e2c0ac28d8a450a5e6e1b5791ade9d29`. `default_runtime` remains unchanged; no submission performed.
+
+P0.4 terminal verdict: **VALIDATED.** The third synthesized specialist independently transfers and exposes the first real multi-specialist authority conflict. Proceed to a narrow fail-closed composition stage that reproduces the proven route218-over-route213 rule; do not build a speculative universal scheduler.
