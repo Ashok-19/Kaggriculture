@@ -285,6 +285,58 @@
         "route437_fragment_sha256": "175853bd7517328c7a72d84f13cb149ef376221602b1bd911783dad920e0010c"
       },
       "machine_evidence": "tools/bkg4_search/P0_4_THIRD_SPECIALIST_SYNTHESIS.md"
+    },
+    {
+      "name": "bounded_automatic_composer_v1",
+      "status": "validated_composition_infrastructure_not_default_submission",
+      "parent": "route437_wheat_scarcity_sheep_shift_v1",
+      "asset_dir": "bonsai-kg/integrations/bkg4_champion/champions/bounded_automatic_composer_v1",
+      "module_source": "bonsai-kg/integrations/bkg4_champion/modules/animal_feed_deferral_plus_day2_plus_hire4_plus_fert_wool_plus_w33_s172_plus_automatic_composer_v1.json",
+      "composition_declaration": "bonsai-kg/integrations/bkg4_champion/compositions/p0_5_current_specialists_v1.json",
+      "composition_manifest": "bonsai-kg/integrations/bkg4_champion/compositions/p0_5_current_specialists_v1.manifest.json",
+      "composition_semantic_id": "7d66b2f808437b24344d3c2132334540126c1fd34c84f3ed0e7abfe0650a823e",
+      "controller_semantic_hash": "4e611d80f0bbb38bd696aa3dbb8a5e9e903be556e4ceafa233b5cb5685597be6",
+      "combined_agent_identity": "357dbb9489b26a8fb424de592da92e45e2c0ac28d8a450a5e6e1b5791ade9d29",
+      "nodes": 398,
+      "blackboard_slots": 26,
+      "state_slots": 0,
+      "max_depth": 11,
+      "static_max_visits": 312,
+      "max_live_intents": 0,
+      "rule": "Load the validated parent plus declarative route213/216/217/218 authorities. Reject overlapping strategic authority without an evidence-backed rule. The current declaration explicitly gives route218 precedence over route213 for their shared steps264..287 window, clears route213's latch on route218 authorization, and returns to parent routing at step288.",
+      "evidence": {
+        "structural_equivalence": {
+          "blackboard_exact": true,
+          "tree_exact": true,
+          "strategic_routes_exact": true,
+          "runtime_reconciler_exact": true,
+          "controller_bytes_exact": true,
+          "route_pack_bytes_exact": true
+        },
+        "exact_cuda_equivalence": {
+          "records": 1511,
+          "cuda_games": 3022,
+          "terminal_mismatches": 0,
+          "margin_mismatches": 0,
+          "activation_mismatches": 0,
+          "inactive_records": 1503,
+          "inactive_mismatches": 0,
+          "faults": 0
+        },
+        "cpu_cuda_collision_parity": {
+          "frames_per_controller": 171,
+          "controllers": 2,
+          "mismatches": 0,
+          "route213_collision_resolves_to": 218,
+          "return_step": 288
+        },
+        "determinism": {
+          "reordered_declarations_same_module": true,
+          "reordered_declarations_same_manifest": true,
+          "reordered_declarations_same_semantic_id": true
+        }
+      },
+      "machine_evidence": "tools/bkg4_search/P0_5_AUTOMATIC_COMPOSER.md"
     }
   ],
   "submission_status": "not_submitted",

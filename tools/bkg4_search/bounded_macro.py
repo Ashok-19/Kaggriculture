@@ -31,6 +31,11 @@ def _check_identity_free(value: Any, path: str = "provenance") -> None:
             raise ValueError(f"identity-like value forbidden in bounded macro {path}: {value}")
 
 
+def validate_identity_free(value: Any, path: str = "provenance") -> None:
+    """Validate reusable synthesis/composition provenance with the macro policy."""
+    _check_identity_free(value, path)
+
+
 def _clause_node(clause: Sequence[ConditionGene]) -> dict[str, Any]:
     children = [condition.node() for condition in clause]
     if len(children) == 1:

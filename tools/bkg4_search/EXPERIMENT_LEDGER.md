@@ -213,3 +213,21 @@ Final P0.4 gate: `STEP == 264 && MARKET_PRICE[WHEAT] >= 38 && OPP_MONEY >= 15750
 Accepted research lineage: `route437_wheat_scarcity_sheep_shift_v1`, route218, steps264..287; 398 nodes / 26 BB / 0 state, semantic hash `4e611d80f0bbb38bd696aa3dbb8a5e9e903be556e4ceafa233b5cb5685597be6`, combined identity `357dbb9489b26a8fb424de592da92e45e2c0ac28d8a450a5e6e1b5791ade9d29`. `default_runtime` remains unchanged; no submission performed.
 
 P0.4 terminal verdict: **VALIDATED.** The third synthesized specialist independently transfers and exposes the first real multi-specialist authority conflict. Proceed to a narrow fail-closed composition stage that reproduces the proven route218-over-route213 rule; do not build a speculative universal scheduler.
+
+
+## 2026-08-25 — P0.5 bounded automatic Bonsai composer
+
+| Validation | Scope | Result | Decision |
+|---|---:|---|---|
+| Declarative composition | frozen accepted parent + route213/216/217/218 declarations + route218-over-route213 rule | deterministic module/report; one resolved window+authority+possible-gate conflict; zero unresolved conflicts; construction about 3 ms | **Reusable composer path accepted** |
+| Structural oracle | automatic output vs manual P0.4 | BB, tree, routes and reconciler exact; controller and route-pack bytes exact; 398 nodes / 26 BB / semantic `4e611d80...`; combined identity unchanged | **Exact policy reproduction** |
+| CUDA game equivalence | cert745 + archive766 | 1,511 records / 3,022 games; result files byte-identical; terminal, margin and activation mismatches 0; bad=0 | **Game-level pass** |
+| Inactive-parent invariant | P0.4 certification universe | 1,503/1,503 inactive cases exact; eight active cases exact accepted teacher; protected wins unchanged | **Fallback invariant preserved** |
+| CPU/CUDA collision | steps119..289, manual + automatic controllers | 342 decision rows; CPU/CUDA and manual/automatic mismatches 0; collision resolves route218 through287; parent at288 | **Authority semantics pass** |
+| Fail-closed/determinism tests | composer + P0.2-P0.4 + adjacent search tests | 23/23 composer, 52/52 focused combined, 13/13 adjacent; reordered declarations and repeated CLI output identical | **Implementation pass** |
+
+Composition semantic ID: `7d66b2f808437b24344d3c2132334540126c1fd34c84f3ed0e7abfe0650a823e`.
+
+P0.5 terminal verdict: **VALIDATED.** Current composition is data rather than route-specific controller surgery. The bounded composer rejects undeclared authority overlap, bad ownership, invalid precedence and unsupported resume behavior, while producing the exact P0.4 executable policy. Proceed to P0.6 end-to-end synthesis orchestration; do not add a fourth specialist manually first.
+
+Permanent evidence: `tools/bkg4_search/P0_5_AUTOMATIC_COMPOSER.md`.
