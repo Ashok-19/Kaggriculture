@@ -29,7 +29,7 @@ from tools.bkg4_search.invariant_specialists import FINAL_CORPUS_TIER_FRACTIONS
 ROOT = Path(__file__).resolve().parents[2]
 FROZEN_SOURCE_COMMIT = "c012c2c6c1de18fc250cf9e5425c3aea1f1d273c"
 SUPPORT_SCHEMA_VERSION = 1
-SUPPORT_PACKAGE_VERSION = "2026-08-24-v3"
+SUPPORT_PACKAGE_VERSION = "2026-08-25-v4"
 SUPPORT_DATASET = "ashok205/kaggriculture-b4im-elite-corpus-support"
 SUPPORT_TITLE = "Kaggriculture B4IM Elite Specialist Corpus Support"
 CURRENT_PARENT = "bonsai-kg/integrations/bkg4_champion/champions/w33_s172_expansion_v1"

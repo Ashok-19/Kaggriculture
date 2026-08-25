@@ -1092,7 +1092,12 @@ def cegis_repair(
         if donors: rules[0] = donors[0].rules[0]
     elif failure_class == "action_conflict" and len(rules) > 1:
         rules = rules[:-1]
-    elif failure_class == "lifecycle_missing" and r.action.kind == "ROUTE_OVERRIDE" and r.guard.atoms:
+    elif (
+        failure_class == "lifecycle_missing"
+        and r.action.kind == "ROUTE_OVERRIDE"
+        and r.guard.atoms
+        and len(r.guard.atoms) + len(r.exit_guard.atoms) < MAX_GUARDS_TOTAL
+    ):
         exit_atom = GuardAtom(r.guard.atoms[0].feature, "GE" if r.guard.atoms[0].cmp in {"LE", "LT"} else "LE", r.guard.atoms[0].value, r.guard.atoms[0].arg)
         rules[0] = replace(r, sketch=replace(r.sketch, control_pattern="COMMITTED"), action=replace(r.action, kind="COMMITTED_ROUTE"), exit_guard=LiftedGuard((exit_atom,)))
     out = InvariantStrategicModule(tuple(rules)); out.validate(); return out

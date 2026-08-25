@@ -264,6 +264,16 @@ def progress_bar(fraction, width=30):
 
 utilization_samples = []
 while any(row["process"].poll() is None for row in workers.values()) and time.monotonic() < HARD_EXIT_DEADLINE:
+    failed = {gpu: row["process"].poll() for gpu, row in workers.items() if row["process"].poll() not in (None, 0)}
+    if failed:
+        for row in workers.values():
+            if row["process"].poll() is None:
+                row["process"].terminate()
+        tails = {}
+        for gpu in failed:
+            path = OUTPUT_ROOT / f"island{gpu}/worker.log"
+            tails[str(gpu)] = path.read_text()[-8000:] if path.is_file() else "worker.log missing"
+        raise RuntimeError(f"corpus worker failed: returncodes={failed}\n{json.dumps(tails, indent=2)}")
     snapshot = run(["nvidia-smi", "--query-gpu=index,uuid,utilization.gpu,utilization.memory,memory.used", "--format=csv,noheader,nounits"], check=False).stdout
     by_gpu = {}
     for line in snapshot.splitlines():
@@ -304,7 +314,11 @@ for gpu, worker in workers.items():
         process.terminate(); process.wait(timeout=30)
     worker["log_handle"].close()
 if not list(OUTPUT_ROOT.glob("island*/shard-*/shard_manifest.json")):
-    raise RuntimeError("no complete validated corpus shard survived production")
+    tails = {}
+    for gpu in (0, 1):
+        path = OUTPUT_ROOT / f"island{gpu}/worker.log"
+        tails[str(gpu)] = path.read_text()[-8000:] if path.is_file() else "worker.log missing"
+    raise RuntimeError(f"no complete validated corpus shard survived production\n{json.dumps(tails, indent=2)}")
 '''),
         _code(r'''
 # Streaming global semantic dedup and leakage-free structural grouped split.

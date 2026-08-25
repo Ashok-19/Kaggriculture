@@ -397,6 +397,18 @@ class InvariantSearchTests(unittest.TestCase):
         repaired = cegis_repair(module, "guard_too_broad", route_ids=(29, 70))
         self.assertEqual(repaired.semantic_id(), module.semantic_id())
 
+    def test_cegis_lifecycle_repair_respects_total_guard_capacity(self):
+        atoms = tuple(GuardAtom(feature, "GE", 1) for feature in (
+            "OWN_MONEY", "OWN_UNITS", "OWN_LAND", "OWN_SHED_TOTAL", "OWN_HIRES_TODAY",
+        ))
+        module = InvariantStrategicModule((InvariantRule(
+            ModuleSketch("route", "INSTANT", "ROUTE_MODE"), "GLOBAL",
+            LiftedGuard(atoms), AbstractAction("ROUTE_OVERRIDE", route_id=70),
+        ),))
+        repaired = cegis_repair(module, "lifecycle_missing", route_ids=(29, 70))
+        self.assertEqual(repaired.semantic_id(), module.semantic_id())
+        repaired.validate()
+
     def test_public_group_outcomes_drive_feature_specific_threshold_repair(self):
         panel = (
             context_case("a", "tape-a", own_money=100),
