@@ -116,6 +116,7 @@ def enumerate_safe_conjunctions(
     max_conditions: int = 4,
     limit: int = 256,
     feature_budget: int = 128,
+    singleton_l2w_budget: int | None = None,
 ) -> list[tuple[tuple[ConditionGene, ...], GateScore]]:
     """Enumerate compact harm-excluding conjunctions using the existing BKG4 grammar.
 
@@ -133,7 +134,10 @@ def enumerate_safe_conjunctions(
     target_sets = [tuple(positive)]
     if l2w:
         target_sets.append(tuple(l2w))
-        target_sets.extend((case_id,) for case_id in l2w)
+        singleton_ids = l2w
+        if singleton_l2w_budget is not None:
+            singleton_ids = singleton_ids[: max(0, int(singleton_l2w_budget))]
+        target_sets.extend((case_id,) for case_id in singleton_ids)
     candidates: dict[tuple[ConditionGene, ...], GateScore] = {}
     for target_ids in target_sets:
         goal = SearchGoal(tuple(target_ids), tuple(harmful), (), tuple(harmful))
