@@ -176,3 +176,30 @@ class BoundedRouteMacro:
             "macro_id": self.semantic_id,
             "actions": actions,
         }
+
+
+def bounded_macro_windows_overlap(left: BoundedRouteMacro, right: BoundedRouteMacro) -> bool:
+    """Return whether two bounded route macros can own the strategic route slot together."""
+    left.validate()
+    right.validate()
+    return max(left.start_step, right.start_step) <= min(left.end_step, right.end_step)
+
+
+def validate_nonoverlapping_macro_windows(macros: Sequence[BoundedRouteMacro]) -> None:
+    """Fail closed until overlapping synthesized-macro priority has exact evidence.
+
+    P0.3 deliberately does not build the future automatic composer. Sequential,
+    disjoint bounded macros are safe to append to the existing strategic lane; an
+    overlapping pair requires a later explicit composition decision rather than
+    silently inheriting append order.
+    """
+    items = tuple(macros)
+    for i, left in enumerate(items):
+        left.validate()
+        for right in items[i + 1:]:
+            if bounded_macro_windows_overlap(left, right):
+                raise ValueError(
+                    f"bounded macro windows overlap without explicit composition evidence: "
+                    f"{left.name}[{left.start_step},{left.end_step}] vs "
+                    f"{right.name}[{right.start_step},{right.end_step}]"
+                )

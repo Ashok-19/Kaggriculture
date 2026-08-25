@@ -161,3 +161,31 @@ Accepted research lineage: `route435_pizza_glut_rebalance_v1`, semantic hash `f4
 P0.2 terminal verdict: **VALIDATED AND ACCEPTED INTO THE BKG4 RESEARCH LINEAGE.** Initiation-set CEGIS converted the P0.1 planning discovery into a deterministic, identity-free, bounded public-state specialist with independent both-seat L→W transfer and exact inactive-parent preservation. Continue with the next regret-search → bounded-macro → initiation-CEGIS cycle; do not infer broad coverage from the intentionally narrow activation support.
 
 Permanent evidence: `tools/bkg4_search/P0_2_MACRO_INITIATION_CEGIS.md`.
+
+
+## 2026-08-25 — P0.3 synthesizer repeatability: route410 wheat/liquidity expansion
+
+| Experiment | Scope | Result | Decision |
+|---|---:|---|---|
+| Current P0.2 frontier refresh | hard10 + screen61 + shifted-current140 against 363-node route435 parent | hard10 9 losses; screen61 32 losses; current140 41 losses; severe new paired losses include Crop Dusta -35,110/-35,110 and Subramanya -30,048/-30,048 | **Target current loss frontier, not old static list** |
+| Coarse regret-guided macro search | 64 coherent routes × 8 checkpoints × 4 horizons on 20 most severe current losses | 40,980 exact CUDA games, ~5,033 games/s, bad=0; route410@120x24 and route434@168x72 each expose repeated both-seat L→W basins | **Refine route410 first: cleaner composition and gate signal** |
+| Route410 window refinement | starts108..132, horizons12..48 on current140 | step120×18 and ×24 both 6/6 positive / 2 L→W on support; ×18 has better worst delta; starts114/126 introduce support harms | **Minimize to step120×18** |
+| CEGIS iteration 0 | `WHEAT inventory <= 9934` | core585: 6/6 positive, 2 L→W, 0 harmful; only three support tapes | **Promising causal drawdown regime, expand cautiously** |
+| Simple-gate independent audit | `WHEAT <= 9934..9936` on validation40 + sealed40 + fresh949 | validation40 adds 2 harmful (-7,731 each); sealed40 adds 2 harmful **W→L**; combined core/holdouts 12 positive / 4 harmful / 6 L→W / 2 W→L | **Reject as final gate despite simplicity** |
+| CEGIS iteration 1 | `WHEAT <= 9937 && OPP_MONEY <= 120` | core: 8/8 positive, 2 L→W, 0 harmful; untouched validation40 activates one both-seat trajectory at -7,731 delta each | **Reject and add counterexample** |
+| CEGIS iteration 2 | add `MILK inventory >= 9990` | core+counterexample: 6/6 positive, 2 L→W, 0 harmful, no mixed exact legal cells; milk threshold 9984..9995 and opp-money 115..150 form stable safe plateaus | **Freeze gate** |
+| Frozen sealed40 | one unseen both-seat trajectory | 2/2 positive, 0 harmful, +15,334/+21,227 | **Independent positive transfer** |
+| Frozen fresh949 | two unseen episodes, both seats | 4/4 positive and 4/4 L→W, 0 harmful; deltas +18,467..+28,764 | **Independent L→W transfer pass** |
+| Two-synthesized-specialist composition | route217 window120..137 + existing route216 window156..203 | windows disjoint; fail-closed overlap guard added; 0 dual-gate activations in 745 certification records | **Safe manual composition proof** |
+| Full composed CUDA certification | 745 protected/current/holdout records | 733/733 inactive exact parent; 12/12 active exact route410 teacher; 12 positive, 6 L→W, 0 harmful/W→L, worst +322, bad=0 | **End-to-end pass** |
+| Deduplicated regression audit | 700 unique `(tape, seat, seed)` records | 12 activations / 6 tapes, all both-seat pairs; 12/12 positive, 6 L→W, 0 harmful/W→L; 495 protected P0.2 wins have zero negative delta; 8 self-history records and all 10 route435 support records unchanged | **Promotion-safety pass** |
+| Targeted component ablation | 12 final support records | full 12/12 positive, 6 L→W; market-only 4 harmful / 2 W→L; worker/production-only 10 harmful / 0 L→W | **Coordinated private program required; shared-market-only explanation rejected** |
+| Final rebuilt CUDA reproduction | rebuilt P0.2 parent + 380-node P0.3 challenger on cert745, strategic route slot 19 | 1,490 games per controller, bad=0; parent 0/745 and candidate 0/745 mismatches vs persisted final rows | **Compiled-asset reproduction pass** |
+| CPU/CUDA two-macro parity | steps119..205 on compiled 380-node challenger | 87/87 decision records exact; route217 returns at138, route216 returns at204 | **Parity pass** |
+| Closure tests | focused P0.2/P0.3 + adjacent P0.1/contrastive | 22/22 focused + 13/13 adjacent = 35/35 pass | **Implementation/regression pass** |
+
+Final P0.3 gate: `STEP == 120 && MARKET_INVENTORY[WHEAT] <= 9937 && OPP_MONEY <= 120 && MARKET_INVENTORY[MILK] >= 9990`.
+
+Accepted research lineage: `route410_wheat_liquidity_expansion_v1`, route217, steps120..137; 380 nodes / 25 BB / 0 state, semantic hash `b2edd5dd76b936b6ea469009eb75b587531cef2f1be62939254b924f2e245edc`, combined identity `494bdfb4aa785088c3ebc23ac1fa2b71db8f51a26f861bea6480a7c457322413`. `default_runtime` remains unchanged; no submission performed.
+
+P0.3 terminal verdict: **VALIDATED.** The planning → bounded macro → public-state CEGIS → deterministic BKG4 pipeline has now produced two materially distinct independently transferring specialists: route435's midgame strawberry-glut production rebalance and route410's day-5 wheat-drawdown liquidity/labor expansion. Continue Phase C with at least one more distinct specialist before making automatic composition the main implementation stage, unless the next natural capability exposes an actual overlap/resource conflict first.

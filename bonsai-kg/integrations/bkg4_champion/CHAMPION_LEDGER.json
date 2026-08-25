@@ -226,6 +226,35 @@
         "route435_fragment_sha256": "77ba16e50fc8634b3ea010e45a7cf308723df12cdbad215665a35fbef97f83ba"
       },
       "machine_evidence": "tools/bkg4_search/P0_2_MACRO_INITIATION_CEGIS.md"
+    },
+    {
+      "name": "route410_wheat_liquidity_expansion_v1",
+      "status": "accepted_into_bkg4_lineage_not_default_submission",
+      "parent": "route435_pizza_glut_rebalance_v1",
+      "asset_dir": "bonsai-kg/integrations/bkg4_champion/champions/route410_wheat_liquidity_expansion_v1",
+      "module_source": "bonsai-kg/integrations/bkg4_champion/modules/animal_feed_deferral_plus_day2_plus_hire4_plus_fert_wool_plus_w33_s172_plus_route435_plus_route410_wheat_liquidity_expansion_v1.json",
+      "controller_semantic_hash": "b2edd5dd76b936b6ea469009eb75b587531cef2f1be62939254b924f2e245edc",
+      "combined_agent_identity": "494bdfb4aa785088c3ebc23ac1fa2b71db8f51a26f861bea6480a7c457322413",
+      "nodes": 380,
+      "blackboard_slots": 25,
+      "state_slots": 0,
+      "max_depth": 11,
+      "static_max_visits": 295,
+      "max_live_intents": 0,
+      "rule": "At step 120, if shared WHEAT inventory is <=9937, public opponent money is <=120, and shared MILK inventory is >=9990, latch bounded route 217 through step 137, then return to the P0.2 parent. The source-backed route410 fragment reallocates day-5 liquidity from the incumbent cow/four-hire plan into five hires, a sheep, and a coordinated care/water/plant worker schedule.",
+      "evidence": {
+        "regret_search": {"target_cases": 20, "coarse_candidates": 2049, "coarse_games": 40980, "coarse_gpu_ms": 8142.58, "coarse_games_per_second": 5032.8, "faults": 0},
+        "cegis_core": {"records": 585, "final_activated": 6, "final_positive": 6, "final_harmful": 0, "final_loss_to_win": 2, "final_win_to_loss": 0, "worst_delta": 322, "aggregate_delta": 132402, "mixed_exact_cells": 0},
+        "cegis_counterexample": {"panel": "top10_validation40", "iteration1_activated": 2, "iteration1_harmful": 2, "iteration1_delta_each": -7731, "iteration1_win_to_loss": 0, "final_gate_activated": 0},
+        "independent_sealed40": {"games": 40, "activated": 2, "positive": 2, "harmful": 0, "loss_to_win": 0, "win_to_loss": 0, "both_seats": true, "worst_delta": 15334, "aggregate_delta": 36561},
+        "independent_fresh949": {"games": 80, "activated": 4, "positive": 4, "harmful": 0, "loss_to_win": 4, "win_to_loss": 0, "tapes": 2, "both_seats": true, "worst_delta": 18467, "aggregate_delta": 92919},
+        "unique_support": {"records": 700, "activated_records": 12, "positive": 12, "harmful": 0, "loss_to_win": 6, "win_to_loss": 0, "tapes": 6, "both_seat_pairs": 6, "worst_delta": 322, "aggregate_delta": 261882},
+        "composed_exact_cuda": {"records": 745, "gate_activations": 12, "inactive_parent_exact": 733, "active_macro_exact": 12, "piecewise_mismatches": 0, "positive_activations": 12, "harmful_activations": 0, "loss_to_win": 6, "win_to_loss": 0, "faults": 0},
+        "protected_regression": {"unique_records": 700, "protected_parent_wins": 495, "protected_negative_deltas": 0, "win_to_loss": 0, "recur_sion_self_history_records": 8, "self_history_activations": 0, "route435_support_records": 10, "route435_support_changed": 0, "dual_synthesized_gate_activations": 0},
+        "cpu_cuda_macro_parity": {"records": 87, "mismatches": 0, "route217_window": [120, 137], "route217_return_step": 138, "route216_window": [156, 203], "route216_return_step": 204},
+        "route410_fragment_sha256": "954edb5db3adf1833c906dc9631b53c038a1e67c3fe818bb721f035b58ade0db"
+      },
+      "machine_evidence": "tools/bkg4_search/P0_3_SYNTHESIZER_REPEATABILITY.md"
     }
   ],
   "submission_status": "not_submitted",
