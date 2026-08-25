@@ -137,3 +137,27 @@ Machine evidence: `tools/bkg4_search/SPECIALIST_STACK_345_TERMINAL.json`.
 P0.1 terminal verdict: **VALIDATED.** Deeper CUDA counterfactual planning found a recurring post-reveal production/worker/market continuation that flips an authoritative U/W/M-unflippable hard loss and transfers across independent legal-state cohorts. The campaign also found a search-control failure: existing route79 can flip one hard case when searched at a longer/earlier window than the old ORACLE-M grid. The next stage should add a bounded macro/subtree representation plus initiation-set CEGIS; do not resume corpus/EditFormer generation for this result.
 
 Permanent evidence: `tools/bkg4_search/P0_1_REGRET_GUIDED_MACRO_SEARCH.md`.
+
+
+## 2026-08-25 — P0.2 bounded-macro initiation-set CEGIS
+
+| Experiment | Scope | Result | Decision |
+|---|---:|---|---|
+| Bounded macro representation | route435 source-backed fragment, step156 ×48, ordinary BKG4 latch + route override | Compiles as 363 nodes / 24 BB / 0 state; route216 active only steps156–203; no ABI/VM change | **Representation accepted** |
+| Initiation CEGIS iteration 0 | `SHOP_AT[1] == PIZZA_SHOP` | Unsafe: historical336 50 harmful activations / 32 W→L; additional current/fresh harms | **Reject broad demand-only gate** |
+| Initiation CEGIS iteration 1 | add `OPP_UNITS >= 7 && OPP_LAND >= 2` | Removes expansion-mismatch harms, but 4 harmful screen61 states remain | **Refine on causal shared-market regime** |
+| Initiation CEGIS iteration 2 | add `MARKET_INVENTORY[STRAWBERRY] >= 9990` | Core panels: 14 activations, 14 positive, 7 L→W, 0 harmful, 0 W→L; no selected mixed-sign identical legal-state cells | **Gate accepted for independent validation** |
+| Frozen-gate fresh949 holdout | 80 previously unseen cases | 2 activations on both seats of a new episode: -1,824→+6,134 and -1,383→+6,043; 2/2 L→W, 0 harmful | **Independent positive transfer pass** |
+| Additional top-10 holdouts | validation40 + sealed40 | 0 activations, therefore exact parent behavior and zero regressions | **Safe exclusion evidence; no positive support claimed** |
+| Full composed CUDA certification | 745 panel records | 729/729 inactive cases exactly parent; 16/16 active cases exactly standalone route435; 0 mismatches/faults, 16 positive, 9 L→W, 0 harmful/W→L, worst delta +4,977 | **End-to-end composition pass** |
+| Deduplicated support audit | 700 unique `(tape, seat, seed)` records | 10 unique activations across 5 source trajectories, all both-seat positive; 10/10 positive, 5 L→W, 0 harmful/W→L; 8 unique ReCurSiON self-history records untouched | **Promotion-safety evidence pass** |
+| BKG4 CPU/CUDA bounded-decision parity | 2 legal-state trajectories × steps0–216 | 434/434 decision records exact; active case writes route216 at 156–203 and returns to parent at 204 | **Parity pass** |
+| Focused regression suite | P0.2 + P0.1 parser + contrastive-goal tests | 24/24 passed after provenance hardening | **Implementation pass** |
+
+Final public-state gate: `STEP == 156 && SHOP_AT[1] == PIZZA_SHOP && OPP_UNITS >= 7 && OPP_LAND >= 2 && MARKET_INVENTORY[STRAWBERRY] >= 9990`.
+
+Accepted research lineage: `route435_pizza_glut_rebalance_v1`, semantic hash `f47ee7034e553e9a835486b283f4f819d857afdc95143a29d84cb07753b7c286`, combined identity `e2a2a0e91035c05c3183e691efee19441b6cee0d86506cbeb0e68a55768e53ce`. `default_runtime` remains `BKG4_BASE_0`; no submission performed.
+
+P0.2 terminal verdict: **VALIDATED AND ACCEPTED INTO THE BKG4 RESEARCH LINEAGE.** Initiation-set CEGIS converted the P0.1 planning discovery into a deterministic, identity-free, bounded public-state specialist with independent both-seat L→W transfer and exact inactive-parent preservation. Continue with the next regret-search → bounded-macro → initiation-CEGIS cycle; do not infer broad coverage from the intentionally narrow activation support.
+
+Permanent evidence: `tools/bkg4_search/P0_2_MACRO_INITIATION_CEGIS.md`.

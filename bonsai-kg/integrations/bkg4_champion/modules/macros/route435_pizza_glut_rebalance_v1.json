@@ -1,0 +1,43 @@
+{
+  "base_route_id": 22,
+  "duration": 48,
+  "gate_clauses": [
+    [
+      {
+        "cmp": "EQ",
+        "feature": "SHOP_AT",
+        "index": 1,
+        "value": 5
+      },
+      {
+        "cmp": "GE",
+        "feature": "OPP_UNITS",
+        "index": 0,
+        "value": 7
+      },
+      {
+        "cmp": "GE",
+        "feature": "OPP_LAND",
+        "index": 0,
+        "value": 2
+      },
+      {
+        "cmp": "GE",
+        "feature": "MARKET_INVENTORY",
+        "index": 3,
+        "value": 9990
+      }
+    ]
+  ],
+  "kind": "bounded_route_macro_v1",
+  "name": "route435_pizza_glut_rebalance_v1",
+  "provenance": {
+    "discovery": "P0.1_regret_guided_cuda_macro_search",
+    "fragment_sha256": "77ba16e50fc8634b3ea010e45a7cf308723df12cdbad215665a35fbef97f83ba",
+    "source_kind": "source_backed_route_archive",
+    "source_route_id": 435
+  },
+  "route_id": 216,
+  "schema": 1,
+  "start_step": 156
+}

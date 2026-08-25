@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "updated": "2026-08-20",
+  "updated": "2026-08-25",
   "team": "ReCurSiON",
   "frozen_bkg4_vm_commit": "8381e027646ba6494cbe4dd06a810ea55ec83575",
   "default_runtime": {
@@ -199,6 +199,33 @@
       "rule": "At step 192, WHEAT price ==33 and STRAWBERRY price ==172 latches route 214 through step 215. The price pair selects a discrete public market regime; the edge is private hiring, animal care, pasture and strawberry expansion.",
       "evidence": {"shifted_current140": {"parent_wins": 96, "candidate_wins": 98, "parent_losses": 44, "candidate_losses": 42, "loss_to_win": 2, "win_to_loss": 0, "positive_deltas": 14, "negative_deltas": 0, "sum_margin_delta": 36428}, "historical336": {"positive_deltas": 46, "negative_deltas": 0, "sum_margin_delta": 37013}, "screen61": {"positive_deltas": 8, "negative_deltas": 0, "sum_margin_delta": 26112}, "fresh24": {"all_unchanged": true}, "sealed24": {"positive_deltas": 2, "negative_deltas": 0}, "support": {"activations": 70, "positive": 70, "episodes": 29, "families": 22}, "shared_market_ablation": {"remove_hires_negative": 70, "remove_sell_financing_negative": 68}, "tri_engine_controller_parity": {"records": 2876, "python_cpp_mismatches": 0, "python_cuda_mismatches": 0}, "route_materializer_parity": {"cases": 18, "mismatches": 0}, "source_backed_self_regression": {"games": 4, "outcome_regressions": 0, "minimum_margin_delta": 347}, "hot_path": {"visit_p50": 137, "visit_p95": 160, "visit_p99": 165, "visit_max": 168, "state_slots": 0, "live_intents": 0}, "official_python_canary": {"games": 64, "wins": 39, "losses": 25, "ties": 0, "checkpoint_sha256": "8d829383c555b2ca11ecea7acaefd8c5f0d1f14ab930fd7010e19a724c02a8d4"}},
       "machine_evidence": "tools/bkg4_search/SPECIALIST_STACK_345_TERMINAL.json"
+    },
+    {
+      "name": "route435_pizza_glut_rebalance_v1",
+      "status": "accepted_into_bkg4_lineage_not_default_submission",
+      "parent": "w33_s172_expansion_v1",
+      "asset_dir": "bonsai-kg/integrations/bkg4_champion/champions/route435_pizza_glut_rebalance_v1",
+      "module_source": "bonsai-kg/integrations/bkg4_champion/modules/animal_feed_deferral_plus_day2_plus_hire4_plus_fert_wool_plus_w33_s172_plus_route435_pizza_glut_rebalance_v1.json",
+      "controller_semantic_hash": "f47ee7034e553e9a835486b283f4f819d857afdc95143a29d84cb07753b7c286",
+      "combined_agent_identity": "e2a2a0e91035c05c3183e691efee19441b6cee0d86506cbeb0e68a55768e53ce",
+      "nodes": 363,
+      "blackboard_slots": 24,
+      "state_slots": 0,
+      "max_depth": 11,
+      "static_max_visits": 279,
+      "max_live_intents": 0,
+      "rule": "At step 156, if the second visible shop is PIZZA_SHOP, public opponent expansion has reached at least 7 units and 2 land quadrants, and shared STRAWBERRY inventory is at least 9990, latch bounded route 216 through step 203, then automatically return to parent routing. The macro is the source-backed route435 48-turn worker/production/market rebalance discovered by P0.1.",
+      "evidence": {
+        "cegis_core": {"screen61_activated": 4, "screen61_positive": 4, "screen61_loss_to_win": 3, "screen61_harmful": 0, "historical336_activated": 0, "current140_activated": 6, "current140_positive": 6, "current140_harmful": 0, "fresh24_activated": 2, "fresh24_positive": 2, "sealed24_activated": 2, "sealed24_positive": 2},
+        "independent_fresh949": {"games": 80, "activated": 2, "positive": 2, "harmful": 0, "loss_to_win": 2, "win_to_loss": 0, "both_seats": true, "episode": 94824465, "worst_delta": 7426, "aggregate_delta": 15384},
+        "top10_postfreeze_holdouts": {"validation40_activated": 0, "sealed40_activated": 0, "outcome_regressions": 0},
+        "unique_support": {"activated_records": 10, "positive": 10, "harmful": 0, "loss_to_win": 5, "win_to_loss": 0, "tapes": 5, "both_seat_pairs": 5, "worst_delta": 4977, "aggregate_delta": 89219},
+        "composed_exact_cuda": {"records": 745, "gate_activations": 16, "inactive_parent_exact": 729, "active_macro_exact": 16, "piecewise_mismatches": 0, "positive_activations": 16, "harmful_activations": 0, "loss_to_win": 9, "win_to_loss": 0, "faults": 0},
+        "protected_regression": {"unique_records": 700, "protected_parent_wins": 490, "win_to_loss": 0, "recur_sion_self_history_records": 8, "self_history_activations": 0, "self_history_harmful": 0},
+        "cpu_cuda_macro_parity": {"records": 434, "mismatches": 0, "active_window": [156, 203], "return_step": 204},
+        "route435_fragment_sha256": "77ba16e50fc8634b3ea010e45a7cf308723df12cdbad215665a35fbef97f83ba"
+      },
+      "machine_evidence": "tools/bkg4_search/P0_2_MACRO_INITIATION_CEGIS.md"
     }
   ],
   "submission_status": "not_submitted",
