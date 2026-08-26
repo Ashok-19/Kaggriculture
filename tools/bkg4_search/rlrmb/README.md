@@ -385,7 +385,9 @@ mismatches were both zero. Compact results are in
 - Phase 10 - adapter to existing hardened CEGIS: validated.
 - Phase 11 - deterministic BKG4 materialization and composition: validated.
 - Phase 12 - leakage-safe historical rediscovery benchmark (3/3): validated.
-- Phases 13 and later: not implemented.
+- Phase 13 - equal-budget P0.7 comparison: deterministic configuration and
+  one-shot campaign runner prepared; campaign result pending.
+- Phases 14 and later: not implemented.
 
 ## Generated outputs
 
