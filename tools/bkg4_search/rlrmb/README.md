@@ -305,6 +305,29 @@ non-neutral stored TARGET/TRANSFER/VALIDATION trajectories classify
 `ROUTABLE_CANDIDATE`; 64 mixed pairs concern optional positive support that outer
 CEGIS may safely decline, consistent with its historical successful gate.
 
+## Hardened CEGIS adapter
+
+Phase 10 adds a thin, versioned adapter from exact RLRMB per-case evidence to the
+existing `MacroEffectCase` and `run_cegis()` contracts. TARGET rows retain required
+positive/L->W flags, TRANSFER rows retain independent support groups, VALIDATION
+rows remain active counterexamples, and SEALED rows are evaluated only after gate
+freeze. Exact legal signatures and the existing threshold-neighbor checks pass
+through unchanged. The adapter does not enumerate predicates or own a gate type.
+
+Only `ROUTABLE_CANDIDATE` invokes hardened CEGIS. Repair classifications return to
+their owning RLRMB layer, `FUTURE_DEPENDENT` is permanently rejected, and suspected
+gate-vocabulary limitations remain diagnostic. For reactive v2 candidates, the
+program's internal decisions remain opaque candidate semantics; CEGIS controls
+only the outer initiation gate.
+
+The bounded integration suite preserved candidate50 rejection through generic
+mixed-state/target-capability contracts and the existing exact stored-artifact
+regression. A stored route435 subset loaded from its actual `.b4fr`/`.b4is`
+panels traversed the adapter, incorporated two validation counterexamples, retained
+required target capability and independent transfer, and reached
+`SAFE_CONVERGENCE`. Hardened CEGIS itself is unchanged. No BKG4 materialization or
+composition is implemented yet.
+
 ## Current status
 
 - Phase 0 - isolated package contract and baseline freeze: validated.
@@ -317,7 +340,8 @@ CEGIS may safely decline, consistent with its historical successful gate.
 - Phase 7 - semantic large-neighborhood search repair: validated.
 - Phase 8 - bounded reactive branch, abort and recovery: validated.
 - Phase 9 - legal-routability pre-screen: validated.
-- Phases 10 and later: not implemented.
+- Phase 10 - adapter to existing hardened CEGIS: validated.
+- Phases 11 and later: not implemented.
 
 ## Generated outputs
 
