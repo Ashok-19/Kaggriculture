@@ -10,8 +10,9 @@ candidate manifold:
 donor x start x duration
 ```
 
-with richer structured capability generation. Phases 0 and 1 establish contracts
-only; they do not evaluate or improve candidate quality.
+with richer structured capability generation. Phases 0 through 3 establish
+representation and search-control contracts only; they do not evaluate or improve
+candidate quality.
 
 ## Frozen baseline
 
@@ -106,12 +107,40 @@ regret/effect and action-event evidence, not fallback or route-specific producti
 rules. Phase 2 changes search control contracts only; it adds no candidate program
 or runtime behavior.
 
+## Option-Program IR v1
+
+Phase 3 adds a versioned, immutable `MacroProgram` candidate language. A program
+starts at one Phase-2 checkpoint, stays in the checkpoint lane, contains one to
+four ordered phases, has a positive cap within the remaining 719-action horizon,
+and deterministically returns to parent behavior. Each phase uses exactly one of
+`PARENT`, `DONOR_BLOCK`, `SEMANTIC_SPLICE`, or
+`PARAMETERIZED_PRIMITIVE`. The only override families are `FARMER`, `HANDS`, and
+`MARKET`; selected families come from the phase and every unselected family comes
+from the parent.
+
+The bounded v1 termination classes are `FIXED_CAP`, `NEXT_EOD`,
+`NEXT_SHOP_REVEAL`, `PURCHASE_COMPLETED`, `TARGET_PUBLIC_STATE`,
+`PARENT_COMPATIBLE`, and `MAX_STEPS`. Every termination carries a finite phase cap,
+and the program cap remains authoritative. V1 deliberately has no branch, abort,
+recovery, or general predicate language.
+
+Semantic motifs identify normalized action content and supported action families.
+Historical route numbers, filenames, source windows, and artifact provenance are
+retained only for offline audit and do not define motif or program identity.
+Read-only validation represented the route435 window 156/48, route410 window
+120/18, and route437 window 264/24 as generic donor-block motifs with deterministic
+program round trips. A two-phase fixture independently splices a MARKET motif and
+a HANDS motif while inheriting all other families from the parent, proving the IR
+can express a candidate outside the old single-contiguous-fragment manifold. No
+games, evaluator, or search behavior were added in Phase 3.
+
 ## Current status
 
 - Phase 0 - isolated package contract and baseline freeze: validated.
 - Phase 1 - structural and effect canonicalization: validated.
 - Phase 2 - regret/event checkpoint selector: validated.
-- Phases 3 and later: not implemented.
+- Phase 3 - Option-Program IR v1: validated.
+- Phases 4 and later: not implemented.
 
 ## Generated outputs
 
