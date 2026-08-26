@@ -159,6 +159,32 @@ matched the unchanged fragment evaluator on rewards/margins, action changes, and
 faults. The validated parity matrix has zero CPU/CUDA mismatches. Phase 4 adds no
 search, QD archive, LNS, or BKG4 materialization.
 
+## Effect-vector QD archive
+
+Phase 5 adds a versioned, deterministic one-elite-per-cell archive keyed by the
+existing strategic lane, a coarse initiation/economic-state cluster, an exact
+response-shape effect cluster, and one of four broad temporal phases. Initiation
+clustering uses only available public capital, land, labor, market and causal-event
+regimes; absent dimensions remain explicitly unknown. Effect clustering preserves
+ordered panel roles, sign/L-to-W/W-to-L patterns, per-case delta buckets, worst-case
+regime and action-change regime. `SEALED` evidence is rejected from archive keys.
+
+Within a cell, runtime validity and W-to-L/harm safety precede target L-to-W,
+required and independent support, both-seat recurrence, worst delta, available
+routability, simplicity and finally aggregate margin. Provenance-only repeats and
+exact structure/effect duplicates collapse, while different response patterns and
+lanes remain independent. Canonical replay of considered entries makes elites,
+metrics and JSON resume state independent of insertion order.
+
+Read-only ingestion of the frozen 88 P0.7 attempts reproduced 50 structural IDs
+and 54 exact target-plus-transfer effect signatures. The archive occupied 49 cells:
+49 canonical new-cell insertions, 3 replacements, 33 duplicate rejections and 3
+inferior same-cell rejections. It retained 5 target-solving cells spanning 3
+distinct L-to-W patterns; 48 retained elites had lower aggregate margin than the
+global aggregate leader because they represented different strategic niches.
+Scalar aggregate margin is therefore deliberately not the archive objective.
+Phase 5 adds no beam, candidate generation, game evaluation, or search campaign.
+
 ## Current status
 
 - Phase 0 - isolated package contract and baseline freeze: validated.
@@ -166,7 +192,8 @@ search, QD archive, LNS, or BKG4 materialization.
 - Phase 2 - regret/event checkpoint selector: validated.
 - Phase 3 - Option-Program IR v1: validated.
 - Phase 4 - exact CPU/CUDA evaluator v1: validated.
-- Phases 5 and later: not implemented.
+- Phase 5 - effect-vector quality-diversity archive: validated.
+- Phases 6 and later: not implemented.
 
 ## Generated outputs
 
