@@ -56,6 +56,7 @@ COMPOSITION_CONFLICT = "COMPOSITION_CONFLICT"
 PROTECTED_REGRESSION = "PROTECTED_REGRESSION"
 CPU_CUDA_MISMATCH = "CPU_CUDA_MISMATCH"
 CUDA_FAULT = "CUDA_FAULT"
+TARGET_CAPABILITY_LOST = "TARGET_CAPABILITY_LOST"
 
 FAILURE_REASONS = {
     NO_COUNTERFACTUAL_GAIN,
@@ -69,6 +70,7 @@ FAILURE_REASONS = {
     PROTECTED_REGRESSION,
     CPU_CUDA_MISMATCH,
     CUDA_FAULT,
+    TARGET_CAPABILITY_LOST,
     SEARCH_BUDGET_EXHAUSTED,
 }
 
@@ -356,6 +358,99 @@ class CandidateEvidence:
 
     def canonical(self) -> dict[str, Any]:
         return dataclasses.asdict(self)
+
+
+@dataclass(frozen=True)
+class TargetCapabilityReport:
+    accepted: bool
+    failure_reason: str | None
+    case_ids: tuple[str, ...]
+    gate_hits: tuple[bool, ...]
+    parent_margins: tuple[int, ...]
+    teacher_margins: tuple[int, ...]
+    final_margins: tuple[int, ...]
+    final_deltas: tuple[int, ...]
+    records: int
+    activations: int
+    positive: int
+    harmful: int
+    loss_to_win: int
+    win_to_loss: int
+    discovery_positive: int
+    discovery_loss_to_win: int
+    preserved_positive: int
+    preserved_loss_to_win: int
+    independent_positive_support: int
+    both_seat_positive_support: int
+    worst_delta: int
+    aggregate_delta: int
+
+    def canonical(self) -> dict[str, Any]:
+        return dataclasses.asdict(self)
+
+
+def assess_target_capability(
+    cases: Sequence[CaseRecord],
+    discovery: CandidateEvidence,
+    final_margins: Sequence[int],
+    gate_active: Sequence[bool],
+) -> TargetCapabilityReport:
+    if not (len(cases) == len(discovery.baseline_margins) == len(discovery.deltas) == len(final_margins) == len(gate_active)):
+        raise ValueError("target capability count mismatch")
+    parent = tuple(int(x) for x in discovery.baseline_margins)
+    teacher = tuple(int(p + d) for p, d in zip(parent, discovery.deltas))
+    final = tuple(int(x) for x in final_margins)
+    active = tuple(bool(x) for x in gate_active)
+    deltas = tuple(int(f - p) for p, f in zip(parent, final))
+    discovery_positive_mask = tuple(int(d) > 0 for d in discovery.deltas)
+    discovery_l2w_mask = tuple(p < 0 < t for p, t in zip(parent, teacher))
+    preserved_positive_mask = tuple(
+        a and dp and delta > 0
+        for a, dp, delta in zip(active, discovery_positive_mask, deltas)
+    )
+    preserved_l2w_mask = tuple(
+        a and dl2w and p < 0 < f
+        for a, dl2w, p, f in zip(active, discovery_l2w_mask, parent, final)
+    )
+    positive_trajectories: dict[tuple[str, int], set[int]] = defaultdict(set)
+    for row, keep in zip(cases, preserved_positive_mask):
+        if keep:
+            positive_trajectories[row.trajectory_key].add(int(row.seat))
+    harmful = sum(delta < 0 for delta in deltas)
+    win_to_loss = sum(p > 0 > f for p, f in zip(parent, final))
+    preserved_positive = sum(preserved_positive_mask)
+    preserved_l2w = sum(preserved_l2w_mask)
+    requires_l2w = any(discovery_l2w_mask)
+    accepted = (
+        harmful == 0
+        and win_to_loss == 0
+        and preserved_positive > 0
+        and (not requires_l2w or preserved_l2w > 0)
+    )
+    return TargetCapabilityReport(
+        accepted=accepted,
+        failure_reason=None if accepted else TARGET_CAPABILITY_LOST,
+        case_ids=tuple(row.case_id for row in cases),
+        gate_hits=active,
+        parent_margins=parent,
+        teacher_margins=teacher,
+        final_margins=final,
+        final_deltas=deltas,
+        records=len(cases),
+        activations=sum(active),
+        positive=sum(delta > 0 for delta in deltas),
+        harmful=harmful,
+        loss_to_win=sum(p < 0 < f for p, f in zip(parent, final)),
+        win_to_loss=win_to_loss,
+        discovery_positive=sum(discovery_positive_mask),
+        discovery_loss_to_win=sum(discovery_l2w_mask),
+        preserved_positive=preserved_positive,
+        preserved_loss_to_win=preserved_l2w,
+        independent_positive_support=len(positive_trajectories),
+        both_seat_positive_support=sum(seats == {0, 1} for seats in positive_trajectories.values()),
+        worst_delta=min(deltas, default=0),
+        aggregate_delta=sum(deltas),
+    )
 
 
 def _candidate_with_support(candidate: CandidateEvidence, cases: Sequence[CaseRecord]) -> CandidateEvidence:
@@ -912,6 +1007,7 @@ class SynthesisResult:
     macro: dict[str, Any] | None = None
     specialist: dict[str, Any] | None = None
     composition: dict[str, Any] | None = None
+    target_capability: dict[str, Any] | None = None
     falsification: dict[str, Any] | None = None
     certification: dict[str, Any] | None = None
     parity: dict[str, Any] | None = None
@@ -1377,6 +1473,7 @@ class CudaSynthesisBackend:
             "macro": copy.deepcopy(result.macro),
             "specialist": copy.deepcopy(result.specialist),
             "composition": copy.deepcopy(result.composition),
+            "target_capability": copy.deepcopy(result.target_capability),
             "falsification": copy.deepcopy(result.falsification),
             "certification": copy.deepcopy(result.certification),
             "parity": copy.deepcopy(result.parity),
@@ -1406,6 +1503,7 @@ class CudaSynthesisBackend:
         result.macro = None
         result.specialist = None
         result.composition = None
+        result.target_capability = None
         result.falsification = None
         result.certification = None
         result.parity = None
@@ -1536,6 +1634,48 @@ class CudaSynthesisBackend:
         candidate_legacy = assets_dir / "legacy_routes.bkv6"
         result.final_identity = identity
 
+        # Capability preservation is a separate acceptance axis from broad safety.
+        # Re-run the final compiled controller on the exact discovery target cases;
+        # a safe gate that no longer reaches the capability that justified synthesis
+        # is not an accepted specialist.
+        target_capability_path = out_dir / "target_capability.tsv"
+        _write_cases(target_capability_path, target.cases)
+        if ledger.cuda_games + 2 * len(target.cases) > config.budget.max_cuda_games:
+            return {"reason": SEARCH_BUDGET_EXHAUSTED, "stage": "target_capability"}
+        target_candidate_out = out_dir / "target_capability_candidate.b4fr"
+        target_candidate_grid = out_dir / "target_capability_candidate_grid.tsv"
+        _run(
+            _fragment_command(
+                config,
+                controller=candidate_controller,
+                routes=candidate_routes,
+                legacy_routes=candidate_legacy,
+                cases=target_capability_path,
+                donors=exact_donors,
+                out=target_candidate_out,
+                grid=target_candidate_grid,
+                starts=(candidate.start,),
+                durations=(candidate.duration,),
+            ),
+            ledger,
+        )
+        _, target_candidate_rows = load_fragment_results(target_candidate_out)
+        if not target_candidate_rows or any(row[3] for row in target_candidate_rows[0]):
+            return {"reason": CUDA_FAULT, "stage": "target_capability"}
+        target_capture_dir = out_dir / "target_capability_capture"
+        target_capture_dir.mkdir(parents=True, exist_ok=True)
+        target_req = build_capture_request(config, target_capability_path, candidate.start, target_capture_dir)
+        Path(target_req.argv[target_req.argv.index("--probes") + 1]).write_text(f"{candidate.start}\n", encoding="utf-8")
+        _run(target_req.argv, ledger)
+        target_cap = load_r0(Path(target_req.argv[target_req.argv.index("--out") + 1]))
+        target_contexts, _, _ = _capture_contexts(target_cap)
+        target_active = [gate_hits(gate, context) for context in target_contexts]
+        target_final_margins = [_margin(row) for row in target_candidate_rows[0]]
+        target_report = assess_target_capability(target.cases, candidate, target_final_margins, target_active)
+        result.target_capability = target_report.canonical()
+        if not target_report.accepted:
+            return {"reason": TARGET_CAPABILITY_LOST, "stage": "target_capability", "report": target_report.canonical()}
+
         # Final exact certification: compare the composed candidate baseline to the
         # current parent and to the forced donor teacher on gate activations.
         panels = plan_falsification_panels(config)
@@ -1627,6 +1767,7 @@ class CudaSynthesisBackend:
             "composition": str(composition_path.relative_to(ROOT)),
             "module": str(module_path.relative_to(ROOT)),
             "assets": str(assets_dir.relative_to(ROOT)),
+            "target_capability": str(target_candidate_out.relative_to(ROOT)),
         })
         return None
 

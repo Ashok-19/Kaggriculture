@@ -303,6 +303,41 @@ class BonsaiSynthesizerPureTests(unittest.TestCase):
         self.assertEqual(len(result.candidate_attempts), 1)
         self.assertEqual(result.candidate_attempts[0]["rejection"]["reason"], NON_TRANSFERABLE)
 
+    def test_30_target_capability_rejects_safe_gate_that_misses_discovery_rescue(self):
+        assess = getattr(synth, "assess_target_capability", None)
+        self.assertTrue(callable(assess), "target-capability acceptance check is missing")
+        rows = [
+            case(0, family=0, seat=0, seed=1),
+            case(1, family=0, seat=1, seed=1),
+        ]
+        discovery = CandidateEvidence(
+            1, 212, "route_212.json", 24, 24,
+            (-5, -4), (10, 9), (17, 17),
+        )
+        report = assess(rows, discovery, [-5, -4], [False, False])
+        self.assertFalse(report.accepted)
+        self.assertEqual(report.failure_reason, synth.TARGET_CAPABILITY_LOST)
+        self.assertEqual(report.preserved_positive, 0)
+        self.assertEqual(report.preserved_loss_to_win, 0)
+
+    def test_31_target_capability_accepts_surviving_gate_active_l2w(self):
+        assess = getattr(synth, "assess_target_capability", None)
+        self.assertTrue(callable(assess), "target-capability acceptance check is missing")
+        rows = [
+            case(0, family=0, seat=0, seed=1),
+            case(1, family=0, seat=1, seed=1),
+        ]
+        discovery = CandidateEvidence(
+            1, 212, "route_212.json", 24, 24,
+            (-5, -4), (10, 9), (17, 17),
+        )
+        report = assess(rows, discovery, [5, -4], [True, False])
+        self.assertTrue(report.accepted)
+        self.assertIsNone(report.failure_reason)
+        self.assertEqual(report.preserved_positive, 1)
+        self.assertEqual(report.preserved_loss_to_win, 1)
+
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
