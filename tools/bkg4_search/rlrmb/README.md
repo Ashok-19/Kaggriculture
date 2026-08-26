@@ -134,13 +134,39 @@ a HANDS motif while inheriting all other families from the parent, proving the I
 can express a candidate outside the old single-contiguous-fragment manifold. No
 games, evaluator, or search behavior were added in Phase 3.
 
+## Exact evaluator v1
+
+Phase 4 executes Option-Program IR directly against the existing BKG4 controller,
+route packs, compatibility overlays, and exact simulator. The audit reference is
+the Python IR state machine driven turn-by-turn by the parity-validated C++ engine
+and CPU BKG4 runtime; it does not reproduce game physics. CUDA consumes a packed
+version-1 batch ABI with fixed-width program, phase, motif, action, and result
+records. Programs and shared motifs are uploaded once per candidate-by-case batch.
+
+A phase action is submitted first, then its termination is evaluated exactly once
+on the legal post-action state. The triggering action belongs to the current phase;
+the next phase starts on the following turn. Event completion takes precedence if
+it coincides with a cap. `PARENT_COMPATIBLE` means the masked pre-overlay action is
+exactly equal to the parent action. V1 purchase completion is limited to `BUY_LAND`
+and `HIRE`, whose completion has an exact legal-state counter; item purchases remain
+deferred until the IR can name the item without aggregate-inventory ambiguity.
+
+The golden suite covers all four action sources, all seven family masks, all seven
+termination classes, two- and four-phase programs, return-to-parent, horizon and
+fault behavior, deterministic repetition, batch-order independence, and bounded
+route435/410/437 fixtures. Exact overlap validation for route410 step120/duration18
+matched the unchanged fragment evaluator on rewards/margins, action changes, and
+faults. The validated parity matrix has zero CPU/CUDA mismatches. Phase 4 adds no
+search, QD archive, LNS, or BKG4 materialization.
+
 ## Current status
 
 - Phase 0 - isolated package contract and baseline freeze: validated.
 - Phase 1 - structural and effect canonicalization: validated.
 - Phase 2 - regret/event checkpoint selector: validated.
 - Phase 3 - Option-Program IR v1: validated.
-- Phases 4 and later: not implemented.
+- Phase 4 - exact CPU/CUDA evaluator v1: validated.
+- Phases 5 and later: not implemented.
 
 ## Generated outputs
 

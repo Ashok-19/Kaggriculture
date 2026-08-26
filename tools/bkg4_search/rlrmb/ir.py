@@ -19,7 +19,10 @@ MAX_PHASES = 4
 _SEMANTIC_REF = re.compile(r"[0-9a-f]{64}")
 _ENUM_NAME = re.compile(r"[A-Z][A-Z0-9_]*")
 _PARAMETER_KEY = re.compile(r"[a-z][a-z0-9_]*")
-_PURCHASE_OBJECTIVES = frozenset({"BUY_LAND", "HIRE", "BUY_ANIMAL", "BUY_SEED", "BUY_PRODUCT"})
+# V1 completion must be observable without adding an item selector to the IR.
+# Land and labor have exact public counters; item purchases are deferred until a
+# later schema can name the purchased item without aggregate-inventory ambiguity.
+_PURCHASE_OBJECTIVES = frozenset({"BUY_LAND", "HIRE"})
 
 
 class ActionSource(str, Enum):
