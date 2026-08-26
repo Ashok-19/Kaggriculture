@@ -22,6 +22,7 @@ from .pipeline import (
 )
 from .routability import screen_routability
 from .cegis_adapter import run_hardened_cegis
+from .effects import EffectVector, effect_signature
 from .failures import FailureClass
 from .lns import DualPanelEvaluator, run_lns
 from .schema import DatasetRole, stable_identity
@@ -146,6 +147,10 @@ def _write_json(path: Path, value: Any) -> None:
     path.write_text(json.dumps(value, sort_keys=True, indent=2) + "\n", encoding="utf-8")
 
 
+def _effect_identity(effect: EffectVector) -> str:
+    return effect_signature(effect)
+
+
 def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False, smoke: bool = False) -> int:
     config = validate_config(config_path); root = Path.cwd(); output.mkdir(parents=True, exist_ok=True)
     if any((output / name).exists() for name in ("config.json", "run.json", "metrics.json")):
@@ -239,7 +244,7 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
                         elif routing.classification.value=="REPAIR_LATER_CHECKPOINT":item["repair_dispatch"]="RETURN_TO_CHECKPOINT_SEARCH"
                     family_results.append(item)
         for c in refined:
-            block=c.effect.blocks[0]; total_l2w+=sum(block.loss_to_win); global_effects.add(c.effect.semantic_id); target_clusters.add((family_id,tuple(block.loss_to_win),tuple(x>0 for x in block.margin_deltas)))
+            block=c.effect.blocks[0]; total_l2w+=sum(block.loss_to_win); global_effects.add(_effect_identity(c.effect)); target_clusters.add((family_id,tuple(block.loss_to_win),tuple(x>0 for x in block.margin_deltas)))
         all_metrics[family_id]={"checkpoints":len(checkpoints),"beam":dict(family_beam),"refined":len(refined),"archive":archive.metrics(),"results":family_results}
         _write_json(family_dir/"run.json",all_metrics[family_id]); _write_json(family_dir/"archive_summary.json",json.loads(archive.serialize()))
     refined_total=sum(row["refined"] for row in all_metrics.values()); mixed=failures["MIXED_LEGAL_STATE"]+failures["FUTURE_DEPENDENT"]+failures["REPAIR_BRANCH_AT_REVEAL"]+failures["REPAIR_COMMON_PREFIX"]

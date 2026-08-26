@@ -9,7 +9,8 @@ from tools.bkg4_search.rlrmb.ir import ActionSource, Phase
 from tools.bkg4_search.rlrmb.tests.test_ir import fixed, program
 from tools.bkg4_search.rlrmb.motifs import motif_from_actions
 from tools.bkg4_search.rlrmb.ir import ActionFamily
-from tools.bkg4_search.rlrmb.p13_equal_budget import BudgetLedger, GAME_CATEGORIES, run_campaign, validate_config
+from tools.bkg4_search.rlrmb.p13_equal_budget import BudgetLedger, GAME_CATEGORIES, _effect_identity, run_campaign, validate_config
+from tools.bkg4_search.rlrmb.effects import EffectBlock, EffectVector, effect_signature
 
 
 class PipelineTests(unittest.TestCase):
@@ -64,6 +65,10 @@ class PipelineTests(unittest.TestCase):
             self.assertEqual(json.loads((output / "metrics.json").read_text())["total_cuda_games"], 0)
             for name in ("config.json", "run.json", "metrics.json", "failures.json", "archive_summary.json"):
                 self.assertTrue((output / name).exists())
+
+    def test_phase13_effect_identity_uses_validated_signature_contract(self):
+        effect = EffectVector((EffectBlock(DatasetRole.TARGET, "panel", (0,), (1,), (1,)),))
+        self.assertEqual(_effect_identity(effect), effect_signature(effect))
 
 
 if __name__ == "__main__": unittest.main()
