@@ -512,13 +512,36 @@ class CegisIteration:
     gate: tuple[tuple[ConditionGene, ...], ...]
     score: GateScore
     counterexample_source: str
+    positive_count: int = 0
+    required_target_positive: int = 0
+    required_target_l2w: int = 0
+    counterexample_count: int = 0
+    synthesis_dataset_roles: tuple[str, ...] = ()
+    counterexample_pool_roles: tuple[str, ...] = ()
+    validation_score: GateScore | None = None
+    newly_added_harms: tuple[str, ...] = ()
+    mixed_cells: tuple[tuple[str, ...], ...] = ()
+    rejection_reason: str | None = None
+    continuation_reason: str | None = None
 
     def canonical(self) -> dict[str, Any]:
         return {
             "iteration": self.iteration,
             "gate": _canonical_gate(self.gate),
+            "gate_complexity": self.score.complexity,
             "score": dataclasses.asdict(self.score),
             "counterexample_source": self.counterexample_source,
+            "positive_count": self.positive_count,
+            "required_target_positive": self.required_target_positive,
+            "required_target_l2w": self.required_target_l2w,
+            "counterexample_count": self.counterexample_count,
+            "synthesis_dataset_roles": list(self.synthesis_dataset_roles),
+            "counterexample_pool_roles": list(self.counterexample_pool_roles),
+            "validation_score": None if self.validation_score is None else dataclasses.asdict(self.validation_score),
+            "newly_added_harms": list(self.newly_added_harms),
+            "mixed_cells": [list(x) for x in self.mixed_cells],
+            "rejection_reason": self.rejection_reason,
+            "continuation_reason": self.continuation_reason,
         }
 
 
@@ -529,6 +552,7 @@ class CegisResult:
     trace: tuple[CegisIteration, ...]
     mixed_cells: tuple[tuple[str, ...], ...] = ()
     holdout_score: GateScore | None = None
+    stop_reason: str = ""
 
     def canonical(self) -> dict[str, Any]:
         return {
@@ -537,6 +561,7 @@ class CegisResult:
             "trace": [x.canonical() for x in self.trace],
             "mixed_cells": [list(x) for x in self.mixed_cells],
             "holdout_score": None if self.holdout_score is None else dataclasses.asdict(self.holdout_score),
+            "stop_reason": self.stop_reason,
         }
 
 
@@ -548,57 +573,201 @@ def run_cegis(
     max_conditions: int,
     max_iterations: int,
 ) -> CegisResult:
-    # Positive discovery rows and harmful counterexamples are explicit datasets. Neutral
-    # rows remain available for support scoring but do not drive contrastive synthesis.
-    all_training = list(discovery) + list(counterexamples)
-    mixed = detect_mixed_legal_states(all_training)
-    empty = GateScore(0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
-    positives = [x for x in all_training if x.delta > 0]
-    harmful = [x for x in all_training if x.delta < 0]
-    if not positives:
-        return CegisResult(None, empty, (), mixed)
-    if not harmful:
-        # No observed harm: still derive a legal current-state gate from the positive
-        # support by using one deterministic equality/range condition shared by support.
-        contexts = [x.context for x in positives]
-        shared = sorted(set.intersection(*(set(ctx) for ctx in contexts))) if contexts else []
-        candidates: list[tuple[ConditionGene, ...]] = []
-        for feature, index in shared:
-            vals = [int(ctx[(feature, index)]) for ctx in contexts]
-            if len(set(vals)) == 1:
-                candidates.append((ConditionGene(feature, "EQ", index, vals[0]),))
-            else:
-                candidates.append((ConditionGene(feature, "GE", index, min(vals)),))
-                candidates.append((ConditionGene(feature, "LE", index, max(vals)),))
-        candidates = [x for x in candidates if not _identity_like_runtime_feature(x[0].feature)]
-        if not candidates:
-            return CegisResult(None, empty, (), mixed)
-        scored = [((clause,), evaluate_gate((clause,), all_training)) for clause in candidates]
-        scored.sort(key=lambda row: row[1].lexicographic_key())
-        gate, score = scored[0]
-        validate_identity_free_gate(gate)
-        holdout = evaluate_gate(gate, validation) if validation else None
-        return CegisResult(gate, score, (CegisIteration(0, gate, score, "discovery"),), mixed, holdout)
+    """Run bounded active CEGIS over exact macro-effect evidence.
 
-    ranked = enumerate_safe_conjunctions(
-        all_training,
-        max_conditions=max_conditions,
-        limit=128,
-        feature_budget=_P0_6_CEGIS_FEATURE_BUDGET,
-        singleton_l2w_budget=_P0_6_CEGIS_SINGLETON_TARGET_BUDGET,
-    )
+    ``validation`` is the exact counterexample-search pool. Only newly harmful
+    gate-active rows are promoted into synthesis evidence; validation positives
+    remain evaluation evidence rather than silently becoming training support.
+    """
+    training = list(discovery) + list(counterexamples)
+    validation_rows = list(validation)
+    known_ids = {row.case_id for row in training}
     trace: list[CegisIteration] = []
-    for iteration, (clause, score) in enumerate(ranked[: max_iterations]):
-        gate = (tuple(clause),)
+    empty = GateScore(0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+    latest_mixed = detect_mixed_legal_states(training)
+
+    for iteration in range(max(0, int(max_iterations))):
+        positives = [x for x in training if x.delta > 0]
+        harmful = [x for x in training if x.delta < 0]
+        latest_mixed = detect_mixed_legal_states(training)
+        if not positives:
+            return CegisResult(None, empty, tuple(trace), latest_mixed, stop_reason="NO_POSITIVE_SUPPORT")
+
+        if harmful:
+            ranked = enumerate_safe_conjunctions(
+                training,
+                max_conditions=max_conditions,
+                limit=128,
+                feature_budget=_P0_6_CEGIS_FEATURE_BUDGET,
+                singleton_l2w_budget=_P0_6_CEGIS_SINGLETON_TARGET_BUDGET,
+            )
+            if not ranked:
+                stop_reason = MIXED_LEGAL_STATE if latest_mixed else "NO_LEGAL_SEPARATOR"
+                return CegisResult(None, empty, tuple(trace), latest_mixed, stop_reason=stop_reason)
+            clause, score = ranked[0]
+            gate = (tuple(clause),)
+            source = "counterexample"
+        else:
+            contexts = [x.context for x in positives]
+            shared = sorted(set.intersection(*(set(ctx) for ctx in contexts))) if contexts else []
+            candidates: list[tuple[ConditionGene, ...]] = []
+            for feature, index in shared:
+                vals = [int(ctx[(feature, index)]) for ctx in contexts]
+                if len(set(vals)) == 1:
+                    candidates.append((ConditionGene(feature, "EQ", index, vals[0]),))
+                else:
+                    candidates.append((ConditionGene(feature, "GE", index, min(vals)),))
+                    candidates.append((ConditionGene(feature, "LE", index, max(vals)),))
+            candidates = [x for x in candidates if not _identity_like_runtime_feature(x[0].feature)]
+            scored = []
+            for clause in candidates:
+                gate_candidate = (clause,)
+                if selected_mixed_exact_cells(gate_candidate, training):
+                    continue
+                scored.append((gate_candidate, evaluate_gate(gate_candidate, training)))
+            if not scored:
+                stop_reason = MIXED_LEGAL_STATE if latest_mixed else "NO_LEGAL_SEPARATOR"
+                return CegisResult(None, empty, tuple(trace), latest_mixed, stop_reason=stop_reason)
+            scored.sort(key=lambda row: (row[1].lexicographic_key(), str(_canonical_gate(row[0]))))
+            gate, score = scored[0]
+            source = "discovery"
+
         validate_identity_free_gate(gate)
-        trace.append(CegisIteration(iteration, gate, score, "counterexample" if harmful else "discovery"))
-        holdout = evaluate_gate(gate, validation) if validation else None
-        if holdout is not None and (holdout.harmful or holdout.win_to_loss):
+        validation_score = evaluate_gate(gate, validation_rows) if validation_rows else None
+        new_harms = tuple(
+            row.case_id
+            for row in validation_rows
+            if row.case_id not in known_ids
+            and gate_hits(gate, row.context)
+            and (row.delta < 0 or row.win_to_loss)
+        )
+        new_harm_ids = set(new_harms)
+        newly_added = [row for row in validation_rows if row.case_id in new_harm_ids]
+        mixed_after = detect_mixed_legal_states(training + newly_added)
+        required_positive_count = sum(x.required_target_positive and x.delta > 0 for x in training)
+        required_l2w_count = sum(x.required_target_l2w and x.loss_to_win for x in training)
+        target_capability_lost = bool(
+            not newly_added
+            and (
+                (required_positive_count > 0 and score.target_positive == 0)
+                or (required_l2w_count > 0 and score.target_loss_to_win == 0)
+            )
+        )
+        if newly_added:
+            continuation = "COUNTEREXAMPLE_ADDED"
+            rejection_reason = None
+        elif target_capability_lost:
+            continuation = "TARGET_CAPABILITY_UNSATISFIED"
+            rejection_reason = TARGET_CAPABILITY_LOST
+        else:
+            continuation = "SAFE_CONVERGENCE"
+            rejection_reason = None
+        trace.append(
+            CegisIteration(
+                iteration=iteration,
+                gate=gate,
+                score=score,
+                counterexample_source=source,
+                positive_count=len(positives),
+                required_target_positive=required_positive_count,
+                required_target_l2w=required_l2w_count,
+                counterexample_count=sum(x.delta < 0 for x in training),
+                synthesis_dataset_roles=tuple(sorted({x.dataset_role for x in training if x.dataset_role})),
+                counterexample_pool_roles=tuple(sorted({x.dataset_role for x in validation_rows if x.dataset_role})),
+                validation_score=validation_score,
+                newly_added_harms=new_harms,
+                mixed_cells=mixed_after,
+                rejection_reason=rejection_reason,
+                continuation_reason=continuation,
+            )
+        )
+        if newly_added:
+            training.extend(newly_added)
+            known_ids.update(new_harms)
+            latest_mixed = mixed_after
             continue
-        if selected_mixed_exact_cells(gate, all_training):
+        if target_capability_lost:
+            return CegisResult(None, empty, tuple(trace), latest_mixed, validation_score, TARGET_CAPABILITY_LOST)
+        if selected_mixed_exact_cells(gate, training):
             continue
-        return CegisResult(gate, score, tuple(trace), mixed, holdout)
-    return CegisResult(None, empty, tuple(trace), mixed)
+        return CegisResult(gate, score, tuple(trace), latest_mixed, validation_score, "SAFE_CONVERGENCE")
+
+    return CegisResult(None, empty, tuple(trace), latest_mixed, stop_reason="CEGIS_BUDGET_EXHAUSTED")
+
+
+@dataclass(frozen=True)
+class TransferGateSupportReport:
+    accepted: bool
+    failure_reason: str | None
+    activated: int
+    positive: int
+    harmful: int
+    loss_to_win: int
+    win_to_loss: int
+    independent_positive_support: int
+
+    def canonical(self) -> dict[str, Any]:
+        return dataclasses.asdict(self)
+
+
+def assess_transfer_gate_support(
+    gate: Sequence[Sequence[ConditionGene]],
+    transfer_effects: Sequence[MacroEffectCase],
+    *,
+    min_positive: int,
+    min_independent: int,
+) -> TransferGateSupportReport:
+    """Require the final gate to retain independent positive transfer evidence."""
+    validate_identity_free_gate(gate)
+    active = [row for row in transfer_effects if gate_hits(gate, row.context)]
+    positive = [row for row in active if row.delta > 0]
+    independent = {
+        row.support_group or row.case_id
+        for row in positive
+    }
+    harmful = sum(row.delta < 0 for row in active)
+    win_to_loss = sum(row.win_to_loss for row in active)
+    accepted = (
+        harmful == 0
+        and win_to_loss == 0
+        and len(positive) >= int(min_positive)
+        and len(independent) >= int(min_independent)
+    )
+    return TransferGateSupportReport(
+        accepted=accepted,
+        failure_reason=None if accepted else NON_TRANSFERABLE,
+        activated=len(active),
+        positive=len(positive),
+        harmful=harmful,
+        loss_to_win=sum(row.loss_to_win for row in active),
+        win_to_loss=win_to_loss,
+        independent_positive_support=len(independent),
+    )
+
+
+@dataclass(frozen=True)
+class SealedHoldoutReport:
+    accepted: bool
+    failure_reason: str | None
+    score: GateScore
+
+    def canonical(self) -> dict[str, Any]:
+        return {
+            "accepted": self.accepted,
+            "failure_reason": self.failure_reason,
+            "score": dataclasses.asdict(self.score),
+        }
+
+
+def assess_sealed_holdout(
+    gate: Sequence[Sequence[ConditionGene]],
+    sealed_holdout: Sequence[MacroEffectCase],
+) -> SealedHoldoutReport:
+    """Evaluate a frozen gate on an untouched holdout without CEGIS feedback."""
+    validate_identity_free_gate(gate)
+    score = evaluate_gate(gate, sealed_holdout)
+    accepted = score.harmful == 0 and score.win_to_loss == 0
+    return SealedHoldoutReport(accepted, None if accepted else HOLDOUT_FAILURE, score)
 
 
 def threshold_robustness(
@@ -616,20 +785,22 @@ def threshold_robustness(
         for pi, condition in enumerate(clause):
             if condition.cmp not in {"GE", "LE", "EQ", "NE"}:
                 continue
+            predicate_rows: list[dict[str, Any]] = []
+            selected_value = int(condition.value)
             for offset in offsets:
-                changed = ConditionGene(condition.feature, condition.cmp, condition.index, int(condition.value) + offset)
+                changed = ConditionGene(condition.feature, condition.cmp, condition.index, selected_value + offset)
                 new_gate = [list(c) for c in gate]
                 new_gate[ci][pi] = changed
                 canonical = tuple(tuple(c) for c in new_gate)
                 score = evaluate_gate(canonical, cases)
-                rows.append(
+                predicate_rows.append(
                     {
                         "clause": ci,
                         "predicate": pi,
                         "feature": condition.feature,
                         "index": int(condition.index),
                         "cmp": condition.cmp,
-                        "selected": int(condition.value),
+                        "selected": selected_value,
                         "value": int(changed.value),
                         "offset": offset,
                         "safe": score.harmful == 0 and score.win_to_loss == 0,
@@ -637,9 +808,21 @@ def threshold_robustness(
                         "positive": score.positive,
                         "harmful": score.harmful,
                         "loss_to_win": score.loss_to_win,
+                        "win_to_loss": score.win_to_loss,
+                        "target_positive": score.target_positive,
+                        "target_loss_to_win": score.target_loss_to_win,
+                        "support_groups": score.support_groups,
                         "worst_delta": score.worst_delta,
                     }
                 )
+            unsafe_lower = [row["value"] for row in predicate_rows if not row["safe"] and row["value"] < selected_value]
+            unsafe_upper = [row["value"] for row in predicate_rows if not row["safe"] and row["value"] > selected_value]
+            first_unsafe_lower = max(unsafe_lower, default=None)
+            first_unsafe_upper = min(unsafe_upper, default=None)
+            for row in predicate_rows:
+                row["first_unsafe_lower"] = first_unsafe_lower
+                row["first_unsafe_upper"] = first_unsafe_upper
+            rows.extend(predicate_rows)
     return rows
 
 
@@ -1199,6 +1382,8 @@ def _macro_effect_cases(
     cases: Sequence[CaseRecord],
     evidence: CandidateEvidence,
     capture: R0Capture,
+    *,
+    required_target: bool = False,
 ) -> tuple[list[MacroEffectCase], list[int]]:
     contexts, signatures, base_routes = _capture_contexts(capture)
     if len(cases) != len(evidence.deltas) or capture.cases != len(cases):
@@ -1213,6 +1398,13 @@ def _macro_effect_cases(
                 contexts[i],
                 signatures[i],
                 support_group=f"{case.family}:{Path(case.path).name}",
+                dataset_role=str(label),
+                required_target_positive=bool(required_target and evidence.deltas[i] > 0),
+                required_target_l2w=bool(
+                    required_target
+                    and evidence.baseline_margins[i] < 0
+                    and evidence.baseline_margins[i] + evidence.deltas[i] > 0
+                ),
             )
         )
     return rows, base_routes
@@ -1548,6 +1740,22 @@ class CudaSynthesisBackend:
             effect, base_routes = _macro_effect_cases(label, cases, evidence, capture)
             return evidence, cases, out, capture, effect, base_routes
 
+        # Original discovery capability is part of the initiation-set synthesis
+        # contract, not merely a post-composition audit. The macro effect itself is
+        # already exact CUDA evidence from the target refinement search; capture the
+        # legal initiation state and mark positive/L2W rows as required targets.
+        target_synthesis_path = out_dir / "target_synthesis.tsv"
+        _write_cases(target_synthesis_path, target.cases)
+        target_synthesis_capture_dir = out_dir / "target_synthesis_capture"
+        target_synthesis_capture_dir.mkdir(parents=True, exist_ok=True)
+        target_req = build_capture_request(config, target_synthesis_path, candidate.start, target_synthesis_capture_dir)
+        Path(target_req.argv[target_req.argv.index("--probes") + 1]).write_text(f"{candidate.start}\n", encoding="utf-8")
+        _run(target_req.argv, ledger)
+        target_capture = load_r0(Path(target_req.argv[target_req.argv.index("--out") + 1]))
+        target_rows, target_routes = _macro_effect_cases(
+            "target_capability", target.cases, candidate, target_capture, required_target=True,
+        )
+
         transfer_e, transfer_cases, _, _, transfer_rows, transfer_routes = exact_panel(config.transfer_panel, "transfer")
         transfer_ranked = _candidate_with_support(transfer_e, transfer_cases)
         result.transfer = transfer_ranked.canonical()
@@ -1557,10 +1765,12 @@ class CudaSynthesisBackend:
         validation_e, validation_cases, _, _, validation_rows, validation_routes = exact_panel(config.validation_panel, "validation")
         sealed_e, sealed_cases, _, _, sealed_rows, sealed_routes = exact_panel(config.sealed_panel, "sealed_effect")
 
-        positives = [x for x in transfer_rows if x.delta > 0]
-        harmful = [x for x in transfer_rows if x.delta < 0]
-        mixed = detect_mixed_legal_states(transfer_rows + validation_rows)
-        if positives and all(any(x.case_id in cell for cell in mixed) for x in positives):
+        synthesis_rows = target_rows + transfer_rows
+        positives = [x for x in synthesis_rows if x.delta > 0]
+        harmful = [x for x in synthesis_rows if x.delta < 0]
+        mixed = detect_mixed_legal_states(synthesis_rows + validation_rows)
+        required_targets = [x for x in target_rows if x.required_target_positive]
+        if required_targets and all(any(x.case_id in cell for cell in mixed) for x in required_targets):
             return {"reason": MIXED_LEGAL_STATE, "stage": "legal_state", "mixed_cells": [list(x) for x in mixed]}
 
         cegis = run_cegis(
@@ -1572,15 +1782,40 @@ class CudaSynthesisBackend:
         )
         result.cegis = cegis.canonical()
         if cegis.final_gate is None:
-            return {"reason": NO_SAFE_GATE, "stage": "cegis", "mixed_cells": [list(x) for x in mixed]}
+            if cegis.stop_reason == MIXED_LEGAL_STATE:
+                reason = MIXED_LEGAL_STATE
+            elif cegis.stop_reason == TARGET_CAPABILITY_LOST:
+                reason = TARGET_CAPABILITY_LOST
+            else:
+                reason = NO_SAFE_GATE
+            return {
+                "reason": reason,
+                "stage": "cegis",
+                "cegis_stop_reason": cegis.stop_reason,
+                "mixed_cells": [list(x) for x in cegis.mixed_cells],
+            }
         gate = cegis.final_gate
-        holdout = evaluate_gate(gate, sealed_rows)
-        if holdout.harmful or holdout.win_to_loss:
+        transfer_gate_support = assess_transfer_gate_support(
+            gate,
+            transfer_rows,
+            min_positive=config.min_transfer_positive,
+            min_independent=config.min_transfer_independent,
+        )
+        result.cegis["transfer_gate_support"] = transfer_gate_support.canonical()
+        if not transfer_gate_support.accepted:
+            return {
+                "reason": NON_TRANSFERABLE,
+                "stage": "cegis_transfer_support",
+                "report": transfer_gate_support.canonical(),
+            }
+        holdout_report = assess_sealed_holdout(gate, sealed_rows)
+        holdout = holdout_report.score
+        if not holdout_report.accepted:
             return {"reason": HOLDOUT_FAILURE, "stage": "sealed_holdout", "score": dataclasses.asdict(holdout)}
         if holdout.positive == 0 and cegis.final_score.positive <= 1:
             return {"reason": NON_TRANSFERABLE, "stage": "sealed_holdout", "detail": "no recurring positive holdout support"}
 
-        threshold = threshold_robustness(gate, transfer_rows + validation_rows, radius=config.threshold_radius)
+        threshold = threshold_robustness(gate, target_rows + transfer_rows + validation_rows, radius=config.threshold_radius)
         result.threshold_sweep = threshold
         selected_rows = [x for x in threshold if x["offset"] == 0]
         if any(not x["safe"] for x in selected_rows):
@@ -1590,8 +1825,8 @@ class CudaSynthesisBackend:
             return {"reason": THRESHOLD_BRITTLE, "stage": "threshold", "detail": "all immediate neighbors unsafe"}
 
         base_route = _modal_base_route(
-            transfer_routes + validation_routes + sealed_routes,
-            transfer_rows + validation_rows + sealed_rows,
+            target_routes + transfer_routes + validation_routes + sealed_routes,
+            target_rows + transfer_rows + validation_rows + sealed_rows,
             gate,
         )
         base_source = _find_route_source(donors, base_route)
@@ -1753,7 +1988,7 @@ class CudaSynthesisBackend:
         if inactive_mismatch or teacher_mismatch:
             return {"reason": PROTECTED_REGRESSION, "stage": "teacher_equivalence", "inactive_mismatch": inactive_mismatch, "teacher_mismatch": teacher_mismatch}
 
-        parity = self._parity(config, macro, candidate_controller, transfer_rows + validation_rows + sealed_rows, out_dir, ledger)
+        parity = self._parity(config, macro, candidate_controller, target_rows + transfer_rows + validation_rows + sealed_rows, out_dir, ledger)
         result.parity = parity.canonical()
         if not parity.accepted:
             return {"reason": CPU_CUDA_MISMATCH, "stage": "parity", "mismatches": parity.mismatches}

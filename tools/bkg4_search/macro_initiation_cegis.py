@@ -15,6 +15,9 @@ class MacroEffectCase:
     context: Mapping[tuple[str, int], int]
     exact_signature: tuple[int, ...] = ()
     support_group: str = ""
+    dataset_role: str = "discovery"
+    required_target_positive: bool = False
+    required_target_l2w: bool = False
 
     @property
     def delta(self) -> int:
@@ -41,16 +44,21 @@ class GateScore:
     aggregate_delta: int
     support_groups: int
     complexity: int
+    target_positive: int = 0
+    target_loss_to_win: int = 0
 
     def lexicographic_key(self) -> tuple[int, ...]:
-        # Safety dominates all score/margin objectives.
+        # Strict promotion ordering: safety, original target rescue, transfer,
+        # worst-case margin, simplicity, then aggregate money.
         return (
             self.win_to_loss,
             self.harmful,
+            -self.target_loss_to_win,
+            -self.target_positive,
             -self.loss_to_win,
             -self.positive,
-            -self.worst_delta,
             -self.support_groups,
+            -self.worst_delta,
             self.complexity,
             -self.aggregate_delta,
         )
@@ -85,6 +93,8 @@ def evaluate_gate(clauses: Sequence[Sequence[ConditionGene]], cases: Sequence[Ma
         aggregate_delta=sum(deltas),
         support_groups=len({case.support_group for case in active if case.support_group}),
         complexity=sum(len(clause) for clause in clauses),
+        target_positive=sum(case.required_target_positive and case.delta > 0 for case in active),
+        target_loss_to_win=sum(case.required_target_l2w and case.loss_to_win for case in active),
     )
 
 
@@ -128,13 +138,22 @@ def enumerate_safe_conjunctions(
     positive = [x.case_id for x in cases if x.delta > 0]
     harmful = [x.case_id for x in cases if x.delta < 0]
     l2w = [x.case_id for x in cases if x.loss_to_win]
+    required_target_positive = [x.case_id for x in cases if x.required_target_positive and x.delta > 0]
+    required_target_l2w = [x.case_id for x in cases if x.required_target_l2w and x.loss_to_win]
     if not positive or not harmful:
         return []
     contexts = _contexts(cases)
-    target_sets = [tuple(positive)]
+    target_sets: list[tuple[str, ...]] = []
+    for target_ids in (required_target_l2w, required_target_positive):
+        target_tuple = tuple(target_ids)
+        if target_tuple and target_tuple not in target_sets:
+            target_sets.append(target_tuple)
+    # Preserve the historical bounded proposal schedule exactly for non-target rows;
+    # required-target proposal sets are additive, not a rewrite of the old search.
+    target_sets.append(tuple(positive))
     if l2w:
         target_sets.append(tuple(l2w))
-        singleton_ids = l2w
+        singleton_ids = required_target_l2w + [x for x in l2w if x not in required_target_l2w]
         if singleton_l2w_budget is not None:
             singleton_ids = singleton_ids[: max(0, int(singleton_l2w_budget))]
         target_sets.extend((case_id,) for case_id in singleton_ids)

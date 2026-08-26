@@ -337,6 +337,257 @@ class BonsaiSynthesizerPureTests(unittest.TestCase):
         self.assertEqual(report.preserved_positive, 1)
         self.assertEqual(report.preserved_loss_to_win, 1)
 
+    def test_32_validation_harm_is_fed_back_and_recorded_as_counterexample(self):
+        discovery = [
+            MacroEffectCase("p", -5, 5, ctx(OPP_UNITS=8, OPP_LAND=2), support_group="target"),
+        ]
+        counterexamples = [
+            MacroEffectCase("h0", 10, 2, ctx(OPP_UNITS=7, OPP_LAND=2), support_group="initial_harm"),
+        ]
+        validation = [
+            MacroEffectCase("validation:h1", 10, 1, ctx(OPP_UNITS=8, OPP_LAND=1), support_group="validation_harm"),
+        ]
+        result = run_cegis(discovery, counterexamples, validation, max_conditions=4, max_iterations=8)
+        self.assertIsNotNone(result.final_gate)
+        self.assertEqual(cegis_mod.evaluate_gate(result.final_gate, validation).harmful, 0)
+        trace = [row.canonical() for row in result.trace]
+        self.assertTrue(
+            any("validation:h1" in row.get("newly_added_harms", ()) for row in trace),
+            trace,
+        )
+        self.assertTrue(any(row.get("continuation_reason") == "COUNTEREXAMPLE_ADDED" for row in trace), trace)
+
+    def test_33_no_harm_discovery_branch_cannot_ignore_validation_mixed_state(self):
+        signature = (9, 8, 7)
+        discovery = [
+            MacroEffectCase("p", -5, 5, ctx(OPP_UNITS=8, OPP_LAND=2), signature, "target"),
+        ]
+        validation = [
+            MacroEffectCase("validation:h", 10, -1, ctx(OPP_UNITS=8, OPP_LAND=2), signature, "validation"),
+        ]
+        result = run_cegis(discovery, (), validation, max_conditions=4, max_iterations=4)
+        self.assertIsNone(result.final_gate)
+        self.assertIn(("p", "validation:h"), result.mixed_cells)
+        self.assertTrue(
+            any("validation:h" in row.canonical().get("newly_added_harms", ()) for row in result.trace),
+            [row.canonical() for row in result.trace],
+        )
+
+    def test_34_macro_effect_cases_expose_explicit_dataset_and_target_roles(self):
+        fields = MacroEffectCase.__dataclass_fields__
+        self.assertIn("dataset_role", fields)
+        self.assertIn("required_target_positive", fields)
+        self.assertIn("required_target_l2w", fields)
+
+    def test_35_required_target_l2w_cannot_be_dropped_for_unrelated_transfer_support(self):
+        discovery = [
+            MacroEffectCase(
+                "target_l2w", -5, 5, ctx(OPP_MONEY=100, OPP_LAND=2),
+                support_group="target", dataset_role="target_capability",
+                required_target_positive=True, required_target_l2w=True,
+            ),
+            MacroEffectCase("transfer1", -5, 5, ctx(OPP_MONEY=10, OPP_LAND=1), support_group="t1", dataset_role="transfer"),
+            MacroEffectCase("transfer2", -5, 5, ctx(OPP_MONEY=10, OPP_LAND=1), support_group="t2", dataset_role="transfer"),
+        ]
+        counterexamples = [
+            MacroEffectCase("harm", 10, 1, ctx(OPP_MONEY=100, OPP_LAND=1), support_group="harm", dataset_role="transfer"),
+        ]
+        result = run_cegis(discovery, counterexamples, (), max_conditions=4, max_iterations=8)
+        self.assertIsNotNone(result.final_gate)
+        self.assertTrue(cegis_mod.gate_hits(result.final_gate, discovery[0].context), result.canonical())
+        self.assertGreaterEqual(getattr(result.final_score, "target_loss_to_win", 0), 1)
+        self.assertGreaterEqual(getattr(result.final_score, "target_positive", 0), 1)
+
+    def test_36_target_discovery_effects_are_tagged_as_required_before_cegis(self):
+        import inspect
+        params = inspect.signature(synth._macro_effect_cases).parameters
+        self.assertIn("required_target", params)
+
+        class FakeCapture:
+            cases = 1
+            registry_width = 2
+            bb_width = 0
+            compat_width = 0
+            def frame(self, case_index, probe_index):
+                return (24, 100, 0, 64)
+
+        original = synth.registry_manifest
+        try:
+            synth.registry_manifest = lambda: [("STEP", ()), ("OPP_MONEY", ())]
+            target_case = case(0, family=0, seat=0, seed=1)
+            evidence = CandidateEvidence(1, 212, "route_212.json", 24, 24, (-5,), (10,), (17,))
+            rows, _ = synth._macro_effect_cases(
+                "target_capability", (target_case,), evidence, FakeCapture(), required_target=True,
+            )
+        finally:
+            synth.registry_manifest = original
+        self.assertEqual(rows[0].dataset_role, "target_capability")
+        self.assertTrue(rows[0].required_target_positive)
+        self.assertTrue(rows[0].required_target_l2w)
+
+    def test_37_cegis_trace_records_required_counts_and_dataset_roles(self):
+        discovery = [
+            MacroEffectCase(
+                "target", -5, 5, ctx(OPP_UNITS=8, OPP_LAND=2), support_group="target",
+                dataset_role="target_capability", required_target_positive=True, required_target_l2w=True,
+            )
+        ]
+        counterexamples = [
+            MacroEffectCase("h0", 10, 2, ctx(OPP_UNITS=7, OPP_LAND=2), dataset_role="transfer")
+        ]
+        validation = [
+            MacroEffectCase("validation:h1", 10, 1, ctx(OPP_UNITS=8, OPP_LAND=1), dataset_role="validation")
+        ]
+        result = run_cegis(discovery, counterexamples, validation, max_conditions=4, max_iterations=8)
+        first = result.trace[0].canonical()
+        self.assertEqual(first.get("positive_count"), 1)
+        self.assertEqual(first.get("required_target_positive"), 1)
+        self.assertEqual(first.get("required_target_l2w"), 1)
+        self.assertIn("target_capability", first.get("synthesis_dataset_roles", ()))
+        self.assertIn("transfer", first.get("synthesis_dataset_roles", ()))
+        self.assertEqual(first.get("counterexample_pool_roles"), ["validation"])
+
+    def test_38_cegis_iteration_budget_exhaustion_is_explicit_and_deterministic(self):
+        discovery = [MacroEffectCase("p", -5, 5, ctx(OPP_UNITS=8, OPP_LAND=2), dataset_role="transfer")]
+        counterexamples = [MacroEffectCase("h0", 10, 2, ctx(OPP_UNITS=7, OPP_LAND=2), dataset_role="transfer")]
+        validation = [MacroEffectCase("validation:h1", 10, 1, ctx(OPP_UNITS=8, OPP_LAND=1), dataset_role="validation")]
+        a = run_cegis(discovery, counterexamples, validation, max_conditions=4, max_iterations=1)
+        b = run_cegis(discovery, counterexamples, validation, max_conditions=4, max_iterations=1)
+        self.assertIsNone(a.final_gate)
+        self.assertEqual(getattr(a, "stop_reason", None), "CEGIS_BUDGET_EXHAUSTED")
+        self.assertEqual(a.canonical(), b.canonical())
+
+    def test_39_threshold_report_includes_target_support_and_first_unsafe_boundaries(self):
+        gate = ((ConditionGene("OPP_MONEY", "GE", 0, 100),),)
+        rows = [
+            MacroEffectCase(
+                "target", -5, 5, ctx(OPP_MONEY=100), support_group="target",
+                dataset_role="target_capability", required_target_positive=True, required_target_l2w=True,
+            ),
+            MacroEffectCase("harm", 10, 1, ctx(OPP_MONEY=99), support_group="harm", dataset_role="validation"),
+        ]
+        report = threshold_robustness(gate, rows, radius=2)
+        selected = next(x for x in report if x["offset"] == 0)
+        self.assertEqual(selected.get("target_positive"), 1)
+        self.assertEqual(selected.get("target_loss_to_win"), 1)
+        self.assertEqual(selected.get("support_groups"), 1)
+        self.assertEqual(selected.get("first_unsafe_lower"), 99)
+        self.assertIsNone(selected.get("first_unsafe_upper"))
+
+    def test_40_candidate50_real_artifact_gate_remains_target_capability_lost(self):
+        root = Path(__file__).resolve().parents[2] / "scratch/p0_7_large_scale_synthesis/stage_a/artifacts/d1d9f049ef48eb80ca8e522f"
+        candidate_dir = root / "candidate_50"
+        run_path = root / "synthesis_run.json"
+        frontier_path = Path(__file__).resolve().parents[2] / "scratch/p0_2_macro_cegis/current140_7.tsv"
+        parent_teacher_path = candidate_dir / "audit_target_parent_teacher.b4fr"
+        final_path = candidate_dir / "audit_target_final.b4fr"
+        capture_path = candidate_dir / "audit_target_capture/step24.b4is"
+        if not all(p.exists() for p in (run_path, frontier_path, parent_teacher_path, final_path, capture_path)):
+            self.skipTest("local P0.7 candidate-50 exact CUDA audit unavailable")
+
+        from tools.bkg4_search.cuda_io import load_fragment_results
+        from tools.bkg4_search.information_state_io import load_r0
+
+        run = json.loads(run_path.read_text(encoding="utf-8"))
+        frontier = {row.case_id: row for row in synth.load_case_bank(frontier_path)}
+        target_cases = [frontier[case_id] for case_id in run["selected_family"]["case_ids"]]
+        _, parent_teacher = load_fragment_results(parent_teacher_path)
+        _, final_rows = load_fragment_results(final_path)
+        baseline = tuple(row[0] - row[1] for row in parent_teacher[0])
+        teacher = tuple(row[0] - row[1] for row in parent_teacher[1])
+        discovery = CandidateEvidence(
+            50, 212, "route_212.json", 24, 24,
+            baseline, tuple(t - b for b, t in zip(baseline, teacher)),
+            tuple(17 for _ in baseline),
+        )
+        contexts, _, _ = synth._capture_contexts(load_r0(capture_path))
+        gate = ((ConditionGene("OPP_MONEY", "LE", 0, 22),),)
+        active = [cegis_mod.gate_hits(gate, context) for context in contexts]
+        final_margins = [row[0] - row[1] for row in final_rows[0]]
+        report = synth.assess_target_capability(target_cases, discovery, final_margins, active)
+
+        self.assertEqual(sum(active), 0)
+        self.assertEqual(discovery.deltas, (6271, 6271, 104, 4155, 4155, 104))
+        self.assertEqual(sum(b < 0 < t for b, t in zip(baseline, teacher)), 4)
+        self.assertFalse(report.accepted)
+        self.assertEqual(report.failure_reason, synth.TARGET_CAPABILITY_LOST)
+        self.assertEqual(report.preserved_positive, 0)
+        self.assertEqual(report.preserved_loss_to_win, 0)
+
+    def test_41_independent_transfer_is_retained_and_simple_gate_wins_when_safe(self):
+        discovery = [
+            MacroEffectCase(
+                "target", -5, 5, ctx(OPP_UNITS=8, OPP_LAND=2), support_group="target",
+                dataset_role="target_capability", required_target_positive=True, required_target_l2w=True,
+            ),
+            MacroEffectCase(
+                "transfer", -4, 4, ctx(OPP_UNITS=8, OPP_LAND=3), support_group="independent",
+                dataset_role="transfer",
+            ),
+        ]
+        counterexamples = [
+            MacroEffectCase("harm", 10, 1, ctx(OPP_UNITS=7, OPP_LAND=2), support_group="harm", dataset_role="transfer")
+        ]
+        result = run_cegis(discovery, counterexamples, (), max_conditions=4, max_iterations=4)
+        self.assertEqual(result.final_gate, ((ConditionGene("OPP_UNITS", "GE", 0, 8),),))
+        self.assertEqual(result.final_score.complexity, 1)
+        self.assertEqual(result.final_score.target_positive, 1)
+        self.assertEqual(result.final_score.support_groups, 2)
+        self.assertEqual(result.final_score.positive, 2)
+
+    def test_42_sealed_holdout_harm_rejects_without_becoming_cegis_training_data(self):
+        discovery = [MacroEffectCase("p", -5, 5, ctx(OPP_UNITS=8), dataset_role="transfer")]
+        counterexamples = [MacroEffectCase("h", 10, 1, ctx(OPP_UNITS=7), dataset_role="transfer")]
+        result = run_cegis(discovery, counterexamples, (), max_conditions=4, max_iterations=4)
+        self.assertIsNotNone(result.final_gate)
+        frozen_trace = result.canonical()
+        sealed = [MacroEffectCase("sealed:h", 10, 1, ctx(OPP_UNITS=8), dataset_role="sealed_holdout")]
+        assess = getattr(synth, "assess_sealed_holdout", None)
+        self.assertTrue(callable(assess), "sealed holdout must have an explicit frozen-gate acceptance contract")
+        report = assess(result.final_gate, sealed)
+        self.assertFalse(report.accepted)
+        self.assertEqual(report.failure_reason, synth.HOLDOUT_FAILURE)
+        self.assertEqual(report.score.harmful, 1)
+        self.assertEqual(result.canonical(), frozen_trace)
+        self.assertNotIn("sealed_holdout", {role for row in result.trace for role in row.synthesis_dataset_roles})
+
+    def test_43_final_gate_must_retain_independent_transfer_support(self):
+        gate = ((ConditionGene("OPP_LAND", "EQ", 0, 2),),)
+        transfer = [
+            MacroEffectCase("t1", -5, 5, ctx(OPP_LAND=1), support_group="trajectory_a", dataset_role="transfer"),
+            MacroEffectCase("t2", -4, 4, ctx(OPP_LAND=3), support_group="trajectory_b", dataset_role="transfer"),
+        ]
+        assess = getattr(synth, "assess_transfer_gate_support", None)
+        self.assertTrue(callable(assess), "final gated transfer support contract is missing")
+        report = assess(gate, transfer, min_positive=2, min_independent=2)
+        self.assertFalse(report.accepted)
+        self.assertEqual(report.failure_reason, synth.NON_TRANSFERABLE)
+        self.assertEqual(report.positive, 0)
+        self.assertEqual(report.independent_positive_support, 0)
+
+        broad = ((ConditionGene("OPP_LAND", "GE", 0, 1),),)
+        report = assess(broad, transfer, min_positive=2, min_independent=2)
+        self.assertTrue(report.accepted)
+        self.assertEqual(report.positive, 2)
+        self.assertEqual(report.independent_positive_support, 2)
+
+    def test_44_cegis_rejects_when_compact_gate_cannot_preserve_required_target(self):
+        discovery = [
+            MacroEffectCase(
+                "target", -5, 5, ctx(OPP_MONEY=100, OPP_LAND=1), support_group="target",
+                dataset_role="target_capability", required_target_positive=True, required_target_l2w=True,
+            ),
+            MacroEffectCase("transfer", -5, 5, ctx(OPP_MONEY=10, OPP_LAND=2), support_group="transfer", dataset_role="transfer"),
+        ]
+        counterexamples = [
+            MacroEffectCase("harm", 10, 1, ctx(OPP_MONEY=100, OPP_LAND=1), support_group="harm", dataset_role="transfer")
+        ]
+        result = run_cegis(discovery, counterexamples, (), max_conditions=4, max_iterations=4)
+        self.assertIsNone(result.final_gate)
+        self.assertEqual(result.stop_reason, synth.TARGET_CAPABILITY_LOST)
+        self.assertTrue(result.trace)
+        self.assertEqual(result.trace[-1].rejection_reason, synth.TARGET_CAPABILITY_LOST)
+
 
 
 if __name__ == "__main__":

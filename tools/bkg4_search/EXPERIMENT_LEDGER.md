@@ -231,3 +231,25 @@ Composition semantic ID: `7d66b2f808437b24344d3c2132334540126c1fd34c84f3ed0e7abf
 P0.5 terminal verdict: **VALIDATED.** Current composition is data rather than route-specific controller surgery. The bounded composer rejects undeclared authority overlap, bad ownership, invalid precedence and unsupported resume behavior, while producing the exact P0.4 executable policy. Proceed to P0.6 end-to-end synthesis orchestration; do not add a fourth specialist manually first.
 
 Permanent evidence: `tools/bkg4_search/P0_5_AUTOMATIC_COMPOSER.md`.
+
+
+## 2026-08-26 — P0.6 generic CEGIS foundation hardening
+
+| Validation | Scope | Result | Decision |
+|---|---:|---|---|
+| Prior `run_cegis()` audit | fixed discovery/counterexample set + validation | validation harms only skipped pre-ranked gates; no feedback/resynthesis; no-harm branch could return despite validation harm | **Correctness defect confirmed** |
+| Active counterexample TDD | synthetic exact legal-state fixtures | validation harm appended to evidence, resynthesis performed, safe convergence/mixed/no-separator/budget reasons explicit | **Active CEGIS pass** |
+| Target-capability synthesis | required target positive + required target L->W fixtures | target rescue outranks unrelated transfer; zero required target support fails inside CEGIS as `TARGET_CAPABILITY_LOST` | **Original capability is a synthesis constraint** |
+| Gated transfer contract | independent transfer fixtures | final gate must retain configured positive + independent support or reject `NON_TRANSFERABLE` | **Transfer cannot be discarded by target routing** |
+| Frozen sealed holdout | explicit pure contract | sealed harm rejects `HOLDOUT_FAILURE`; sealed rows do not enter CEGIS evidence | **Leakage guard pass** |
+| Exact ambiguity / identity | registry+BB+compat collision + identity tests | mixed exact legal state fails closed; identity-like features rejected; `OWN_SEED` legal exception preserved | **Legal-state pass** |
+| Threshold trace | numeric-neighbor fixture | target support, support groups, W->L and first unsafe lower/upper boundaries recorded | **Auditability pass** |
+| Candidate-50 real artifact | persisted Stage-A route212@24x24 audit | macro 6/6 positive, 4 L->W; old `OPP_MONEY<=22` activates 0/6 target states (`OPP_MONEY=170`) and remains `TARGET_CAPABILITY_LOST` | **Regression pass** |
+| Historical gate evidence | all stored route435/410 exact CUDA effect/state panels | route435 14/14 positive, 7 L->W, 0 harm/W->L; route410 12/12 positive, 6 L->W, 0 harm/W->L; zero selected mixed cells | **Historical semantics preserved** |
+| Bounded regression suite | synthesizer + P0.1 + P0.2/P0.3/P0.4 + P0.5 composer | **99/99 PASS**; available CPU/CUDA decision parity tests pass | **Foundation regression pass** |
+| Repository cleanup | synthesis source tree only | removed self-ignored 4.3 GB EditFormer `.venv` + bytecode caches; no tracked historical/evidence file removed; scratch/data preserved | **Safe cleanup pass** |
+
+Current authoritative path: `tools/bkg4_search/SYNTHESIZER_ARCHITECTURE.md`.
+Permanent report: `tools/bkg4_search/P0_6_CEGIS_FOUNDATION_HARDENING.md`.
+
+P0.6 CEGIS foundation verdict: **VALIDATED / READY for a corrected P0.7 Stage-A CUDA campaign.** No Stage B, large search, official Python, EditFormer/corpus work, PSRO, push or submission was performed.
