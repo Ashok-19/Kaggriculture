@@ -325,8 +325,33 @@ mixed-state/target-capability contracts and the existing exact stored-artifact
 regression. A stored route435 subset loaded from its actual `.b4fr`/`.b4is`
 panels traversed the adapter, incorporated two validation counterexamples, retained
 required target capability and independent transfer, and reached
-`SAFE_CONVERGENCE`. Hardened CEGIS itself is unchanged. No BKG4 materialization or
-composition is implemented yet.
+`SAFE_CONVERGENCE`. Hardened CEGIS itself is unchanged.
+
+## Deterministic BKG4 materialization
+
+Phase 11 maps an accepted v1/v2 `MacroProgram` and its frozen outer CEGIS DNF gate
+to a deterministic composer `SpecialistDeclaration`, ordinary bounded-route BKG4
+authority module, and an explicit collision-checked state map. The map owns the
+active latch, phase index, phase/program counters, up to two latched branch values,
+and the optional abort/recovery flags. Program semantics, gate semantics, and this
+mapping all enter the materialization ID; audit provenance does not enter runtime
+predicates.
+
+The action-side materialized executor preserves the validated post-action timing:
+the triggering action belongs to the current phase, a branch is evaluated once on
+the resulting legal observation, its continuation starts on the next action, and
+abort/final/recovery completion permanently returns to parent. FARMER, HANDS and
+MARKET precedence remains identical to the Phase-4 evaluator. The generated
+specialist uses the existing bounded-route composer authority and conflict checks;
+no second composer, gate grammar, VM ABI, or runtime Python dependency was added.
+
+The bounded validation covered inactive gate fallback, v1 masked multi-phase
+execution, every finite termination descriptor, reactive true/false decisions,
+branch latching, abort, recovery and parent return. Nine materialization tests,
+the existing 23-test composer regression, and the complete RLRMB suite produced
+zero semantic mismatches. The fixture costs one existing composer active latch plus
+three program-state slots; reactive fixtures add one slot per decision and only
+the abort/recovery slots they use.
 
 ## Current status
 
@@ -341,7 +366,8 @@ composition is implemented yet.
 - Phase 8 - bounded reactive branch, abort and recovery: validated.
 - Phase 9 - legal-routability pre-screen: validated.
 - Phase 10 - adapter to existing hardened CEGIS: validated.
-- Phases 11 and later: not implemented.
+- Phase 11 - deterministic BKG4 materialization and composition: validated.
+- Phases 12 and later: not implemented.
 
 ## Generated outputs
 
