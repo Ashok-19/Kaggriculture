@@ -253,6 +253,31 @@ W-to-L was introduced, and the repair entered a new archive cell. A separate exa
 fixture proves MARKET-only and HANDS-only repairs can both be insufficient while
 the explicit coupled repair succeeds. Evaluator parity remains unchanged.
 
+## Reactive IR v2
+
+Phase 8 adds an explicitly versioned reactive extension while preserving the v1
+open-loop encoding and execution contract. A v2 program may contain at most two
+latched decisions after bounded phase/event terminations. Each decision evaluates
+one legal `PublicCondition` on the post-action observable state and selects a
+forward phase, the single permitted abort-to-parent path, or the single permitted
+bounded recovery phase. Continuations are forward-only, recovery always returns
+to parent, and the program-wide cap still takes precedence, so cycles and
+unbounded execution are structurally impossible. Branch, abort, and recovery
+semantics share the same fixed host/device record and retain exact CPU/CUDA parity.
+
+The bounded family0 diagnostic used routes 211/212/420/421 around step 24 without
+SEALED data. Route 211 and the common parent route 64 share actions at steps 24 and
+25; their first material action divergence is step 26 (`CARE` versus `WEST`). A
+later-initiation probe at step 26 retained the original six target positives and
+four L-to-W outcomes, but the full legal-state registry still contained positive
+and harmful trajectories in the same cells. In particular, transfer cases 10 and
+83 have identical legal observations at every captured boundary from step 24
+through step 48 while route 211 changes their margins by +99 and -2965. A bounded
+v2 predicate probe retained the target vector `[6271,6271,104,4155,4155,104]`, but
+could not separate that exact pair. Family0 is therefore classified
+`FUTURE_DEPENDENT` under legal v2 semantics rather than given an identity- or
+future-dependent branch.
+
 ## Current status
 
 - Phase 0 - isolated package contract and baseline freeze: validated.
@@ -263,7 +288,8 @@ the explicit coupled repair succeeds. Evaluator parity remains unchanged.
 - Phase 5 - effect-vector quality-diversity archive: validated.
 - Phase 6 - hierarchical diverse beam search: validated.
 - Phase 7 - semantic large-neighborhood search repair: validated.
-- Phases 8 and later: not implemented.
+- Phase 8 - bounded reactive branch, abort and recovery: validated.
+- Phases 9 and later: not implemented.
 
 ## Generated outputs
 

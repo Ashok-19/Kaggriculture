@@ -13,6 +13,7 @@ from .checkpoints import CHECKPOINT_SCHEMA_VERSION, Checkpoint, EventType, Lane
 from .schema import FORBIDDEN_RUNTIME_IDENTITY_FIELDS, stable_identity, validate_runtime_identity_safe
 
 IR_SCHEMA_VERSION = 1
+REACTIVE_IR_SCHEMA_VERSION = 2
 ACTION_HORIZON = 719
 MAX_PHASES = 4
 
@@ -50,6 +51,63 @@ class TerminationType(str, Enum):
 
 class FallbackPolicy(str, Enum):
     RETURN_TO_PARENT = "RETURN_TO_PARENT"
+
+
+class ContinuationKind(str, Enum):
+    PHASE = "PHASE"
+    ABORT_TO_PARENT = "ABORT_TO_PARENT"
+    RECOVERY = "RECOVERY"
+
+
+@dataclass(frozen=True)
+class Continuation:
+    kind: ContinuationKind
+    phase_index: int | None = None
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "kind", _enum(ContinuationKind, self.kind, "continuation kind"))
+        if self.kind is ContinuationKind.PHASE:
+            if type(self.phase_index) is not int or self.phase_index < 0:
+                raise ValueError("PHASE continuation requires a non-negative phase index")
+        elif self.phase_index is not None:
+            raise ValueError(f"{self.kind.value} does not accept a phase index")
+
+    def to_document(self) -> dict[str, Any]:
+        return {"kind": self.kind.value, "phase_index": self.phase_index}
+
+    @classmethod
+    def from_document(cls, document: Mapping[str, Any]) -> "Continuation":
+        _reject_unknown(document, {"kind", "phase_index"}, "continuation")
+        return cls(document.get("kind"), document.get("phase_index"))
+
+
+@dataclass(frozen=True)
+class DecisionPoint:
+    after_phase: int
+    predicate: "PublicCondition"
+    when_true: Continuation
+    when_false: Continuation
+
+    def __post_init__(self) -> None:
+        if type(self.after_phase) is not int or self.after_phase < 0:
+            raise ValueError("decision after_phase must be non-negative")
+        if not isinstance(self.predicate, PublicCondition):
+            raise TypeError("decision predicate must be a PublicCondition")
+        if self.predicate.feature in {"ALWAYS"}:
+            raise ValueError("reactive decisions require a material legal feature")
+        if not isinstance(self.when_true, Continuation) or not isinstance(self.when_false, Continuation):
+            raise TypeError("decision continuations must be Continuation values")
+
+    def to_document(self) -> dict[str, Any]:
+        return {"after_phase": self.after_phase, "predicate": self.predicate.to_document(),
+                "when_true": self.when_true.to_document(), "when_false": self.when_false.to_document()}
+
+    @classmethod
+    def from_document(cls, document: Mapping[str, Any]) -> "DecisionPoint":
+        _reject_unknown(document, {"after_phase", "predicate", "when_true", "when_false"}, "decision")
+        return cls(document.get("after_phase"), PublicCondition.from_document(document.get("predicate")),
+                   Continuation.from_document(document.get("when_true")),
+                   Continuation.from_document(document.get("when_false")))
 
 
 def _exact_positive(value: Any, field: str) -> int:
@@ -303,9 +361,11 @@ class MacroProgram:
     parent_fallback: FallbackPolicy = FallbackPolicy.RETURN_TO_PARENT
     provenance: tuple[str, ...] = ()
     schema_version: int = IR_SCHEMA_VERSION
+    decisions: tuple[DecisionPoint, ...] = ()
+    recovery_phase: Phase | None = None
 
     def __post_init__(self) -> None:
-        if type(self.schema_version) is not int or self.schema_version != IR_SCHEMA_VERSION:
+        if type(self.schema_version) is not int or self.schema_version not in {IR_SCHEMA_VERSION, REACTIVE_IR_SCHEMA_VERSION}:
             raise ValueError(f"unsupported IR schema version: {self.schema_version!r}")
         object.__setattr__(self, "lane", _enum(Lane, self.lane, "lane"))
         object.__setattr__(self, "parent_fallback", _enum(FallbackPolicy, self.parent_fallback, "parent fallback"))
@@ -327,9 +387,41 @@ class MacroProgram:
         if not isinstance(self.provenance, tuple) or any(type(item) is not str for item in self.provenance):
             raise TypeError("provenance must be a tuple of strings")
         object.__setattr__(self, "provenance", tuple(sorted(set(self.provenance))))
+        if self.schema_version == IR_SCHEMA_VERSION:
+            if self.decisions or self.recovery_phase is not None:
+                raise ValueError("reactive fields require IR schema version 2")
+            return
+        if not isinstance(self.decisions, (list, tuple)) or len(self.decisions) > 2:
+            raise ValueError("IR v2 permits at most two decision points")
+        if any(not isinstance(item, DecisionPoint) for item in self.decisions):
+            raise TypeError("decisions must contain DecisionPoint values")
+        ordered = tuple(sorted(self.decisions, key=lambda item: item.after_phase))
+        if len({item.after_phase for item in ordered}) != len(ordered):
+            raise ValueError("only one decision may occur after a phase")
+        object.__setattr__(self, "decisions", ordered)
+        aborts = recoveries = 0
+        for decision in ordered:
+            if decision.after_phase >= len(self.phases):
+                raise ValueError("decision boundary phase is out of range")
+            for continuation in (decision.when_true, decision.when_false):
+                aborts += continuation.kind is ContinuationKind.ABORT_TO_PARENT
+                recoveries += continuation.kind is ContinuationKind.RECOVERY
+                if continuation.kind is ContinuationKind.PHASE:
+                    if continuation.phase_index >= len(self.phases) or continuation.phase_index <= decision.after_phase:
+                        raise ValueError("reactive control flow must be forward-only and acyclic")
+        if aborts > 1:
+            raise ValueError("IR v2 permits one abort-to-parent path")
+        if recoveries > 1:
+            raise ValueError("IR v2 permits one recovery path")
+        if recoveries and not isinstance(self.recovery_phase, Phase):
+            raise ValueError("RECOVERY continuation requires one bounded recovery phase")
+        if not recoveries and self.recovery_phase is not None:
+            raise ValueError("unused recovery phase is forbidden")
+        if self.recovery_phase is not None and self.recovery_phase.termination.max_steps > self.max_total_steps:
+            raise ValueError("recovery phase exceeds program cap")
 
     def to_document(self) -> dict[str, Any]:
-        return {
+        result = {
             "schema_version": self.schema_version,
             "lane": self.lane.value,
             "initiation": self.initiation.semantic_document(),
@@ -337,31 +429,41 @@ class MacroProgram:
             "max_total_steps": self.max_total_steps,
             "parent_fallback": self.parent_fallback.value,
         }
+        if self.schema_version == REACTIVE_IR_SCHEMA_VERSION:
+            result["decisions"] = [item.to_document() for item in self.decisions]
+            result["recovery_phase"] = None if self.recovery_phase is None else self.recovery_phase.to_document()
+        return result
 
     def to_artifact_document(self) -> dict[str, Any]:
         return {**self.to_document(), "semantic_id": self.semantic_id, "provenance": list(self.provenance)}
 
     @property
     def semantic_id(self) -> str:
-        return stable_identity("RLRMB-MACRO-PROGRAM-V1", self.to_document())
+        return stable_identity(f"RLRMB-MACRO-PROGRAM-V{self.schema_version}", self.to_document())
 
     @classmethod
     def from_document(cls, document: Mapping[str, Any]) -> "MacroProgram":
         if not isinstance(document, Mapping):
             raise TypeError("program document must be a mapping")
+        version = document.get("schema_version")
+        allowed = {"schema_version", "lane", "initiation", "phases", "max_total_steps", "parent_fallback"}
+        if version == REACTIVE_IR_SCHEMA_VERSION:
+            allowed |= {"decisions", "recovery_phase"}
         _reject_unknown(
-            document,
-            {"schema_version", "lane", "initiation", "phases", "max_total_steps", "parent_fallback"},
+            document, allowed,
             "program",
         )
         phases = document.get("phases")
         if not isinstance(phases, (list, tuple)):
             raise TypeError("program phases must be a sequence")
+        recovery_doc = document.get("recovery_phase")
         return cls(
             _enum(Lane, document.get("lane"), "lane"),
             _checkpoint_from_semantic_document(document.get("initiation")),
             tuple(Phase.from_document(item) for item in phases),
             document.get("max_total_steps"),
             _enum(FallbackPolicy, document.get("parent_fallback"), "parent fallback"),
-            schema_version=document.get("schema_version"),
+            schema_version=version,
+            decisions=tuple(DecisionPoint.from_document(item) for item in document.get("decisions", ())),
+            recovery_phase=None if recovery_doc is None else Phase.from_document(recovery_doc),
         )

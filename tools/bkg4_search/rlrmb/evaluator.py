@@ -13,6 +13,7 @@ from .canonical import canonical_action
 from .ir import (
     ActionFamily,
     ActionSource,
+    ContinuationKind,
     MacroProgram,
     Phase,
     PublicCondition,
@@ -27,6 +28,7 @@ _HEADER = struct.Struct("<8sII")
 _DEVICE_HEADER = struct.Struct("<IIIIII")
 _PROGRAM_RECORD = struct.Struct("<HHIBBBB32s")
 _PHASE_RECORD = struct.Struct("<BBBBHHHHiiBBBBii")
+_DECISION_RECORD = struct.Struct("<BBBBBBHHii")
 _MOTIF_RECORD = struct.Struct("<IHBB")
 _UNIT_RECORD = struct.Struct("<BBh")
 _ORDER_RECORD = struct.Struct("<BBi")
@@ -50,6 +52,9 @@ class FaultCode(IntEnum):
     INVALID_FEATURE = 8
     HORIZON_VIOLATION = 9
     INTERNAL_ERROR = 10
+    INVALID_DECISION = 11
+    INVALID_CONTINUATION = 12
+    INVALID_RECOVERY = 13
 
 
 class TerminationReason(IntEnum):
@@ -96,12 +101,17 @@ def encode_program_batch(programs: Sequence[MacroProgram], motifs: Mapping[str, 
     """Encode a deterministic versioned host artifact consumed by the CUDA loader."""
     if not programs:
         raise ValueError("program batch must not be empty")
-    referenced = {phase.motif_id for program in programs for phase in program.phases if phase.motif_id}
+    referenced = {
+        phase.motif_id
+        for program in programs
+        for phase in (*program.phases, *((program.recovery_phase,) if program.recovery_phase else ()))
+        if phase.motif_id
+    }
     missing = referenced - set(motifs)
     if missing:
         raise ValueError(f"missing motif references: {sorted(missing)}")
     for program in programs:
-        for phase in program.phases:
+        for phase in (*program.phases, *((program.recovery_phase,) if program.recovery_phase else ())):
             if phase.motif_id and not set(phase.action_families).issubset(motifs[phase.motif_id].supported_families):
                 raise ValueError("phase mask exceeds motif supported action families")
     payload = canonical_json(
@@ -155,11 +165,16 @@ def encode_device_batch(programs: Sequence[MacroProgram], motifs: Mapping[str, M
     """Flatten programs and shared motifs into the exact packed CUDA ABI."""
     if not programs:
         raise ValueError("program batch must not be empty")
-    motif_ids = sorted({phase.motif_id for item in programs for phase in item.phases if phase.motif_id})
+    motif_ids = sorted({
+        phase.motif_id
+        for item in programs
+        for phase in (*item.phases, *((item.recovery_phase,) if item.recovery_phase else ()))
+        if phase.motif_id
+    })
     if any(key not in motifs for key in motif_ids):
         raise ValueError("device batch is missing a referenced motif")
     for program in programs:
-        for phase in program.phases:
+        for phase in (*program.phases, *((program.recovery_phase,) if program.recovery_phase else ())):
             if phase.motif_id and not set(phase.action_families).issubset(motifs[phase.motif_id].supported_families):
                 raise ValueError("phase mask exceeds motif supported action families")
     motif_index = {key: index for index, key in enumerate(motif_ids)}
@@ -173,34 +188,63 @@ def encode_device_batch(programs: Sequence[MacroProgram], motifs: Mapping[str, M
         mask = sum({ActionFamily.FARMER: 1, ActionFamily.HANDS: 2, ActionFamily.MARKET: 4}[family] for family in item.supported_families)
         motif_records.append(_MOTIF_RECORD.pack(first, len(document["action_block"]), mask, 0))
     phase_records: list[bytes] = []
+    decision_records: list[bytes] = []
     program_records: list[bytes] = []
     sources = {source: index for index, source in enumerate(ActionSource)}
     terminations = {kind: index for index, kind in enumerate(TerminationType)}
     objectives = {None: 0, "BUY_LAND": 1, "HIRE": 2, "BUY_ANIMAL": 3, "BUY_SEED": 4, "BUY_PRODUCT": 5}
+    continuation_kinds = {
+        ContinuationKind.PHASE: 0,
+        ContinuationKind.ABORT_TO_PARENT: 1,
+        ContinuationKind.RECOVERY: 2,
+    }
+
+    def pack_phase(phase: Phase) -> bytes:
+        condition = phase.termination.condition
+        feature = _FEATURES.index(condition.feature) if condition else 0
+        comparator = {"EQ": 0, "NE": 1, "LE": 2, "GE": 3}[condition.comparator] if condition else 0
+        parameters = dict(phase.parameters)
+        primitive = 1 if phase.primitive_name == "LIQUIDITY_REBALANCE" else (0 if phase.action_source is not ActionSource.PARAMETERIZED_PRIMITIVE else 255)
+        primitive_item = _ITEMS.index(parameters.get("mode", "WHEAT")) if parameters.get("mode", "WHEAT") in _ITEMS else 255
+        mask = sum({ActionFamily.FARMER: 1, ActionFamily.HANDS: 2, ActionFamily.MARKET: 4}[family] for family in phase.action_families)
+        return _PHASE_RECORD.pack(
+            sources[phase.action_source], mask, terminations[phase.termination.kind], primitive,
+            phase.termination.max_steps, motif_index.get(phase.motif_id, 0xFFFF), feature, comparator,
+            condition.index if condition else 0, condition.value if condition else 0,
+            objectives[phase.termination.objective], primitive_item, int(parameters.get("enabled", False)), 0,
+            phase.termination.target_count or 0, int(parameters.get("quantity", 0)),
+        )
+
     for item in programs:
         phase_first = len(phase_records)
         for phase in item.phases:
-            condition = phase.termination.condition
-            feature = _FEATURES.index(condition.feature) if condition else 0
-            comparator = {"EQ": 0, "NE": 1, "LE": 2, "GE": 3}[condition.comparator] if condition else 0
-            parameters = dict(phase.parameters)
-            primitive = 1 if phase.primitive_name == "LIQUIDITY_REBALANCE" else (0 if phase.action_source is not ActionSource.PARAMETERIZED_PRIMITIVE else 255)
-            primitive_item = _ITEMS.index(parameters.get("mode", "WHEAT")) if parameters.get("mode", "WHEAT") in _ITEMS else 255
-            mask = sum({ActionFamily.FARMER: 1, ActionFamily.HANDS: 2, ActionFamily.MARKET: 4}[family] for family in phase.action_families)
-            phase_records.append(_PHASE_RECORD.pack(
-                sources[phase.action_source], mask, terminations[phase.termination.kind], primitive,
-                phase.termination.max_steps, motif_index.get(phase.motif_id, 0xFFFF), feature, comparator,
-                condition.index if condition else 0, condition.value if condition else 0,
-                objectives[phase.termination.objective], primitive_item, int(parameters.get("enabled", False)), 0,
-                phase.termination.target_count or 0, int(parameters.get("quantity", 0)),
+            phase_records.append(pack_phase(phase))
+        if item.recovery_phase is not None:
+            phase_records.append(pack_phase(item.recovery_phase))
+        decision_first = len(decision_records)
+        for decision in item.decisions:
+            def target(continuation):
+                return continuation.phase_index if continuation.phase_index is not None else 0xFF
+            decision_records.append(_DECISION_RECORD.pack(
+                decision.after_phase,
+                continuation_kinds[decision.when_true.kind], target(decision.when_true),
+                continuation_kinds[decision.when_false.kind], target(decision.when_false), 0,
+                _FEATURES.index(decision.predicate.feature),
+                {"EQ": 0, "NE": 1, "LE": 2, "GE": 3}[decision.predicate.comparator],
+                decision.predicate.index, decision.predicate.value,
             ))
+        if decision_first > 255:
+            raise ValueError("device batch decision table exceeds v2 record capacity")
         program_records.append(_PROGRAM_RECORD.pack(
-            item.initiation.step, item.max_total_steps, phase_first, len(item.phases), list(type(item.lane)).index(item.lane), 0, 0,
+            item.initiation.step, item.max_total_steps, phase_first, len(item.phases),
+            list(type(item.lane)).index(item.lane) | (0x80 if item.recovery_phase is not None else 0),
+            decision_first, len(item.decisions),
             bytes.fromhex(item.semantic_id),
         ))
+    version = 2 if any(item.schema_version == 2 for item in programs) else 1
     return b"".join((
-        _DEVICE_HEADER.pack(0x524C5234, 1, len(programs), len(phase_records), len(motif_records), len(actions)),
-        *program_records, *phase_records, *motif_records, *actions,
+        _DEVICE_HEADER.pack(0x524C5234, version, len(programs), len(phase_records), len(motif_records), len(actions)),
+        *program_records, *phase_records, *decision_records, *motif_records, *actions,
     ))
 
 
@@ -344,9 +388,14 @@ class ReferenceInterpreter:
         self._entry_purchase = 0
         self._pending_compatible = False
         self._had_action = False
+        self._in_recovery = False
 
     @property
     def phase(self) -> Phase:
+        if self._in_recovery:
+            if self.program.recovery_phase is None:
+                raise ValueError("active recovery has no recovery phase")
+            return self.program.recovery_phase
         return self.program.phases[self.phase_index]
 
     def _enter(self, observation: Mapping[str, Any]) -> None:
@@ -433,7 +482,41 @@ class ReferenceInterpreter:
         if reason is TerminationReason.NONE:
             return
         self.last_termination = reason
-        if self.phase_index + 1 == len(self.program.phases) or self.program_steps >= self.program.max_total_steps:
+        if self._in_recovery or self.program_steps >= self.program.max_total_steps:
+            self.active = False
+            self.complete = True
+            return
+        decision = next((item for item in self.program.decisions if item.after_phase == self.phase_index), None)
+        if decision is not None:
+            try:
+                matched = _condition_matches(decision.predicate, post_observation)
+            except (IndexError, KeyError, TypeError, ValueError):
+                self.fault = FaultCode.INVALID_FEATURE
+                return
+            continuation = decision.when_true if matched else decision.when_false
+            if continuation.kind is ContinuationKind.ABORT_TO_PARENT:
+                self.active = False
+                self.complete = True
+                return
+            if continuation.kind is ContinuationKind.RECOVERY:
+                if self.program.recovery_phase is None:
+                    self.fault = FaultCode.INVALID_RECOVERY
+                    return
+                self._in_recovery = True
+                self.active = False
+                self._had_action = True
+                return
+            if continuation.kind is ContinuationKind.PHASE:
+                if continuation.phase_index is None or continuation.phase_index <= self.phase_index or continuation.phase_index >= len(self.program.phases):
+                    self.fault = FaultCode.INVALID_CONTINUATION
+                    return
+                self.phase_index = continuation.phase_index
+                self.active = False
+                self._had_action = True
+                return
+            self.fault = FaultCode.INVALID_CONTINUATION
+            return
+        if self.phase_index + 1 == len(self.program.phases):
             self.active = False
             self.complete = True
             return

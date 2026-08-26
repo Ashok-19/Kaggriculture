@@ -22,6 +22,9 @@ from tools.bkg4_search.rlrmb.evaluator import (
 from tools.bkg4_search.rlrmb.ir import (
     ActionFamily,
     ActionSource,
+    Continuation,
+    ContinuationKind,
+    DecisionPoint,
     MacroProgram,
     Phase,
     PublicCondition,
@@ -70,7 +73,72 @@ def program(*phases, step=0, cap=16):
     return MacroProgram(Lane.GENERAL, checkpoint(step), phases, cap)
 
 
+def reactive(phases, decisions, *, recovery=None, step=0, cap=16):
+    return MacroProgram(
+        Lane.GENERAL, checkpoint(step), tuple(phases), cap,
+        schema_version=2, decisions=tuple(decisions), recovery_phase=recovery,
+    )
+
+
 class EvaluatorParityTests(unittest.TestCase):
+    def test_reactive_true_false_branch_timing_and_latching(self):
+        motifs = [motif({**PASS, "farmer": [direction]}, count=2) for direction in ("NORTH", "SOUTH", "EAST")]
+        phases = tuple(phase(families=(ActionFamily.FARMER,), motif_id=item.semantic_id) for item in motifs)
+        decision = DecisionPoint(
+            0, PublicCondition("OWN_MONEY", "GE", value=3000),
+            Continuation(ContinuationKind.PHASE, 1), Continuation(ContinuationKind.PHASE, 2),
+        )
+        for money, expected in ((3000, ["NORTH", "SOUTH"]), (2999, ["NORTH", "EAST"])):
+            with self.subTest(money=money):
+                runner = ReferenceInterpreter(reactive(phases, (decision,), cap=2), {item.semantic_id: item for item in motifs})
+                seen = []
+                for step in range(2):
+                    seen.append(runner.action(obs(step, money=money), PARENT)["farmer"][0])
+                    runner.observe(obs(step + 1, money=money))
+                self.assertEqual(seen, expected)
+
+    def test_reactive_two_decisions_abort_and_recovery(self):
+        motifs = [motif({**PASS, "farmer": [direction]}, count=2) for direction in ("NORTH", "SOUTH", "EAST", "WEST")]
+        phases = tuple(phase(families=(ActionFamily.FARMER,), motif_id=item.semantic_id) for item in motifs[:3])
+        first = DecisionPoint(0, PublicCondition("DAY", "GE", value=0), Continuation(ContinuationKind.PHASE, 1), Continuation(ContinuationKind.ABORT_TO_PARENT))
+        second = DecisionPoint(1, PublicCondition("OWN_MONEY", "GE", value=3000), Continuation(ContinuationKind.PHASE, 2), Continuation(ContinuationKind.RECOVERY))
+        lookup = {item.semantic_id: item for item in motifs}
+        normal = ReferenceInterpreter(reactive(phases, (first, second), recovery=phase(families=(ActionFamily.FARMER,), motif_id=motifs[3].semantic_id), cap=3), lookup)
+        recovered = ReferenceInterpreter(reactive(phases, (first, second), recovery=phase(families=(ActionFamily.FARMER,), motif_id=motifs[3].semantic_id), cap=3), lookup)
+        normal_seen = []
+        recovered_seen = []
+        for step in range(3):
+            normal_seen.append(normal.action(obs(step, money=3000), PARENT)["farmer"][0]); normal.observe(obs(step + 1, money=3000))
+            recovered_seen.append(recovered.action(obs(step, money=1), PARENT)["farmer"][0]); recovered.observe(obs(step + 1, money=1))
+        self.assertEqual(normal_seen, ["NORTH", "SOUTH", "EAST"])
+        self.assertEqual(recovered_seen, ["NORTH", "SOUTH", "WEST"])
+        self.assertEqual(recovered.action(obs(3, money=1), PARENT), PARENT)
+
+        abort = DecisionPoint(0, PublicCondition("OWN_MONEY", "GE", value=3000), Continuation(ContinuationKind.PHASE, 1), Continuation(ContinuationKind.ABORT_TO_PARENT))
+        stopped = ReferenceInterpreter(reactive(phases[:2], (abort,), cap=2), lookup)
+        stopped.action(obs(0, money=1), PARENT); stopped.observe(obs(1, money=1))
+        self.assertEqual(stopped.action(obs(1, money=1), PARENT), PARENT)
+        self.assertTrue(stopped.complete)
+
+    def test_reactive_global_cap_precedes_branch(self):
+        m = motif(count=1)
+        phases = (phase(motif_id=m.semantic_id), phase(motif_id=m.semantic_id))
+        decision = DecisionPoint(0, PublicCondition("DAY", "GE", value=0), Continuation(ContinuationKind.PHASE, 1), Continuation(ContinuationKind.ABORT_TO_PARENT))
+        runner = ReferenceInterpreter(reactive(phases, (decision,), cap=1), {m.semantic_id: m})
+        runner.action(obs(0), PARENT); runner.observe(obs(1))
+        self.assertTrue(runner.complete)
+        self.assertEqual(runner.action(obs(1), PARENT), PARENT)
+
+    def test_reactive_device_encoding_is_versioned_and_includes_recovery_motif(self):
+        main = motif({**PASS, "farmer": ["NORTH"]}, count=1)
+        recovery = motif({**PASS, "farmer": ["WEST"]}, count=1)
+        phases = (phase(families=(ActionFamily.FARMER,), motif_id=main.semantic_id),)
+        decision = DecisionPoint(0, PublicCondition("OWN_MONEY", "GE", value=3000), Continuation(ContinuationKind.ABORT_TO_PARENT), Continuation(ContinuationKind.RECOVERY))
+        candidate = reactive(phases, (decision,), recovery=phase(families=(ActionFamily.FARMER,), motif_id=recovery.semantic_id), cap=2)
+        payload = encode_device_batch((candidate,), {main.semantic_id: main, recovery.semantic_id: recovery})
+        magic, version, programs, phases_count, motifs_count, actions_count = struct.unpack_from("<IIIIII", payload)
+        self.assertEqual((magic, version, programs, phases_count, motifs_count, actions_count), (0x524C5234, 2, 1, 2, 2, 2))
+
     def test_host_encoding_round_trip_and_version_rejection(self):
         m = motif()
         original = program(phase(motif_id=m.semantic_id), cap=1)
@@ -282,6 +350,16 @@ class EvaluatorParityTests(unittest.TestCase):
             program(*(phase(motif_id=shared.semantic_id) for _ in range(4)), cap=4),
             program(phase(motif_id=shared.semantic_id), step=718, cap=1),
         ))
+        branch_true = DecisionPoint(0, PublicCondition("OWN_MONEY", "GE", value=0), Continuation(ContinuationKind.PHASE, 1), Continuation(ContinuationKind.ABORT_TO_PARENT))
+        branch_false = DecisionPoint(0, PublicCondition("OWN_MONEY", "GE", value=1_000_000), Continuation(ContinuationKind.PHASE, 1), Continuation(ContinuationKind.ABORT_TO_PARENT))
+        two_first = DecisionPoint(0, PublicCondition("DAY", "GE", value=0), Continuation(ContinuationKind.PHASE, 1), Continuation(ContinuationKind.ABORT_TO_PARENT))
+        two_second = DecisionPoint(1, PublicCondition("OWN_MONEY", "GE", value=1_000_000), Continuation(ContinuationKind.PHASE, 2), Continuation(ContinuationKind.RECOVERY))
+        candidates.extend((
+            reactive((phase(motif_id=shared.semantic_id), phase(motif_id=shared.semantic_id)), (branch_true,), cap=2),
+            reactive((phase(motif_id=shared.semantic_id), phase(motif_id=shared.semantic_id)), (branch_false,), cap=2),
+            reactive((phase(termination=Termination(TerminationType.NEXT_EOD, 3), motif_id=shared.semantic_id), phase(motif_id=shared.semantic_id)), (branch_true,), step=22, cap=3),
+            reactive((phase(motif_id=shared.semantic_id), phase(motif_id=shared.semantic_id), phase(motif_id=shared.semantic_id)), (two_first, two_second), recovery=phase(motif_id=shared.semantic_id), cap=3),
+        ))
         short = motif_from_actions([SOURCE], tuple(ActionFamily)); motifs[short.semantic_id] = short
         candidates.extend((
             program(phase(termination=Termination(TerminationType.FIXED_CAP, 2), motif_id=short.semantic_id), cap=2),
@@ -323,7 +401,7 @@ class EvaluatorParityTests(unittest.TestCase):
             started = time.perf_counter(); profile_run = subprocess.run(profile_command, cwd=root, capture_output=True, text=True); profile_host = time.perf_counter() - started
             self.assertEqual(profile_run.returncode, 1)
             count, case_count, profile_rows = decode_device_results(profile_output.read_bytes())
-            self.assertEqual((count, case_count, len(profile_rows)), (24, 2, 48))
+            self.assertEqual((count, case_count, len(profile_rows)), (len(candidates), 2, len(candidates) * 2))
             print(f"phase4_batch_2d_profile host_s={profile_host:.6f} {profile_run.stdout.strip()}")
         self.assertEqual(len(actual), len(expected))
         for index, (cpu, gpu) in enumerate(zip(expected, actual)):

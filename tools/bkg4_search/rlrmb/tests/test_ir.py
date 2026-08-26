@@ -9,6 +9,9 @@ from tools.bkg4_search.rlrmb.checkpoints import Checkpoint, EventType, Lane
 from tools.bkg4_search.rlrmb.ir import (
     ActionFamily,
     ActionSource,
+    Continuation,
+    ContinuationKind,
+    DecisionPoint,
     FallbackPolicy,
     MacroProgram,
     Phase,
@@ -44,6 +47,39 @@ def program(*phases: Phase, step: int = 120, lane: Lane = Lane.GENERAL, cap: int
 
 
 class OptionProgramIRTests(unittest.TestCase):
+    def reactive(self, decisions, recovery=None):
+        phases=(donor_phase("a"*64,4),donor_phase("b"*64,4),donor_phase("c"*64,4),donor_phase("d"*64,4))
+        return MacroProgram(Lane.GENERAL,checkpoint(),phases,16,schema_version=2,
+                            decisions=tuple(decisions),recovery_phase=recovery)
+
+    def test_v2_one_two_decisions_round_trip_and_three_reject(self):
+        d1=DecisionPoint(0,PublicCondition("OWN_MONEY","GE",value=1000),Continuation(ContinuationKind.PHASE,1),Continuation(ContinuationKind.PHASE,2))
+        d2=DecisionPoint(2,PublicCondition("DAY","GE",value=1),Continuation(ContinuationKind.PHASE,3),Continuation(ContinuationKind.ABORT_TO_PARENT))
+        item=self.reactive((d1,d2)); restored=MacroProgram.from_document(item.to_document())
+        self.assertEqual(restored.semantic_id,item.semantic_id)
+        with self.assertRaises(ValueError):
+            MacroProgram(Lane.GENERAL,checkpoint(),item.phases,16,schema_version=2,decisions=(d1,d2,DecisionPoint(1,PublicCondition("DAY","GE",value=1),Continuation(ContinuationKind.PHASE,2),Continuation(ContinuationKind.PHASE,3))))
+
+    def test_v2_material_branch_semantics_change_identity(self):
+        base=DecisionPoint(0,PublicCondition("OWN_MONEY","GE",value=1000),Continuation(ContinuationKind.PHASE,1),Continuation(ContinuationKind.PHASE,2))
+        variants=(DecisionPoint(0,PublicCondition("OWN_MONEY","GE",value=2000),base.when_true,base.when_false),
+                  DecisionPoint(0,base.predicate,Continuation(ContinuationKind.PHASE,2),base.when_false),
+                  DecisionPoint(0,base.predicate,base.when_true,Continuation(ContinuationKind.ABORT_TO_PARENT)))
+        self.assertTrue(all(self.reactive((base,)).semantic_id!=self.reactive((item,)).semantic_id for item in variants))
+
+    def test_v2_abort_recovery_limits_and_cycles(self):
+        recovery=donor_phase("d"*64,2)
+        valid=DecisionPoint(0,PublicCondition("DAY","GE",value=1),Continuation(ContinuationKind.RECOVERY),Continuation(ContinuationKind.ABORT_TO_PARENT))
+        self.assertTrue(self.reactive((valid,),recovery))
+        with self.assertRaises(ValueError): self.reactive((DecisionPoint(0,valid.predicate,Continuation(ContinuationKind.ABORT_TO_PARENT),Continuation(ContinuationKind.ABORT_TO_PARENT)),))
+        with self.assertRaises(ValueError): self.reactive((DecisionPoint(1,valid.predicate,Continuation(ContinuationKind.PHASE,0),Continuation(ContinuationKind.PHASE,2)),))
+        with self.assertRaises(ValueError): self.reactive((DecisionPoint(0,valid.predicate,Continuation(ContinuationKind.RECOVERY),Continuation(ContinuationKind.PHASE,1)),),None)
+
+    def test_v2_identity_and_future_fields_reject(self):
+        for feature in ("opponent_name","replay_id","FUTURE_SHOP"):
+            with self.subTest(feature=feature),self.assertRaises((ValueError,TypeError)):
+                DecisionPoint(0,PublicCondition(feature,"EQ",value=1),Continuation(ContinuationKind.PHASE,1),Continuation(ContinuationKind.PHASE,2))
+
     def test_minimal_valid_program_is_deterministic(self) -> None:
         item = program(donor_phase(), cap=12)
         self.assertEqual(item, item)
@@ -191,7 +227,7 @@ class OptionProgramIRTests(unittest.TestCase):
 
     def test_unknown_schema_and_termination_reject(self) -> None:
         with self.assertRaises(ValueError):
-            MacroProgram(Lane.GENERAL, checkpoint(), (donor_phase(),), 12, schema_version=2)
+            MacroProgram(Lane.GENERAL, checkpoint(), (donor_phase(),), 12, schema_version=3)
         document = fixed().to_document()
         document["kind"] = "FOREVER"
         with self.assertRaises(ValueError):
