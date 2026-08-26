@@ -353,6 +353,23 @@ zero semantic mismatches. The fixture costs one existing composer active latch p
 three program-state slots; reactive fixtures add one slot per decision and only
 the abort/recovery slots they use.
 
+## Historical rediscovery benchmark
+
+Phase 12 recovered all three historical capability regimes with the leakage-safe
+`rediscovery_v1.json` configuration. The target screen used 55,512 CUDA games and
+generic downstream certification used 674 more. Programs `5f2908ffbc4d...`
+(route435-like), `d9d84cc72144...` (route410-like), and `3cf5f88ad023...`
+(route437-like) each reached `ROUTABLE_CANDIDATE`, hardened CEGIS
+`SAFE_CONVERGENCE`, and conflict-free deterministic BKG4 composition.
+
+The generic bridge evaluates role-separated panels, binds exact B4IS captures to
+candidate/case/boundary manifests, constructs Phase-9/10 evidence, and derives
+deployment route content from semantic motifs. No accepted historical tuple,
+threshold, gate, or declaration entered search or certification; SEALED remained
+outside discovery and routing. Protected W->L and CPU/CUDA/BKG4 semantic
+mismatches were both zero. Compact results are in
+`PHASE12_REDISCOVERY_RESULT.json`; raw evidence remains in ignored scratch.
+
 ## Current status
 
 - Phase 0 - isolated package contract and baseline freeze: validated.
@@ -367,7 +384,8 @@ the abort/recovery slots they use.
 - Phase 9 - legal-routability pre-screen: validated.
 - Phase 10 - adapter to existing hardened CEGIS: validated.
 - Phase 11 - deterministic BKG4 materialization and composition: validated.
-- Phases 12 and later: not implemented.
+- Phase 12 - leakage-safe historical rediscovery benchmark (3/3): validated.
+- Phases 13 and later: not implemented.
 
 ## Generated outputs
 
