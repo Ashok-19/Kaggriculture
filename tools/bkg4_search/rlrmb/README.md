@@ -278,6 +278,33 @@ could not separate that exact pair. Family0 is therefore classified
 `FUTURE_DEPENDENT` under legal v2 semantics rather than given an identity- or
 future-dependent branch.
 
+## Legal-routability pre-screen
+
+Phase 9 adds a bounded diagnostic before hardened outer CEGIS. It groups
+generation-time TARGET, TRANSFER and VALIDATION trajectories by the exact legal
+signature supplied by the existing capture path, compares the first required
+continuation divergence with the first legal-state divergence, and returns one of
+seven machine-readable outcomes: enter CEGIS, later-checkpoint repair,
+common-prefix repair, branch-at-reveal repair, abort/recovery repair, permanent
+`FUTURE_DEPENDENT` rejection, or suspected gate-vocabulary limitation. SEALED and
+CERTIFICATION evidence fail closed. Identity-like legal features also fail closed;
+offline provenance never contributes to classification or score.
+
+A tiny deterministic predicate scan reports legal/gate feature separation across
+stable support-group and seat partitions. It is diagnostic only and cannot
+override an exact collision. The score is likewise advisory: routable is 100,
+bounded repair classes are 50-65, gate limitation is 25, and future dependence is
+0. No result denotes specialist acceptance; `ROUTABLE_CANDIDATE` means only that
+the candidate is worth submitting to the unchanged hardened CEGIS in Phase 10.
+
+Stored non-sealed validation preserved the Phase-8 family0 result: required action
+divergence at step 26 with no legal divergence through step 48 is
+`FUTURE_DEPENDENT`. Candidate50 remains permanently non-promotable: its required
+target support participates in 30 exact untimely conflicts. Route435's 551
+non-neutral stored TARGET/TRANSFER/VALIDATION trajectories classify
+`ROUTABLE_CANDIDATE`; 64 mixed pairs concern optional positive support that outer
+CEGIS may safely decline, consistent with its historical successful gate.
+
 ## Current status
 
 - Phase 0 - isolated package contract and baseline freeze: validated.
@@ -289,7 +316,8 @@ future-dependent branch.
 - Phase 6 - hierarchical diverse beam search: validated.
 - Phase 7 - semantic large-neighborhood search repair: validated.
 - Phase 8 - bounded reactive branch, abort and recovery: validated.
-- Phases 9 and later: not implemented.
+- Phase 9 - legal-routability pre-screen: validated.
+- Phases 10 and later: not implemented.
 
 ## Generated outputs
 
