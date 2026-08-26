@@ -185,6 +185,43 @@ global aggregate leader because they represented different strategic niches.
 Scalar aggregate margin is therefore deliberately not the archive objective.
 Phase 5 adds no beam, candidate generation, game evaluation, or search campaign.
 
+## Hierarchical diverse beam
+
+Phase 6 adds the first constructive search path:
+
+```text
+ranked checkpoint -> deterministic seeds -> one semantic edit -> structural dedup
+-> one batched CUDA evaluation -> exact TARGET effects -> QD archive -> diverse elites
+```
+
+Seeds cover parent-only skeletons, generic historical motifs, masked semantic
+donor phases, and the already executable bounded liquidity primitive. The v1
+operators insert a phase, replace a phase source, move a boundary to an adjacent
+causal event, change only an action-family mask, truncate/extend to an event,
+mutate one bounded numeric parameter by one, or swap one semantic motif. Candidate
+ordering uses checkpoint rank, enum order, phase position, motif semantic ID, mask
+order and program semantic ID. Canonical program IDs remove structural duplicates
+before CUDA. One archive elite per effect cell supplies the next frontier, so no
+global scalar top-K list controls survival.
+
+Depth, phase count, candidates per layer and per-family CUDA games are hard caps.
+A projected batch is truncated before launch if it would exceed budget. Search
+stops on depth, budget, no expansions, or configured rounds with neither archive
+novelty nor safe target-quality improvement. CUDA faults are recorded as existing
+`CUDA_FAULT` failures and never enter the archive. No SEALED evidence is loaded.
+
+The validated bounded probe used one family-00 checkpoint at step 120, two TARGET
+cases, two semantic motifs, depth 1 and exactly 40 CUDA games in two launches. It
+evaluated 18 unique programs from 22 raw seed/expansion records, produced 11 exact
+effect signatures, and occupied 6 archive cells with 6 replacements. A generated
+two-phase program (`7d349d725379857cb0fb92d1efe913fc05c38fb7e9662a3eb0a253a82ce8e6c7`)
+applied a HANDS-only semantic splice followed by a MARKET-only splice from distinct
+motifs. It executed without fault, produced target deltas `[14755, 12452]`, replaced
+its archive elite, and remained retained. Its independently sourced ordered phases
+cannot be represented by one contiguous all-family donor fragment. The unchanged
+Phase-4 parity suite remained at zero CPU/CUDA mismatches. This was a construction
+proof, not a specialist search or acceptance claim.
+
 ## Current status
 
 - Phase 0 - isolated package contract and baseline freeze: validated.
@@ -193,7 +230,8 @@ Phase 5 adds no beam, candidate generation, game evaluation, or search campaign.
 - Phase 3 - Option-Program IR v1: validated.
 - Phase 4 - exact CPU/CUDA evaluator v1: validated.
 - Phase 5 - effect-vector quality-diversity archive: validated.
-- Phases 6 and later: not implemented.
+- Phase 6 - hierarchical diverse beam search: validated.
+- Phases 7 and later: not implemented.
 
 ## Generated outputs
 
