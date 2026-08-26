@@ -78,11 +78,40 @@ start 264, duration 24: 48
 This confirms that nominal donor count substantially overstates local behavioral
 diversity, especially in early windows. No search behavior changed in Phase 1.
 
+## Checkpoint selection
+
+Phase 2 adds immutable, versioned offline checkpoints for selecting where future
+candidate search should begin. Proposals carry a semantic step/lane/reason/state
+identity plus separate severity, regret, recurrence, both-seat, family and evidence
+bookkeeping. Offline family/provenance labels do not affect semantic identity or
+ranking and never become runtime routing state.
+
+Explicit trace flags and current action semantics produce regret, divergence, shop,
+day/EOD, land, labor, animal/structure, market, production/payoff and route/phase
+events. Only mechanics where a nearby decision boundary is meaningful receive
+bounded before/at/after proposals. Equivalent step/state proposals merge their
+reasons deterministically.
+
+Ranking is causal-first, then recurrence, both-seat support, recoverability, regret,
+severity, causal relevance and proximity to the event. Supported lanes are market
+liquidity, worker production, land investment, crop transition, animal transition,
+endgame liquidation, mechanic exploit and general. With no causal evidence, the
+only fallback is the sparse seven-step set `0,72,144,216,288,432,576`; fallback is
+always lower priority when explicitly included beside causal proposals.
+
+Read-only historical validation reached route435 step156, route410 step120 and
+route437 step264 at rank 1 in the appropriate worker-production,
+worker-production and animal-transition lanes respectively. All were reached from
+regret/effect and action-event evidence, not fallback or route-specific production
+rules. Phase 2 changes search control contracts only; it adds no candidate program
+or runtime behavior.
+
 ## Current status
 
 - Phase 0 - isolated package contract and baseline freeze: validated.
 - Phase 1 - structural and effect canonicalization: validated.
-- Phases 2 and later: not implemented.
+- Phase 2 - regret/event checkpoint selector: validated.
+- Phases 3 and later: not implemented.
 
 ## Generated outputs
 
