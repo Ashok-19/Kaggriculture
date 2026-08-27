@@ -69,6 +69,49 @@ def _copy_path(source: Path, destination_root: Path) -> None:
         shutil.copy2(source, destination)
 
 
+def _bundle_runtime_path(value: str) -> str:
+    path = Path(value)
+    if not path.is_absolute():
+        return value
+    try:
+        return path.resolve().relative_to(ROOT).as_posix()
+    except ValueError as exc:
+        raise ValueError(f"bundle runtime path escapes source repository: {path}") from exc
+
+
+def _relocate_runtime_manifests(config: dict, destination_root: Path) -> None:
+    panels = [config["transfer_panel"], config["validation_panel"], config["sealed_panel"],
+              *[row["target_panel"] for row in config["families"]]]
+    for relative in panels:
+        path = destination_root / relative
+        rewritten = []
+        for line in path.read_text(encoding="utf-8").splitlines():
+            if not line.strip() or line.startswith("#"):
+                rewritten.append(line)
+                continue
+            tape, separator, remainder = line.partition("\t")
+            if not separator:
+                raise ValueError(f"case panel row has no tab separator: {relative}")
+            bundled = _bundle_runtime_path(tape)
+            if not (destination_root / bundled).exists():
+                raise ValueError(f"case panel references missing bundled tape: {bundled}")
+            rewritten.append(f"{bundled}{separator}{remainder}")
+        path.write_text("\n".join(rewritten) + "\n", encoding="utf-8")
+
+    donor_manifest = destination_root / config["donor_manifest"]
+    rewritten_donors = []
+    for line in donor_manifest.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        bundled = _bundle_runtime_path(line.strip())
+        if not (destination_root / bundled).exists():
+            raise ValueError(f"donor manifest references missing bundled route: {bundled}")
+        rewritten_donors.append(bundled)
+    if not rewritten_donors:
+        raise ValueError("donor manifest is empty")
+    donor_manifest.write_text("\n".join(rewritten_donors) + "\n", encoding="utf-8")
+
+
 def _files(root: Path) -> Iterable[Path]:
     return sorted(path for path in root.rglob("*") if path.is_file())
 
@@ -82,6 +125,7 @@ def build_bundle(config_path: Path, output_dir: Path, archive: Path) -> dict:
     head = subprocess.run(("git", "rev-parse", "HEAD"), cwd=ROOT, check=True,
                           capture_output=True, text=True).stdout.strip()
     config = load_cloud_config(config_path.resolve())
+    _relocate_runtime_manifests(config, output_dir)
     included = [str(path.relative_to(output_dir)) for path in _files(output_dir)]
     included.append("phase16_bundle_manifest.json")
     included.sort()

@@ -131,5 +131,28 @@ class CloudTests(unittest.TestCase):
             self.assertEqual(sidecar["generated_bundle_bytes"],archive.stat().st_size)
             self.assertEqual(returned,sidecar)
 
+    def test_bundle_runtime_manifests_are_relocatable(self):
+        from tools.bkg4_search.rlrmb.cloud.build_lightning_bundle import build_bundle
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);output=root/"bundle";archive=root/"bundle.tar.gz"
+            build_bundle(CONFIG,output,archive)
+            config=load_cloud_config(CONFIG)
+            panels=[config["transfer_panel"],config["validation_panel"],config["sealed_panel"],
+                    *[row["target_panel"] for row in config["families"]]]
+            for relative in panels:
+                panel=output/relative
+                rows=[line for line in panel.read_text().splitlines() if line.strip() and not line.startswith("#")]
+                self.assertTrue(rows,relative)
+                for line in rows:
+                    tape=Path(line.split("\t",1)[0])
+                    self.assertFalse(tape.is_absolute(),f"{relative} embeds absolute tape path: {tape}")
+                    self.assertTrue((output/tape).exists(),f"{relative} references missing bundled tape: {tape}")
+            donors=output/config["donor_manifest"]
+            routes=[Path(line.strip()) for line in donors.read_text().splitlines() if line.strip()]
+            self.assertTrue(routes)
+            for route in routes:
+                self.assertFalse(route.is_absolute(),f"{config['donor_manifest']} embeds absolute donor path: {route}")
+                self.assertTrue((output/route).exists(),f"{config['donor_manifest']} references missing donor: {route}")
+
 
 if __name__=="__main__": unittest.main()
