@@ -52,7 +52,7 @@ def _copy_path(source: Path, destination_root: Path) -> None:
     relative = source.relative_to(ROOT)
     destination = destination_root / relative
     if source.is_dir():
-        if relative.parts[0] in {"tools", "cuda-engine", "cpp-engine", "bonsai-kg", "agent_system"}:
+        if relative.parts[0] in {"tools", "cuda-engine", "cpp-engine", "bonsai-kg", "agent_system"} and (ROOT / ".git").exists():
             tracked = subprocess.run(("git", "ls-files", "--", str(relative)), cwd=ROOT, check=True,
                                      capture_output=True, text=True).stdout.splitlines()
             for item in tracked:
@@ -116,14 +116,25 @@ def _files(root: Path) -> Iterable[Path]:
     return sorted(path for path in root.rglob("*") if path.is_file())
 
 
+def _source_head() -> str:
+    if (ROOT / ".git").exists():
+        return subprocess.run(("git", "rev-parse", "HEAD"), cwd=ROOT, check=True,
+                              capture_output=True, text=True).stdout.strip()
+    embedded = ROOT / "phase16_bundle_manifest.json"
+    if embedded.exists():
+        source_head = json.loads(embedded.read_text(encoding="utf-8")).get("source_head")
+        if isinstance(source_head, str) and source_head:
+            return source_head
+    raise ValueError("bundle source HEAD is unavailable without git metadata")
+
+
 def build_bundle(config_path: Path, output_dir: Path, archive: Path) -> dict:
     if output_dir.exists():
         raise ValueError("bundle output directory already exists")
     output_dir.mkdir(parents=True)
     for path in required_paths(config_path.resolve()):
         _copy_path(path, output_dir)
-    head = subprocess.run(("git", "rev-parse", "HEAD"), cwd=ROOT, check=True,
-                          capture_output=True, text=True).stdout.strip()
+    head = _source_head()
     config = load_cloud_config(config_path.resolve())
     _relocate_runtime_manifests(config, output_dir)
     included = [str(path.relative_to(output_dir)) for path in _files(output_dir)]
