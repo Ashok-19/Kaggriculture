@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "status": "LIGHTNING_BUNDLE_READY",
+  "source_start_head": "bd2e397bcdf9955c05410b097c6faa1995af7536",
+  "bundle": {
+    "archive": "scratch/rlrmb_phase16_bundle_20260827_06.tar.gz",
+    "archive_bytes": 6922467,
+    "archive_sha256": "d93feae3b608c4c1bff65f57836d35272c4d8ddbacbdd4dfa94692ed89745ad8",
+    "included_files": 943,
+    "isolated_bootstrap": "PASS",
+    "isolated_smoke_cuda_games": 108,
+    "isolated_smoke_verdict": "NO_SAFE_SPECIALIST_FOUND",
+    "isolated_semantic_mismatches": 0
+  },
+  "bounded_profile": {
+    "cases_per_checkpoint": 7,
+    "baseline": {
+      "wall_seconds": 9.30,
+      "cuda_games": 1008,
+      "candidates": 140,
+      "launches": 4,
+      "candidates_per_launch": 35.0,
+      "cuda_kernel_milliseconds": 2157.482,
+      "evaluator_host_seconds": 4.661335,
+      "end_to_end_games_per_second": 108.39,
+      "end_to_end_candidates_per_second": 15.05
+    },
+    "optimized": {
+      "wall_seconds": 6.98,
+      "cuda_games": 1022,
+      "candidates": 145,
+      "launches": 1,
+      "candidates_per_launch": 145.0,
+      "cuda_kernel_milliseconds": 595.494,
+      "evaluator_host_seconds": 2.422312,
+      "end_to_end_games_per_second": 146.42,
+      "end_to_end_candidates_per_second": 20.77
+    },
+    "wall_speedup_percent": 33.24,
+    "games_per_second_gain_percent": 35.09,
+    "candidate_per_second_gain_percent": 38.01
+  },
+  "evolving_bkg4": {
+    "atomic_generation_commit": true,
+    "partial_generation_commit": false,
+    "accepted_specialist_becomes_next_parent": true,
+    "live_champion_overwrite": false,
+    "resume_boundary": "LAST_COMMITTED_GENERATION"
+  },
+  "remote_execution": "NOT_PERFORMED"
+}

@@ -81,7 +81,7 @@ def _ensure_bridge() -> Path:
         return ext
     pyver = f"{sys.version_info.major}.{sys.version_info.minor}"
     subprocess.run([
-        "uv", "run", "--python", pyver, "--with", "pybind11", "python", str(BUILD_SCRIPT)
+        "uv", "run", "--python", pyver, "--with", "pybind11==3.1.0", "python", str(BUILD_SCRIPT)
     ], cwd=ROOT, check=True)
     ext = _extension_path()
     if ext is None:

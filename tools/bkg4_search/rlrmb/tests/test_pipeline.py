@@ -2,10 +2,11 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 from tools.bkg4_search.rlrmb.pipeline import (
     CaseMeta, ExactCaseEvidence, EXIT_ACCEPTED, EXIT_INFRASTRUCTURE, EXIT_STRATEGIC,
-    TerminalVerdict, build_routability_evidence, build_cegis_input,
-    emit_candidate_route, run_production_pipeline,
+    LegalStateCaptureCache, TerminalVerdict, build_routability_evidence, build_cegis_input,
+    capture_candidate_legal_states, emit_candidate_route, run_production_pipeline,
 )
 from tools.bkg4_search.rlrmb.routability import RoutabilityClassification, RoutabilityResult
 from tools.bkg4_search.rlrmb.schema import DatasetRole
@@ -35,6 +36,24 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual({x.role for x in evidence.trajectories},{DatasetRole.TARGET,DatasetRole.TRANSFER,DatasetRole.VALIDATION})
         bad=self.row("bad",DatasetRole.TARGET,2,candidate="other")
         with self.assertRaises(ValueError): build_routability_evidence(self.program,(bad,))
+
+    def test_outer_initiation_capture_is_reused_without_losing_candidate_binding(self):
+        other=program(Phase(ActionSource.PARENT,(),fixed(2)),cap=2)
+        cache=LegalStateCaptureCache()
+        def fake_run(command,**unused):
+            Path(command[command.index("--out")+1]).write_bytes(b"capture")
+            Path(command[command.index("--truth-out")+1]).write_bytes(b"truth")
+        with tempfile.TemporaryDirectory() as directory, \
+             patch("tools.bkg4_search.rlrmb.pipeline.subprocess.run",side_effect=fake_run), \
+             patch("tools.bkg4_search.rlrmb.pipeline.load_candidate_legal_states",side_effect=lambda p,r,*args:r):
+            root=Path(directory);cases=root/"cases.tsv";cases.write_text("unused\n")
+            first=(self.row("a",DatasetRole.TARGET,1,candidate=self.program.semantic_id),)
+            second=(self.row("b",DatasetRole.TARGET,1,candidate=other.semantic_id),)
+            capture_candidate_legal_states(self.program,first,cases,root/"one",capture_binary="capture",asset_dir=root,cache=cache)
+            capture_candidate_legal_states(other,second,cases,root/"two",capture_binary="capture",asset_dir=root,cache=cache)
+            self.assertEqual((cache.launches,cache.reuses),(1,1))
+            self.assertEqual((root/"one"/f"{self.program.semantic_id}.b4is").stat().st_ino,
+                             (root/"two"/f"{other.semantic_id}.b4is").stat().st_ino)
     def test_adapter_has_no_historical_gate_and_sealed_fails_closed(self):
         rows=(self.row("t",DatasetRole.TARGET,2),self.row("x",DatasetRole.TRANSFER,2,(2,)),self.row("v",DatasetRole.VALIDATION,0,(3,)))
         routing=RoutabilityResult(self.program.semantic_id,RoutabilityClassification.ROUTABLE_CANDIDATE,"ok",(),(),None,None,"ENTER_HARDENED_CEGIS",{},("TARGET","TRANSFER","VALIDATION"),100)

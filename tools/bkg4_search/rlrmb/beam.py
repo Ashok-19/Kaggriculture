@@ -351,17 +351,30 @@ def run_beam(
     family_ref: str, checkpoints: Sequence[Checkpoint], motif_library: Mapping[str, Motif],
     evaluator: Callable[[Sequence[MacroProgram], Mapping[str, Motif]], BatchEvaluation],
     config: BeamConfig, archive: Archive | None = None,
+    checkpoint_motifs: Mapping[int, Mapping[str, Motif]] | None = None,
 ) -> BeamResult:
     if type(family_ref) is not str or not family_ref:
         raise ValueError("family_ref must be non-empty offline bookkeeping")
     archive = archive or Archive()
-    seeds = generate_seeds(checkpoints, motif_library, config)
+    preparation_started = time.perf_counter()
+    if checkpoint_motifs is None:
+        seeds = generate_seeds(checkpoints, motif_library, config)
+    else:
+        missing = [checkpoint.step for checkpoint in checkpoints if checkpoint.step not in checkpoint_motifs]
+        if missing:
+            raise ValueError(f"checkpoint motif mapping is incomplete: {missing}")
+        seeds = tuple(item for checkpoint in checkpoints
+                      for item in generate_seeds((checkpoint,), checkpoint_motifs[checkpoint.step], config))
     raw_candidates = len(seeds)
+    dedup_started = time.perf_counter()
     pending, duplicates = deduplicate_candidates(seeds)
+    structural_dedup_seconds = time.perf_counter() - dedup_started
+    host_preparation_seconds = time.perf_counter() - preparation_started
     all_candidates: list[BeamCandidate] = []
     program_states: dict[str, BeamCandidate] = {}
     games = launches = evaluated_count = 0
     host_seconds = cuda_ms = 0.0
+    archive_update_seconds = serialization_seconds = result_parsing_seconds = subprocess_seconds = 0.0
     expansions_by_operator = {item.value: 0 for item in ExpansionOperator}
     expansions_by_depth: dict[str, int] = {}
     unique_effects: set[str] = set()
@@ -371,12 +384,14 @@ def run_beam(
 
     for depth in range(config.max_depth + 1):
         if depth > 0:
+            expansion_started = time.perf_counter()
             raw: list[BeamCandidate] = []
             parents = tuple(sorted(program_states.values(), key=lambda item: (
                 item.program.lane.value, item.effect and effect_signature(item.effect), item.program.semantic_id)))
             for parent in parents:
+                expansion_motifs = (checkpoint_motifs or {}).get(parent.program.initiation.step, motif_library)
                 for operator in config.allowed_operators:
-                    programs = expand_program(parent.program, operator, motif_library, checkpoints, max_phases=config.max_phases)
+                    programs = expand_program(parent.program, operator, expansion_motifs, checkpoints, max_phases=config.max_phases)
                     expansions_by_operator[operator.value] += len(programs)
                     for item in programs:
                         lineage = Lineage(parent.program.semantic_id, operator.value,
@@ -385,7 +400,10 @@ def run_beam(
                                                  family_ref=family_ref))
             raw_candidates += len(raw)
             expansions_by_depth[str(depth)] = len(raw)
+            dedup_started = time.perf_counter()
             pending, removed = deduplicate_candidates(raw)
+            structural_dedup_seconds += time.perf_counter() - dedup_started
+            host_preparation_seconds += time.perf_counter() - expansion_started
             duplicates += removed
             if not pending:
                 terminal = "NO_EXPANSIONS"
@@ -406,12 +424,17 @@ def run_beam(
         before_effects = len(unique_effects)
         before_quality = _quality(archive)
         batch = evaluator(tuple(item.program for item in pending), motif_library)
+        profile = getattr(evaluator, "last_profile", {})
+        serialization_seconds += float(profile.get("serialization_seconds", 0.0))
+        result_parsing_seconds += float(profile.get("result_parsing_seconds", 0.0))
+        subprocess_seconds += float(profile.get("subprocess_seconds", batch.host_seconds))
         if games + batch.games > config.cuda_game_budget:
             raise RuntimeError("evaluator exceeded projected CUDA game budget")
         games += batch.games; launches += batch.launches; evaluated_count += len(batch.programs)
         host_seconds += batch.host_seconds; cuda_ms += batch.cuda_ms
         if len(batch.programs) != len(pending):
             raise RuntimeError("evaluator result count mismatch")
+        archive_started = time.perf_counter()
         for source, evaluated in zip(pending, batch.programs):
             if evaluated.program.semantic_id != source.program.semantic_id:
                 raise RuntimeError("SEMANTIC_MISMATCH: evaluator reordered candidates")
@@ -424,6 +447,7 @@ def run_beam(
                 unique_effects.add(entry.effect_signature)
                 state = replace(source, effect=evaluated.effect, archive_result=insertion, cuda_games=case_count)
             all_candidates.append(state)
+        archive_update_seconds += time.perf_counter() - archive_started
         elite_ids = {entry.program_id for entry in archive.entries()}
         program_states = {item.program.semantic_id: item for item in all_candidates
                           if item.effect is not None and item.program.semantic_id in elite_ids}
@@ -463,6 +487,12 @@ def run_beam(
         "best_worst_delta": max((min(block.margin_deltas) for block in target_blocks), default=0),
         "distinct_loss_to_win_patterns": archive_metrics["distinct_retained_l_to_w_patterns"],
         "evaluator_launches": launches, "host_seconds": host_seconds, "cuda_ms": cuda_ms,
+        "host_preparation_seconds": host_preparation_seconds,
+        "structural_dedup_seconds": structural_dedup_seconds,
+        "archive_update_seconds": archive_update_seconds,
+        "serialization_seconds": serialization_seconds,
+        "result_parsing_seconds": result_parsing_seconds,
+        "subprocess_seconds": subprocess_seconds,
         "games_per_second": 0.0 if host_seconds <= 0 else games / host_seconds,
         "depth_reached": depth_reached, "terminal_reason": terminal,
         "failure_counts": {
@@ -485,6 +515,7 @@ class CudaBatchEvaluator:
         if self.case_count <= 0:
             raise ValueError("CUDA case panel must be non-empty")
         self.feed_slot = feed_slot; self.feed_count = feed_count; self.strategic_route_slot = strategic_route_slot
+        self.last_profile: dict[str, float] = {}
 
     def projected_games(self, candidate_count: int) -> int:
         return (candidate_count + 1) * self.case_count
@@ -498,7 +529,9 @@ class CudaBatchEvaluator:
         batch_programs = (parent, *programs)
         with tempfile.TemporaryDirectory() as directory:
             work = Path(directory); packed = work / "programs.rlrb"; output = work / "results.rlr"
+            encode_started = time.perf_counter()
             packed.write_bytes(encode_device_batch(batch_programs, motif_library))
+            encode_seconds = time.perf_counter() - encode_started
             command = [str(self.binary), "--controller", str(self.asset_dir / "controller.bkgc"),
                        "--routes", str(self.asset_dir / "routes.bkv6"), "--legacy-routes", str(self.asset_dir / "legacy_routes.bkv6"),
                        "--cases", str(self.cases_path), "--programs", str(packed), "--out", str(output),
@@ -506,14 +539,19 @@ class CudaBatchEvaluator:
                        "--strategic-route-slot", str(self.strategic_route_slot)]
             started = time.perf_counter()
             completed = subprocess.run(command, capture_output=True, text=True)
-            host = time.perf_counter() - started
+            subprocess_seconds = time.perf_counter() - started
             if not output.exists():
                 raise RuntimeError(f"CUDA evaluator failed: {completed.stderr.strip()}")
+            parse_started = time.perf_counter()
             count, cases, rows = decode_device_results(output.read_bytes())
             if (count, cases) != (len(batch_programs), self.case_count):
                 raise RuntimeError("CUDA result dimensions mismatch")
             match = re.search(r"gpu_ms=([0-9.]+)", completed.stdout)
             gpu_ms = float(match.group(1)) if match else 0.0
+            parse_seconds = time.perf_counter() - parse_started
+            self.last_profile = {"serialization_seconds": encode_seconds,
+                                 "subprocess_seconds": subprocess_seconds,
+                                 "result_parsing_seconds": parse_seconds}
         baseline_rows = rows[:self.case_count]
         baseline = tuple(row.own_money - row.opp_money for row in baseline_rows)
         panel_id = stable_identity("RLRMB-BEAM-TARGET-PANEL-V1", [f"slot-{i:04d}" for i in range(cases)], baseline)
@@ -529,4 +567,5 @@ class CudaBatchEvaluator:
             faults = tuple(row.fault for row in selected if row.fault is not FaultCode.NONE)
             evaluated.append(EvaluatedProgram(program, EffectVector((block,)), not faults,
                                               None if not faults else faults[0].name))
-        return BatchEvaluation(tuple(evaluated), cases, len(batch_programs) * cases, 1, host, gpu_ms)
+        return BatchEvaluation(tuple(evaluated), cases, len(batch_programs) * cases, 1,
+                               encode_seconds + subprocess_seconds + parse_seconds, gpu_ms)

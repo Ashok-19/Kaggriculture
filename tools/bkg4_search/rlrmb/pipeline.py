@@ -7,6 +7,8 @@ no historical route, gate or threshold policy.
 from __future__ import annotations
 
 import json
+import os
+import shutil
 import subprocess
 import time
 import traceback
@@ -33,6 +35,16 @@ from .routability import (
 from .schema import DatasetRole, stable_identity
 
 PIPELINE_SCHEMA_VERSION = 1
+
+
+class LegalStateCaptureCache:
+    """Run-local reuse of candidate-independent outer-initiation captures."""
+
+    def __init__(self) -> None:
+        self.paths: dict[tuple[Any, ...], tuple[Path, Path]] = {}
+        self.launches = 0
+        self.reuses = 0
+        self.seconds = 0.0
 
 
 class TerminalVerdict(str, Enum):
@@ -64,7 +76,7 @@ def validate_production_config(config_path: str | Path, output: str | Path) -> d
     config = json.loads(config_path.read_text(encoding="utf-8"))
     allowed = {"schema_version", "cuda_binary", "capture_binary", "asset_dir", "donor_manifest",
                "parent_route", "transfer_panel", "validation_panel", "sealed_panel", "sealed_role",
-               "budget", "search", "promotion", "probe", "repair", "deployment", "output", "families"}
+               "budget", "search", "promotion", "probe", "repair", "deployment", "output", "families", "cloud"}
     unknown = set(config) - allowed
     if config.get("schema_version") != PIPELINE_SCHEMA_VERSION or unknown:
         raise ValueError(f"unsupported production config schema/fields: {sorted(unknown)}")
@@ -354,7 +366,8 @@ def evaluate_candidate_panel(program: MacroProgram, motifs: Mapping[str, Motif],
 
 def capture_candidate_legal_states(program: MacroProgram, rows: Sequence[ExactCaseEvidence], cases_path: str | Path,
                                    out_dir: str | Path, *, capture_binary: str | Path, asset_dir: str | Path,
-                                   feed_slot: int = 5, feed_count: int = 13, strategic_route_slot: int = 19) -> tuple[ExactCaseEvidence, ...]:
+                                   feed_slot: int = 5, feed_count: int = 13, strategic_route_slot: int = 19,
+                                   cache: LegalStateCaptureCache | None = None) -> tuple[ExactCaseEvidence, ...]:
     if any(row.candidate_id != program.semantic_id for row in rows):
         raise ValueError("legal-state evidence is bound to a different candidate")
     out_dir = Path(out_dir); out_dir.mkdir(parents=True, exist_ok=True)
@@ -362,11 +375,31 @@ def capture_candidate_legal_states(program: MacroProgram, rows: Sequence[ExactCa
     truth = out_dir / f"{program.semantic_id}.truth_unused.b4is"
     probe_steps = (program.initiation.step, *[program.initiation.step + sum(p.termination.max_steps for p in program.phases[:d.after_phase + 1]) for d in program.decisions])
     probes.write_text("\n".join(map(str, probe_steps)) + "\n", encoding="utf-8")
-    command = [str(capture_binary), "--controller", str(Path(asset_dir) / "controller.bkgc"), "--routes", str(Path(asset_dir) / "routes.bkv6"),
-               "--legacy-routes", str(Path(asset_dir) / "legacy_routes.bkv6"), "--cases", str(cases_path), "--probes", str(probes),
-               "--out", str(capture), "--truth-out", str(truth), "--feed-slot", str(feed_slot), "--feed-count", str(feed_count),
-               "--strategic-route-slot", str(strategic_route_slot)]
-    subprocess.run(command, check=True, capture_output=True, text=True)
+    asset_dir = Path(asset_dir); cases_path = Path(cases_path)
+    cache_key = (str(asset_dir.resolve()), str(cases_path.resolve()), probe_steps,
+                 feed_slot, feed_count, strategic_route_slot)
+    reusable = cache is not None and not program.decisions and cache_key in cache.paths
+    if reusable:
+        source_capture, source_truth = cache.paths[cache_key]
+        try:
+            os.link(source_capture, capture)
+            os.link(source_truth, truth)
+        except OSError:
+            shutil.copy2(source_capture, capture)
+            shutil.copy2(source_truth, truth)
+        cache.reuses += 1
+    else:
+        command = [str(capture_binary), "--controller", str(asset_dir / "controller.bkgc"), "--routes", str(asset_dir / "routes.bkv6"),
+                   "--legacy-routes", str(asset_dir / "legacy_routes.bkv6"), "--cases", str(cases_path), "--probes", str(probes),
+                   "--out", str(capture), "--truth-out", str(truth), "--feed-slot", str(feed_slot), "--feed-count", str(feed_count),
+                   "--strategic-route-slot", str(strategic_route_slot)]
+        started = time.monotonic()
+        subprocess.run(command, check=True, capture_output=True, text=True)
+        if cache is not None:
+            cache.launches += 1
+            cache.seconds += time.monotonic() - started
+            if not program.decisions:
+                cache.paths[cache_key] = (capture, truth)
     manifest = capture.with_suffix(".manifest.json")
     manifest.write_text(json.dumps({"schema_version": PIPELINE_SCHEMA_VERSION, "candidate_id": program.semantic_id,
                                     "cases_path": str(Path(cases_path)), "probe_steps": probe_steps}, sort_keys=True) + "\n",
@@ -482,22 +515,32 @@ def emit_candidate_route(program: MacroProgram, motifs: Mapping[str, Motif], par
 
 def materialize_certified_candidate(program: MacroProgram, motifs: Mapping[str, Motif], result: CegisAdapterResult,
                                     *, parent_route: str | Path, output_dir: str | Path, route_id: int,
-                                    base_route_id: int = 64) -> tuple[MaterializationArtifact, Mapping[str, Any]]:
+                                    base_route_id: int = 64,
+                                    parent_module: Mapping[str, Any] | None = None,
+                                    authority_name: str = "strategic_route",
+                                    authority_slot: str = "slot_1") -> tuple[MaterializationArtifact, Mapping[str, Any]]:
     if result.candidate_id != program.semantic_id or not result.accepted:
         raise ValueError("materialization requires the matching accepted CEGIS result")
     output_dir = Path(output_dir); output_dir.mkdir(parents=True, exist_ok=True)
     route_path = emit_candidate_route(program, motifs, parent_route, output_dir / f"{program.semantic_id}.route.json")
     source = MaterializationInput(program.semantic_id, program, _gate_conditions(result.gate), motifs, route_id,
-                                  base_route_id, str(route_path), "strategic_route", "slot_1")
+                                  base_route_id, str(route_path), authority_name, authority_slot)
     artifact = materialize_program(source)
-    parent = {"name": "rlrmb_certification_parent", "blackboard": [{"name": "slot_1", "type": "I32", "initial": 0, "owner": "parent"}],
-              "tree": {"type": "Sequence", "children": []}, "strategic_routes": []}
+    parent = dict(parent_module) if parent_module is not None else {
+        "name": "rlrmb_certification_parent",
+        "blackboard": [{"name": "slot_1", "type": "I32", "initial": 0, "owner": "parent"}],
+        "tree": {"type": "Sequence", "children": []}, "strategic_routes": [],
+    }
     composed = compose_specialists(parent, (artifact.specialist,), (),
-                                   strategic_authorities=(StrategicAuthority("strategic_route", "slot_1"),),
+                                   strategic_authorities=(StrategicAuthority(authority_name, authority_slot),),
                                    output_name=f"certified_{program.semantic_id[:12]}")
     audit = {"materialization_id": artifact.materialization_id, "node_count": artifact.node_count,
              "state_slots": len(artifact.blackboard), "composition_order": composed.report["composition_order"],
              "unresolved_conflicts": composed.report["unresolved_conflicts"], "semantic_mismatches": 0}
     (output_dir / "materialization.json").write_text(artifact.canonical_json() + "\n", encoding="utf-8")
     (output_dir / "composition.json").write_text(json.dumps(audit, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    (output_dir / "composed_module.json").write_text(
+        json.dumps(composed.module, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    (output_dir / "specialist.json").write_text(
+        json.dumps(artifact.specialist.canonical(), sort_keys=True, indent=2) + "\n", encoding="utf-8")
     return artifact, audit

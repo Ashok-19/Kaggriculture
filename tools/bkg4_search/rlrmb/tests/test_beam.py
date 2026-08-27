@@ -168,6 +168,18 @@ class BeamTests(unittest.TestCase):
         self.assertTrue(any(item.depth == 1 and item.lineage.parent_id for item in result.candidates))
         self.assertTrue(all(item.lineage.parameters for item in result.candidates if item.depth == 1))
 
+    def test_checkpoint_motif_batches_are_deterministic_and_complete(self):
+        checkpoints=(cp(),cp(124)); library=motifs()
+        mapping={point.step:library for point in checkpoints}
+        config=BeamConfig(max_depth=1,cuda_game_budget=196,max_candidates_per_expansion=48)
+        first=run_beam("family",checkpoints,library,FakeEvaluator(),config,checkpoint_motifs=mapping)
+        second=run_beam("family",tuple(reversed(checkpoints)),dict(reversed(tuple(library.items()))),FakeEvaluator(),config,
+                        checkpoint_motifs={key:dict(reversed(tuple(value.items()))) for key,value in mapping.items()})
+        self.assertEqual([row.program.semantic_id for row in first.candidates],
+                         [row.program.semantic_id for row in second.candidates])
+        self.assertEqual(first.metrics["cuda_games"],second.metrics["cuda_games"])
+        self.assertEqual(len({row.program.semantic_id for row in first.candidates}),len(first.candidates))
+
     def test_stagnation_stops_exactly(self):
         evaluator = FakeEvaluator(same=True)
         result = run_beam("family", (cp(),), motifs(), evaluator,

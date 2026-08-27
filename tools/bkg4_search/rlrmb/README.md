@@ -405,7 +405,15 @@ mismatches were both zero. Compact results are in
   13 evidence, the Phase-8 FUTURE_DEPENDENT proof, hardened P0.7 evidence,
   replay/tape archives, current opponents, and paused research with uncertain
   reproducibility. The repository shrank by 12,074,594,304 bytes (30.96%). See
-  `PHASE15_CLEANUP_RESULT.json`. Phase 16 has not started.
+  `PHASE15_CLEANUP_RESULT.json`. That cleanup did not start Phase 16.
+- Phase 16 - cloud-scale autonomous search: Lightning bundle ready. The cloud
+  runner advances an evolving working BKG4 only at atomic, fully certified
+  generation boundaries. Checkpoint-scoped candidates are evaluated in broad
+  deterministic CUDA batches, outer-initiation legal-state captures are reused
+  within a run, and rejected bulk artifacts are compacted after each completed
+  attempt. Bounded profiling reduced four-checkpoint evaluator launches from 4
+  to 1 and end-to-end wall time from 9.30 s to 6.98 s with no semantic mismatch.
+  Remote execution has not been performed.
 
 ## Repository Categories
 
@@ -470,3 +478,30 @@ materialization, composer checks, and semantic parity remain unchanged.
 
 Permanent source belongs under `tools/bkg4_search/rlrmb/`. Future generated runs
 belong under `scratch/rlrmb/`.
+
+## Phase-16 Lightning Workflow
+
+`python3 -m tools.bkg4_search.rlrmb.cloud.build_lightning_bundle` builds the
+minimal dependency-closed archive. It contains tracked RLRMB, CUDA/CPU/BKG4
+runtime sources and only the panels, tapes, donors, and parent assets referenced
+by `configs/phase16_lightning_v1.json`. Git metadata, `.dual-graph`, virtual
+environments, historical search scratch, caches, and unrelated corpora are not
+included.
+
+Inside an extracted bundle:
+
+```text
+CUDA_VISIBLE_DEVICES=0 ./tools/bkg4_search/rlrmb/cloud/lightning_bootstrap.sh
+CUDA_VISIBLE_DEVICES=0 ./tools/bkg4_search/rlrmb/cloud/lightning_run.sh pilot scratch/phase16_pilot
+CUDA_VISIBLE_DEVICES=0 ./tools/bkg4_search/rlrmb/cloud/lightning_run.sh campaign scratch/phase16_campaign
+./tools/bkg4_search/rlrmb/cloud/lightning_collect.sh scratch/phase16_campaign phase16_result.tar.gz
+```
+
+The pilot is internally bounded to four 150,000-game generation attempts and
+7,200 seconds. The campaign is bounded to sixteen 1,000,000-game attempts and
+86,400 seconds. A restart adds `--resume` and resumes only from
+`generation_state.json`; a partial attempt never advances the parent. Each
+accepted specialist is materialized, composed, protected-regression/parity
+checked, atomically committed, and becomes the next generation's controller and
+route pack. The live champion is never overwritten. Output remains
+`PROMOTION_READY` until separate broad regression and the official Python canary.

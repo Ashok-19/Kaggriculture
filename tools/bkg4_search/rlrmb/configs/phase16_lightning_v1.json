@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "base_config": "tools/bkg4_search/rlrmb/configs/p0_7_equal_budget_v1.json",
+  "cloud": {
+    "expected_hardware": {
+      "gpu": "NVIDIA RTX PRO 6000-class",
+      "system_ram_gb": 96,
+      "vcpus": 16
+    },
+    "frontier_order": [
+      "family_02_offline_0",
+      "family_03_offline_13",
+      "family_01_offline_4",
+      "family_00_offline_10"
+    ],
+    "frontier_policy": "RECURRENT_HIGH_REGRET_BOTH_SEAT_UNRESOLVED_FIRST",
+    "route_id_base": 1000,
+    "authority_name": "strategic_route_override",
+    "authority_slot": "day2_capital_specialist_v1_route_override",
+    "artifact_retention": "ACCEPTED_EXACT_PLUS_COMPACT_REJECTED_SUMMARIES",
+    "live_champion_promotion": false,
+    "modes": {
+      "pilot": {
+        "max_generations": 4,
+        "cuda_games_per_generation": 150000,
+        "checkpoint_batch_size": 8,
+        "wall_time_limit_seconds": 7200,
+        "per_generation_categories": {
+          "target_beam": 100000,
+          "transfer": 20000,
+          "validation": 5000,
+          "lns_repair": 15000,
+          "reactive_repair": 5000,
+          "certification": 5000
+        }
+      },
+      "campaign": {
+        "max_generations": 16,
+        "cuda_games_per_generation": 1000000,
+        "checkpoint_batch_size": 8,
+        "wall_time_limit_seconds": 86400,
+        "per_generation_categories": {
+          "target_beam": 750000,
+          "transfer": 80000,
+          "validation": 20000,
+          "lns_repair": 100000,
+          "reactive_repair": 20000,
+          "certification": 30000
+        }
+      }
+    }
+  }
+}

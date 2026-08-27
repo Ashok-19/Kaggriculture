@@ -22,7 +22,7 @@ from .checkpoints import EventEvidence, EventType, extract_trace_events, select_
 from .ir import ActionFamily, MacroProgram
 from .motifs import Motif, motif_from_route_window
 from .pipeline import (
-    ExactCaseEvidence, build_cegis_input, build_routability_evidence,
+    ExactCaseEvidence, LegalStateCaptureCache, build_cegis_input, build_routability_evidence,
     capture_candidate_legal_states, load_case_panel, materialize_certified_candidate,
 )
 from .routability import RoutabilityClassification, RoutabilityResult, screen_routability
@@ -87,6 +87,10 @@ class AccountedEvaluator:
 
     def projected_games(self, count: int) -> int:
         return self.inner.projected_games(count)
+
+    @property
+    def last_profile(self) -> Mapping[str, float]:
+        return self.inner.last_profile
 
     def __call__(self, programs: Sequence[MacroProgram], motifs: Mapping[str, Motif]):
         projected = self.projected_games(len(programs))
@@ -347,22 +351,35 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
         campaign_families=[row for row in config["families"] if row["id"] in probe_ids]
     else:
         campaign_families=config["families"]
+    capture_cache = LegalStateCaptureCache()
     for family_index, family in enumerate(campaign_families):
         family_id = family["id"]; family_dir = output / "families" / family_id; family_dir.mkdir(parents=True)
         checkpoint_limit=1 if smoke else (config["probe"]["checkpoint_limit"] if probe else config["search"]["checkpoint_limit"])
         checkpoints = select_checkpoints(_generic_events(donor_paths, family_id))[:checkpoint_limit]
         archive = Archive(); candidates = []; motifs_all: dict[str, Motif] = {}; family_beam = Counter(); family_operators = Counter()
         checkpoint_budget = config["budget"]["per_family_categories"]["target_beam"] // max(1, len(checkpoints))
-        for checkpoint in checkpoints:
-            motifs = _motifs_at(checkpoint.step, donor_paths, config["search"]["motif_steps"]); motifs_all.update(motifs)
+        checkpoint_batch_size = 1 if smoke else int(config["search"].get("checkpoint_batch_size", 1))
+        if checkpoint_batch_size <= 0:
+            raise ValueError("checkpoint_batch_size must be positive")
+        checkpoint_batches = tuple(tuple(checkpoints[index:index + checkpoint_batch_size])
+                                   for index in range(0, len(checkpoints), checkpoint_batch_size))
+        for checkpoint_batch in checkpoint_batches:
+            motifs = {}; checkpoint_motifs = {}
+            for checkpoint in checkpoint_batch:
+                local_motifs = _motifs_at(checkpoint.step, donor_paths, config["search"]["motif_steps"])
+                checkpoint_motifs[checkpoint.step] = local_motifs
+                motifs.update(local_motifs)
+            motifs_all.update(motifs)
             evaluator = AccountedEvaluator(CudaBatchEvaluator(binary=binary, asset_dir=asset, cases_path=root/family["target_panel"]), ledger, family_id, "target_beam")
-            requested_budget=128 if smoke else (config["probe"]["target_games_per_checkpoint"] if probe else checkpoint_budget)
+            per_checkpoint_budget = config["probe"]["target_games_per_checkpoint"] if probe else checkpoint_budget
+            requested_budget=128 if smoke else per_checkpoint_budget * len(checkpoint_batch)
             local_budget = min(requested_budget, ledger.remaining(family_id, "target_beam"))
             if local_budget < evaluator.projected_games(1): break
-            result = run_beam(family_id, (checkpoint,), motifs, evaluator,
+            result = run_beam(family_id, checkpoint_batch, motifs, evaluator,
                               BeamConfig(max_depth=1 if smoke else config["search"]["beam_depth"], cuda_game_budget=local_budget,
-                                         max_candidates_per_expansion=8 if smoke else config["search"]["max_candidates_per_expansion"],
-                                         stagnation_rounds=config["search"]["stagnation_rounds"]), archive)
+                                         max_candidates_per_expansion=8 if smoke else config["search"]["max_candidates_per_expansion"] * len(checkpoint_batch),
+                                         stagnation_rounds=config["search"]["stagnation_rounds"]), archive,
+                              checkpoint_motifs=checkpoint_motifs)
             archive = result.archive; candidates.extend(result.candidates)
             for key, value in result.metrics.items():
                 if isinstance(value, (int, float)): family_beam[key] += value
@@ -381,7 +398,7 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
             raw_rows=_effect_rows(program,DatasetRole.TARGET,root/family["target_panel"],target_block)
             captured=capture_candidate_legal_states(
                 program,raw_rows,root/family["target_panel"],candidate_dir/"target",
-                capture_binary=root/config["capture_binary"],asset_dir=asset,
+                capture_binary=root/config["capture_binary"],asset_dir=asset,cache=capture_cache,
             )
             routing=screen_routability(build_routability_evidence(program,captured))
             target_rows_by_id[program.semantic_id]=captured; target_risks[program.semantic_id]=routing
@@ -407,7 +424,7 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
                     rows=list(target_rows_by_id[program.semantic_id])
                     for role,panel,block in ((DatasetRole.TRANSFER,root/config["transfer_panel"],transfer_block),(DatasetRole.VALIDATION,root/config["validation_panel"],validation_block)):
                         raw_rows=_effect_rows(program,role,panel,block)
-                        captured=capture_candidate_legal_states(program,raw_rows,panel,candidate_dir/role.value.lower(),capture_binary=root/config["capture_binary"],asset_dir=asset)
+                        captured=capture_candidate_legal_states(program,raw_rows,panel,candidate_dir/role.value.lower(),capture_binary=root/config["capture_binary"],asset_dir=asset,cache=capture_cache)
                         rows.extend(captured)
                         _write_json(candidate_dir/role.value.lower()/"evidence.json",[{"case_id":x.meta.case_id,"role":x.role.value,"baseline_margin":x.baseline_margin,"candidate_margin":x.candidate_margin,"delta":x.delta,"seat":x.meta.seat,"family":x.meta.family,"exact_signature":list(x.exact_signature)} for x in captured])
                     routing=screen_routability(build_routability_evidence(program,rows))
@@ -431,11 +448,12 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
                         sealed_eval=AccountedEvaluator(CudaBatchEvaluator(binary=binary,asset_dir=asset,cases_path=root/config["sealed_panel"]),ledger,family_id,"certification")
                         sealed_batch=sealed_eval((program,),motifs_all)
                         sealed_raw=_effect_rows(program,DatasetRole.SEALED,root/config["sealed_panel"],sealed_batch.programs[0].effect.blocks[0])
-                        sealed_rows=capture_candidate_legal_states(program,sealed_raw,root/config["sealed_panel"],candidate_dir/"sealed",capture_binary=root/config["capture_binary"],asset_dir=asset)
+                        sealed_rows=capture_candidate_legal_states(program,sealed_raw,root/config["sealed_panel"],candidate_dir/"sealed",capture_binary=root/config["capture_binary"],asset_dir=asset,cache=capture_cache)
                         cegis=run_hardened_cegis(build_cegis_input(program,(*rows,*sealed_rows),routing)); item["cegis"]=cegis.to_document()
                         _write_json(candidate_dir/"cegis.json",cegis.to_document())
                         if cegis.accepted:
-                            artifact,audit=materialize_certified_candidate(program,motifs_all,cegis,parent_route=root/config["parent_route"],output_dir=family_dir/program.semantic_id/"deployment",route_id=config["deployment"]["route_id_base"]+family_index*100+len(accepted))
+                            parent_module = _read_json(asset / "controller.json")
+                            artifact,audit=materialize_certified_candidate(program,motifs_all,cegis,parent_route=root/config["parent_route"],output_dir=family_dir/program.semantic_id/"deployment",route_id=config["deployment"]["route_id_base"]+family_index*100+len(accepted),parent_module=parent_module,authority_name=config["deployment"].get("authority_name","strategic_route"),authority_slot=config["deployment"].get("authority_slot","slot_1"))
                             item["materialization"]=audit; accepted.append(program.semantic_id)
                         else:
                             reason=cegis.rejection_reason or "CEGIS_REJECTED"; failures[reason]+=1
@@ -460,7 +478,8 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
             block=c.effect.blocks[0]; total_l2w+=sum(block.loss_to_win); global_effects.add(_effect_identity(c.effect)); target_clusters.add((family_id,tuple(block.loss_to_win),tuple(x>0 for x in block.margin_deltas)))
         target_future=sum(risk.classification is RoutabilityClassification.FUTURE_DEPENDENT for risk in target_risks.values())
         full_future=sum(risk.classification is RoutabilityClassification.FUTURE_DEPENDENT for risk in full_risks.values())
-        all_metrics[family_id]={"checkpoints":len(checkpoints),"beam":{**dict(family_beam),"expansions_by_operator":dict(sorted(family_operators.items()))},
+        all_metrics[family_id]={"checkpoints":len(checkpoints),"checkpoint_batches":len(checkpoint_batches),
+                                "beam":{**dict(family_beam),"expansions_by_operator":dict(sorted(family_operators.items()))},
                                 "promotion_pool":len(promotion_pool),"full_risk_screened":len(risk_shortlist),
                                 "target_risk_future_dependent":target_future,
                                 "full_risk_future_dependent":full_future,
@@ -480,6 +499,8 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
              "unique_effect_signatures":len(global_effects),"unique_effect_rate":0 if not refined_total else len(global_effects)/refined_total,
              "target_solving_clusters":len(target_clusters),"target_solving_families":len({x[0] for x in target_clusters}),
              "protected_win_to_loss":0,"semantic_mismatches":0,"sealed_generation_uses":0,"budget":ledger.document(),"families":all_metrics}
+    metrics["legal_state_capture"]={"launches":capture_cache.launches,"reuses":capture_cache.reuses,
+                                     "host_seconds":capture_cache.seconds}
     _write_json(output/"metrics.json",metrics);_write_json(output/"failures.json",{"counts":dict(sorted(failures.items()))});_write_json(output/"archive_summary.json",{"families":{k:v["archive"] for k,v in all_metrics.items()}})
     _write_json(output/"run.json",{**manifest,"finished_unix":int(time.time()),"verdict":"CAMPAIGN_COMPLETE"})
     return 0
