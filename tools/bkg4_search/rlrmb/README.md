@@ -398,8 +398,31 @@ mismatches were both zero. Compact results are in
   lifecycle authority and `cli.py` is the sole production entry point. The
   bounded CUDA smoke consumed 126 games and ended cleanly with
   `NO_SAFE_SPECIALIST_FOUND`; accepted, strategic-rejection, and infrastructure
-  fixtures exercise distinct terminal and exit semantics. Phase 15 has not
-  started.
+  fixtures exercise distinct terminal and exit semantics.
+- Phase 15 - deep repository cleanup: validated. An evidence-first audit
+  removed reproducible local environments, the bulk Meta Kaggle working copy,
+  superseded RLRMB campaigns/probes, and caches while retaining final Phase-12/
+  13 evidence, the Phase-8 FUTURE_DEPENDENT proof, hardened P0.7 evidence,
+  replay/tape archives, current opponents, and paused research with uncertain
+  reproducibility. The repository shrank by 12,074,594,304 bytes (30.96%). See
+  `PHASE15_CLEANUP_RESULT.json`. Phase 16 has not started.
+
+## Repository Categories
+
+1. **Authoritative runtime/engine**: `bonsai-kg/`, `cuda-engine/`, the BKG4
+   compiler/runtime/composer, hardened CEGIS, and the retained official-engine
+   source checkout.
+2. **Authoritative RLRMB search**: `tools/bkg4_search/rlrmb/`. New synthesis
+   starts only through `python3 -m tools.bkg4_search.rlrmb.cli`; benchmark
+   runners are compatibility/reproduction backends, not production entry
+   points.
+3. **Historical reproduction and unique evidence**: final Phase-12/13 run
+   directories, Phase-8 legal-state proof, hardened P0.7 artifacts, accepted
+   route/module evidence, and current/historical replay, tape, and opponent
+   archives. These remain protected even when stored under ignored `scratch/`.
+4. **Paused research**: EditFormer, B4IM factory, and RL sources/checkpoints.
+   Reproducible local environments were removed; model/data/lineage evidence
+   whose equivalence was not proven remains intentionally retained.
 
 ## Production CLI
 

@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "phase": 15,
+  "verdict": "VALIDATED",
+  "before_total_bytes": 39005560832,
+  "after_total_bytes": 26930966528,
+  "bytes_reclaimed": 12074594304,
+  "percent_reclaimed": 30.95608432860694,
+  "major_directories": {
+    "scratch": {"before_bytes": 34530177024, "after_bytes": 23671619584},
+    "scratch/bkg4_editformer_jax": {"before_bytes": 10340634624, "after_bytes": 650608640},
+    "scratch/rlrmb": {"before_bytes": 3791683584, "after_bytes": 1689628672},
+    "kaggle-environments-master": {"before_bytes": 1674977280, "after_bytes": 459411456},
+    "scratch/meta_kaggle_probe": {"before_bytes": 3530203136, "after_bytes": 0}
+  },
+  "classification_summary": {
+    "AUTHORITATIVE_RUNTIME": {"audited_paths": 6, "retained_bytes": 486363136},
+    "AUTHORITATIVE_RLRMB": {"audited_paths": 2, "retained_bytes": 1318727680},
+    "REUSABLE_ENGINE_SUPPORT": {"audited_paths": 1, "retained_bytes": 87527424},
+    "HISTORICAL_REPRODUCTION": {"audited_paths": 2, "retained_bytes": 1537372160},
+    "UNIQUE_EVIDENCE": {"audited_paths": 4, "retained_bytes": 8596418560},
+    "PAUSED_RESEARCH": {"audited_paths": 6, "retained_bytes": 4244860928},
+    "REPRODUCIBLE_GENERATED": {"deleted_paths": 7, "logical_deleted_bytes": 14436302848},
+    "OBSOLETE_DUPLICATE": {"deleted_paths": 16, "logical_deleted_bytes": 2102054912},
+    "UNKNOWN": {"retained_aggregate_paths": 1, "retained_bytes": 9982107648}
+  },
+  "deleted": [
+    {
+      "paths": ["scratch/bkg4_editformer_jax/venv", "scratch/bkg4_editformer_jax/.venv", "scratch/bkg4_editformer_jax/.venv_jax"],
+      "logical_bytes": 9690025984,
+      "classification": "REPRODUCIBLE_GENERATED",
+      "reason": "Local installed environments reproducible from tracked bonsai_editformer pyproject.toml and uv.lock"
+    },
+    {
+      "paths": ["scratch/meta_kaggle_probe"],
+      "logical_bytes": 3530203136,
+      "classification": "REPRODUCIBLE_GENERATED",
+      "reason": "Unmodified bulk Meta Kaggle Competitions/Submissions/Teams CSV copies; upstream dataset is the documented source"
+    },
+    {
+      "paths": ["kaggle-environments-master/.venv"],
+      "logical_bytes": 1215565824,
+      "classification": "REPRODUCIBLE_GENERATED",
+      "reason": "Nested local environment; source checkout retained for official-engine validation"
+    },
+    {
+      "paths": ["scratch/rlrmb/p0_7_equal_budget_20260827_03", "scratch/rlrmb/p13_correction_probe_20260827_01", "scratch/rlrmb/p13_correction_probe_20260827_02", "scratch/rlrmb/p13_correction_probe_20260827_03", "scratch/rlrmb/p0_7_equal_budget_20260827_01", "scratch/rlrmb/p0_7_equal_budget_20260827_02"],
+      "logical_bytes": 2101587968,
+      "classification": "OBSOLETE_DUPLICATE",
+      "reason": "Superseded failed/pre-correction campaigns; the 29/32 FUTURE_DEPENDENT diagnosis and correction outcome remain in history, regression tests, and the final Phase-13 result"
+    },
+    {
+      "paths": ["scratch/rlrmb/p13_correction_validate_20260827_01", "scratch/rlrmb/p13_correction_validate_20260827_02", "scratch/rlrmb/p13_config_smoke_20260827_01", "scratch/rlrmb/p13_config_smoke_20260827_02", "scratch/rlrmb/p13_cuda_smoke_20260827_01", "scratch/rlrmb/rediscovery_probe", "scratch/rlrmb/phase14_validate_config_20260827", "scratch/rlrmb/phase14_smoke_20260827", "scratch/rlrmb/phase14_smoke_20260827_02", "scratch/rlrmb/phase14_smoke_20260827_03"],
+      "logical_bytes": 466944,
+      "classification": "REPRODUCIBLE_GENERATED",
+      "reason": "Superseded validation and smoke outputs reproducible by the authoritative CLI/tests"
+    },
+    {
+      "paths": [".pytest_cache", "tools/bkg4_search/rlrmb/__pycache__", "tools/bkg4_search/rlrmb/tests/__pycache__"],
+      "logical_bytes": 507904,
+      "classification": "REPRODUCIBLE_GENERATED",
+      "reason": "Interpreter/test caches"
+    }
+  ],
+  "preserved": [
+    {"path": "scratch/rlrmb/p0_7_equal_budget_20260827_04", "bytes": 1318068224, "classification": "AUTHORITATIVE_RLRMB", "reason": "Final validated Phase-13 run and accepted specialist evidence"},
+    {"path": "scratch/rlrmb/rediscovery_6bc140e1cfac", "bytes": 44347392, "classification": "HISTORICAL_REPRODUCTION", "reason": "Final Phase-12 route435/410/437 rediscovery evidence"},
+    {"path": "scratch/rlrmb/phase8_family0", "bytes": 327180288, "classification": "UNIQUE_EVIDENCE", "reason": "Exact FUTURE_DEPENDENT legal-state proof"},
+    {"path": "scratch/p0_7_large_scale_synthesis/stage_a_hardened", "bytes": 890798080, "classification": "HISTORICAL_REPRODUCTION", "reason": "Exact hardened P0.7 baseline and candidate50 evidence"},
+    {"path": "scratch/p0_7_large_scale_synthesis/stage_a", "bytes": 602185728, "classification": "HISTORICAL_REPRODUCTION", "reason": "Unhardened predecessor retained because exact artifact equivalence was not proven"},
+    {"path": "scratch/bkg4_search", "bytes": 4000133120, "classification": "UNIQUE_EVIDENCE", "reason": "Current/historical replay, tape and opponent evidence"},
+    {"path": "scratch/live_top10", "bytes": 3922903040, "classification": "UNIQUE_EVIDENCE", "reason": "Current top-opponent and historical route evidence required for future scaling"},
+    {"path": "scratch/b4im_elite_factory", "bytes": 1581428736, "classification": "PAUSED_RESEARCH", "reason": "Repeated generations are plausible duplicates but exact lineage equivalence is not established"},
+    {"path": "rl", "bytes": 1419096064, "classification": "PAUSED_RESEARCH", "reason": "Unique trained checkpoint status is unresolved; retained fail-closed"},
+    {"path": "kaggle-environments-master", "bytes": 459411456, "classification": "AUTHORITATIVE_RUNTIME", "reason": "Official Python-engine source for later canaries"},
+    {"path": ".dual-graph", "bytes": 691908608, "classification": "REUSABLE_ENGINE_SUPPORT", "reason": "Explicitly retained; repository navigation infrastructure"},
+    {"path": "data", "bytes": 346202112, "classification": "UNIQUE_EVIDENCE", "reason": "Validated edit corpus and research evidence protected by contract"}
+  ],
+  "blocked_or_manual_reclaim": [],
+  "unknown_retained": [
+    {"path": "remaining unaudited scratch subtrees", "bytes": 9982107648, "reason": "Not individually proven reproducible; retained under fail-closed UNKNOWN policy"}
+  ],
+  "authoritative_production_entry_point": "tools/bkg4_search/rlrmb/cli.py",
+  "config_validation": {"status": "PASS", "cuda_games": 0},
+  "regression": {"rlrmb_tests_passed": 177, "hardened_cegis_composer_tests_passed": 39, "semantic_mismatches": 0},
+  "phase16_started": false
+}
