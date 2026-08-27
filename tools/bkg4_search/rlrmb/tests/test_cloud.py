@@ -116,5 +116,20 @@ class CloudTests(unittest.TestCase):
             self.assertFalse((family/"prepromotion").exists())
             self.assertFalse((family/"rejected").exists())
 
+    def test_bundle_embedded_manifest_avoids_size_self_reference(self):
+        import tarfile
+        from tools.bkg4_search.rlrmb.cloud.build_lightning_bundle import build_bundle
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);output=root/"bundle";archive=root/"bundle.tar.gz"
+            returned=build_bundle(CONFIG,output,archive)
+            with tarfile.open(archive,"r:gz") as handle:
+                embedded=json.loads(handle.extractfile(
+                    "kaggriculture_phase16/phase16_bundle_manifest.json"
+                ).read().decode("utf-8"))
+            sidecar=json.loads(Path(str(archive)+".manifest.json").read_text())
+            self.assertIsNone(embedded["generated_bundle_bytes"])
+            self.assertEqual(sidecar["generated_bundle_bytes"],archive.stat().st_size)
+            self.assertEqual(returned,sidecar)
+
 
 if __name__=="__main__": unittest.main()

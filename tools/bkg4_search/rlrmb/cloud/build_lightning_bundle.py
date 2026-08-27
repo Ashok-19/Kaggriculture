@@ -101,25 +101,21 @@ def build_bundle(config_path: Path, output_dir: Path, archive: Path) -> dict:
         "expected_results": ["generation_state.json", "cloud_result.json", "telemetry.jsonl",
                              "generations/", "completed_attempts/"],
     }
+    # Archive byte size is a property of the final gzip and therefore cannot be
+    # embedded as an exact integer inside that same gzip without a circular
+    # self-reference. Keep the embedded manifest deterministic and put the
+    # exact final size/hash in the adjacent sidecar after the archive closes.
+    manifest["generated_bundle_bytes"] = None
     manifest_path = output_dir / "phase16_bundle_manifest.json"
-    size = -1
-    for _ in range(4):
-        manifest["generated_bundle_bytes"] = max(0, size)
-        manifest_path.write_text(json.dumps(manifest, sort_keys=True, indent=2) + "\n", encoding="utf-8")
-        with tarfile.open(archive, "w:gz", compresslevel=6) as tar:
-            tar.add(output_dir, arcname="kaggriculture_phase16")
-        current = archive.stat().st_size
-        if current == size:
-            break
-        size = current
-    manifest["generated_bundle_bytes"] = archive.stat().st_size
     manifest_path.write_text(json.dumps(manifest, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    with tarfile.open(archive, "w:gz", compresslevel=6) as tar:
+        tar.add(output_dir, arcname="kaggriculture_phase16")
     sidecar = archive.with_name(archive.name + ".manifest.json")
     sidecar_manifest = dict(manifest)
     sidecar_manifest["generated_bundle_bytes"] = archive.stat().st_size
     sidecar_manifest["archive_sha256"] = hashlib.sha256(archive.read_bytes()).hexdigest()
     sidecar.write_text(json.dumps(sidecar_manifest, sort_keys=True, indent=2) + "\n", encoding="utf-8")
-    return manifest
+    return sidecar_manifest
 
 
 def main(argv: Sequence[str] | None = None) -> int:
