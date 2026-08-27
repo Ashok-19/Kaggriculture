@@ -2,7 +2,11 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
-from tools.bkg4_search.rlrmb.pipeline import CaseMeta, ExactCaseEvidence, build_routability_evidence, build_cegis_input, emit_candidate_route
+from tools.bkg4_search.rlrmb.pipeline import (
+    CaseMeta, ExactCaseEvidence, EXIT_ACCEPTED, EXIT_INFRASTRUCTURE, EXIT_STRATEGIC,
+    TerminalVerdict, build_routability_evidence, build_cegis_input,
+    emit_candidate_route, run_production_pipeline,
+)
 from tools.bkg4_search.rlrmb.routability import RoutabilityClassification, RoutabilityResult
 from tools.bkg4_search.rlrmb.schema import DatasetRole
 from tools.bkg4_search.rlrmb.ir import ActionSource, Phase
@@ -15,6 +19,7 @@ from tools.bkg4_search.rlrmb.p13_equal_budget import (
 )
 from tools.bkg4_search.rlrmb.effects import EffectBlock, EffectVector, effect_signature
 from tools.bkg4_search.rlrmb.beam import BeamCandidate, SeedSource
+from tools.bkg4_search.rlrmb.cli import _parser, main as cli_main
 
 
 class PipelineTests(unittest.TestCase):
@@ -143,6 +148,100 @@ class PipelineTests(unittest.TestCase):
                                                 {"exact_collision_count":8,"gate_predicate":{"feature":"OWN_MONEY"}}),
         }
         self.assertEqual(select_refinement_candidates((mixed,gated),risks,2),(gated,))
+
+    @staticmethod
+    def production_engine(metrics):
+        def run(config, output, validate_only, smoke):
+            output.mkdir(parents=True, exist_ok=True)
+            source=json.loads(config.read_text())
+            for name,value in {
+                "config.json":source,
+                "run.json":{"verdict":"CAMPAIGN_COMPLETE"},
+                "metrics.json":metrics,
+                "failures.json":{"counts":{}},
+                "archive_summary.json":{"families":{}},
+            }.items():
+                (output/name).write_text(json.dumps(value))
+            if metrics.get("accepted_specialists"):
+                documents={
+                    "routability":{"classification":"ROUTABLE_CANDIDATE"},
+                    "cegis":{"terminal_result":"SAFE_CONVERGENCE","accepted":True},
+                    "materialization":{"materialization_id":"synthetic-materialization"},
+                    "composition":{"unresolved_conflicts":[]},
+                    "parity":{"semantic_mismatches":0},
+                }
+                for directory,document in documents.items():
+                    path=output/directory;path.mkdir();(path/"result.json").write_text(json.dumps(document))
+            return 0
+        return run
+
+    def production_metrics(self, accepted=0, refined=0, remaining=10, mismatches=0):
+        return {"total_cuda_games":20,"accepted_specialists":accepted,
+                "accepted_candidate_ids":["candidate"] if accepted else [],
+                "refined_candidates":refined,"semantic_mismatches":mismatches,
+                "budget":{"remaining":remaining},"families":{}}
+
+    def test_production_terminal_verdicts_and_artifacts(self):
+        config=Path("tools/bkg4_search/rlrmb/configs/p0_7_equal_budget_v1.json")
+        with tempfile.TemporaryDirectory() as directory:
+            accepted=Path(directory)/"accepted"
+            code=run_production_pipeline(config,accepted,engine=self.production_engine(self.production_metrics(accepted=1)))
+            self.assertEqual(code,EXIT_ACCEPTED)
+            run=json.loads((accepted/"run.json").read_text())
+            self.assertEqual(run["terminal_verdict"],TerminalVerdict.ACCEPTED_SPECIALIST.value)
+            self.assertTrue((accepted/"checkpoints.json").exists())
+            for name in ("routability","cegis","materialization","composition","parity"):
+                self.assertTrue((accepted/name/"result.json").exists())
+
+            rejected=Path(directory)/"rejected"
+            code=run_production_pipeline(config,rejected,engine=self.production_engine(self.production_metrics(refined=1)))
+            self.assertEqual(code,EXIT_STRATEGIC)
+            self.assertEqual(json.loads((rejected/"run.json").read_text())["terminal_verdict"],
+                             TerminalVerdict.STRATEGIC_REJECTION.value)
+
+    def test_production_infrastructure_failure_is_fail_closed(self):
+        config=Path("tools/bkg4_search/rlrmb/configs/p0_7_equal_budget_v1.json")
+        def broken(*args): raise RuntimeError("CUDA fixture fault")
+        with tempfile.TemporaryDirectory() as directory:
+            output=Path(directory)/"broken"
+            self.assertEqual(run_production_pipeline(config,output,engine=broken),EXIT_INFRASTRUCTURE)
+            self.assertEqual(json.loads((output/"run.json").read_text())["terminal_verdict"],
+                             TerminalVerdict.INFRASTRUCTURE_FAILURE.value)
+            self.assertTrue((output/"traceback.log").exists())
+
+    def test_production_semantic_mismatch_is_infrastructure_failure(self):
+        config=Path("tools/bkg4_search/rlrmb/configs/p0_7_equal_budget_v1.json")
+        with tempfile.TemporaryDirectory() as directory:
+            output=Path(directory)/"mismatch"
+            code=run_production_pipeline(config,output,engine=self.production_engine(self.production_metrics(mismatches=1)))
+            self.assertEqual(code,EXIT_INFRASTRUCTURE)
+
+    def test_production_run_identity_is_deterministic(self):
+        config=Path("tools/bkg4_search/rlrmb/configs/p0_7_equal_budget_v1.json")
+        with tempfile.TemporaryDirectory() as directory:
+            ids=[]
+            for name in ("one","two"):
+                output=Path(directory)/name
+                self.assertEqual(run_production_pipeline(config,output,engine=self.production_engine(self.production_metrics(accepted=1))),0)
+                ids.append(json.loads((output/"run.json").read_text())["run_id"])
+            self.assertEqual(ids[0],ids[1])
+
+    def test_production_resume_is_explicitly_unsupported(self):
+        config=Path("tools/bkg4_search/rlrmb/configs/p0_7_equal_budget_v1.json")
+        with tempfile.TemporaryDirectory() as directory:
+            output=Path(directory)/"resume"
+            self.assertEqual(run_production_pipeline(config,output,resume=True),EXIT_INFRASTRUCTURE)
+
+    def test_cli_validation_writes_command_and_exit_code_without_answer_controls(self):
+        config="tools/bkg4_search/rlrmb/configs/p0_7_equal_budget_v1.json"
+        with tempfile.TemporaryDirectory() as directory:
+            output=Path(directory)/"validate"
+            self.assertEqual(cli_main(("--config",config,"--output",str(output),"--validate-config")),0)
+            self.assertEqual((output/"exit_code.txt").read_text().strip(),"0")
+            self.assertIn("--validate-config",(output/"command.txt").read_text())
+        options={option for action in _parser()._actions for option in action.option_strings}
+        self.assertTrue({"--config","--output","--validate-config","--smoke","--resume"}.issubset(options))
+        self.assertFalse({"--selected-route","--accepted-candidate","--final-gate","--force-accept"}&options)
 
 
 if __name__ == "__main__": unittest.main()

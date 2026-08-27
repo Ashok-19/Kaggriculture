@@ -394,7 +394,54 @@ mismatches were both zero. Compact results are in
   and threshold checks, deterministic materialization, and composition. Compact
   results are in `PHASE13_EQUAL_BUDGET_RESULT.json`; raw artifacts remain under
   `scratch/rlrmb/p0_7_equal_budget_20260827_04/`.
-- Phases 14 and later: not implemented.
+- Phase 14 - production autonomous pipeline: validated. `pipeline.py` is the
+  lifecycle authority and `cli.py` is the sole production entry point. The
+  bounded CUDA smoke consumed 126 games and ended cleanly with
+  `NO_SAFE_SPECIALIST_FOUND`; accepted, strategic-rejection, and infrastructure
+  fixtures exercise distinct terminal and exit semantics. Phase 15 has not
+  started.
+
+## Production CLI
+
+Run a bounded autonomous job with:
+
+```text
+python3 -m tools.bkg4_search.rlrmb.cli \
+  --config tools/bkg4_search/rlrmb/configs/p0_7_equal_budget_v1.json \
+  --output scratch/rlrmb/my_bounded_run
+```
+
+Use `--validate-config` for a zero-game input and leakage audit, or `--smoke`
+for the tiny CUDA lifecycle check. Resume is deliberately unsupported and
+fails closed. The CLI has no route, candidate, gate, threshold, declaration,
+or force-accept controls.
+
+The version-1 production config declares the current parent BKG4/route assets,
+frontier families and TARGET panels, independent TRANSFER/VALIDATION panels,
+downstream-only SEALED panel, checkpoint/beam/QD limits, bounded LNS/reactive
+budgets, promotion/CEGIS policy, deployment policy, and one total CUDA game
+ceiling. Unknown fields and missing inputs fail closed. The central ledger
+counts target beam, transfer, validation, LNS, reactive, certification, and any
+evaluator-triggered candidate games before launch.
+
+Every material run writes `config.json`, `run.json`, `command.txt`,
+`exit_code.txt`, `metrics.json`, `failures.json`, `archive_summary.json`, and
+`checkpoints.json`, plus per-family candidate/effect/routability/CEGIS/
+materialization/composition evidence when reached. Accepted artifacts never
+overwrite the live champion.
+
+Terminal verdicts and exit codes are stable:
+
+```text
+0  ACCEPTED_SPECIALIST
+1  NO_SAFE_SPECIALIST_FOUND / STRATEGIC_REJECTION / SEARCH_BUDGET_EXHAUSTED
+2  INFRASTRUCTURE_FAILURE
+```
+
+Phase-13 QD and routability-aware promotion remains the production selection
+policy: exact FUTURE_DEPENDENT basins are abandoned, repairable classifications
+are redirected to their bounded owners, and hardened CEGIS, SEALED discipline,
+materialization, composer checks, and semantic parity remain unchanged.
 
 ## Generated outputs
 

@@ -1,4 +1,9 @@
-"""Narrow Phase-13 equal-budget campaign runner (not the Phase-14 CLI)."""
+"""Phase-13 benchmark compatibility backend.
+
+New production invocations go through :mod:`rlrmb.cli` and the lifecycle in
+``pipeline.py``. This module retains the validated equal-budget search kernel
+and its historical command for exact benchmark reproduction.
+"""
 from __future__ import annotations
 
 import argparse
@@ -315,8 +320,9 @@ def dispatch_repair(
 
 
 def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False, smoke: bool = False,
-                 probe: bool = False) -> int:
-    config = validate_config(config_path); root = Path.cwd(); output.mkdir(parents=True, exist_ok=True)
+                 probe: bool = False, config_override: Mapping[str, Any] | None = None) -> int:
+    config = dict(config_override) if config_override is not None else validate_config(config_path)
+    root = Path.cwd(); output.mkdir(parents=True, exist_ok=True)
     if any((output / name).exists() for name in ("config.json", "run.json", "metrics.json")):
         raise ValueError("output directory already contains a Phase-13 run")
     shutil.copyfile(config_path, output / "config.json")
@@ -345,7 +351,7 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
         family_id = family["id"]; family_dir = output / "families" / family_id; family_dir.mkdir(parents=True)
         checkpoint_limit=1 if smoke else (config["probe"]["checkpoint_limit"] if probe else config["search"]["checkpoint_limit"])
         checkpoints = select_checkpoints(_generic_events(donor_paths, family_id))[:checkpoint_limit]
-        archive = Archive(); candidates = []; motifs_all: dict[str, Motif] = {}; family_beam = Counter()
+        archive = Archive(); candidates = []; motifs_all: dict[str, Motif] = {}; family_beam = Counter(); family_operators = Counter()
         checkpoint_budget = config["budget"]["per_family_categories"]["target_beam"] // max(1, len(checkpoints))
         for checkpoint in checkpoints:
             motifs = _motifs_at(checkpoint.step, donor_paths, config["search"]["motif_steps"]); motifs_all.update(motifs)
@@ -360,6 +366,7 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
             archive = result.archive; candidates.extend(result.candidates)
             for key, value in result.metrics.items():
                 if isinstance(value, (int, float)): family_beam[key] += value
+                elif key == "expansions_by_operator": family_operators.update(value)
         elites = {entry.program_id for entry in archive.entries() if entry.target_win_to_loss == 0 and entry.target_loss_to_win > 0}
         promotion_config=config["probe"] if probe else config["promotion"]
         promotion_pool = select_promotion_pool(candidates, elites, promotion_config["risk_pool_size"])
@@ -453,7 +460,7 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
             block=c.effect.blocks[0]; total_l2w+=sum(block.loss_to_win); global_effects.add(_effect_identity(c.effect)); target_clusters.add((family_id,tuple(block.loss_to_win),tuple(x>0 for x in block.margin_deltas)))
         target_future=sum(risk.classification is RoutabilityClassification.FUTURE_DEPENDENT for risk in target_risks.values())
         full_future=sum(risk.classification is RoutabilityClassification.FUTURE_DEPENDENT for risk in full_risks.values())
-        all_metrics[family_id]={"checkpoints":len(checkpoints),"beam":dict(family_beam),
+        all_metrics[family_id]={"checkpoints":len(checkpoints),"beam":{**dict(family_beam),"expansions_by_operator":dict(sorted(family_operators.items()))},
                                 "promotion_pool":len(promotion_pool),"full_risk_screened":len(risk_shortlist),
                                 "target_risk_future_dependent":target_future,
                                 "full_risk_future_dependent":full_future,

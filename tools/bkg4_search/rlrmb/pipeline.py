@@ -8,9 +8,12 @@ from __future__ import annotations
 
 import json
 import subprocess
+import time
+import traceback
 from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
-from typing import Any, Mapping, Sequence
+from typing import Any, Callable, Mapping, Sequence
 
 from tools.bkg4_search.edit_search.goals import CONTRASTIVE_FEATURES
 from tools.bkg4_search.information_state_io import load_r0, registry_manifest
@@ -30,6 +33,274 @@ from .routability import (
 from .schema import DatasetRole, stable_identity
 
 PIPELINE_SCHEMA_VERSION = 1
+
+
+class TerminalVerdict(str, Enum):
+    ACCEPTED_SPECIALIST = "ACCEPTED_SPECIALIST"
+    NO_SAFE_SPECIALIST_FOUND = "NO_SAFE_SPECIALIST_FOUND"
+    SEARCH_BUDGET_EXHAUSTED = "SEARCH_BUDGET_EXHAUSTED"
+    STRATEGIC_REJECTION = "STRATEGIC_REJECTION"
+    INFRASTRUCTURE_FAILURE = "INFRASTRUCTURE_FAILURE"
+
+
+EXIT_ACCEPTED = 0
+EXIT_STRATEGIC = 1
+EXIT_INFRASTRUCTURE = 2
+
+
+def _write_document(path: Path, value: Any) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(value, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+
+
+def validate_production_config(config_path: str | Path, output: str | Path) -> dict[str, Any]:
+    """Validate the bounded production contract without spending CUDA games.
+
+    The Phase-13 equal-budget schema is the first production schema. Reusing it
+    keeps one validated search policy and, importantly, preserves its central
+    game ledger and routability-aware refinement order.
+    """
+    config_path = Path(config_path)
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    allowed = {"schema_version", "cuda_binary", "capture_binary", "asset_dir", "donor_manifest",
+               "parent_route", "transfer_panel", "validation_panel", "sealed_panel", "sealed_role",
+               "budget", "search", "promotion", "probe", "repair", "deployment", "output", "families"}
+    unknown = set(config) - allowed
+    if config.get("schema_version") != PIPELINE_SCHEMA_VERSION or unknown:
+        raise ValueError(f"unsupported production config schema/fields: {sorted(unknown)}")
+    families = config.get("families", ())
+    budget = config.get("budget", {})
+    total = budget.get("total_cuda_games")
+    categories = budget.get("per_family_categories", {})
+    if type(total) is not int or total <= 0 or not families:
+        raise ValueError("production config requires a positive bounded budget and frontier families")
+    if any(type(row.get("cuda_games")) is not int or row["cuda_games"] <= 0 for row in families):
+        raise ValueError("each frontier family requires a positive CUDA allocation")
+    if sum(row["cuda_games"] for row in families) > total:
+        raise ValueError("frontier allocations exceed the authoritative CUDA budget")
+    required_categories = {"target_beam", "transfer", "validation", "lns_repair", "reactive_repair", "certification"}
+    if set(categories) != required_categories or any(type(value) is not int or value < 0 for value in categories.values()):
+        raise ValueError("all CUDA game categories require non-negative integer caps")
+    if any(sum(categories.values()) > row["cuda_games"] for row in families):
+        raise ValueError("per-family category caps exceed a family allocation")
+    root = Path.cwd()
+    paths = [config.get(name) for name in ("cuda_binary", "capture_binary", "asset_dir", "donor_manifest",
+                                           "parent_route", "transfer_panel", "validation_panel", "sealed_panel")]
+    paths.extend(value for family in families for value in (family.get("target_panel"), family.get("checkpoint_evidence")))
+    missing = [path for path in paths if not path or not (root / path).exists()]
+    if missing:
+        raise ValueError(f"missing production inputs: {missing}")
+    output_path = Path(output)
+    if output_path.exists() and any(output_path.iterdir()):
+        raise ValueError("production output directory must be new or empty")
+    if config.get("sealed_role") != "CEGIS_DOWNSTREAM_ONLY":
+        raise ValueError("SEALED evidence is downstream-only")
+    raw = json.dumps(config, sort_keys=True).lower()
+    forbidden = ("selected_route", "accepted_candidate", "final_gate", "gate_threshold",
+                 "force_accept", "specialist_json", "candidate_id_to_promote")
+    if any(field in raw for field in forbidden):
+        raise ValueError("production config contains manual-answer injection")
+    return config
+
+
+def _normalise_failures(output: Path, metrics: Mapping[str, Any]) -> None:
+    path = output / "failures.json"
+    source = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {"counts": {}}
+    records = []
+    for family, family_metrics in sorted(metrics.get("families", {}).items()):
+        for row in family_metrics.get("prepromotion_results", ()): 
+            classification = row.get("routability", {}).get("classification")
+            if classification and classification != "ROUTABLE_CANDIDATE":
+                records.append({
+                    "candidate_semantic_id": row.get("candidate_id"),
+                    "failure_class": classification,
+                    "pipeline_stage": row.get("stage", "ROUTABILITY"),
+                    "evidence_references": [f"families/{family}/prepromotion_summary.json"],
+                    "recommended_next_action": row.get("disposition", "ABANDON_BASIN"),
+                })
+        for row in family_metrics.get("results", ()): 
+            routing = row.get("routability", {})
+            classification = routing.get("classification")
+            if classification and classification != "ROUTABLE_CANDIDATE":
+                records.append({
+                    "candidate_semantic_id": row.get("candidate_id"),
+                    "failure_class": classification,
+                    "pipeline_stage": "REFINEMENT",
+                    "evidence_references": [f"families/{family}/{row.get('candidate_id')}/routability.json"],
+                    "recommended_next_action": row.get("repair_dispatch", "ABANDON_BASIN"),
+                })
+    _write_document(path, {"schema_version": PIPELINE_SCHEMA_VERSION,
+                           "counts": source.get("counts", {}), "records": records})
+
+
+def _normalise_metrics(output: Path, metrics: dict[str, Any]) -> dict[str, Any]:
+    """Make every permanent production metric present, including zero values."""
+    families = metrics.get("families", {})
+    beam_rows = [row.get("beam", {}) for row in families.values()]
+    archive_rows = [row.get("archive", {}) for row in families.values()]
+    expansions: dict[str, int] = {}
+    for row in beam_rows:
+        for operator, count in row.get("expansions_by_operator", {}).items():
+            expansions[operator] = expansions.get(operator, 0) + int(count)
+    result_rows = [row for family in families.values() for row in family.get("results", ())]
+    lns_rows = [row["lns_repair"] for row in result_rows if "lns_repair" in row]
+    classifications: dict[str, int] = {}
+    for family in families.values():
+        for row in (*family.get("prepromotion_results", ()), *family.get("results", ())):
+            name = row.get("routability", {}).get("classification")
+            if name and name != "ROUTABLE_CANDIDATE":
+                classifications[name] = classifications.get(name, 0) + 1
+    host_seconds = sum(float(row.get("host_seconds", 0.0)) for row in beam_rows)
+    kernel_seconds = sum(float(row.get("cuda_ms", 0.0)) for row in beam_rows) / 1000.0
+    defaults = {
+        "frontier_families": len(families),
+        "checkpoints": sum(row.get("checkpoints", 0) for row in families.values()),
+        "beam_depth": max((row.get("depth_reached", 0) for row in beam_rows), default=0),
+        "expansions_by_operator": dict(sorted(expansions.items())),
+        "lns_attempts": len(lns_rows),
+        "lns_successes": sum(bool(row.get("records")) for row in lns_rows),
+        "reactive_attempts": 0, "reactive_successes": 0,
+        "structural_generated": sum(row.get("raw_candidates", 0) for row in beam_rows),
+        "structural_duplicates": sum(row.get("structural_duplicates_removed", 0) for row in beam_rows),
+        "effect_signatures": sum(row.get("unique_effect_signatures", 0) for row in archive_rows),
+        "archive_occupancy": sum(row.get("occupied_cells", 0) for row in archive_rows),
+        "archive_replacements": sum(row.get("replacements", 0) for row in archive_rows),
+        "target_solving_clusters": metrics.get("target_solving_clusters", 0),
+        "target_positives": sum(row.get("target_positives", 0) for row in beam_rows),
+        "target_loss_to_win": metrics.get("target_loss_to_win", 0),
+        "target_win_to_loss": metrics.get("protected_win_to_loss", 0),
+        "transfer_positives": 0, "transfer_harms": 0,
+        "routable": sum(row.get("routability", {}).get("classification") == "ROUTABLE_CANDIDATE"
+                        for family in families.values() for row in family.get("results", ())),
+        "future_dependent": sum(row.get("routability", {}).get("classification") == "FUTURE_DEPENDENT"
+                                for family in families.values() for row in family.get("prepromotion_results", ())),
+        "repair_classifications": dict(sorted(classifications.items())),
+        "cegis_entries": sum("cegis" in row for family in families.values() for row in family.get("results", ())),
+        "cegis_convergence": metrics.get("accepted_specialists", 0),
+        "wall_time_seconds": host_seconds, "cuda_kernel_time_seconds": kernel_seconds,
+        "games_per_second": 0.0 if not host_seconds else metrics.get("total_cuda_games", 0) / host_seconds,
+    }
+    for key, value in defaults.items():
+        metrics.setdefault(key, value)
+    _write_document(output / "metrics.json", metrics)
+    return metrics
+
+
+def _terminal_verdict(metrics: Mapping[str, Any]) -> TerminalVerdict:
+    if int(metrics.get("semantic_mismatches", 0)):
+        return TerminalVerdict.INFRASTRUCTURE_FAILURE
+    if int(metrics.get("accepted_specialists", 0)):
+        return TerminalVerdict.ACCEPTED_SPECIALIST
+    budget = metrics.get("budget", {})
+    if budget and int(budget.get("remaining", 1)) == 0:
+        return TerminalVerdict.SEARCH_BUDGET_EXHAUSTED
+    if metrics.get("refined_candidates", 0):
+        return TerminalVerdict.STRATEGIC_REJECTION
+    return TerminalVerdict.NO_SAFE_SPECIALIST_FOUND
+
+
+def _production_summary(config: Mapping[str, Any], output: Path, metrics: Mapping[str, Any],
+                        verdict: TerminalVerdict, started: float, finished: float) -> dict[str, Any]:
+    config_id = stable_identity("RLRMB-PRODUCTION-CONFIG-V1", config)
+    run_id = stable_identity("RLRMB-PRODUCTION-RUN-V1", config_id, _repository_head())
+    accepted = tuple(metrics.get("accepted_candidate_ids", ()))
+    return {
+        "schema_version": PIPELINE_SCHEMA_VERSION,
+        "run_id": run_id,
+        "config_identity": config_id,
+        "repository_head": _repository_head(),
+        "current_bkg4_reference": config.get("parent_route"),
+        "start_state": "FRONTIER_SELECTION",
+        "end_state": verdict.value,
+        "terminal_verdict": verdict.value,
+        "total_cuda_games": int(metrics.get("total_cuda_games", 0)),
+        "host_time_seconds": max(0.0, finished - started),
+        "cuda_kernel_time_seconds": metrics.get("kernel_time_seconds", 0.0),
+        "accepted_specialist_ids": accepted,
+        "failure_counts": json.loads((output / "failures.json").read_text(encoding="utf-8")).get("counts", {}),
+        "artifact_references": sorted(str(path.relative_to(output)) for path in output.rglob("*.json")
+                                      if path.name != "run.json"),
+    }
+
+
+def _repository_head() -> str:
+    result = subprocess.run(("git", "rev-parse", "HEAD"), check=False, capture_output=True, text=True)
+    return result.stdout.strip() if result.returncode == 0 else "UNKNOWN"
+
+
+ProductionEngine = Callable[[Path, Path, bool, bool], int]
+
+
+def _validated_engine(config: Path, output: Path, validate_only: bool, smoke: bool) -> int:
+    from .p13_equal_budget import run_campaign
+    validated = validate_production_config(config, output)
+    return run_campaign(config, output, validate_only=validate_only, smoke=smoke,
+                        config_override=validated)
+
+
+def run_production_pipeline(config_path: str | Path, output: str | Path, *,
+                            validate_only: bool = False, smoke: bool = False,
+                            resume: bool = False, engine: ProductionEngine | None = None) -> int:
+    """Run the authoritative autonomous synthesis lifecycle.
+
+    Strategic outcomes are completed runs (exit 1); malformed evidence,
+    evaluator faults and semantic mismatches are infrastructure failures (2).
+    Accepted specialists return 0. Resume deliberately fails closed because the
+    validated budget ledger has no durable transaction protocol yet.
+    """
+    output_path = Path(output)
+    started = time.monotonic()
+    try:
+        if resume:
+            raise ValueError("deterministic resume is not supported")
+        config = validate_production_config(config_path, output_path)
+        runner = engine or _validated_engine
+        code = runner(Path(config_path), output_path, validate_only, smoke)
+        if code != 0:
+            raise RuntimeError(f"autonomous synthesis backend returned {code}")
+        metrics = json.loads((output_path / "metrics.json").read_text(encoding="utf-8"))
+        if validate_only:
+            run = json.loads((output_path / "run.json").read_text(encoding="utf-8"))
+            run.update({"schema_version": PIPELINE_SCHEMA_VERSION,
+                        "terminal_verdict": "CONFIG_VALIDATED", "repository_head": _repository_head()})
+            _write_document(output_path / "run.json", run)
+            return EXIT_ACCEPTED
+        metrics = _normalise_metrics(output_path, metrics)
+        _normalise_failures(output_path, metrics)
+        verdict = _terminal_verdict(metrics)
+        finished = time.monotonic()
+        _write_document(output_path / "run.json",
+                        _production_summary(config, output_path, metrics, verdict, started, finished))
+        checkpoints = {family: {"proposed_selected": row.get("checkpoints", 0)}
+                       for family, row in sorted(metrics.get("families", {}).items())}
+        _write_document(output_path / "checkpoints.json", {"schema_version": 1, "families": checkpoints})
+        return EXIT_INFRASTRUCTURE if verdict is TerminalVerdict.INFRASTRUCTURE_FAILURE else (
+            EXIT_ACCEPTED if verdict is TerminalVerdict.ACCEPTED_SPECIALIST else EXIT_STRATEGIC)
+    except Exception as exc:
+        output_path.mkdir(parents=True, exist_ok=True)
+        config_source = Path(config_path)
+        if config_source.exists() and not (output_path / "config.json").exists():
+            try:
+                _write_document(output_path / "config.json", json.loads(config_source.read_text(encoding="utf-8")))
+            except (OSError, json.JSONDecodeError):
+                pass
+        if not (output_path / "metrics.json").exists():
+            _write_document(output_path / "metrics.json", {"schema_version": 1, "total_cuda_games": 0,
+                                                            "semantic_mismatches": 0})
+        if not (output_path / "archive_summary.json").exists():
+            _write_document(output_path / "archive_summary.json", {"schema_version": 1, "families": {}})
+        failure = {"schema_version": PIPELINE_SCHEMA_VERSION, "counts": {"INFRASTRUCTURE_FAILURE": 1},
+                   "records": [{"candidate_semantic_id": None, "failure_class": "INFRASTRUCTURE_FAILURE",
+                                "pipeline_stage": "PIPELINE", "evidence_references": [],
+                                "recommended_next_action": "FIX_INFRASTRUCTURE",
+                                "diagnostic": str(exc)}]}
+        _write_document(output_path / "failures.json", failure)
+        _write_document(output_path / "run.json", {"schema_version": PIPELINE_SCHEMA_VERSION,
+                        "run_id": stable_identity("RLRMB-PRODUCTION-FAILED-RUN-V1", str(output_path)),
+                        "terminal_verdict": TerminalVerdict.INFRASTRUCTURE_FAILURE.value,
+                        "repository_head": _repository_head(), "error": str(exc)})
+        (output_path / "traceback.log").write_text(traceback.format_exc(), encoding="utf-8")
+        return EXIT_INFRASTRUCTURE
 
 
 @dataclass(frozen=True)
