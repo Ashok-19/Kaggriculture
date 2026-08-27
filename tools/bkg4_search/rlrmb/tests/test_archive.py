@@ -223,6 +223,25 @@ class ArchiveTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             effect_cluster(sealed)
 
+    def test_insert_updates_only_affected_cell_without_full_archive_rebuild(self) -> None:
+        from unittest.mock import patch
+        effect = vector((10,))
+        archive = Archive()
+        values = (
+            entry("weak", effect, worst=-10),
+            entry("strong", effect, worst=5),
+            entry("other", vector((0, 0)), worst=0),
+        )
+        with patch.object(archive, "_rebuild", wraps=archive._rebuild) as rebuild:
+            results = tuple(archive.insert(value) for value in values)
+        self.assertEqual(results, (
+            InsertResult.INSERTED_NEW_CELL,
+            InsertResult.REPLACED_ELITE,
+            InsertResult.INSERTED_NEW_CELL,
+        ))
+        self.assertEqual(rebuild.call_count, 0)
+        self.assertEqual(set(archive.entries()), {values[1], values[2]})
+
 
 if __name__ == "__main__":
     unittest.main()

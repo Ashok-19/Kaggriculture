@@ -5,7 +5,7 @@ import unittest
 
 from tools.bkg4_search.rlrmb.cloud_runner import (
     _extend_route_pack, build_working_assets, compact_generation_artifacts, generation_config,
-    initial_state, load_cloud_config, run_cloud,
+    _parser, initial_state, load_cloud_config, run_cloud,
 )
 from tools.bkg4_search.rlrmb.materialize import MaterializationInput, materialize_program
 from tools.bkg4_search.rlrmb.tests.test_ir import program, Phase, ActionSource, fixed
@@ -20,12 +20,27 @@ CONFIG=ROOT/"tools/bkg4_search/rlrmb/configs/phase16_lightning_v1.json"
 class CloudTests(unittest.TestCase):
     def test_mode_config_is_bounded_and_deterministic(self):
         config=load_cloud_config(CONFIG);state=initial_state(config)
+        source_snapshot=json.dumps(config,sort_keys=True)
         first=generation_config(config,state,"pilot");second=generation_config(config,state,"pilot")
         self.assertEqual(first,second)
         self.assertEqual(len(first["families"]),1)
         self.assertEqual(first["families"][0]["id"],"family_02_offline_0")
         self.assertEqual(sum(first["budget"]["per_family_categories"].values()),150000)
         self.assertEqual(first["search"]["checkpoint_batch_size"],8)
+        self.assertEqual(first["host_execution"]["producer_workers"],8)
+        self.assertEqual(first["host_execution"]["queue_depth"],2)
+        self.assertEqual(first["host_execution"]["start_method"],"spawn")
+        self.assertEqual(config["cloud"]["expected_hardware"]["system_ram_gb"],128)
+        tuned=generation_config(config,state,"pilot",operational_overrides={
+            "host_workers":4,"queue_depth":3,"checkpoint_batch_size":4,
+        })
+        self.assertEqual(tuned["host_execution"]["producer_workers"],4)
+        self.assertEqual(tuned["host_execution"]["queue_depth"],3)
+        self.assertEqual(tuned["search"]["checkpoint_batch_size"],4)
+        self.assertEqual(json.dumps(config,sort_keys=True),source_snapshot)
+        self.assertEqual(initial_state(config)["config_identity"],state["config_identity"])
+        options={option for action in _parser()._actions for option in action.option_strings}
+        self.assertTrue({"--host-workers","--queue-depth","--checkpoint-batch-size","--telemetry-interval-seconds"}.issubset(options))
 
     def test_route_pack_extension_preserves_existing_and_candidate_mapping(self):
         asset=ROOT/"bonsai-kg/integrations/bkg4_champion/champions/bounded_automatic_composer_v1"

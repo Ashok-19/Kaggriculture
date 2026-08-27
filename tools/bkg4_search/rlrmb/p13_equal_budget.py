@@ -12,6 +12,7 @@ import shutil
 import sys
 import time
 from collections import Counter
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping, Sequence
@@ -20,7 +21,9 @@ from .archive import Archive, make_cell_key
 from .beam import BeamCandidate, BeamConfig, CudaBatchEvaluator, run_beam
 from .checkpoints import EventEvidence, EventType, extract_trace_events, select_checkpoints
 from .ir import ActionFamily, MacroProgram
-from .motifs import Motif, motif_from_route_window
+from .motifs import Motif, motif_from_actions, motif_from_route_window
+from .canonical import load_route_actions
+from .host_pipeline import DeterministicProcessPool, HostStageMetrics
 from .pipeline import (
     ExactCaseEvidence, LegalStateCaptureCache, build_cegis_input, build_routability_evidence,
     capture_candidate_legal_states, load_case_panel, materialize_certified_candidate,
@@ -163,6 +166,80 @@ def _motifs_at(checkpoint: int, donor_paths: Sequence[Path], length: int) -> dic
         motif = motif_from_route_window(path, checkpoint, length, tuple(ActionFamily), provenance=("generic_donor_library",))
         motifs.setdefault(motif.semantic_id, motif)
     return motifs
+
+
+@dataclass(frozen=True)
+class _DonorMotifBatchTask:
+    path: str
+    checkpoint_steps: tuple[int, ...]
+    length: int
+
+
+@dataclass(frozen=True)
+class PreparedMotifBatch:
+    motifs: Mapping[str, Motif]
+    checkpoint_motifs: Mapping[int, Mapping[str, Motif]]
+    metrics: HostStageMetrics
+
+
+def _prepare_donor_motif_batch(task: _DonorMotifBatchTask) -> tuple[tuple[int, Motif], ...]:
+    """Read one donor once and derive every requested checkpoint motif."""
+    path = Path(task.path)
+    actions = load_route_actions(path)
+    result: list[tuple[int, Motif]] = []
+    for step in task.checkpoint_steps:
+        if step + task.length > 719:
+            continue
+        if step + task.length > len(actions):
+            raise ValueError(f"route motif window is outside the action sequence: {path}")
+        motif = motif_from_actions(
+            actions[step : step + task.length], tuple(ActionFamily), source_start=step,
+            provenance=("generic_donor_library", f"source_path={path}"),
+        )
+        result.append((step, motif))
+    return tuple(result)
+
+
+def prepare_checkpoint_motif_batch(
+    checkpoints: Sequence[Any], donor_paths: Sequence[Path], length: int,
+    pool: DeterministicProcessPool,
+) -> PreparedMotifBatch:
+    """Prepare a checkpoint batch in processes while preserving donor merge order."""
+    steps = tuple(int(checkpoint.step) for checkpoint in checkpoints)
+    if len(set(steps)) != len(steps):
+        raise ValueError("checkpoint batch contains duplicate steps")
+    tasks = tuple(_DonorMotifBatchTask(str(path), steps, int(length)) for path in donor_paths)
+    prepared, metrics = pool.map_ordered(_prepare_donor_motif_batch, tasks)
+    by_step: dict[int, dict[str, Motif]] = {step: {} for step in steps}
+    for donor_rows in prepared:
+        for step, motif in donor_rows:
+            by_step[step].setdefault(motif.semantic_id, motif)
+    combined: dict[str, Motif] = {}
+    for step in steps:
+        combined.update(by_step[step])
+    return PreparedMotifBatch(combined, by_step, metrics)
+
+
+def prefetch_checkpoint_motif_batches(
+    checkpoint_batches: Sequence[Sequence[Any]], donor_paths: Sequence[Path], length: int,
+    pool: DeterministicProcessPool,
+):
+    """Yield deterministic batches while preparing exactly one successor ahead."""
+    batches = tuple(tuple(batch) for batch in checkpoint_batches)
+    if not batches:
+        return
+    with ThreadPoolExecutor(max_workers=1, thread_name_prefix="rlrmb-producer-prefetch") as coordinator:
+        future = coordinator.submit(prepare_checkpoint_motif_batch, batches[0], donor_paths, length, pool)
+        for index, batch in enumerate(batches):
+            wait_started = time.perf_counter()
+            prepared = future.result()
+            wait_seconds = time.perf_counter() - wait_started
+            next_future = (
+                coordinator.submit(prepare_checkpoint_motif_batch, batches[index + 1], donor_paths, length, pool)
+                if index + 1 < len(batches) else None
+            )
+            yield batch, prepared, wait_seconds
+            future = next_future
 
 
 def _effect_rows(program: MacroProgram, role: DatasetRole, panel: Path, block) -> tuple[ExactCaseEvidence, ...]:
@@ -352,38 +429,72 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
     else:
         campaign_families=config["families"]
     capture_cache = LegalStateCaptureCache()
+    host_execution = dict(config.get("host_execution") or {})
+    producer_workers = int(host_execution.get("producer_workers", 1))
+    producer_queue_depth = int(host_execution.get("queue_depth", 2))
+    producer_start_method = str(host_execution.get("start_method", "spawn"))
     for family_index, family in enumerate(campaign_families):
         family_id = family["id"]; family_dir = output / "families" / family_id; family_dir.mkdir(parents=True)
         checkpoint_limit=1 if smoke else (config["probe"]["checkpoint_limit"] if probe else config["search"]["checkpoint_limit"])
         checkpoints = select_checkpoints(_generic_events(donor_paths, family_id))[:checkpoint_limit]
         archive = Archive(); candidates = []; motifs_all: dict[str, Motif] = {}; family_beam = Counter(); family_operators = Counter()
+        family_host = Counter(); producer_pids: set[int] = set()
+        producer_max_inflight = producer_max_queue = producer_reorder_high_water = 0
         checkpoint_budget = config["budget"]["per_family_categories"]["target_beam"] // max(1, len(checkpoints))
         checkpoint_batch_size = 1 if smoke else int(config["search"].get("checkpoint_batch_size", 1))
         if checkpoint_batch_size <= 0:
             raise ValueError("checkpoint_batch_size must be positive")
         checkpoint_batches = tuple(tuple(checkpoints[index:index + checkpoint_batch_size])
                                    for index in range(0, len(checkpoints), checkpoint_batch_size))
-        for checkpoint_batch in checkpoint_batches:
-            motifs = {}; checkpoint_motifs = {}
-            for checkpoint in checkpoint_batch:
-                local_motifs = _motifs_at(checkpoint.step, donor_paths, config["search"]["motif_steps"])
-                checkpoint_motifs[checkpoint.step] = local_motifs
-                motifs.update(local_motifs)
-            motifs_all.update(motifs)
-            evaluator = AccountedEvaluator(CudaBatchEvaluator(binary=binary, asset_dir=asset, cases_path=root/family["target_panel"]), ledger, family_id, "target_beam")
-            per_checkpoint_budget = config["probe"]["target_games_per_checkpoint"] if probe else checkpoint_budget
-            requested_budget=128 if smoke else per_checkpoint_budget * len(checkpoint_batch)
-            local_budget = min(requested_budget, ledger.remaining(family_id, "target_beam"))
-            if local_budget < evaluator.projected_games(1): break
-            result = run_beam(family_id, checkpoint_batch, motifs, evaluator,
-                              BeamConfig(max_depth=1 if smoke else config["search"]["beam_depth"], cuda_game_budget=local_budget,
-                                         max_candidates_per_expansion=8 if smoke else config["search"]["max_candidates_per_expansion"] * len(checkpoint_batch),
-                                         stagnation_rounds=config["search"]["stagnation_rounds"]), archive,
-                              checkpoint_motifs=checkpoint_motifs)
-            archive = result.archive; candidates.extend(result.candidates)
-            for key, value in result.metrics.items():
-                if isinstance(value, (int, float)): family_beam[key] += value
-                elif key == "expansions_by_operator": family_operators.update(value)
+        evaluator = AccountedEvaluator(CudaBatchEvaluator(binary=binary, asset_dir=asset, cases_path=root/family["target_panel"]), ledger, family_id, "target_beam")
+        with DeterministicProcessPool(
+            workers=producer_workers, queue_depth=producer_queue_depth,
+            stage="producer", start_method=producer_start_method,
+        ) as producer_pool:
+            batch_stream = prefetch_checkpoint_motif_batches(
+                checkpoint_batches, donor_paths, config["search"]["motif_steps"], producer_pool,
+            )
+            try:
+                for batch_index, (checkpoint_batch, prepared, producer_wait) in enumerate(batch_stream):
+                    producer_metrics = prepared.metrics
+                    family_host["producer_tasks"] += producer_metrics.tasks
+                    family_host["producer_wall_seconds"] += producer_metrics.wall_seconds
+                    family_host["producer_busy_seconds"] += producer_metrics.worker_busy_seconds
+                    family_host["producer_queue_block_seconds"] += producer_metrics.coordinator_wait_seconds
+                    family_host["producer_prefetch_wait_seconds"] += producer_wait
+                    if batch_index == 0:
+                        family_host["producer_initial_fill_seconds"] += producer_wait
+                    else:
+                        family_host["gpu_starvation_seconds"] += producer_wait
+                    producer_pids.update(producer_metrics.worker_pids)
+                    producer_max_inflight = max(producer_max_inflight, producer_metrics.max_inflight)
+                    producer_max_queue = max(
+                        producer_max_queue, max(0, producer_metrics.max_inflight - producer_workers)
+                    )
+                    producer_reorder_high_water = max(
+                        producer_reorder_high_water, producer_metrics.reorder_buffer_high_water
+                    )
+                    motifs = dict(prepared.motifs)
+                    checkpoint_motifs = {
+                        step: dict(values) for step, values in prepared.checkpoint_motifs.items()
+                    }
+                    motifs_all.update(motifs)
+                    per_checkpoint_budget = config["probe"]["target_games_per_checkpoint"] if probe else checkpoint_budget
+                    requested_budget=128 if smoke else per_checkpoint_budget * len(checkpoint_batch)
+                    local_budget = min(requested_budget, ledger.remaining(family_id, "target_beam"))
+                    if local_budget < evaluator.projected_games(1):
+                        break
+                    result = run_beam(family_id, checkpoint_batch, motifs, evaluator,
+                                      BeamConfig(max_depth=1 if smoke else config["search"]["beam_depth"], cuda_game_budget=local_budget,
+                                                 max_candidates_per_expansion=8 if smoke else config["search"]["max_candidates_per_expansion"] * len(checkpoint_batch),
+                                                 stagnation_rounds=config["search"]["stagnation_rounds"]), archive,
+                                      checkpoint_motifs=checkpoint_motifs)
+                    archive = result.archive; candidates.extend(result.candidates)
+                    for key, value in result.metrics.items():
+                        if isinstance(value, (int, float)): family_beam[key] += value
+                        elif key == "expansions_by_operator": family_operators.update(value)
+            finally:
+                batch_stream.close()
         elites = {entry.program_id for entry in archive.entries() if entry.target_win_to_loss == 0 and entry.target_loss_to_win > 0}
         promotion_config=config["probe"] if probe else config["promotion"]
         promotion_pool = select_promotion_pool(candidates, elites, promotion_config["risk_pool_size"])
@@ -478,6 +589,28 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
             block=c.effect.blocks[0]; total_l2w+=sum(block.loss_to_win); global_effects.add(_effect_identity(c.effect)); target_clusters.add((family_id,tuple(block.loss_to_win),tuple(x>0 for x in block.margin_deltas)))
         target_future=sum(risk.classification is RoutabilityClassification.FUTURE_DEPENDENT for risk in target_risks.values())
         full_future=sum(risk.classification is RoutabilityClassification.FUTURE_DEPENDENT for risk in full_risks.values())
+        host_pipeline_metrics = {
+            "producer_workers": producer_workers,
+            "consumer_workers": 0,
+            "queue_depth": producer_queue_depth,
+            "start_method": producer_start_method,
+            "producer_tasks": int(family_host["producer_tasks"]),
+            "producer_wall_seconds": float(family_host["producer_wall_seconds"]),
+            "producer_busy_seconds": float(family_host["producer_busy_seconds"]),
+            "producer_queue_block_seconds": float(family_host["producer_queue_block_seconds"]),
+            "producer_prefetch_wait_seconds": float(family_host["producer_prefetch_wait_seconds"]),
+            "producer_initial_fill_seconds": float(family_host["producer_initial_fill_seconds"]),
+            "gpu_starvation_seconds": float(family_host["gpu_starvation_seconds"]),
+            "max_producer_inflight": producer_max_inflight,
+            "max_producer_queue_depth": producer_max_queue,
+            "reorder_buffer_high_water": producer_reorder_high_water,
+            "worker_pids": sorted(producer_pids),
+            "consumer_result_processing_seconds": float(family_beam["archive_update_seconds"]),
+            "consumer_queue_block_seconds": 0.0,
+            "max_result_queue_depth": 0,
+            "archive_owner": "COORDINATOR",
+            "gpu_owner": "COORDINATOR_SERIAL_SUBPROCESS_LANE",
+        }
         all_metrics[family_id]={"checkpoints":len(checkpoints),"checkpoint_batches":len(checkpoint_batches),
                                 "beam":{**dict(family_beam),"expansions_by_operator":dict(sorted(family_operators.items()))},
                                 "promotion_pool":len(promotion_pool),"full_risk_screened":len(risk_shortlist),
@@ -488,6 +621,7 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
                                     for candidate_id,risk in risks.items()
                                     if risk.classification is RoutabilityClassification.FUTURE_DEPENDENT}),
                                 "refined":len(refined),"archive":archive.metrics(),
+                                "host_pipeline":host_pipeline_metrics,
                                 "prepromotion_results":prepromotion_results,"results":family_results}
         _write_json(family_dir/"prepromotion_summary.json",prepromotion_results)
         _write_json(family_dir/"run.json",all_metrics[family_id]); _write_json(family_dir/"archive_summary.json",json.loads(archive.serialize()))
@@ -501,6 +635,22 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
              "protected_win_to_loss":0,"semantic_mismatches":0,"sealed_generation_uses":0,"budget":ledger.document(),"families":all_metrics}
     metrics["legal_state_capture"]={"launches":capture_cache.launches,"reuses":capture_cache.reuses,
                                      "host_seconds":capture_cache.seconds}
+    metrics["host_pipeline"] = {
+        "producer_workers": producer_workers,
+        "consumer_workers": 0,
+        "queue_depth": producer_queue_depth,
+        "start_method": producer_start_method,
+        "producer_tasks": sum(row["host_pipeline"]["producer_tasks"] for row in all_metrics.values()),
+        "producer_wall_seconds": sum(row["host_pipeline"]["producer_wall_seconds"] for row in all_metrics.values()),
+        "producer_busy_seconds": sum(row["host_pipeline"]["producer_busy_seconds"] for row in all_metrics.values()),
+        "producer_queue_block_seconds": sum(row["host_pipeline"]["producer_queue_block_seconds"] for row in all_metrics.values()),
+        "gpu_starvation_seconds": sum(row["host_pipeline"]["gpu_starvation_seconds"] for row in all_metrics.values()),
+        "max_producer_queue_depth": max((row["host_pipeline"]["max_producer_queue_depth"] for row in all_metrics.values()), default=0),
+        "max_result_queue_depth": 0,
+        "reorder_buffer_high_water": max((row["host_pipeline"]["reorder_buffer_high_water"] for row in all_metrics.values()), default=0),
+        "archive_owner": "COORDINATOR",
+        "gpu_owner": "COORDINATOR_SERIAL_SUBPROCESS_LANE",
+    }
     _write_json(output/"metrics.json",metrics);_write_json(output/"failures.json",{"counts":dict(sorted(failures.items()))});_write_json(output/"archive_summary.json",{"families":{k:v["archive"] for k,v in all_metrics.items()}})
     _write_json(output/"run.json",{**manifest,"finished_unix":int(time.time()),"verdict":"CAMPAIGN_COMPLETE"})
     return 0

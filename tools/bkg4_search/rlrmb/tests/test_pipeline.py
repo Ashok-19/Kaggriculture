@@ -6,7 +6,7 @@ from unittest.mock import patch
 from tools.bkg4_search.rlrmb.pipeline import (
     CaseMeta, ExactCaseEvidence, EXIT_ACCEPTED, EXIT_INFRASTRUCTURE, EXIT_STRATEGIC,
     LegalStateCaptureCache, TerminalVerdict, build_routability_evidence, build_cegis_input,
-    capture_candidate_legal_states, emit_candidate_route, run_production_pipeline,
+    capture_candidate_legal_states, emit_candidate_route, run_production_pipeline, validate_production_config,
 )
 from tools.bkg4_search.rlrmb.routability import RoutabilityClassification, RoutabilityResult
 from tools.bkg4_search.rlrmb.schema import DatasetRole
@@ -84,6 +84,24 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(ledger.by_family[family], 66306)
         with self.assertRaises(RuntimeError):
             ledger.consume(family, "target_beam", 1)
+
+    def test_production_config_accepts_only_bounded_operational_host_controls(self):
+        source = json.loads(Path("tools/bkg4_search/rlrmb/configs/p0_7_equal_budget_v1.json").read_text())
+        source["host_execution"] = {
+            "producer_workers": 4,
+            "queue_depth": 2,
+            "start_method": "spawn",
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            config = root / "config.json"
+            config.write_text(json.dumps(source))
+            validated = validate_production_config(config, root / "output")
+            self.assertEqual(validated["host_execution"], source["host_execution"])
+            source["host_execution"]["producer_workers"] = 0
+            config.write_text(json.dumps(source))
+            with self.assertRaises(ValueError):
+                validate_production_config(config, root / "other")
 
     def test_phase13_validate_only_writes_complete_empty_run_contract(self):
         config_path = Path("tools/bkg4_search/rlrmb/configs/p0_7_equal_budget_v1.json")

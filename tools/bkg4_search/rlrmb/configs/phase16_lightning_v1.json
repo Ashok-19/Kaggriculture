@@ -4,7 +4,7 @@
   "cloud": {
     "expected_hardware": {
       "gpu": "NVIDIA RTX PRO 6000-class",
-      "system_ram_gb": 96,
+      "system_ram_gb": 128,
       "vcpus": 16
     },
     "frontier_order": [
@@ -19,6 +19,11 @@
     "authority_slot": "day2_capital_specialist_v1_route_override",
     "artifact_retention": "ACCEPTED_EXACT_PLUS_COMPACT_REJECTED_SUMMARIES",
     "live_champion_promotion": false,
+    "host_execution": {
+      "producer_workers": 8,
+      "queue_depth": 2,
+      "start_method": "spawn"
+    },
     "modes": {
       "pilot": {
         "max_generations": 4,

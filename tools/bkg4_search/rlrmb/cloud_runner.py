@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 from .pipeline import EXIT_INFRASTRUCTURE, run_production_pipeline
+from .cloud.telemetry import TelemetrySampler
 from .schema import stable_identity
 
 CLOUD_STATE_VERSION = 1
@@ -88,8 +89,26 @@ def _mode_policy(config: Mapping[str, Any], mode: str) -> Mapping[str, Any]:
     return policy
 
 
-def generation_config(config: Mapping[str, Any], state: Mapping[str, Any], mode: str) -> dict[str, Any]:
+def _validated_operational_overrides(overrides: Mapping[str, Any] | None) -> dict[str, int]:
+    values = dict(overrides or {})
+    allowed = {"host_workers", "queue_depth", "checkpoint_batch_size"}
+    unknown = set(values) - allowed
+    if unknown:
+        raise ValueError(f"unsupported cloud operational overrides: {sorted(unknown)}")
+    limits = {"host_workers": 64, "queue_depth": 64, "checkpoint_batch_size": 64}
+    for name, maximum in limits.items():
+        if name not in values:
+            continue
+        value = values[name]
+        if type(value) is not int or not 1 <= value <= maximum:
+            raise ValueError(f"{name} must be an integer in 1..{maximum}")
+    return {name: int(values[name]) for name in sorted(values)}
+
+
+def generation_config(config: Mapping[str, Any], state: Mapping[str, Any], mode: str,
+                      operational_overrides: Mapping[str, Any] | None = None) -> dict[str, Any]:
     policy = _mode_policy(config, mode)
+    overrides = _validated_operational_overrides(operational_overrides)
     families = tuple(config["families"])
     index = int(state["next_frontier"]) % len(families)
     selected = dict(families[index])
@@ -104,7 +123,14 @@ def generation_config(config: Mapping[str, Any], state: Mapping[str, Any], mode:
     runtime["asset_dir"] = state["working_asset_dir"]
     runtime["parent_route"] = state["working_parent_route"]
     runtime["search"] = dict(runtime["search"])
-    runtime["search"]["checkpoint_batch_size"] = int(policy["checkpoint_batch_size"])
+    runtime["search"]["checkpoint_batch_size"] = int(
+        overrides.get("checkpoint_batch_size", policy["checkpoint_batch_size"])
+    )
+    runtime["host_execution"] = dict(config["cloud"].get("host_execution") or {})
+    if "host_workers" in overrides:
+        runtime["host_execution"]["producer_workers"] = overrides["host_workers"]
+    if "queue_depth" in overrides:
+        runtime["host_execution"]["queue_depth"] = overrides["queue_depth"]
     runtime["deployment"] = dict(runtime["deployment"])
     runtime["deployment"]["route_id_base"] = int(config["cloud"]["route_id_base"]) + int(state["generation"])
     runtime["deployment"]["authority_name"] = str(config["cloud"]["authority_name"])
@@ -194,81 +220,115 @@ def compact_generation_artifacts(run_dir: Path, accepted: Sequence[str]) -> None
 
 def run_cloud(config_path: Path, output: Path, *, mode: str, resume: bool = False,
               max_generations: int | None = None, pipeline_runner: Any = run_production_pipeline,
-              asset_builder: Any = build_working_assets) -> int:
+              asset_builder: Any = build_working_assets,
+              operational_overrides: Mapping[str, Any] | None = None,
+              telemetry_interval_seconds: float = 2.0) -> int:
     config = load_cloud_config(config_path)
     policy = _mode_policy(config, mode)
+    overrides = _validated_operational_overrides(operational_overrides)
+    if telemetry_interval_seconds <= 0 or telemetry_interval_seconds > 3600:
+        raise ValueError("telemetry interval must be in (0, 3600] seconds")
     output.mkdir(parents=True, exist_ok=True)
-    state = load_state(output, config, resume)
-    limit = int(max_generations or policy["max_generations"])
-    started = time.monotonic()
-    wall_limit = int(policy["wall_time_limit_seconds"])
-    for _ in range(limit):
-        if time.monotonic() - started >= wall_limit:
-            break
-        attempt = len(state["completed_frontiers"])
-        pending = output / f"attempt_{attempt:04d}.pending"
-        if pending.exists():
-            shutil.rmtree(pending)
-        runtime_config = generation_config(config, state, mode)
-        pending.mkdir(parents=True)
-        runtime_path = pending / "config.json"
-        _write_atomic(runtime_path, runtime_config)
-        run_dir = pending / "run"
-        code = pipeline_runner(runtime_path, run_dir)
-        if code == EXIT_INFRASTRUCTURE:
-            return EXIT_INFRASTRUCTURE
-        metrics = _read(run_dir / "metrics.json")
-        state["cuda_games_consumed"] += int(metrics.get("total_cuda_games", 0))
-        family_id = runtime_config["families"][0]["id"]
-        accepted = tuple(sorted(metrics.get("accepted_candidate_ids", ())))
-        state["completed_frontiers"].append(family_id)
-        state["next_frontier"] += 1
-        if accepted:
-            candidate_id = accepted[0]
-            deployment = _accepted_deployment(run_dir, candidate_id)
-            next_generation = int(state["generation"]) + 1
-            assets = pending / "working_assets"
-            identity = asset_builder(Path(state["working_asset_dir"]), deployment, assets)
-            if int(metrics.get("protected_win_to_loss", 0)) or int(metrics.get("semantic_mismatches", 0)):
-                raise RuntimeError("accepted generation failed protected regression/parity")
-            route = next(deployment.glob("*.route.json"))
-            compact_generation_artifacts(run_dir, accepted)
-            committed = output / "generations" / f"generation_{next_generation:04d}"
-            committed.parent.mkdir(parents=True, exist_ok=True)
-            os.replace(pending, committed)
-            state["generation"] = next_generation
-            state["working_asset_dir"] = str((committed / "working_assets").resolve())
-            route_copy = committed / "working_parent.route.json"
-            shutil.copy2(committed / "run" / deployment.relative_to(run_dir) / route.name, route_copy)
-            state["working_parent_route"] = str(route_copy.resolve())
-            state["accepted_specialists"].append(candidate_id)
-            state["commits"].append({"generation": next_generation, "candidate_id": candidate_id,
-                                     "family_id": family_id, "identity": identity,
-                                     "cuda_games": int(metrics.get("total_cuda_games", 0))})
-        else:
-            compact_generation_artifacts(run_dir, ())
-            completed = output / "completed_attempts" / f"attempt_{attempt:04d}"
-            completed.parent.mkdir(parents=True, exist_ok=True)
-            os.replace(pending, completed)
-        _write_atomic(output / "generation_state.json", state)
-    result = {"schema_version": 1, "mode": mode, "wall_seconds": time.monotonic() - started,
-              "terminal_verdict": "PROMOTION_READY" if state["accepted_specialists"] else "NOT_PROMOTION_READY",
-              **state}
-    _write_atomic(output / "cloud_result.json", result)
-    return 0
+    telemetry = TelemetrySampler(output / "telemetry.jsonl", interval_seconds=float(telemetry_interval_seconds))
+    telemetry.start()
+    try:
+        state = load_state(output, config, resume)
+        limit = int(max_generations or policy["max_generations"])
+        started = time.monotonic()
+        wall_limit = int(policy["wall_time_limit_seconds"])
+        for _ in range(limit):
+            if time.monotonic() - started >= wall_limit:
+                break
+            attempt = len(state["completed_frontiers"])
+            pending = output / f"attempt_{attempt:04d}.pending"
+            if pending.exists():
+                shutil.rmtree(pending)
+            runtime_config = generation_config(config, state, mode, operational_overrides=overrides)
+            pending.mkdir(parents=True)
+            runtime_path = pending / "config.json"
+            _write_atomic(runtime_path, runtime_config)
+            run_dir = pending / "run"
+            code = pipeline_runner(runtime_path, run_dir)
+            if code == EXIT_INFRASTRUCTURE:
+                return EXIT_INFRASTRUCTURE
+            metrics = _read(run_dir / "metrics.json")
+            state["cuda_games_consumed"] += int(metrics.get("total_cuda_games", 0))
+            family_id = runtime_config["families"][0]["id"]
+            accepted = tuple(sorted(metrics.get("accepted_candidate_ids", ())))
+            state["completed_frontiers"].append(family_id)
+            state["next_frontier"] += 1
+            if accepted:
+                candidate_id = accepted[0]
+                deployment = _accepted_deployment(run_dir, candidate_id)
+                next_generation = int(state["generation"]) + 1
+                assets = pending / "working_assets"
+                identity = asset_builder(Path(state["working_asset_dir"]), deployment, assets)
+                if int(metrics.get("protected_win_to_loss", 0)) or int(metrics.get("semantic_mismatches", 0)):
+                    raise RuntimeError("accepted generation failed protected regression/parity")
+                route = next(deployment.glob("*.route.json"))
+                compact_generation_artifacts(run_dir, accepted)
+                committed = output / "generations" / f"generation_{next_generation:04d}"
+                committed.parent.mkdir(parents=True, exist_ok=True)
+                os.replace(pending, committed)
+                state["generation"] = next_generation
+                state["working_asset_dir"] = str((committed / "working_assets").resolve())
+                route_copy = committed / "working_parent.route.json"
+                shutil.copy2(committed / "run" / deployment.relative_to(run_dir) / route.name, route_copy)
+                state["working_parent_route"] = str(route_copy.resolve())
+                state["accepted_specialists"].append(candidate_id)
+                state["commits"].append({"generation": next_generation, "candidate_id": candidate_id,
+                                         "family_id": family_id, "identity": identity,
+                                         "cuda_games": int(metrics.get("total_cuda_games", 0))})
+            else:
+                compact_generation_artifacts(run_dir, ())
+                completed = output / "completed_attempts" / f"attempt_{attempt:04d}"
+                completed.parent.mkdir(parents=True, exist_ok=True)
+                os.replace(pending, completed)
+            _write_atomic(output / "generation_state.json", state)
+        result = {"schema_version": 1, "mode": mode, "wall_seconds": time.monotonic() - started,
+                  "terminal_verdict": "PROMOTION_READY" if state["accepted_specialists"] else "NOT_PROMOTION_READY",
+                  "operational_overrides": overrides,
+                  "telemetry_interval_seconds": float(telemetry_interval_seconds),
+                  **state}
+        _write_atomic(output / "cloud_result.json", result)
+        return 0
+    finally:
+        telemetry.stop()
 
 
-def main(argv: Sequence[str] | None = None) -> int:
-    parser = argparse.ArgumentParser()
+def _parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Run committed-generation RLRMB cloud synthesis")
     parser.add_argument("--config", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--mode", choices=("pilot", "campaign"), required=True)
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--max-generations", type=int)
+    parser.add_argument("--host-workers", type=int,
+                        help="runtime-only producer process count (1..64)")
+    parser.add_argument("--queue-depth", type=int,
+                        help="runtime-only bounded producer queue depth (1..64)")
+    parser.add_argument("--checkpoint-batch-size", type=int,
+                        help="runtime-only checkpoint batch size (1..64)")
+    parser.add_argument("--telemetry-interval-seconds", type=float, default=2.0,
+                        help="machine telemetry sampling interval; default 2 seconds")
+    return parser
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    parser = _parser()
     args = parser.parse_args(argv)
+    overrides = {
+        name: value for name, value in (
+            ("host_workers", args.host_workers),
+            ("queue_depth", args.queue_depth),
+            ("checkpoint_batch_size", args.checkpoint_batch_size),
+        ) if value is not None
+    }
     try:
         return run_cloud(args.config, args.output, mode=args.mode, resume=args.resume,
-                         max_generations=args.max_generations)
+                         max_generations=args.max_generations,
+                         operational_overrides=overrides,
+                         telemetry_interval_seconds=args.telemetry_interval_seconds)
     except Exception as exc:
         print(f"RLRMB_CLOUD_INFRASTRUCTURE_FAILURE: {exc}", file=sys.stderr)
         return EXIT_INFRASTRUCTURE

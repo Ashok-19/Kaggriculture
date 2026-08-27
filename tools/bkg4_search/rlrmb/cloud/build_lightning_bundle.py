@@ -97,8 +97,9 @@ def build_bundle(config_path: Path, output_dir: Path, archive: Path) -> dict:
         "expected_hardware": config["cloud"]["expected_hardware"],
         "dependency_identities": {"python": "stdlib-only orchestration", "cuda_engine": "source-bundled",
                                   "bonsai_kg": "source-bundled"},
-        "cloud_command": "./tools/bkg4_search/rlrmb/cloud/lightning_run.sh pilot OUTPUT",
-        "expected_results": ["generation_state.json", "cloud_result.json", "generations/", "completed_attempts/"],
+        "cloud_command": "./tools/bkg4_search/rlrmb/cloud/lightning_run.sh pilot OUTPUT [runtime options...]",
+        "expected_results": ["generation_state.json", "cloud_result.json", "telemetry.jsonl",
+                             "generations/", "completed_attempts/"],
     }
     manifest_path = output_dir / "phase16_bundle_manifest.json"
     size = -1

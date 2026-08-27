@@ -76,10 +76,26 @@ def validate_production_config(config_path: str | Path, output: str | Path) -> d
     config = json.loads(config_path.read_text(encoding="utf-8"))
     allowed = {"schema_version", "cuda_binary", "capture_binary", "asset_dir", "donor_manifest",
                "parent_route", "transfer_panel", "validation_panel", "sealed_panel", "sealed_role",
-               "budget", "search", "promotion", "probe", "repair", "deployment", "output", "families", "cloud"}
+               "budget", "search", "promotion", "probe", "repair", "deployment", "output", "families", "cloud",
+               "host_execution"}
     unknown = set(config) - allowed
     if config.get("schema_version") != PIPELINE_SCHEMA_VERSION or unknown:
         raise ValueError(f"unsupported production config schema/fields: {sorted(unknown)}")
+    host = config.get("host_execution", {})
+    if not isinstance(host, Mapping):
+        raise ValueError("host_execution must be a mapping")
+    unknown_host = set(host) - {"producer_workers", "queue_depth", "start_method"}
+    if unknown_host:
+        raise ValueError(f"unsupported host_execution fields: {sorted(unknown_host)}")
+    producer_workers = host.get("producer_workers", 1)
+    queue_depth = host.get("queue_depth", 2)
+    start_method = host.get("start_method", "spawn")
+    if type(producer_workers) is not int or producer_workers <= 0 or producer_workers > 64:
+        raise ValueError("host_execution.producer_workers must be an integer in 1..64")
+    if type(queue_depth) is not int or queue_depth <= 0 or queue_depth > 64:
+        raise ValueError("host_execution.queue_depth must be an integer in 1..64")
+    if start_method not in {"spawn", "forkserver", "fork"}:
+        raise ValueError("host_execution.start_method must be spawn, forkserver, or fork")
     families = config.get("families", ())
     budget = config.get("budget", {})
     total = budget.get("total_cuda_games")

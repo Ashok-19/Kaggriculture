@@ -360,7 +360,7 @@ def _replacement_reason(winner: ArchiveEntry, loser: ArchiveEntry) -> str:
 
 
 class Archive:
-    """One-elite-per-cell archive rebuilt canonically for order-independent state."""
+    """One-elite-per-cell archive with deterministic incremental cell updates."""
 
     def __init__(self, entries: Iterable[ArchiveEntry] = ()) -> None:
         self._seen: dict[str, ArchiveEntry] = {}
@@ -368,6 +368,7 @@ class Archive:
         self._repeat_rejections = 0
         self._considered = 0
         self._elites: dict[str, ArchiveEntry] = {}
+        self._semantic_cells: dict[tuple[str, str], str] = {}
         for entry in entries:
             self.insert(entry)
 
@@ -376,13 +377,21 @@ class Archive:
         return stable_identity("RLRMB-ARCHIVE-ENTRY-V1", entry.semantic_document())
 
     def _rebuild(self) -> None:
+        """Canonical recovery path used by deserialization, not normal inserts."""
         elites: dict[str, ArchiveEntry] = {}
+        semantic_cells: dict[tuple[str, str], str] = {}
         for entry in sorted(self._seen.values(), key=self._fingerprint):
             cell_id = entry.cell_key.semantic_id
+            semantic_key = (entry.structural_id, entry.effect_signature)
+            claimed = semantic_cells.get(semantic_key)
+            if claimed is not None and claimed != cell_id:
+                raise ValueError("identical structure/effect semantics cannot claim multiple archive cells")
+            semantic_cells[semantic_key] = cell_id
             incumbent = elites.get(cell_id)
             if incumbent is None or compare_entries(entry, incumbent) < 0:
                 elites[cell_id] = entry
         self._elites = elites
+        self._semantic_cells = semantic_cells
 
     def insert(self, entry: ArchiveEntry) -> InsertResult:
         if not isinstance(entry, ArchiveEntry):
@@ -391,32 +400,33 @@ class Archive:
         if not entry.semantic_valid:
             self._invalid_rejections += 1
             return InsertResult.REJECTED_INVALID
-        for seen in self._seen.values():
-            if (
-                seen.structural_id == entry.structural_id
-                and seen.effect_signature == entry.effect_signature
-                and seen.cell_key != entry.cell_key
-            ):
-                raise ValueError("identical structure/effect semantics cannot claim multiple archive cells")
+        cell_id = entry.cell_key.semantic_id
+        semantic_key = (entry.structural_id, entry.effect_signature)
+        claimed = self._semantic_cells.get(semantic_key)
+        if claimed is not None and claimed != cell_id:
+            raise ValueError("identical structure/effect semantics cannot claim multiple archive cells")
         fingerprint = self._fingerprint(entry)
         prior_same = self._seen.get(fingerprint)
         if prior_same is not None:
-            self._seen[fingerprint] = replace(
+            merged = replace(
                 prior_same,
                 provenance=tuple(sorted(set(prior_same.provenance) | set(entry.provenance))),
                 evidence_ids=tuple(sorted(set(prior_same.evidence_ids) | set(entry.evidence_ids))),
             )
+            self._seen[fingerprint] = merged
+            incumbent = self._elites.get(cell_id)
+            if incumbent is not None and self._fingerprint(incumbent) == fingerprint:
+                self._elites[cell_id] = merged
             self._repeat_rejections += 1
-            self._rebuild()
             return InsertResult.REJECTED_DUPLICATE
-        cell_id = entry.cell_key.semantic_id
         incumbent = self._elites.get(cell_id)
         self._seen[fingerprint] = entry
-        self._rebuild()
-        winner = self._elites[cell_id]
+        self._semantic_cells[semantic_key] = cell_id
         if incumbent is None:
+            self._elites[cell_id] = entry
             return InsertResult.INSERTED_NEW_CELL
-        if winner == entry:
+        if compare_entries(entry, incumbent) < 0:
+            self._elites[cell_id] = entry
             return InsertResult.REPLACED_ELITE
         if incumbent.structural_id == entry.structural_id or incumbent.effect_signature == entry.effect_signature:
             return InsertResult.REJECTED_DUPLICATE

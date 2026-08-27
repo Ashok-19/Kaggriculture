@@ -25,6 +25,8 @@ python3 -m tools.bkg4_search.rlrmb.cli \
   --config scratch/phase16_runtime_validation.json \
   --output scratch/bootstrap_config_validation --validate-config
 CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-0}" python3 -m unittest \
+  tools.bkg4_search.rlrmb.tests.test_host_pipeline \
+  tools.bkg4_search.rlrmb.tests.test_telemetry \
   tools.bkg4_search.rlrmb.tests.test_evaluator_parity \
   tools.bkg4_search.rlrmb.tests.test_materialize \
   tools.bkg4_search.rlrmb.tests.test_cloud
