@@ -1,0 +1,148 @@
+{
+  "schema_version": 1,
+  "phase": 13,
+  "verdict": "VALIDATED",
+  "run_directory": "scratch/rlrmb/p0_7_equal_budget_20260827_04",
+  "config_id": "bef4157fc9dad10f5df89fd7b342cea3e01895a39ea7b16272d505d38bcdf34d",
+  "starting_commit": "f675c7d3cc57bd3dc7186ff7d0518d89dd3daa72",
+  "p0_7_baseline": {
+    "cuda_games": 265226,
+    "refined_candidates": 88,
+    "accepted_specialists": 0,
+    "mixed_legal_state": 49,
+    "mixed_rate": 0.557,
+    "non_transferable": 38,
+    "non_transferable_rate": 0.432,
+    "target_capability_lost": 1
+  },
+  "rlrmb": {
+    "duration_seconds": 5379,
+    "cuda_games": 220143,
+    "accepted_specialists": 3,
+    "refined_candidates": 7,
+    "target_loss_to_win": 14,
+    "target_l2w_per_100k": 6.359502686889885,
+    "mixed_legal_state": 0,
+    "mixed_rate": 0.0,
+    "non_transferable": 0,
+    "non_transferable_rate": 0.0,
+    "unique_effect_signatures": 7,
+    "unique_effect_rate": 1.0,
+    "target_solving_clusters": 6,
+    "target_solving_families": 3,
+    "protected_win_to_loss": 0,
+    "semantic_mismatches": 0,
+    "sealed_generation_uses": 0,
+    "raw_candidates": 320562,
+    "cuda_candidates_evaluated": 35670,
+    "structural_duplicates_removed": 147486,
+    "archive_cells": 975,
+    "archive_replacements": 1450,
+    "archive_target_solving_cells": 182,
+    "promotion_pool_candidates": 103,
+    "target_risk_future_dependent": 55,
+    "full_risk_screened": 31,
+    "full_risk_future_dependent": 23
+  },
+  "families": {
+    "family_00_offline_10": {
+      "cuda_games": 56306,
+      "promotion_pool": 32,
+      "refined": 2,
+      "accepted": 2,
+      "archive_cells": 273,
+      "target_solving_cells": 56
+    },
+    "family_01_offline_4": {
+      "cuda_games": 56458,
+      "promotion_pool": 32,
+      "refined": 3,
+      "accepted": 1,
+      "archive_cells": 357,
+      "target_solving_cells": 87
+    },
+    "family_02_offline_0": {
+      "cuda_games": 51893,
+      "promotion_pool": 14,
+      "refined": 0,
+      "accepted": 0,
+      "archive_cells": 92,
+      "target_solving_cells": 14
+    },
+    "family_03_offline_13": {
+      "cuda_games": 55486,
+      "promotion_pool": 25,
+      "refined": 2,
+      "accepted": 0,
+      "archive_cells": 253,
+      "target_solving_cells": 25
+    }
+  },
+  "accepted_candidates": [
+    {
+      "candidate_id": "b018d2fef00ef0bd2508b70d75ac128747f18a604d81f025350208fd09c1d0f3",
+      "family": "family_00_offline_10",
+      "checkpoint": 216,
+      "target_positive": 1,
+      "target_l2w": 1,
+      "transfer_positive": 3,
+      "transfer_l2w": 3,
+      "transfer_harms": 0,
+      "sealed": "PASSED",
+      "materialization_id": "9036151e74ffec1e7c1569021bdeb8c756dea82fdc501c0f10ef8179b17a4881",
+      "nodes": 15,
+      "state_slots": 4
+    },
+    {
+      "candidate_id": "8287b800258cf62ce2e81b186c0e04ba7cdda9b0fe0e99a11f875859b138a758",
+      "family": "family_00_offline_10",
+      "checkpoint": 215,
+      "target_positive": 1,
+      "target_l2w": 1,
+      "transfer_positive": 3,
+      "transfer_l2w": 3,
+      "transfer_harms": 0,
+      "sealed": "PASSED",
+      "materialization_id": "e976620a8911389fb718be41c68432336f7442d0d1b4c84909a9f0da81ecd5f8",
+      "nodes": 15,
+      "state_slots": 4
+    },
+    {
+      "candidate_id": "392b9eb2179ef32020e7ef23058fdf589b4be1517f79b42e7746950556ffe3ed",
+      "family": "family_01_offline_4",
+      "checkpoint": 120,
+      "target_positive": 4,
+      "target_l2w": 4,
+      "transfer_positive": 6,
+      "transfer_l2w": 4,
+      "transfer_harms": 0,
+      "sealed": "PASSED",
+      "materialization_id": "2a342c731f05fae94098a0d213f9849761ffc8eb376564e66df63341ab7cb58b",
+      "nodes": 16,
+      "state_slots": 4
+    }
+  ],
+  "failures": {
+    "HOLDOUT_FAILURE": 1,
+    "TARGET_CAPABILITY_LOST": 3
+  },
+  "success_gates": {
+    "accepted_specialists_at_least_1": true,
+    "target_l2w_per_100k_at_least_6": true,
+    "mixed_rate_at_most_0_35": true,
+    "non_transferable_rate_at_most_0_30": true,
+    "unique_effect_rate_at_least_0_85": true,
+    "target_solving_clusters_at_least_3": true,
+    "target_solving_families_at_least_2": true,
+    "protected_win_to_loss_zero": true,
+    "semantic_mismatches_zero": true,
+    "sealed_generation_uses_zero": true,
+    "cuda_games_at_most_265226": true
+  },
+  "leakage_audit": {
+    "sealed_discovery_use": false,
+    "historical_answer_injection": false,
+    "candidate50_special_case": false,
+    "hardened_cegis_modified": false
+  }
+}

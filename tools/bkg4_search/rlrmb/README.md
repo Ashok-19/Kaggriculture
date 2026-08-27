@@ -385,16 +385,15 @@ mismatches were both zero. Compact results are in
 - Phase 10 - adapter to existing hardened CEGIS: validated.
 - Phase 11 - deterministic BKG4 materialization and composition: validated.
 - Phase 12 - leakage-safe historical rediscovery benchmark (3/3): validated.
-- Phase 13 - equal-budget P0.7 comparison: correction prepared; validation
-  pending a second user-run campaign. The first 220,448-game campaign found one
-  accepted specialist but failed the mixed-state gate (29/32, 90.625%). Its
-  refinement selector had sorted semantic hashes. The corrected runner builds a
-  safety-first checkpoint/QD-diverse pool, rejects exact TARGET future conflicts
-  before transfer refinement, and requires a bounded legal gate predicate when
-  exact full-panel collisions remain. A 9,112-game offline_10 probe retained the
-  accepted-style candidate, reached SAFE_CONVERGENCE, and reduced refined mixed
-  state from 90.625% to 0% with 100% effect uniqueness and zero protected W->L,
-  semantic mismatches, or SEALED generation uses.
+- Phase 13 - equal-budget P0.7 comparison: validated. The corrected autonomous
+  campaign used 220,143 CUDA games and produced three accepted specialists,
+  6.36 target L->W per 100k games, zero mixed or non-transferable refined
+  candidates, seven distinct effects across six solving clusters and three
+  frontier families, zero protected W->L, zero semantic mismatches, and zero
+  SEALED generation uses. All accepted programs passed hardened CEGIS, sealed
+  and threshold checks, deterministic materialization, and composition. Compact
+  results are in `PHASE13_EQUAL_BUDGET_RESULT.json`; raw artifacts remain under
+  `scratch/rlrmb/p0_7_equal_budget_20260827_04/`.
 - Phases 14 and later: not implemented.
 
 ## Generated outputs
