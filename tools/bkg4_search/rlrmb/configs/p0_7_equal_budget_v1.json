@@ -31,6 +31,8 @@
     "archive_elites_per_cell": 1
   },
   "promotion": {
+    "risk_pool_size": 32,
+    "full_risk_pool_size": 9,
     "max_refined_candidates": 8,
     "minimum_target_loss_to_win": 1,
     "minimum_transfer_independent": 2,
@@ -38,6 +40,13 @@
     "max_cegis_iterations": 24,
     "threshold_radius": 2,
     "protected_win_to_loss": 0
+  },
+  "probe": {
+    "family_ids": ["family_00_offline_10"],
+    "checkpoint_limit": 16,
+    "target_games_per_checkpoint": 256,
+    "risk_pool_size": 16,
+    "full_risk_pool_size": 9
   },
   "repair": {
     "lns_max_candidates": 16,

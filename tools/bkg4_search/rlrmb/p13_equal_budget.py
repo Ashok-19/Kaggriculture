@@ -11,8 +11,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
-from .archive import Archive
-from .beam import BeamConfig, CudaBatchEvaluator, run_beam
+from .archive import Archive, make_cell_key
+from .beam import BeamCandidate, BeamConfig, CudaBatchEvaluator, run_beam
 from .checkpoints import EventEvidence, EventType, extract_trace_events, select_checkpoints
 from .ir import ActionFamily, MacroProgram
 from .motifs import Motif, motif_from_route_window
@@ -20,7 +20,7 @@ from .pipeline import (
     ExactCaseEvidence, build_cegis_input, build_routability_evidence,
     capture_candidate_legal_states, load_case_panel, materialize_certified_candidate,
 )
-from .routability import screen_routability
+from .routability import RoutabilityClassification, RoutabilityResult, screen_routability
 from .cegis_adapter import run_hardened_cegis
 from .effects import EffectVector, effect_signature
 from .failures import FailureClass
@@ -29,6 +29,16 @@ from .schema import DatasetRole, stable_identity
 
 SCHEMA_VERSION = 1
 GAME_CATEGORIES = ("target_beam", "transfer", "validation", "lns_repair", "reactive_repair", "certification")
+
+_PROMOTION_CLASS_RANK = {
+    RoutabilityClassification.ROUTABLE_CANDIDATE: 0,
+    RoutabilityClassification.REPAIR_LATER_CHECKPOINT: 1,
+    RoutabilityClassification.REPAIR_COMMON_PREFIX: 1,
+    RoutabilityClassification.REPAIR_BRANCH_AT_REVEAL: 1,
+    RoutabilityClassification.REPAIR_ABORT_RECOVERY: 1,
+    RoutabilityClassification.GATE_LIMITATION_SUSPECTED: 2,
+    RoutabilityClassification.FUTURE_DEPENDENT: 3,
+}
 
 
 def _read_json(path: Path) -> Any:
@@ -110,6 +120,16 @@ def validate_config(config_path: Path) -> dict[str, Any]:
         raise ValueError(f"missing Phase-13 inputs: {missing}")
     if config["sealed_role"] != "CEGIS_DOWNSTREAM_ONLY":
         raise ValueError("SEALED must remain downstream-only")
+    promotion = config["promotion"]
+    if not (promotion["risk_pool_size"] >= promotion["full_risk_pool_size"] >= promotion["max_refined_candidates"] > 0):
+        raise ValueError("promotion pools must narrow deterministically into refined slots")
+    probe = config["probe"]
+    family_ids = {row["id"] for row in families}
+    if (not probe["family_ids"] or not set(probe["family_ids"]).issubset(family_ids)
+            or not 1 <= probe["checkpoint_limit"] <= config["search"]["checkpoint_limit"]
+            or probe["target_games_per_checkpoint"] <= 0
+            or not probe["risk_pool_size"] >= probe["full_risk_pool_size"] > 0):
+        raise ValueError("invalid bounded Phase-13 correction probe")
     return config
 
 
@@ -151,12 +171,156 @@ def _effect_identity(effect: EffectVector) -> str:
     return effect_signature(effect)
 
 
-def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False, smoke: bool = False) -> int:
+def _target_block(candidate: BeamCandidate):
+    if candidate.effect is None:
+        raise ValueError("promotion candidates require exact TARGET effects")
+    return next(block for block in candidate.effect.blocks if block.role is DatasetRole.TARGET)
+
+
+def _target_quality(candidate: BeamCandidate) -> tuple[Any, ...]:
+    block = _target_block(candidate)
+    return (
+        sum(block.win_to_loss),
+        -sum(block.loss_to_win),
+        -sum(delta > 0 for delta in block.margin_deltas),
+        -min(block.margin_deltas),
+        len(candidate.program.phases) + sum(len(phase.parameters) for phase in candidate.program.phases),
+        -sum(block.margin_deltas),
+        candidate.program.semantic_id,
+    )
+
+
+def _structure_profile(candidate: BeamCandidate) -> tuple[Any, ...]:
+    return (
+        candidate.program.lane.value,
+        tuple(tuple(family.value for family in phase.action_families) for phase in candidate.program.phases),
+        tuple(phase.action_source.value for phase in candidate.program.phases),
+    )
+
+
+def select_promotion_pool(candidates: Sequence[BeamCandidate], elite_ids: set[str], limit: int) -> tuple[BeamCandidate, ...]:
+    """Choose a deterministic QD/checkpoint-diverse pool before legal-state work.
+
+    Phase-13 previously sorted semantic hashes and took the first eight. That
+    gave neither strategic quality nor checkpoint diversity any influence.
+    This pool keeps one best representative per checkpoint first, then fills
+    distinct effect cells/structures using the Phase-5 safety ordering.
+    """
+    if type(limit) is not int or limit <= 0:
+        raise ValueError("promotion pool limit must be positive")
+    unique = {item.program.semantic_id: item for item in candidates
+              if item.program.semantic_id in elite_ids and item.effect is not None}
+    ordered = sorted(unique.values(), key=_target_quality)
+    chosen: list[BeamCandidate] = []
+    used_ids: set[str] = set()
+
+    def add(rows: Sequence[BeamCandidate]) -> None:
+        for item in rows:
+            if len(chosen) >= limit:
+                return
+            if item.program.semantic_id not in used_ids:
+                chosen.append(item); used_ids.add(item.program.semantic_id)
+
+    best_by_checkpoint: dict[int, BeamCandidate] = {}
+    for item in ordered:
+        best_by_checkpoint.setdefault(item.program.initiation.step, item)
+    add(sorted(best_by_checkpoint.values(), key=_target_quality))
+
+    best_by_niche: dict[tuple[Any, ...], BeamCandidate] = {}
+    for item in ordered:
+        niche = (make_cell_key(item.program.initiation, item.effect), _structure_profile(item))
+        best_by_niche.setdefault(niche, item)
+    add(sorted(best_by_niche.values(), key=_target_quality))
+    add(ordered)
+    return tuple(chosen)
+
+
+def select_refinement_candidates(
+    candidates: Sequence[BeamCandidate], risks: Mapping[str, RoutabilityResult], limit: int,
+) -> tuple[BeamCandidate, ...]:
+    """Retain legal-plausible, effect-diverse candidates; exact FUTURE is out."""
+    if type(limit) is not int or limit <= 0:
+        raise ValueError("refinement limit must be positive")
+    if any(item.program.semantic_id not in risks for item in candidates):
+        raise ValueError("every refinement candidate requires candidate-specific legal risk")
+    def plausible(risk: RoutabilityResult) -> bool:
+        if risk.classification in {RoutabilityClassification.FUTURE_DEPENDENT,
+                                   RoutabilityClassification.GATE_LIMITATION_SUSPECTED}:
+            return False
+        if risk.classification is not RoutabilityClassification.ROUTABLE_CANDIDATE:
+            return True
+        diagnostics=risk.diagnostics
+        # A collision-free panel needs no separator. Once exact collisions are
+        # present, however, absence of even one bounded legal gate predicate is
+        # the campaign's observed precursor to hardened MIXED_LEGAL_STATE.
+        return not diagnostics.get("exact_collision_count",0) or diagnostics.get("gate_predicate") is not None
+
+    eligible = [item for item in candidates if plausible(risks[item.program.semantic_id])]
+    ordered = sorted(eligible, key=lambda item: (
+        _PROMOTION_CLASS_RANK[risks[item.program.semantic_id].classification],
+        -risks[item.program.semantic_id].score,
+        *_target_quality(item),
+    ))
+    selected: list[BeamCandidate] = []
+    seen_effects: set[str] = set(); seen_checkpoints: set[int] = set(); seen_profiles: set[tuple[Any, ...]] = set()
+    while ordered and len(selected) < limit:
+        def key(item: BeamCandidate) -> tuple[Any, ...]:
+            effect_id = _effect_identity(item.effect)
+            profile = _structure_profile(item)
+            novelty = ((effect_id not in seen_effects) +
+                       (item.program.initiation.step not in seen_checkpoints) +
+                       (profile not in seen_profiles))
+            risk = risks[item.program.semantic_id]
+            return (_PROMOTION_CLASS_RANK[risk.classification], -risk.score, -novelty, *_target_quality(item))
+        item = min(ordered, key=key); ordered.remove(item); selected.append(item)
+        seen_effects.add(_effect_identity(item.effect)); seen_checkpoints.add(item.program.initiation.step)
+        seen_profiles.add(_structure_profile(item))
+    return tuple(selected)
+
+
+def repair_disposition(classification: RoutabilityClassification) -> str:
+    """Map exact Phase-9 evidence to the existing bounded repair/search layer."""
+    if classification is RoutabilityClassification.REPAIR_LATER_CHECKPOINT:
+        return "RETURN_TO_CHECKPOINT_SEARCH"
+    if classification is RoutabilityClassification.REPAIR_COMMON_PREFIX:
+        return "RETAIN_COMMON_PREFIX"
+    if classification is RoutabilityClassification.REPAIR_BRANCH_AT_REVEAL:
+        return "BOUNDED_REACTIVE_BRANCH"
+    if classification is RoutabilityClassification.REPAIR_ABORT_RECOVERY:
+        return "BOUNDED_ABORT_RECOVERY"
+    if classification is RoutabilityClassification.FUTURE_DEPENDENT:
+        return "ABANDON_BASIN"
+    if classification is RoutabilityClassification.GATE_LIMITATION_SUSPECTED:
+        return "REVIEW_GATE_VOCABULARY"
+    return "ENTER_HARDENED_CEGIS"
+
+
+def dispatch_repair(
+    classification: RoutabilityClassification,
+    handlers: Mapping[str, Any],
+) -> Any:
+    """Invoke only the bounded owner for an exact repair classification.
+
+    FUTURE_DEPENDENT is deliberately terminal and can never reach a repair
+    handler. Callers provide the actual checkpoint/beam/reactive operation so
+    this campaign layer does not duplicate those implementations.
+    """
+    disposition=repair_disposition(classification)
+    if disposition in {"ENTER_HARDENED_CEGIS","ABANDON_BASIN","REVIEW_GATE_VOCABULARY"}:
+        return disposition
+    handler=handlers.get(disposition)
+    if handler is None or not callable(handler):
+        raise ValueError(f"missing bounded repair handler: {disposition}")
+    return handler()
+
+
+def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False, smoke: bool = False,
+                 probe: bool = False) -> int:
     config = validate_config(config_path); root = Path.cwd(); output.mkdir(parents=True, exist_ok=True)
     if any((output / name).exists() for name in ("config.json", "run.json", "metrics.json")):
         raise ValueError("output directory already contains a Phase-13 run")
     shutil.copyfile(config_path, output / "config.json")
-    manifest = {"schema_version": SCHEMA_VERSION, "mode": "VALIDATE_ONLY" if validate_only else ("SMOKE" if smoke else "CAMPAIGN"),
+    manifest = {"schema_version": SCHEMA_VERSION, "mode": "VALIDATE_ONLY" if validate_only else ("SMOKE" if smoke else ("PROBE" if probe else "CAMPAIGN")),
                 "started_unix": int(time.time()), "config_id": stable_identity("RLRMB-P13-CONFIG-V1", config)}
     _write_json(output / "run.json", manifest)
     _write_json(output / "metrics.json", {"status": "CONFIG_VALIDATED", "total_cuda_games": 0})
@@ -170,16 +334,24 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
     donor_paths = tuple(Path(line.strip()) for line in (root / config["donor_manifest"]).read_text().splitlines() if line.strip())[:config["search"]["donor_limit"]]
     asset = root / config["asset_dir"]; binary = root / config["cuda_binary"]
     all_metrics: dict[str, Any] = {}; failures = Counter(); accepted = []; global_effects = set(); target_clusters = set(); total_l2w = 0
-    campaign_families=config["families"][:1] if smoke else config["families"]
+    if smoke:
+        campaign_families=config["families"][:1]
+    elif probe:
+        probe_ids=set(config["probe"]["family_ids"])
+        campaign_families=[row for row in config["families"] if row["id"] in probe_ids]
+    else:
+        campaign_families=config["families"]
     for family_index, family in enumerate(campaign_families):
         family_id = family["id"]; family_dir = output / "families" / family_id; family_dir.mkdir(parents=True)
-        checkpoints = select_checkpoints(_generic_events(donor_paths, family_id))[:(1 if smoke else config["search"]["checkpoint_limit"])]
+        checkpoint_limit=1 if smoke else (config["probe"]["checkpoint_limit"] if probe else config["search"]["checkpoint_limit"])
+        checkpoints = select_checkpoints(_generic_events(donor_paths, family_id))[:checkpoint_limit]
         archive = Archive(); candidates = []; motifs_all: dict[str, Motif] = {}; family_beam = Counter()
         checkpoint_budget = config["budget"]["per_family_categories"]["target_beam"] // max(1, len(checkpoints))
         for checkpoint in checkpoints:
             motifs = _motifs_at(checkpoint.step, donor_paths, config["search"]["motif_steps"]); motifs_all.update(motifs)
             evaluator = AccountedEvaluator(CudaBatchEvaluator(binary=binary, asset_dir=asset, cases_path=root/family["target_panel"]), ledger, family_id, "target_beam")
-            local_budget = min(128 if smoke else checkpoint_budget, ledger.remaining(family_id, "target_beam"))
+            requested_budget=128 if smoke else (config["probe"]["target_games_per_checkpoint"] if probe else checkpoint_budget)
+            local_budget = min(requested_budget, ledger.remaining(family_id, "target_beam"))
             if local_budget < evaluator.projected_games(1): break
             result = run_beam(family_id, (checkpoint,), motifs, evaluator,
                               BeamConfig(max_depth=1 if smoke else config["search"]["beam_depth"], cuda_game_budget=local_budget,
@@ -189,30 +361,62 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
             for key, value in result.metrics.items():
                 if isinstance(value, (int, float)): family_beam[key] += value
         elites = {entry.program_id for entry in archive.entries() if entry.target_win_to_loss == 0 and entry.target_loss_to_win > 0}
-        refined = [c for c in candidates if c.program.semantic_id in elites and c.effect is not None]
-        refined = sorted({c.program.semantic_id:c for c in refined}.values(), key=lambda c:c.program.semantic_id)[:config["promotion"]["max_refined_candidates"]]
-        if smoke: refined=[]
-        family_results=[]
-        if refined:
-            programs=tuple(c.program for c in refined)
+        promotion_config=config["probe"] if probe else config["promotion"]
+        promotion_pool = select_promotion_pool(candidates, elites, promotion_config["risk_pool_size"])
+        if smoke: promotion_pool=()
+        family_results=[]; prepromotion_results=[]; refined=()
+        target_rows_by_id: dict[str, tuple[ExactCaseEvidence, ...]] = {}
+        target_risks: dict[str, RoutabilityResult] = {}
+        full_risks: dict[str,RoutabilityResult]={}
+        for candidate in promotion_pool:
+            program=candidate.program; candidate_dir=family_dir/"prepromotion"/program.semantic_id
+            target_block=_target_block(candidate)
+            raw_rows=_effect_rows(program,DatasetRole.TARGET,root/family["target_panel"],target_block)
+            captured=capture_candidate_legal_states(
+                program,raw_rows,root/family["target_panel"],candidate_dir/"target",
+                capture_binary=root/config["capture_binary"],asset_dir=asset,
+            )
+            routing=screen_routability(build_routability_evidence(program,captured))
+            target_rows_by_id[program.semantic_id]=captured; target_risks[program.semantic_id]=routing
+            prepromotion_results.append({"candidate_id":program.semantic_id,"stage":"TARGET_LEGAL_RISK",
+                                         "routability":routing.to_document(),
+                                         "disposition":repair_disposition(routing.classification)})
+        risk_shortlist=select_refinement_candidates(
+            promotion_pool,target_risks,promotion_config["full_risk_pool_size"]
+        ) if promotion_pool else ()
+        if risk_shortlist:
+            programs=tuple(c.program for c in risk_shortlist)
             transfer_eval=AccountedEvaluator(CudaBatchEvaluator(binary=binary,asset_dir=asset,cases_path=root/config["transfer_panel"]),ledger,family_id,"transfer")
             validation_eval=AccountedEvaluator(CudaBatchEvaluator(binary=binary,asset_dir=asset,cases_path=root/config["validation_panel"]),ledger,family_id,"validation")
             max_count=min(len(programs), max(0,ledger.remaining(family_id,"transfer")//transfer_eval.case_count-1), max(0,ledger.remaining(family_id,"validation")//validation_eval.case_count-1))
-            programs=programs[:max_count]; by_id={c.program.semantic_id:c for c in refined}
+            programs=programs[:max_count]; by_id={c.program.semantic_id:c for c in risk_shortlist}
             if programs:
                 transfer=transfer_eval(programs,motifs_all); validation=validation_eval(programs,motifs_all)
+                full_rows: dict[str,tuple[ExactCaseEvidence,...]]={}
                 for position, program in enumerate(programs):
-                    candidate_dir=family_dir/program.semantic_id
+                    candidate_dir=family_dir/"prepromotion"/program.semantic_id
                     _write_json(candidate_dir/"program.json",program.to_document())
                     target_block=by_id[program.semantic_id].effect.blocks[0]; transfer_block=transfer.programs[position].effect.blocks[0]; validation_block=validation.programs[position].effect.blocks[0]
-                    rows=[]
-                    for role,panel,block in ((DatasetRole.TARGET,root/family["target_panel"],target_block),(DatasetRole.TRANSFER,root/config["transfer_panel"],transfer_block),(DatasetRole.VALIDATION,root/config["validation_panel"],validation_block)):
+                    rows=list(target_rows_by_id[program.semantic_id])
+                    for role,panel,block in ((DatasetRole.TRANSFER,root/config["transfer_panel"],transfer_block),(DatasetRole.VALIDATION,root/config["validation_panel"],validation_block)):
                         raw_rows=_effect_rows(program,role,panel,block)
                         captured=capture_candidate_legal_states(program,raw_rows,panel,candidate_dir/role.value.lower(),capture_binary=root/config["capture_binary"],asset_dir=asset)
                         rows.extend(captured)
                         _write_json(candidate_dir/role.value.lower()/"evidence.json",[{"case_id":x.meta.case_id,"role":x.role.value,"baseline_margin":x.baseline_margin,"candidate_margin":x.candidate_margin,"delta":x.delta,"seat":x.meta.seat,"family":x.meta.family,"exact_signature":list(x.exact_signature)} for x in captured])
-                    routing=screen_routability(build_routability_evidence(program,rows)); item={"candidate_id":program.semantic_id,"routability":routing.to_document()}
+                    routing=screen_routability(build_routability_evidence(program,rows))
+                    full_risks[program.semantic_id]=routing; full_rows[program.semantic_id]=tuple(rows)
+                    prepromotion_results.append({"candidate_id":program.semantic_id,"stage":"FULL_LEGAL_RISK",
+                                                 "routability":routing.to_document(),
+                                                 "disposition":repair_disposition(routing.classification)})
                     _write_json(candidate_dir/"routability.json",routing.to_document())
+                screened=tuple(by_id[program.semantic_id] for program in programs)
+                refined=select_refinement_candidates(screened,full_risks,config["promotion"]["max_refined_candidates"])
+                for candidate in refined:
+                    program=candidate.program; routing=full_risks[program.semantic_id]; rows=full_rows[program.semantic_id]
+                    candidate_dir=family_dir/program.semantic_id
+                    source_dir=family_dir/"prepromotion"/program.semantic_id
+                    shutil.copytree(source_dir,candidate_dir,dirs_exist_ok=True)
+                    item={"candidate_id":program.semantic_id,"routability":routing.to_document()}
                     if routing.classification.value=="ROUTABLE_CANDIDATE":
                         # SEALED is evaluated only now, after search, archive selection and
                         # routability have frozen the candidate. The unchanged adapter keeps
@@ -239,13 +443,27 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
                                 else:item["lns_repair"]={"disposition":"SEARCH_BUDGET_EXHAUSTED","metrics":{}}
                     else:
                         failures[routing.classification.value]+=1
-                        if routing.classification.value=="FUTURE_DEPENDENT":item["repair_dispatch"]="ABANDON_BASIN"
-                        elif routing.classification.value in {"REPAIR_BRANCH_AT_REVEAL","REPAIR_COMMON_PREFIX","REPAIR_ABORT_RECOVERY"}:item["repair_dispatch"]="BOUNDED_REACTIVE_REPAIR"
-                        elif routing.classification.value=="REPAIR_LATER_CHECKPOINT":item["repair_dispatch"]="RETURN_TO_CHECKPOINT_SEARCH"
+                        bounded_handlers={name:(lambda name=name:name) for name in (
+                            "RETURN_TO_CHECKPOINT_SEARCH","RETAIN_COMMON_PREFIX",
+                            "BOUNDED_REACTIVE_BRANCH","BOUNDED_ABORT_RECOVERY",
+                        )}
+                        item["repair_dispatch"]=dispatch_repair(routing.classification,bounded_handlers)
                     family_results.append(item)
         for c in refined:
             block=c.effect.blocks[0]; total_l2w+=sum(block.loss_to_win); global_effects.add(_effect_identity(c.effect)); target_clusters.add((family_id,tuple(block.loss_to_win),tuple(x>0 for x in block.margin_deltas)))
-        all_metrics[family_id]={"checkpoints":len(checkpoints),"beam":dict(family_beam),"refined":len(refined),"archive":archive.metrics(),"results":family_results}
+        target_future=sum(risk.classification is RoutabilityClassification.FUTURE_DEPENDENT for risk in target_risks.values())
+        full_future=sum(risk.classification is RoutabilityClassification.FUTURE_DEPENDENT for risk in full_risks.values())
+        all_metrics[family_id]={"checkpoints":len(checkpoints),"beam":dict(family_beam),
+                                "promotion_pool":len(promotion_pool),"full_risk_screened":len(risk_shortlist),
+                                "target_risk_future_dependent":target_future,
+                                "full_risk_future_dependent":full_future,
+                                "prepromotion_future_dependent":len({candidate_id
+                                    for risks in (target_risks,full_risks)
+                                    for candidate_id,risk in risks.items()
+                                    if risk.classification is RoutabilityClassification.FUTURE_DEPENDENT}),
+                                "refined":len(refined),"archive":archive.metrics(),
+                                "prepromotion_results":prepromotion_results,"results":family_results}
+        _write_json(family_dir/"prepromotion_summary.json",prepromotion_results)
         _write_json(family_dir/"run.json",all_metrics[family_id]); _write_json(family_dir/"archive_summary.json",json.loads(archive.serialize()))
     refined_total=sum(row["refined"] for row in all_metrics.values()); mixed=failures["MIXED_LEGAL_STATE"]+failures["FUTURE_DEPENDENT"]+failures["REPAIR_BRANCH_AT_REVEAL"]+failures["REPAIR_COMMON_PREFIX"]
     metrics={"verdict":"CAMPAIGN_COMPLETE","total_cuda_games":ledger.total,"accepted_specialists":len(accepted),"accepted_candidate_ids":accepted,
@@ -261,10 +479,10 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    parser=argparse.ArgumentParser();parser.add_argument("--config",required=True,type=Path);parser.add_argument("--output",required=True,type=Path);parser.add_argument("--validate-only",action="store_true");parser.add_argument("--smoke",action="store_true")
+    parser=argparse.ArgumentParser();parser.add_argument("--config",required=True,type=Path);parser.add_argument("--output",required=True,type=Path);parser.add_argument("--validate-only",action="store_true");parser.add_argument("--smoke",action="store_true");parser.add_argument("--probe",action="store_true")
     args=parser.parse_args(argv)
-    if args.validate_only and args.smoke:parser.error("--validate-only and --smoke are mutually exclusive")
-    try:return run_campaign(args.config,args.output,validate_only=args.validate_only,smoke=args.smoke)
+    if sum((args.validate_only,args.smoke,args.probe)) > 1:parser.error("--validate-only, --smoke and --probe are mutually exclusive")
+    try:return run_campaign(args.config,args.output,validate_only=args.validate_only,smoke=args.smoke,probe=args.probe)
     except Exception as exc:
         print(f"PHASE13_RUNNER_ERROR: {exc}",file=sys.stderr);return 2
 
