@@ -84,7 +84,7 @@ def validate_production_config(config_path: str | Path, output: str | Path) -> d
     host = config.get("host_execution", {})
     if not isinstance(host, Mapping):
         raise ValueError("host_execution must be a mapping")
-    unknown_host = set(host) - {"producer_workers", "queue_depth", "start_method"}
+    unknown_host = set(host) - {"producer_workers", "queue_depth", "start_method", "candidate_workers", "candidate_queue_depth"}
     if unknown_host:
         raise ValueError(f"unsupported host_execution fields: {sorted(unknown_host)}")
     producer_workers = host.get("producer_workers", 1)
