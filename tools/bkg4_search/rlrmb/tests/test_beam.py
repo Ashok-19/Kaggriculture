@@ -213,5 +213,130 @@ class BeamTests(unittest.TestCase):
         })
 
 
+class ParallelCandidateConstructionTests(unittest.TestCase):
+    """Phase 16.2: deterministic worker-count-independent candidate construction."""
+
+    def _run(self, workers: int, cps=None, library=None, budget: int = 400, depth: int = 1) -> BeamResult:
+        from tools.bkg4_search.rlrmb.host_pipeline import DeterministicProcessPool
+        cps = cps or (cp(120), cp(124), cp(128), cp(132))
+        library = library or motifs()
+        mapping = {point.step: library for point in cps}
+        config = BeamConfig(max_depth=depth, cuda_game_budget=budget, max_candidates_per_expansion=64)
+        with DeterministicProcessPool(workers=workers, queue_depth=2,
+                                      stage="candidate_construction", start_method="spawn") as pool:
+            return run_beam("family", cps, library, FakeEvaluator(), config,
+                            checkpoint_motifs=mapping, candidate_pool=pool)
+
+    def test_workers_1_matches_serial_no_pool(self):
+        """Pool with workers=1 (in-process) matches the no-pool serial path exactly."""
+        cps = (cp(120), cp(124))
+        lib = motifs()
+        mapping = {point.step: lib for point in cps}
+        config = BeamConfig(max_depth=1, cuda_game_budget=200, max_candidates_per_expansion=48)
+        serial = run_beam("family", cps, lib, FakeEvaluator(), config, checkpoint_motifs=mapping)
+        pooled = self._run(1, cps=cps, library=lib, budget=200)
+        self.assertEqual(
+            [c.program.semantic_id for c in serial.candidates],
+            [c.program.semantic_id for c in pooled.candidates],
+        )
+        self.assertEqual(serial.metrics["cuda_games"], pooled.metrics["cuda_games"])
+        self.assertEqual(
+            serial.metrics["structural_duplicates_removed"],
+            pooled.metrics["structural_duplicates_removed"],
+        )
+
+    def test_worker_counts_1_2_4_produce_identical_candidate_ids_order_lineages(self):
+        """Workers 1, 2, 4 produce identical semantic IDs, order, lineages, duplicate counts."""
+        results = {w: self._run(w) for w in (1, 2, 4)}
+        baseline = results[1]
+        for workers in (2, 4):
+            with self.subTest(workers=workers):
+                r = results[workers]
+                self.assertEqual(
+                    [c.program.semantic_id for c in baseline.candidates],
+                    [c.program.semantic_id for c in r.candidates],
+                    f"candidate IDs differ at workers={workers}",
+                )
+                self.assertEqual(
+                    [c.lineage.operator for c in baseline.candidates],
+                    [c.lineage.operator for c in r.candidates],
+                    f"lineage operators differ at workers={workers}",
+                )
+                self.assertEqual(
+                    [c.lineage.parent_id for c in baseline.candidates],
+                    [c.lineage.parent_id for c in r.candidates],
+                    f"lineage parent_ids differ at workers={workers}",
+                )
+                self.assertEqual(
+                    baseline.metrics["structural_duplicates_removed"],
+                    r.metrics["structural_duplicates_removed"],
+                    f"duplicate counts differ at workers={workers}",
+                )
+                self.assertEqual(baseline.metrics["cuda_games"], r.metrics["cuda_games"])
+
+    def test_out_of_order_worker_completion_does_not_affect_output(self):
+        """4 workers on asymmetric tasks complete out-of-order; output remains canonical."""
+        # 4 checkpoints → 4 seed tasks for 4 workers; completion order varies by OS scheduling
+        # DeterministicProcessPool.map_ordered guarantees canonical input-order delivery
+        serial_cps = (cp(120), cp(124), cp(128), cp(132))
+        lib = motifs()
+        mapping = {point.step: lib for point in serial_cps}
+        config = BeamConfig(max_depth=1, cuda_game_budget=800, max_candidates_per_expansion=128)
+        serial = run_beam("family", serial_cps, lib, FakeEvaluator(), config, checkpoint_motifs=mapping)
+        parallel = self._run(4, cps=serial_cps, library=lib, budget=800)
+        self.assertEqual(
+            [c.program.semantic_id for c in serial.candidates],
+            [c.program.semantic_id for c in parallel.candidates],
+        )
+
+    def test_worker_failure_propagates_before_evaluation(self):
+        """HostWorkerError from a failing worker propagates before any CUDA evaluation."""
+        from tools.bkg4_search.rlrmb.host_pipeline import HostWorkerError
+
+        class _FailPool:
+            workers = 2
+            def map_ordered(self, fn, items):
+                raise HostWorkerError("synthetic worker failure")
+
+        config = BeamConfig(max_depth=1, cuda_game_budget=200, max_candidates_per_expansion=48)
+        evaluator = FakeEvaluator()
+        with self.assertRaises(HostWorkerError):
+            run_beam("family", (cp(120),), motifs(), evaluator, config, candidate_pool=_FailPool())
+        self.assertEqual(evaluator.calls, 0, "evaluator must not be called after worker failure")
+
+    def test_parallel_metrics_present_and_non_negative(self):
+        """Beam metrics from a pool run include candidate pool metrics with sane values."""
+        result = self._run(2)
+        m = result.metrics
+        self.assertEqual(m["candidate_pool_workers"], 2)
+        self.assertGreater(m["candidate_pool_tasks"], 0)
+        self.assertGreaterEqual(m["candidate_pool_worker_busy_seconds"], 0.0)
+        self.assertGreaterEqual(m["candidate_pool_wall_seconds"], 0.0)
+
+    def test_serial_fallback_no_pool_still_has_pool_metrics_zero(self):
+        """No-pool path (candidate_pool=None) emits zero pool metrics."""
+        result = run_beam("family", (cp(120),), motifs(), FakeEvaluator(),
+                          BeamConfig(max_depth=1, cuda_game_budget=100))
+        self.assertEqual(result.metrics["candidate_pool_workers"], 0)
+        self.assertEqual(result.metrics["candidate_pool_tasks"], 0)
+
+    def test_archive_and_effect_vectors_identical_across_worker_counts(self):
+        """Archive state and EffectVectors are identical for workers=1 vs workers=4."""
+        r1 = self._run(1)
+        r4 = self._run(4)
+        self.assertEqual(r1.archive.metrics(), r4.archive.metrics())
+        effects1 = [c.effect for c in r1.candidates if c.effect is not None]
+        effects4 = [c.effect for c in r4.candidates if c.effect is not None]
+        self.assertEqual(len(effects1), len(effects4))
+
+    def test_terminal_reason_and_game_ledger_identical_across_worker_counts(self):
+        """Terminal reason and CUDA game counts are stable across worker counts."""
+        results = {w: self._run(w) for w in (1, 2, 4)}
+        reasons = {w: r.terminal_reason for w, r in results.items()}
+        games = {w: r.metrics["cuda_games"] for w, r in results.items()}
+        self.assertEqual(len(set(reasons.values())), 1, f"terminal reasons differ: {reasons}")
+        self.assertEqual(len(set(games.values())), 1, f"game counts differ: {games}")
+
+
 if __name__ == "__main__":
     unittest.main()

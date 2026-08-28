@@ -8,6 +8,7 @@ import tempfile
 import time
 from dataclasses import dataclass, replace
 from enum import Enum
+from itertools import chain as _iterchain
 from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping, Sequence
 
@@ -347,24 +348,155 @@ def _lineage_parameters(parent: MacroProgram, result: MacroProgram) -> tuple[tup
     )
 
 
+# ---------------------------------------------------------------------------
+# Phase 16.2 — parallel candidate construction workers (batched for IPC efficiency)
+#
+# Tasks are coarsened to min(pool.workers, n_items) batches so that IPC
+# round-trip cost is amortized over a much larger work unit per task.
+# ---------------------------------------------------------------------------
+
+@dataclass(frozen=True)
+class _SeedTask:
+    """Generate seeds for a batch of checkpoints in one worker call.
+
+    ``per_cp_motifs[i]`` is the motif tuple for ``checkpoints[i]``; if the
+    tuple is empty the shared ``shared_motifs`` are used for that checkpoint.
+    """
+    checkpoints: tuple[Checkpoint, ...]
+    per_cp_motifs: tuple[tuple[Motif, ...], ...]  # parallel to checkpoints
+    shared_motifs: tuple[Motif, ...]
+    config: BeamConfig
+
+
+def _seed_task_worker(task: "_SeedTask") -> "tuple[BeamCandidate, ...]":
+    """Generate seeds for all checkpoints in the batch; return a pre-sorted tuple."""
+    shared_lib: dict[str, Motif] = {m.semantic_id: m for m in task.shared_motifs}
+    result: list[BeamCandidate] = []
+    for i, cp in enumerate(task.checkpoints):
+        if i < len(task.per_cp_motifs) and task.per_cp_motifs[i]:
+            lib: dict[str, Motif] = {m.semantic_id: m for m in task.per_cp_motifs[i]}
+        else:
+            lib = shared_lib
+        result.extend(generate_seeds((cp,), lib, task.config))
+    return tuple(sorted(
+        result,
+        key=lambda item: (item.seed_source.value, item.checkpoint.rank_key(), item.program.semantic_id),
+    ))
+
+
+@dataclass(frozen=True)
+class _ExpansionTask:
+    """Expand a batch of parents across all operators in one worker call.
+
+    ``per_parent_motifs[i]`` is the motif tuple for ``parents[i]``; if the
+    tuple is empty the shared ``shared_motifs`` are used for that parent.
+    """
+    parents: tuple[MacroProgram, ...]
+    parent_seed_sources: tuple[SeedSource, ...]  # parallel to parents
+    per_parent_motifs: tuple[tuple[Motif, ...], ...]  # parallel to parents
+    shared_motifs: tuple[Motif, ...]
+    operators: tuple[ExpansionOperator, ...]
+    adjacent_events: tuple[Checkpoint, ...]
+    max_phases: int
+    depth: int
+    family_ref: str
+
+
+def _expand_task_worker(
+    task: "_ExpansionTask",
+) -> "tuple[tuple[str, tuple[BeamCandidate, ...]], ...]":
+    """Expand all parents in the batch; return flat (operator_value, candidates) pairs."""
+    shared_lib: dict[str, Motif] = {m.semantic_id: m for m in task.shared_motifs}
+    result: list[tuple[str, tuple[BeamCandidate, ...]]] = []
+    for pi, parent in enumerate(task.parents):
+        if pi < len(task.per_parent_motifs) and task.per_parent_motifs[pi]:
+            lib: dict[str, Motif] = {m.semantic_id: m for m in task.per_parent_motifs[pi]}
+        else:
+            lib = shared_lib
+        seed_src = task.parent_seed_sources[pi] if pi < len(task.parent_seed_sources) else SeedSource.HISTORICAL_MOTIF
+        for operator in task.operators:
+            programs = expand_program(
+                parent, operator, lib, task.adjacent_events, max_phases=task.max_phases
+            )
+            candidates: list[BeamCandidate] = []
+            for item in programs:
+                lineage = Lineage(
+                    parent.semantic_id, operator.value,
+                    _lineage_parameters(parent, item), item.semantic_id, task.depth,
+                )
+                candidates.append(
+                    BeamCandidate(
+                        item, item.initiation, task.depth, seed_src, lineage,
+                        family_ref=task.family_ref,
+                    )
+                )
+            result.append((operator.value, tuple(candidates)))
+    return tuple(result)
+
+
+def _chunk(items: tuple, n_workers: int) -> list[tuple]:
+    """Split ``items`` into at most ``n_workers`` contiguous chunks."""
+    if not items:
+        return []
+    n_tasks = min(n_workers, len(items))
+    chunk_size = max(1, (len(items) + n_tasks - 1) // n_tasks)
+    return [items[i:i + chunk_size] for i in range(0, len(items), chunk_size)]
+
+
 def run_beam(
     family_ref: str, checkpoints: Sequence[Checkpoint], motif_library: Mapping[str, Motif],
     evaluator: Callable[[Sequence[MacroProgram], Mapping[str, Motif]], BatchEvaluation],
     config: BeamConfig, archive: Archive | None = None,
     checkpoint_motifs: Mapping[int, Mapping[str, Motif]] | None = None,
+    candidate_pool: Any | None = None,
 ) -> BeamResult:
     if type(family_ref) is not str or not family_ref:
         raise ValueError("family_ref must be non-empty offline bookkeeping")
     archive = archive or Archive()
+    _cp_pool_tasks = 0; _cp_pool_busy = 0.0; _cp_pool_wall = 0.0
+    _ex_pool_tasks = 0; _ex_pool_busy = 0.0; _ex_pool_wall = 0.0
     preparation_started = time.perf_counter()
+    _shared_motifs = tuple(motif_library.values())
     if checkpoint_motifs is None:
-        seeds = generate_seeds(checkpoints, motif_library, config)
+        if candidate_pool is not None:
+            _sorted_cps = tuple(sorted(checkpoints, key=lambda item: item.rank_key()))
+            _cp_chunks = _chunk(_sorted_cps, candidate_pool.workers)
+            _seed_tasks = [
+                _SeedTask(chunk, (), _shared_motifs, config) for chunk in _cp_chunks
+            ]
+            _seed_batches, _sm = candidate_pool.map_ordered(_seed_task_worker, _seed_tasks)
+            seeds = tuple(sorted(
+                _iterchain.from_iterable(_seed_batches),
+                key=lambda item: (item.seed_source.value, item.checkpoint.rank_key(), item.program.semantic_id),
+            ))
+            _cp_pool_tasks += _sm.tasks; _cp_pool_busy += _sm.worker_busy_seconds; _cp_pool_wall += _sm.wall_seconds
+        else:
+            seeds = generate_seeds(checkpoints, motif_library, config)
     else:
         missing = [checkpoint.step for checkpoint in checkpoints if checkpoint.step not in checkpoint_motifs]
         if missing:
             raise ValueError(f"checkpoint motif mapping is incomplete: {missing}")
-        seeds = tuple(item for checkpoint in checkpoints
-                      for item in generate_seeds((checkpoint,), checkpoint_motifs[checkpoint.step], config))
+        if candidate_pool is not None:
+            _sorted_cps = tuple(checkpoints)
+            _cp_chunks = _chunk(_sorted_cps, candidate_pool.workers)
+            _seed_tasks = [
+                _SeedTask(
+                    chunk,
+                    tuple(tuple(checkpoint_motifs[cp.step].values()) for cp in chunk),
+                    _shared_motifs,
+                    config,
+                )
+                for chunk in _cp_chunks
+            ]
+            _seed_batches, _sm = candidate_pool.map_ordered(_seed_task_worker, _seed_tasks)
+            seeds = tuple(sorted(
+                _iterchain.from_iterable(_seed_batches),
+                key=lambda item: (item.seed_source.value, item.checkpoint.rank_key(), item.program.semantic_id),
+            ))
+            _cp_pool_tasks += _sm.tasks; _cp_pool_busy += _sm.worker_busy_seconds; _cp_pool_wall += _sm.wall_seconds
+        else:
+            seeds = tuple(item for checkpoint in checkpoints
+                          for item in generate_seeds((checkpoint,), checkpoint_motifs[checkpoint.step], config))
     raw_candidates = len(seeds)
     dedup_started = time.perf_counter()
     pending, duplicates = deduplicate_candidates(seeds)
@@ -385,19 +517,44 @@ def run_beam(
     for depth in range(config.max_depth + 1):
         if depth > 0:
             expansion_started = time.perf_counter()
-            raw: list[BeamCandidate] = []
             parents = tuple(sorted(program_states.values(), key=lambda item: (
                 item.program.lane.value, item.effect and effect_signature(item.effect), item.program.semantic_id)))
-            for parent in parents:
-                expansion_motifs = (checkpoint_motifs or {}).get(parent.program.initiation.step, motif_library)
-                for operator in config.allowed_operators:
-                    programs = expand_program(parent.program, operator, expansion_motifs, checkpoints, max_phases=config.max_phases)
-                    expansions_by_operator[operator.value] += len(programs)
-                    for item in programs:
-                        lineage = Lineage(parent.program.semantic_id, operator.value,
-                                          _lineage_parameters(parent.program, item), item.semantic_id, depth)
-                        raw.append(BeamCandidate(item, item.initiation, depth, parent.seed_source, lineage,
-                                                 family_ref=family_ref))
+            if candidate_pool is not None:
+                _parent_chunks = _chunk(parents, candidate_pool.workers)
+                _cp_map = checkpoint_motifs or {}
+                _exp_tasks = [
+                    _ExpansionTask(
+                        tuple(p.program for p in chunk),
+                        tuple(p.seed_source for p in chunk),
+                        tuple(
+                            tuple(_cp_map.get(p.program.initiation.step, motif_library).values())
+                            for p in chunk
+                        ),
+                        _shared_motifs,
+                        config.allowed_operators,
+                        tuple(checkpoints), config.max_phases, depth, family_ref,
+                    )
+                    for chunk in _parent_chunks
+                ]
+                _exp_results, _em = candidate_pool.map_ordered(_expand_task_worker, _exp_tasks)
+                _ex_pool_tasks += _em.tasks; _ex_pool_busy += _em.worker_busy_seconds; _ex_pool_wall += _em.wall_seconds
+                raw: list[BeamCandidate] = []
+                for task_output in _exp_results:
+                    for op_value, cands in task_output:
+                        expansions_by_operator[op_value] += len(cands)
+                        raw.extend(cands)
+            else:
+                raw = []
+                for parent in parents:
+                    expansion_motifs = (checkpoint_motifs or {}).get(parent.program.initiation.step, motif_library)
+                    for operator in config.allowed_operators:
+                        programs = expand_program(parent.program, operator, expansion_motifs, checkpoints, max_phases=config.max_phases)
+                        expansions_by_operator[operator.value] += len(programs)
+                        for item in programs:
+                            lineage = Lineage(parent.program.semantic_id, operator.value,
+                                              _lineage_parameters(parent.program, item), item.semantic_id, depth)
+                            raw.append(BeamCandidate(item, item.initiation, depth, parent.seed_source, lineage,
+                                                     family_ref=family_ref))
             raw_candidates += len(raw)
             expansions_by_depth[str(depth)] = len(raw)
             dedup_started = time.perf_counter()
@@ -499,6 +656,10 @@ def run_beam(
             failure.value: sum(item.failure_class is failure for item in all_candidates)
             for failure in (FailureClass.CUDA_FAULT, FailureClass.SEMANTIC_MISMATCH)
         },
+        "candidate_pool_workers": getattr(candidate_pool, "workers", 0) if candidate_pool is not None else 0,
+        "candidate_pool_tasks": _cp_pool_tasks + _ex_pool_tasks,
+        "candidate_pool_worker_busy_seconds": _cp_pool_busy + _ex_pool_busy,
+        "candidate_pool_wall_seconds": _cp_pool_wall + _ex_pool_wall,
     }
     return BeamResult(archive, tuple(all_candidates), metrics, terminal)
 

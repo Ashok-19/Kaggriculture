@@ -443,6 +443,8 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
     producer_workers = int(host_execution.get("producer_workers", 1))
     producer_queue_depth = int(host_execution.get("queue_depth", 2))
     producer_start_method = str(host_execution.get("start_method", "spawn"))
+    candidate_workers = int(host_execution.get("candidate_workers", 1))
+    candidate_queue_depth = int(host_execution.get("candidate_queue_depth", 4))
     for family_index, family in enumerate(campaign_families):
         family_id = family["id"]; family_dir = output / "families" / family_id; family_dir.mkdir(parents=True)
         checkpoint_limit=1 if smoke else (config["probe"]["checkpoint_limit"] if probe else config["search"]["checkpoint_limit"])
@@ -461,7 +463,10 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
         with DeterministicProcessPool(
             workers=producer_workers, queue_depth=producer_queue_depth,
             stage="producer", start_method=producer_start_method,
-        ) as producer_pool:
+        ) as producer_pool, DeterministicProcessPool(
+            workers=candidate_workers, queue_depth=candidate_queue_depth,
+            stage="candidate_construction", start_method=producer_start_method,
+        ) as candidate_pool:
             batch_stream = prefetch_checkpoint_motif_batches(
                 checkpoint_batches, donor_paths, config["search"]["motif_steps"], producer_pool,
             )
@@ -500,7 +505,8 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
                                       BeamConfig(max_depth=1 if smoke else config["search"]["beam_depth"], cuda_game_budget=local_budget,
                                                  max_candidates_per_expansion=8 if smoke else config["search"]["max_candidates_per_expansion"] * len(checkpoint_batch),
                                                  stagnation_rounds=config["search"]["stagnation_rounds"]), archive,
-                                      checkpoint_motifs=checkpoint_motifs)
+                                      checkpoint_motifs=checkpoint_motifs,
+                                      candidate_pool=candidate_pool)
                     stage_timing["beam_search_total"]+=time.monotonic()-_t0
                     archive = result.archive; candidates.extend(result.candidates)
                     for key, value in result.metrics.items():
@@ -629,6 +635,10 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
             "max_result_queue_depth": 0,
             "archive_owner": "COORDINATOR",
             "gpu_owner": "COORDINATOR_SERIAL_SUBPROCESS_LANE",
+            "candidate_workers": candidate_workers,
+            "candidate_pool_tasks": int(family_beam["candidate_pool_tasks"]),
+            "candidate_pool_worker_busy_seconds": float(family_beam["candidate_pool_worker_busy_seconds"]),
+            "candidate_pool_wall_seconds": float(family_beam["candidate_pool_wall_seconds"]),
         }
         all_metrics[family_id]={"checkpoints":len(checkpoints),"checkpoint_batches":len(checkpoint_batches),
                                 "beam":{**dict(family_beam),"expansions_by_operator":dict(sorted(family_operators.items()))},
@@ -672,6 +682,10 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
         "reorder_buffer_high_water": max((row["host_pipeline"]["reorder_buffer_high_water"] for row in all_metrics.values()), default=0),
         "archive_owner": "COORDINATOR",
         "gpu_owner": "COORDINATOR_SERIAL_SUBPROCESS_LANE",
+        "candidate_workers": candidate_workers,
+        "candidate_pool_tasks": sum(row["host_pipeline"]["candidate_pool_tasks"] for row in all_metrics.values()),
+        "candidate_pool_worker_busy_seconds": sum(row["host_pipeline"]["candidate_pool_worker_busy_seconds"] for row in all_metrics.values()),
+        "candidate_pool_wall_seconds": sum(row["host_pipeline"]["candidate_pool_wall_seconds"] for row in all_metrics.values()),
     }
     _campaign_wall_total = max(0.0, time.monotonic() - _campaign_wall_start)
     stage_timing["metrics_normalization"] += time.monotonic() - _t0

@@ -22,7 +22,9 @@
     "host_execution": {
       "producer_workers": 8,
       "queue_depth": 2,
-      "start_method": "spawn"
+      "start_method": "spawn",
+      "candidate_workers": 8,
+      "candidate_queue_depth": 4
     },
     "modes": {
       "pilot": {
