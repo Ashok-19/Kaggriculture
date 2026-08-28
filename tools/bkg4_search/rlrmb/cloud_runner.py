@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 from .pipeline import EXIT_INFRASTRUCTURE, run_production_pipeline
+from .run_resources import RunResources
 from .cloud.telemetry import TelemetrySampler
 from .schema import stable_identity
 
@@ -277,95 +278,121 @@ def run_cloud(config_path: Path, output: Path, *, mode: str, resume: bool = Fals
     output.mkdir(parents=True, exist_ok=True)
     telemetry = TelemetrySampler(output / "telemetry.jsonl", interval_seconds=float(telemetry_interval_seconds))
     telemetry.start()
+    # Phase 16.3: create persistent host resources at cloud-run scope.
+    host_ex = dict((config.get("cloud") or {}).get("host_execution") or {})
+    stable_cache_dir = output / ".capture_cache"
+    _resources = RunResources.from_host_execution(host_ex, stable_cache_dir=stable_cache_dir)
     try:
-        state = load_state(output, config, resume)
-        limit = int(max_generations or policy["max_generations"])
-        started = time.monotonic()
-        wall_limit = int(policy["wall_time_limit_seconds"])
-        n_families = len(config["families"])
-        consecutive_suppressions = 0
-        terminal_reason = "MAX_GENERATIONS"
-        for _ in range(limit):
-            if time.monotonic() - started >= wall_limit:
-                terminal_reason = "WALL_TIME_LIMIT"
-                break
-            if consecutive_suppressions >= n_families:
-                terminal_reason = "GENERATION_CONTEXT_EXHAUSTED"
-                break
-            attempt = len(state["completed_frontiers"])
-            pending = output / f"attempt_{attempt:04d}.pending"
-            if pending.exists():
-                shutil.rmtree(pending)
-            runtime_config = generation_config(config, state, mode, operational_overrides=overrides)
-            family_id = runtime_config["families"][0]["id"]
-            context_id = search_context_identity(runtime_config, state)
-            if context_id in state["completed_search_contexts"]:
-                state["suppressed_contexts"] += 1
-                state["avoided_cuda_games"] += int(runtime_config["budget"]["total_cuda_games"])
-                state["next_frontier"] += 1
-                consecutive_suppressions += 1
-                _write_atomic(output / "generation_state.json", state)
-                continue
-            consecutive_suppressions = 0
-            pending.mkdir(parents=True)
-            runtime_path = pending / "config.json"
-            _write_atomic(runtime_path, runtime_config)
-            run_dir = pending / "run"
-            code = pipeline_runner(runtime_path, run_dir)
-            if code == EXIT_INFRASTRUCTURE:
-                return EXIT_INFRASTRUCTURE
-            metrics = _read(run_dir / "metrics.json")
-            state["cuda_games_consumed"] += int(metrics.get("total_cuda_games", 0))
-            accepted = tuple(sorted(metrics.get("accepted_candidate_ids", ())))
-            state["completed_search_contexts"][context_id] = {
-                "family_id": family_id,
-                "generation": int(state["generation"]),
-                "cuda_games": int(metrics.get("total_cuda_games", 0)),
-            }
-            state["completed_frontiers"].append(family_id)
-            state["next_frontier"] += 1
-            if accepted:
-                candidate_id = accepted[0]
-                deployment = _accepted_deployment(run_dir, candidate_id)
-                next_generation = int(state["generation"]) + 1
-                assets = pending / "working_assets"
-                identity = asset_builder(Path(state["working_asset_dir"]), deployment, assets)
-                if int(metrics.get("protected_win_to_loss", 0)) or int(metrics.get("semantic_mismatches", 0)):
-                    raise RuntimeError("accepted generation failed protected regression/parity")
-                route = next(deployment.glob("*.route.json"))
-                compact_generation_artifacts(run_dir, accepted)
-                committed = output / "generations" / f"generation_{next_generation:04d}"
-                committed.parent.mkdir(parents=True, exist_ok=True)
-                os.replace(pending, committed)
-                state["generation"] = next_generation
-                state["working_asset_dir"] = str((committed / "working_assets").resolve())
-                route_copy = committed / "working_parent.route.json"
-                shutil.copy2(committed / "run" / deployment.relative_to(run_dir) / route.name, route_copy)
-                state["working_parent_route"] = str(route_copy.resolve())
-                state["accepted_specialists"].append(candidate_id)
-                state["commits"].append({"generation": next_generation, "candidate_id": candidate_id,
-                                         "family_id": family_id, "identity": identity,
-                                         "cuda_games": int(metrics.get("total_cuda_games", 0))})
-                consecutive_suppressions = 0
-            else:
-                compact_generation_artifacts(run_dir, ())
-                completed = output / "completed_attempts" / f"attempt_{attempt:04d}"
-                completed.parent.mkdir(parents=True, exist_ok=True)
-                os.replace(pending, completed)
-            _write_atomic(output / "generation_state.json", state)
-        result = {"schema_version": 1, "mode": mode, "wall_seconds": time.monotonic() - started,
-                  "terminal_verdict": "PROMOTION_READY" if state["accepted_specialists"] else "NOT_PROMOTION_READY",
-                  "terminal_reason": terminal_reason,
-                  "searches_considered": len(state["completed_frontiers"]) + state["suppressed_contexts"],
-                  "exact_repeat_contexts_suppressed": state["suppressed_contexts"],
-                  "avoided_cuda_games": state["avoided_cuda_games"],
-                  "operational_overrides": overrides,
-                  "telemetry_interval_seconds": float(telemetry_interval_seconds),
-                  **state}
-        _write_atomic(output / "cloud_result.json", result)
-        return 0
+        with _resources:
+            return _run_cloud_inner(
+                config, config_path, output, mode=mode, resume=resume,
+                max_generations=max_generations, pipeline_runner=pipeline_runner,
+                asset_builder=asset_builder, operational_overrides=operational_overrides,
+                telemetry_interval_seconds=telemetry_interval_seconds,
+                overrides=overrides, policy=policy, resources=_resources,
+            )
     finally:
         telemetry.stop()
+
+
+def _run_cloud_inner(
+    config: Any, config_path: "Path", output: "Path", *, mode: str, resume: bool,
+    max_generations: "int | None", pipeline_runner: Any, asset_builder: Any,
+    operational_overrides: "Any", telemetry_interval_seconds: float,
+    overrides: dict, policy: Any, resources: RunResources,
+) -> int:
+    state = load_state(output, config, resume)
+    limit = int(max_generations or policy["max_generations"])
+    started = time.monotonic()
+    wall_limit = int(policy["wall_time_limit_seconds"])
+    n_families = len(config["families"])
+    consecutive_suppressions = 0
+    terminal_reason = "MAX_GENERATIONS"
+    for _ in range(limit):
+        if time.monotonic() - started >= wall_limit:
+            terminal_reason = "WALL_TIME_LIMIT"
+            break
+        if consecutive_suppressions >= n_families:
+            terminal_reason = "GENERATION_CONTEXT_EXHAUSTED"
+            break
+        attempt = len(state["completed_frontiers"])
+        pending = output / f"attempt_{attempt:04d}.pending"
+        if pending.exists():
+            shutil.rmtree(pending)
+        runtime_config = generation_config(config, state, mode, operational_overrides=overrides)
+        family_id = runtime_config["families"][0]["id"]
+        context_id = search_context_identity(runtime_config, state)
+        if context_id in state["completed_search_contexts"]:
+            state["suppressed_contexts"] += 1
+            state["avoided_cuda_games"] += int(runtime_config["budget"]["total_cuda_games"])
+            state["next_frontier"] += 1
+            consecutive_suppressions += 1
+            _write_atomic(output / "generation_state.json", state)
+            continue
+        consecutive_suppressions = 0
+        pending.mkdir(parents=True)
+        runtime_path = pending / "config.json"
+        _write_atomic(runtime_path, runtime_config)
+        run_dir = pending / "run"
+        # Phase 16.3: pass persistent resources to the real pipeline runner.
+        # Custom stub runners (tests) do not receive resources.
+        if pipeline_runner is run_production_pipeline:
+            code = run_production_pipeline(runtime_path, run_dir, resources=resources)
+        else:
+            code = pipeline_runner(runtime_path, run_dir)
+        if code == EXIT_INFRASTRUCTURE:
+            return EXIT_INFRASTRUCTURE
+        metrics = _read(run_dir / "metrics.json")
+        state["cuda_games_consumed"] += int(metrics.get("total_cuda_games", 0))
+        accepted = tuple(sorted(metrics.get("accepted_candidate_ids", ())))
+        state["completed_search_contexts"][context_id] = {
+            "family_id": family_id,
+            "generation": int(state["generation"]),
+            "cuda_games": int(metrics.get("total_cuda_games", 0)),
+        }
+        state["completed_frontiers"].append(family_id)
+        state["next_frontier"] += 1
+        if accepted:
+            candidate_id = accepted[0]
+            deployment = _accepted_deployment(run_dir, candidate_id)
+            next_generation = int(state["generation"]) + 1
+            assets = pending / "working_assets"
+            identity = asset_builder(Path(state["working_asset_dir"]), deployment, assets)
+            if int(metrics.get("protected_win_to_loss", 0)) or int(metrics.get("semantic_mismatches", 0)):
+                raise RuntimeError("accepted generation failed protected regression/parity")
+            route = next(deployment.glob("*.route.json"))
+            compact_generation_artifacts(run_dir, accepted)
+            committed = output / "generations" / f"generation_{next_generation:04d}"
+            committed.parent.mkdir(parents=True, exist_ok=True)
+            os.replace(pending, committed)
+            state["generation"] = next_generation
+            state["working_asset_dir"] = str((committed / "working_assets").resolve())
+            route_copy = committed / "working_parent.route.json"
+            shutil.copy2(committed / "run" / deployment.relative_to(run_dir) / route.name, route_copy)
+            state["working_parent_route"] = str(route_copy.resolve())
+            state["accepted_specialists"].append(candidate_id)
+            state["commits"].append({"generation": next_generation, "candidate_id": candidate_id,
+                                     "family_id": family_id, "identity": identity,
+                                     "cuda_games": int(metrics.get("total_cuda_games", 0))})
+            consecutive_suppressions = 0
+        else:
+            compact_generation_artifacts(run_dir, ())
+            completed = output / "completed_attempts" / f"attempt_{attempt:04d}"
+            completed.parent.mkdir(parents=True, exist_ok=True)
+            os.replace(pending, completed)
+        _write_atomic(output / "generation_state.json", state)
+    result = {"schema_version": 1, "mode": mode, "wall_seconds": time.monotonic() - started,
+              "terminal_verdict": "PROMOTION_READY" if state["accepted_specialists"] else "NOT_PROMOTION_READY",
+              "terminal_reason": terminal_reason,
+              "searches_considered": len(state["completed_frontiers"]) + state["suppressed_contexts"],
+              "exact_repeat_contexts_suppressed": state["suppressed_contexts"],
+              "avoided_cuda_games": state["avoided_cuda_games"],
+              "operational_overrides": overrides,
+              "telemetry_interval_seconds": float(telemetry_interval_seconds),
+              "p163_resources": resources.metrics_document(),
+              **state}
+    _write_atomic(output / "cloud_result.json", result)
+    return 0
 
 
 def _parser() -> argparse.ArgumentParser:

@@ -38,10 +38,18 @@ PIPELINE_SCHEMA_VERSION = 1
 
 
 class LegalStateCaptureCache:
-    """Run-local reuse of candidate-independent outer-initiation captures."""
+    """Reuse of candidate-independent outer-initiation captures.
 
-    def __init__(self) -> None:
+    When ``stable_dir`` is provided the cache copies capture files there so
+    entries remain valid across the attempt-directory renames that
+    ``cloud_runner`` performs.  Without a ``stable_dir`` the cache behaves
+    exactly as before (attempt-local reuse only).
+    """
+
+    def __init__(self, stable_dir: "Path | None" = None) -> None:
         self.paths: dict[tuple[Any, ...], tuple[Path, Path]] = {}
+        self.stable_dir = stable_dir
+        self._entry_count = 0
         self.launches = 0
         self.reuses = 0
         self.seconds = 0.0
@@ -259,16 +267,18 @@ def _repository_head() -> str:
 ProductionEngine = Callable[[Path, Path, bool, bool], int]
 
 
-def _validated_engine(config: Path, output: Path, validate_only: bool, smoke: bool) -> int:
+def _validated_engine(config: Path, output: Path, validate_only: bool, smoke: bool,
+                       resources: Any = None) -> int:
     from .p13_equal_budget import run_campaign
     validated = validate_production_config(config, output)
     return run_campaign(config, output, validate_only=validate_only, smoke=smoke,
-                        config_override=validated)
+                        config_override=validated, resources=resources)
 
 
 def run_production_pipeline(config_path: str | Path, output: str | Path, *,
                             validate_only: bool = False, smoke: bool = False,
-                            resume: bool = False, engine: ProductionEngine | None = None) -> int:
+                            resume: bool = False, engine: ProductionEngine | None = None,
+                            resources: Any = None) -> int:
     """Run the authoritative autonomous synthesis lifecycle.
 
     Strategic outcomes are completed runs (exit 1); malformed evidence,
@@ -282,8 +292,11 @@ def run_production_pipeline(config_path: str | Path, output: str | Path, *,
         if resume:
             raise ValueError("deterministic resume is not supported")
         config = validate_production_config(config_path, output_path)
-        runner = engine or _validated_engine
-        code = runner(Path(config_path), output_path, validate_only, smoke)
+        if engine is None:
+            code = _validated_engine(Path(config_path), output_path, validate_only, smoke,
+                                     resources)
+        else:
+            code = engine(Path(config_path), output_path, validate_only, smoke)
         if code != 0:
             raise RuntimeError(f"autonomous synthesis backend returned {code}")
         metrics = json.loads((output_path / "metrics.json").read_text(encoding="utf-8"))
@@ -415,7 +428,18 @@ def capture_candidate_legal_states(program: MacroProgram, rows: Sequence[ExactCa
             cache.launches += 1
             cache.seconds += time.monotonic() - started
             if not program.decisions:
-                cache.paths[cache_key] = (capture, truth)
+                if cache.stable_dir is not None:
+                    # Copy to a cache-owned stable location so the entry
+                    # survives attempt-level directory renames.
+                    cache.stable_dir.mkdir(parents=True, exist_ok=True)
+                    eid = cache._entry_count; cache._entry_count += 1
+                    sc = cache.stable_dir / f"c{eid:06d}.b4is"
+                    st = cache.stable_dir / f"c{eid:06d}_t.b4is"
+                    shutil.copy2(capture, sc)
+                    shutil.copy2(truth, st)
+                    cache.paths[cache_key] = (sc, st)
+                else:
+                    cache.paths[cache_key] = (capture, truth)
     manifest = capture.with_suffix(".manifest.json")
     manifest.write_text(json.dumps({"schema_version": PIPELINE_SCHEMA_VERSION, "candidate_id": program.semantic_id,
                                     "cases_path": str(Path(cases_path)), "probe_steps": probe_steps}, sort_keys=True) + "\n",

@@ -13,6 +13,7 @@ import sys
 import time
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import ExitStack
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping, Sequence
@@ -401,7 +402,8 @@ def dispatch_repair(
 
 
 def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False, smoke: bool = False,
-                 probe: bool = False, config_override: Mapping[str, Any] | None = None) -> int:
+                 probe: bool = False, config_override: Mapping[str, Any] | None = None,
+                 resources: Any = None) -> int:
     config = dict(config_override) if config_override is not None else validate_config(config_path)
     root = Path.cwd(); output.mkdir(parents=True, exist_ok=True)
     if any((output / name).exists() for name in ("config.json", "run.json", "metrics.json")):
@@ -438,18 +440,42 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
         campaign_families=[row for row in config["families"] if row["id"] in probe_ids]
     else:
         campaign_families=config["families"]
-    capture_cache = LegalStateCaptureCache()
+    # Phase 16.3: use persistent capture cache from resources when available
+    capture_cache = resources.capture_cache if resources is not None else LegalStateCaptureCache()
     host_execution = dict(config.get("host_execution") or {})
     producer_workers = int(host_execution.get("producer_workers", 1))
     producer_queue_depth = int(host_execution.get("queue_depth", 2))
     producer_start_method = str(host_execution.get("start_method", "spawn"))
     candidate_workers = int(host_execution.get("candidate_workers", 1))
     candidate_queue_depth = int(host_execution.get("candidate_queue_depth", 4))
+    # Phase 16.3: record reuse of persistent pools provided by cloud-run resources
+    if resources is not None:
+        resources.record_pool_reuse()
     for family_index, family in enumerate(campaign_families):
         family_id = family["id"]; family_dir = output / "families" / family_id; family_dir.mkdir(parents=True)
         checkpoint_limit=1 if smoke else (config["probe"]["checkpoint_limit"] if probe else config["search"]["checkpoint_limit"])
-        _t0=time.monotonic(); _events=_generic_events(donor_paths,family_id); stage_timing["donor_event_extraction"]+=time.monotonic()-_t0
-        _t0=time.monotonic(); checkpoints=select_checkpoints(_events)[:checkpoint_limit]; stage_timing["checkpoint_selection"]+=time.monotonic()-_t0
+        # Phase 16.3: cache generic_events per (family_id, donor_paths) across attempts
+        if resources is not None:
+            _cached_events = resources.get_generic_events(family_id, donor_paths)
+        else:
+            _cached_events = None
+        if _cached_events is None:
+            _t0=time.monotonic(); _events=_generic_events(donor_paths,family_id); stage_timing["donor_event_extraction"]+=time.monotonic()-_t0
+            if resources is not None:
+                resources.put_generic_events(family_id, donor_paths, _events)
+        else:
+            _events = _cached_events
+        # Phase 16.3: cache checkpoints per (family_id, donor_paths, limit) across attempts
+        if resources is not None:
+            _cached_checkpoints = resources.get_checkpoints(family_id, donor_paths, checkpoint_limit)
+        else:
+            _cached_checkpoints = None
+        if _cached_checkpoints is None:
+            _t0=time.monotonic(); checkpoints=select_checkpoints(_events)[:checkpoint_limit]; stage_timing["checkpoint_selection"]+=time.monotonic()-_t0
+            if resources is not None:
+                resources.put_checkpoints(family_id, donor_paths, checkpoint_limit, checkpoints)
+        else:
+            checkpoints = _cached_checkpoints
         archive = Archive(); candidates = []; motifs_all: dict[str, Motif] = {}; family_beam = Counter(); family_operators = Counter()
         family_host = Counter(); producer_pids: set[int] = set()
         producer_max_inflight = producer_max_queue = producer_reorder_high_water = 0
@@ -460,13 +486,21 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
         checkpoint_batches = tuple(tuple(checkpoints[index:index + checkpoint_batch_size])
                                    for index in range(0, len(checkpoints), checkpoint_batch_size))
         evaluator = AccountedEvaluator(CudaBatchEvaluator(binary=binary, asset_dir=asset, cases_path=root/family["target_panel"]), ledger, family_id, "target_beam")
-        with DeterministicProcessPool(
-            workers=producer_workers, queue_depth=producer_queue_depth,
-            stage="producer", start_method=producer_start_method,
-        ) as producer_pool, DeterministicProcessPool(
-            workers=candidate_workers, queue_depth=candidate_queue_depth,
-            stage="candidate_construction", start_method=producer_start_method,
-        ) as candidate_pool:
+        # Phase 16.3: ExitStack manages per-family pools only when resources is None.
+        # When resources is provided, pools are persistent and managed by RunResources.
+        with ExitStack() as _pool_stack:
+            if resources is not None:
+                producer_pool = resources.producer_pool
+                candidate_pool = resources.candidate_pool
+            else:
+                producer_pool = _pool_stack.enter_context(DeterministicProcessPool(
+                    workers=producer_workers, queue_depth=producer_queue_depth,
+                    stage="producer", start_method=producer_start_method,
+                ))
+                candidate_pool = _pool_stack.enter_context(DeterministicProcessPool(
+                    workers=candidate_workers, queue_depth=candidate_queue_depth,
+                    stage="candidate_construction", start_method=producer_start_method,
+                ))
             batch_stream = prefetch_checkpoint_motif_batches(
                 checkpoint_batches, donor_paths, config["search"]["motif_steps"], producer_pool,
             )
@@ -667,6 +701,27 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
              "protected_win_to_loss":0,"semantic_mismatches":0,"sealed_generation_uses":0,"budget":ledger.document(),"families":all_metrics}
     metrics["legal_state_capture"]={"launches":capture_cache.launches,"reuses":capture_cache.reuses,
                                      "host_seconds":capture_cache.seconds}
+    # Phase 16.3: persistent-resource metrics (present when resources provided, zeros otherwise)
+    if resources is not None:
+        metrics["p163_resources"] = resources.metrics_document()
+    else:
+        metrics["p163_resources"] = {
+            "producer_pool_creations": 1,
+            "candidate_pool_creations": 1,
+            "process_pool_reuses": 0,
+            "capture_launches": capture_cache.launches,
+            "capture_reuses": capture_cache.reuses,
+            "avoided_capture_launches": capture_cache.reuses,
+            "capture_cache_hits": capture_cache.reuses,
+            "capture_cache_misses": capture_cache.launches,
+            "capture_host_seconds": capture_cache.seconds,
+            "donor_manifest_loads": 1,
+            "donor_manifest_cache_hits": 0,
+            "generic_events_cache_hits": 0,
+            "generic_events_cache_misses": len(campaign_families),
+            "checkpoint_cache_hits": 0,
+            "checkpoint_cache_misses": len(campaign_families),
+        }
     metrics["host_pipeline"] = {
         "producer_workers": producer_workers,
         "consumer_workers": 0,
