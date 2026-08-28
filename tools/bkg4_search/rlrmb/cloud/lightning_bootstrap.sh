@@ -8,10 +8,18 @@ if ! command -v uv >/dev/null || [[ "$(uv --version)" != "uv 0.11.3"* ]]; then
 fi
 CAP="$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader | head -n1 | tr -d '.')"
 ARCH="sm_${CAP}"
+NVCC="$(command -v nvcc || true)"
+if [[ -z "$NVCC" ]]; then
+  for candidate in /usr/local/cuda/bin/nvcc /usr/bin/nvcc; do
+    if [[ -x "$candidate" ]]; then NVCC="$candidate"; break; fi
+  done
+fi
+if [[ -z "$NVCC" ]]; then echo "ERROR: nvcc not found" >&2; exit 1; fi
+echo "nvcc: $NVCC"
 mkdir -p scratch/cuda-engine-build
 python3 tools/bkg4_search/rlrmb/cuda/build.py --arch "$ARCH" --output scratch/cuda-engine-build/rlrmb_eval
-make -C cuda-engine ARCH="$ARCH" BUILD_DIR=../scratch/cuda-engine-build bkg4-information-state-capture
-make -C cuda-engine ARCH="$ARCH" BUILD_DIR=../scratch/cuda-engine-build bkg4-fragment-eval
+make -C cuda-engine ARCH="$ARCH" BUILD_DIR=../scratch/cuda-engine-build NVCC="$NVCC" bkg4-information-state-capture
+make -C cuda-engine ARCH="$ARCH" BUILD_DIR=../scratch/cuda-engine-build NVCC="$NVCC" bkg4-fragment-eval
 python3 - <<'PY'
 import json
 from pathlib import Path
