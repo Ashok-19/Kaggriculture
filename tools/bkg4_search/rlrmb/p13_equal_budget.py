@@ -416,6 +416,16 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
     if validate_only:
         return 0
 
+    _campaign_wall_start = time.monotonic()
+    stage_timing: dict[str, float] = {k: 0.0 for k in (
+        "donor_event_extraction", "checkpoint_selection",
+        "beam_search_total", "promotion_pool_selection",
+        "target_legal_capture", "target_routability",
+        "transfer_validation_eval", "transfer_validation_capture",
+        "full_routability", "sealed_eval_capture",
+        "cegis", "lns_repair", "materialization",
+        "post_search_io", "metrics_normalization",
+    )}
     family_caps = {row["id"]: row["cuda_games"] for row in config["families"]}
     ledger = BudgetLedger(config["budget"]["total_cuda_games"], family_caps, config["budget"]["per_family_categories"])
     donor_paths = tuple(Path(line.strip()) for line in (root / config["donor_manifest"]).read_text().splitlines() if line.strip())[:config["search"]["donor_limit"]]
@@ -436,7 +446,8 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
     for family_index, family in enumerate(campaign_families):
         family_id = family["id"]; family_dir = output / "families" / family_id; family_dir.mkdir(parents=True)
         checkpoint_limit=1 if smoke else (config["probe"]["checkpoint_limit"] if probe else config["search"]["checkpoint_limit"])
-        checkpoints = select_checkpoints(_generic_events(donor_paths, family_id))[:checkpoint_limit]
+        _t0=time.monotonic(); _events=_generic_events(donor_paths,family_id); stage_timing["donor_event_extraction"]+=time.monotonic()-_t0
+        _t0=time.monotonic(); checkpoints=select_checkpoints(_events)[:checkpoint_limit]; stage_timing["checkpoint_selection"]+=time.monotonic()-_t0
         archive = Archive(); candidates = []; motifs_all: dict[str, Motif] = {}; family_beam = Counter(); family_operators = Counter()
         family_host = Counter(); producer_pids: set[int] = set()
         producer_max_inflight = producer_max_queue = producer_reorder_high_water = 0
@@ -484,11 +495,13 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
                     local_budget = min(requested_budget, ledger.remaining(family_id, "target_beam"))
                     if local_budget < evaluator.projected_games(1):
                         break
+                    _t0=time.monotonic()
                     result = run_beam(family_id, checkpoint_batch, motifs, evaluator,
                                       BeamConfig(max_depth=1 if smoke else config["search"]["beam_depth"], cuda_game_budget=local_budget,
                                                  max_candidates_per_expansion=8 if smoke else config["search"]["max_candidates_per_expansion"] * len(checkpoint_batch),
                                                  stagnation_rounds=config["search"]["stagnation_rounds"]), archive,
                                       checkpoint_motifs=checkpoint_motifs)
+                    stage_timing["beam_search_total"]+=time.monotonic()-_t0
                     archive = result.archive; candidates.extend(result.candidates)
                     for key, value in result.metrics.items():
                         if isinstance(value, (int, float)): family_beam[key] += value
@@ -497,7 +510,7 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
                 batch_stream.close()
         elites = {entry.program_id for entry in archive.entries() if entry.target_win_to_loss == 0 and entry.target_loss_to_win > 0}
         promotion_config=config["probe"] if probe else config["promotion"]
-        promotion_pool = select_promotion_pool(candidates, elites, promotion_config["risk_pool_size"])
+        _t0=time.monotonic(); promotion_pool=select_promotion_pool(candidates,elites,promotion_config["risk_pool_size"]); stage_timing["promotion_pool_selection"]+=time.monotonic()-_t0
         if smoke: promotion_pool=()
         family_results=[]; prepromotion_results=[]; refined=()
         target_rows_by_id: dict[str, tuple[ExactCaseEvidence, ...]] = {}
@@ -507,11 +520,13 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
             program=candidate.program; candidate_dir=family_dir/"prepromotion"/program.semantic_id
             target_block=_target_block(candidate)
             raw_rows=_effect_rows(program,DatasetRole.TARGET,root/family["target_panel"],target_block)
+            _t0=time.monotonic()
             captured=capture_candidate_legal_states(
                 program,raw_rows,root/family["target_panel"],candidate_dir/"target",
                 capture_binary=root/config["capture_binary"],asset_dir=asset,cache=capture_cache,
             )
-            routing=screen_routability(build_routability_evidence(program,captured))
+            stage_timing["target_legal_capture"]+=time.monotonic()-_t0
+            _t0=time.monotonic(); routing=screen_routability(build_routability_evidence(program,captured)); stage_timing["target_routability"]+=time.monotonic()-_t0
             target_rows_by_id[program.semantic_id]=captured; target_risks[program.semantic_id]=routing
             prepromotion_results.append({"candidate_id":program.semantic_id,"stage":"TARGET_LEGAL_RISK",
                                          "routability":routing.to_document(),
@@ -526,7 +541,7 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
             max_count=min(len(programs), max(0,ledger.remaining(family_id,"transfer")//transfer_eval.case_count-1), max(0,ledger.remaining(family_id,"validation")//validation_eval.case_count-1))
             programs=programs[:max_count]; by_id={c.program.semantic_id:c for c in risk_shortlist}
             if programs:
-                transfer=transfer_eval(programs,motifs_all); validation=validation_eval(programs,motifs_all)
+                _t0=time.monotonic(); transfer=transfer_eval(programs,motifs_all); validation=validation_eval(programs,motifs_all); stage_timing["transfer_validation_eval"]+=time.monotonic()-_t0
                 full_rows: dict[str,tuple[ExactCaseEvidence,...]]={}
                 for position, program in enumerate(programs):
                     candidate_dir=family_dir/"prepromotion"/program.semantic_id
@@ -535,10 +550,10 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
                     rows=list(target_rows_by_id[program.semantic_id])
                     for role,panel,block in ((DatasetRole.TRANSFER,root/config["transfer_panel"],transfer_block),(DatasetRole.VALIDATION,root/config["validation_panel"],validation_block)):
                         raw_rows=_effect_rows(program,role,panel,block)
-                        captured=capture_candidate_legal_states(program,raw_rows,panel,candidate_dir/role.value.lower(),capture_binary=root/config["capture_binary"],asset_dir=asset,cache=capture_cache)
+                        _t0=time.monotonic(); captured=capture_candidate_legal_states(program,raw_rows,panel,candidate_dir/role.value.lower(),capture_binary=root/config["capture_binary"],asset_dir=asset,cache=capture_cache); stage_timing["transfer_validation_capture"]+=time.monotonic()-_t0
                         rows.extend(captured)
                         _write_json(candidate_dir/role.value.lower()/"evidence.json",[{"case_id":x.meta.case_id,"role":x.role.value,"baseline_margin":x.baseline_margin,"candidate_margin":x.candidate_margin,"delta":x.delta,"seat":x.meta.seat,"family":x.meta.family,"exact_signature":list(x.exact_signature)} for x in captured])
-                    routing=screen_routability(build_routability_evidence(program,rows))
+                    _t0=time.monotonic(); routing=screen_routability(build_routability_evidence(program,rows)); stage_timing["full_routability"]+=time.monotonic()-_t0
                     full_risks[program.semantic_id]=routing; full_rows[program.semantic_id]=tuple(rows)
                     prepromotion_results.append({"candidate_id":program.semantic_id,"stage":"FULL_LEGAL_RISK",
                                                  "routability":routing.to_document(),
@@ -557,14 +572,18 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
                         # routability have frozen the candidate. The unchanged adapter keeps
                         # these rows out of synthesis and applies them to the frozen gate.
                         sealed_eval=AccountedEvaluator(CudaBatchEvaluator(binary=binary,asset_dir=asset,cases_path=root/config["sealed_panel"]),ledger,family_id,"certification")
+                        _t0=time.monotonic()
                         sealed_batch=sealed_eval((program,),motifs_all)
                         sealed_raw=_effect_rows(program,DatasetRole.SEALED,root/config["sealed_panel"],sealed_batch.programs[0].effect.blocks[0])
                         sealed_rows=capture_candidate_legal_states(program,sealed_raw,root/config["sealed_panel"],candidate_dir/"sealed",capture_binary=root/config["capture_binary"],asset_dir=asset,cache=capture_cache)
-                        cegis=run_hardened_cegis(build_cegis_input(program,(*rows,*sealed_rows),routing)); item["cegis"]=cegis.to_document()
+                        stage_timing["sealed_eval_capture"]+=time.monotonic()-_t0
+                        _t0=time.monotonic(); cegis=run_hardened_cegis(build_cegis_input(program,(*rows,*sealed_rows),routing)); stage_timing["cegis"]+=time.monotonic()-_t0; item["cegis"]=cegis.to_document()
                         _write_json(candidate_dir/"cegis.json",cegis.to_document())
                         if cegis.accepted:
                             parent_module = _read_json(asset / "controller.json")
+                            _t0=time.monotonic()
                             artifact,audit=materialize_certified_candidate(program,motifs_all,cegis,parent_route=root/config["parent_route"],output_dir=family_dir/program.semantic_id/"deployment",route_id=config["deployment"]["route_id_base"]+family_index*100+len(accepted),parent_module=parent_module,authority_name=config["deployment"].get("authority_name","strategic_route"),authority_slot=config["deployment"].get("authority_slot","slot_1"))
+                            stage_timing["materialization"]+=time.monotonic()-_t0
                             item["materialization"]=audit; accepted.append(program.semantic_id)
                         else:
                             reason=cegis.rejection_reason or "CEGIS_REJECTED"; failures[reason]+=1
@@ -574,7 +593,7 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
                                 dual=DualPanelEvaluator(target_lns,transfer_lns)
                                 max_repairs=min(config["repair"]["lns_max_candidates"],max(0,ledger.remaining(family_id,"lns_repair")//dual.case_count-2))
                                 if max_repairs:
-                                    repaired=run_lns(program,FailureClass.NON_TRANSFERABLE,motifs_all,checkpoints,dual,archive=archive,max_repairs=max_repairs)
+                                    _t0=time.monotonic(); repaired=run_lns(program,FailureClass.NON_TRANSFERABLE,motifs_all,checkpoints,dual,archive=archive,max_repairs=max_repairs); stage_timing["lns_repair"]+=time.monotonic()-_t0
                                     item["lns_repair"]={"disposition":"SEMANTIC_LNS","metrics":repaired.metrics,"records":[x.to_document() for x in repaired.records]}
                                 else:item["lns_repair"]={"disposition":"SEARCH_BUDGET_EXHAUSTED","metrics":{}}
                     else:
@@ -623,8 +642,11 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
                                 "refined":len(refined),"archive":archive.metrics(),
                                 "host_pipeline":host_pipeline_metrics,
                                 "prepromotion_results":prepromotion_results,"results":family_results}
+        _t0=time.monotonic()
         _write_json(family_dir/"prepromotion_summary.json",prepromotion_results)
         _write_json(family_dir/"run.json",all_metrics[family_id]); _write_json(family_dir/"archive_summary.json",json.loads(archive.serialize()))
+        stage_timing["post_search_io"]+=time.monotonic()-_t0
+    _t0=time.monotonic()
     refined_total=sum(row["refined"] for row in all_metrics.values()); mixed=failures["MIXED_LEGAL_STATE"]+failures["FUTURE_DEPENDENT"]+failures["REPAIR_BRANCH_AT_REVEAL"]+failures["REPAIR_COMMON_PREFIX"]
     metrics={"verdict":"CAMPAIGN_COMPLETE","total_cuda_games":ledger.total,"accepted_specialists":len(accepted),"accepted_candidate_ids":accepted,
              "refined_candidates":refined_total,"mixed_legal_state":mixed,"mixed_rate":0 if not refined_total else mixed/refined_total,
@@ -651,8 +673,19 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
         "archive_owner": "COORDINATOR",
         "gpu_owner": "COORDINATOR_SERIAL_SUBPROCESS_LANE",
     }
+    _campaign_wall_total = max(0.0, time.monotonic() - _campaign_wall_start)
+    stage_timing["metrics_normalization"] += time.monotonic() - _t0
+    _total_attributed = sum(stage_timing.values())
+    metrics["stage_timing_seconds"] = {k: round(v, 6) for k, v in sorted(stage_timing.items())}
+    metrics["stage_timing_seconds"]["_total_attributed"] = round(_total_attributed, 6)
+    metrics["stage_timing_seconds"]["_campaign_wall"] = round(_campaign_wall_total, 6)
+    metrics["stage_timing_seconds"]["_attribution_ratio"] = round(
+        _total_attributed / _campaign_wall_total if _campaign_wall_total > 0 else 1.0, 6
+    )
+    _t0=time.monotonic()
     _write_json(output/"metrics.json",metrics);_write_json(output/"failures.json",{"counts":dict(sorted(failures.items()))});_write_json(output/"archive_summary.json",{"families":{k:v["archive"] for k,v in all_metrics.items()}})
     _write_json(output/"run.json",{**manifest,"finished_unix":int(time.time()),"verdict":"CAMPAIGN_COMPLETE"})
+    stage_timing["post_search_io"]+=time.monotonic()-_t0
     return 0
 
 

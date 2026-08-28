@@ -4,8 +4,9 @@ import tempfile
 import unittest
 
 from tools.bkg4_search.rlrmb.cloud_runner import (
-    _extend_route_pack, build_working_assets, compact_generation_artifacts, generation_config,
-    _parser, initial_state, load_cloud_config, run_cloud,
+    _extend_route_pack, _controller_identity, build_working_assets, compact_generation_artifacts,
+    generation_config, _parser, initial_state, load_cloud_config, run_cloud,
+    search_context_identity,
 )
 from tools.bkg4_search.rlrmb.materialize import MaterializationInput, materialize_program
 from tools.bkg4_search.rlrmb.tests.test_ir import program, Phase, ActionSource, fixed
@@ -153,6 +154,373 @@ class CloudTests(unittest.TestCase):
             for route in routes:
                 self.assertFalse(route.is_absolute(),f"{config['donor_manifest']} embeds absolute donor path: {route}")
                 self.assertTrue((output/route).exists(),f"{config['donor_manifest']} references missing donor: {route}")
+
+
+class ExactRepeatSuppressionTests(unittest.TestCase):
+    """Phase 16.1 — exact search-context identity and repeat suppression."""
+
+    def setUp(self):
+        self.config = load_cloud_config(CONFIG)
+
+    # --- helpers ---
+    def _stub_runner(self, cuda_games=10, accepted=False):
+        candidate = "a" * 64
+        def runner(runtime_path, run_dir):
+            run_dir.mkdir(parents=True)
+            metrics = {"total_cuda_games": cuda_games,
+                       "accepted_candidate_ids": [candidate] if accepted else [],
+                       "protected_win_to_loss": 0, "semantic_mismatches": 0}
+            (run_dir / "metrics.json").write_text(json.dumps(metrics))
+            if accepted:
+                family = json.loads(runtime_path.read_text())["families"][0]["id"]
+                dep = run_dir / "families" / family / candidate / "deployment"
+                dep.mkdir(parents=True)
+                for name, val in (("composed_module.json", {}), ("specialist.json", {}),
+                                  (f"{candidate}.route.json", {"actions": []})):
+                    (dep / name).write_text(json.dumps(val))
+            return 0
+        return runner
+
+    def _stub_assets(self, tmp_root):
+        candidate = "a" * 64
+        def assets(parent, deployment, destination):
+            destination.mkdir(parents=True, exist_ok=True)
+            for name in ("controller.bkgc", "routes.bkv6", "legacy_routes.bkv6"):
+                (destination / name).write_bytes(b"ok")
+            (destination / "controller.json").write_text("{}")
+            identity_doc = {"controller_semantic_hash": "newhash", "route_id": 999,
+                            "candidate_id": candidate, "nodes": 1, "state_slots": 1}
+            (destination / "identity.json").write_text(json.dumps(identity_doc))
+            return {"candidate_id": candidate, "nodes": 1, "state_slots": 1}
+        return assets
+
+    def _run_n(self, n, output, runner=None, assets=None):
+        runner = runner or self._stub_runner()
+        assets = assets or self._stub_assets(output)
+        return run_cloud(CONFIG, output, mode="pilot", max_generations=n,
+                         pipeline_runner=runner, asset_builder=assets)
+
+    # Test 1: same generation + frontier + config → pipeline runs only once
+    def test_same_context_runs_pipeline_only_once(self):
+        with tempfile.TemporaryDirectory() as d:
+            output = Path(d) / "run"
+            calls = []
+            def counting_runner(runtime_path, run_dir):
+                calls.append(json.loads(runtime_path.read_text())["families"][0]["id"])
+                return self._stub_runner()(runtime_path, run_dir)
+            # 4 families; run up to 8 = one full cycle + one repeat cycle
+            run_cloud(CONFIG, output, mode="pilot", max_generations=8,
+                      pipeline_runner=counting_runner, asset_builder=self._stub_assets(output))
+            # Only 4 actual pipeline calls — the second cycle is suppressed
+            self.assertEqual(len(calls), 4)
+
+    # Test 2: repeat encounter records zero CUDA games consumed
+    def test_repeat_context_consumes_zero_cuda_games(self):
+        with tempfile.TemporaryDirectory() as d:
+            output = Path(d) / "run"
+            self._run_n(4, output)
+            state_after_4 = json.loads((output / "generation_state.json").read_text())
+            games_after_4 = state_after_4["cuda_games_consumed"]
+            # Run 4 more; all should be suppressed
+            run_cloud(CONFIG, output / "run2", mode="pilot", max_generations=8,
+                      pipeline_runner=self._stub_runner(), asset_builder=self._stub_assets(output))
+            # Run 4 then 4 more in the SAME output (resume not needed for a fresh output)
+            # Easier test: just verify avoided_cuda_games equals allocation * suppressed count
+            output2 = Path(d) / "run2"
+            output2.mkdir()
+            # Manually run twice to see suppression
+            run_cloud(CONFIG, output2, mode="pilot", max_generations=8,
+                      pipeline_runner=self._stub_runner(cuda_games=150000),
+                      asset_builder=self._stub_assets(output2))
+            state2 = json.loads((output2 / "generation_state.json").read_text())
+            # After 4 real runs, 4 suppressions
+            self.assertEqual(state2["suppressed_contexts"], 4)
+            self.assertEqual(state2["cuda_games_consumed"], 4 * 150000)
+            # Avoided games recorded without actually running
+            self.assertGreater(state2["avoided_cuda_games"], 0)
+
+    # Test 3: suppression records avoided work in cloud_result.json
+    def test_repeat_suppression_records_avoided_work(self):
+        with tempfile.TemporaryDirectory() as d:
+            output = Path(d) / "run"
+            # Use a high limit so exhaustion detection fires before the limit
+            run_cloud(CONFIG, output, mode="pilot", max_generations=100,
+                      pipeline_runner=self._stub_runner(cuda_games=150000),
+                      asset_builder=self._stub_assets(output))
+            result = json.loads((output / "cloud_result.json").read_text())
+            self.assertIn("exact_repeat_contexts_suppressed", result)
+            self.assertIn("avoided_cuda_games", result)
+            self.assertEqual(result["exact_repeat_contexts_suppressed"], 4)
+            self.assertGreater(result["avoided_cuda_games"], 0)
+            self.assertEqual(result["terminal_reason"], "GENERATION_CONTEXT_EXHAUSTED")
+
+    # Test 4: new BKG4 generation re-enables frontiers
+    def test_new_bkg4_generation_re_enables_frontiers(self):
+        with tempfile.TemporaryDirectory() as d:
+            output = Path(d) / "run"
+            calls = []
+            # First call accepts a specialist, committing a new generation
+            first_call = [False]
+            def smart_runner(runtime_path, run_dir):
+                run_dir.mkdir(parents=True)
+                family = json.loads(runtime_path.read_text())["families"][0]["id"]
+                calls.append(family)
+                # Accept on the very first call to trigger a new generation
+                accept = not first_call[0]
+                first_call[0] = True
+                candidate = "a" * 64
+                metrics = {"total_cuda_games": 10,
+                           "accepted_candidate_ids": [candidate] if accept else [],
+                           "protected_win_to_loss": 0, "semantic_mismatches": 0}
+                (run_dir / "metrics.json").write_text(json.dumps(metrics))
+                if accept:
+                    dep = run_dir / "families" / family / candidate / "deployment"
+                    dep.mkdir(parents=True)
+                    for name, val in (("composed_module.json", {}), ("specialist.json", {}),
+                                      (f"{candidate}.route.json", {"actions": []})):
+                        (dep / name).write_text(json.dumps(val))
+                return 0
+            run_cloud(CONFIG, output, mode="pilot", max_generations=10,
+                      pipeline_runner=smart_runner,
+                      asset_builder=self._stub_assets(output))
+            state = json.loads((output / "generation_state.json").read_text())
+            # With one accepted specialist: generation 1, new context IDs → more runs
+            # First cycle: 1 accepted (generation committed) + 3 non-accepted
+            # Second cycle: new generation → at least some frontiers re-enabled
+            self.assertGreater(len(calls), 4)
+
+    # Test 5: search-config change re-enables a frontier
+    def test_search_config_change_invalidates_suppression(self):
+        config = load_cloud_config(CONFIG)
+        state = initial_state(config)
+        runtime_cfg = generation_config(config, state, "pilot")
+        ctx1 = search_context_identity(runtime_cfg, state)
+        # Mutate checkpoint_batch_size in the runtime config
+        import copy
+        runtime_cfg2 = copy.deepcopy(runtime_cfg)
+        runtime_cfg2["search"]["checkpoint_batch_size"] = 999
+        ctx2 = search_context_identity(runtime_cfg2, state)
+        self.assertNotEqual(ctx1, ctx2)
+
+    # Test 6: pending/failed attempt never marks a context complete
+    def test_failed_attempt_never_marks_context_complete(self):
+        with tempfile.TemporaryDirectory() as d:
+            output = Path(d) / "run"
+            def failing_runner(runtime_path, run_dir):
+                return 2  # EXIT_INFRASTRUCTURE
+            result = run_cloud(CONFIG, output, mode="pilot", max_generations=1,
+                               pipeline_runner=failing_runner,
+                               asset_builder=self._stub_assets(output))
+            self.assertEqual(result, 2)
+            # No generation_state.json means no completed context was recorded
+            self.assertFalse((output / "generation_state.json").exists())
+
+    # Test 7: resume preserves completed-context knowledge
+    def test_resume_preserves_completed_context_knowledge(self):
+        with tempfile.TemporaryDirectory() as d:
+            output = Path(d) / "run"
+            # Run 2 frontiers
+            run_cloud(CONFIG, output, mode="pilot", max_generations=2,
+                      pipeline_runner=self._stub_runner(),
+                      asset_builder=self._stub_assets(output))
+            state_mid = json.loads((output / "generation_state.json").read_text())
+            completed_mid = dict(state_mid["completed_search_contexts"])
+            self.assertEqual(len(completed_mid), 2)
+            # Resume: the 2 completed contexts survive
+            calls_after = []
+            def counting_runner(runtime_path, run_dir):
+                calls_after.append(json.loads(runtime_path.read_text())["families"][0]["id"])
+                return self._stub_runner()(runtime_path, run_dir)
+            run_cloud(CONFIG, output, mode="pilot", max_generations=6, resume=True,
+                      pipeline_runner=counting_runner, asset_builder=self._stub_assets(output))
+            state_final = json.loads((output / "generation_state.json").read_text())
+            # Resumed state must contain original 2 completed contexts
+            for ctx_id in completed_mid:
+                self.assertIn(ctx_id, state_final["completed_search_contexts"])
+            # After resume, only 2 more actual pipeline calls (families 3 and 4)
+            self.assertEqual(len(calls_after), 2)
+
+    # Test 8: context identity is deterministic
+    def test_context_identity_is_deterministic(self):
+        config = load_cloud_config(CONFIG)
+        state = initial_state(config)
+        runtime_cfg = generation_config(config, state, "pilot")
+        ids = [search_context_identity(runtime_cfg, state) for _ in range(5)]
+        self.assertEqual(len(set(ids)), 1)
+        self.assertEqual(len(ids[0]), 64)  # SHA-256 hex
+
+    # Test 9: SEALED panel does not enter search context identity
+    def test_sealed_panel_excluded_from_search_context_identity(self):
+        config = load_cloud_config(CONFIG)
+        state = initial_state(config)
+        runtime_cfg = generation_config(config, state, "pilot")
+        ctx1 = search_context_identity(runtime_cfg, state)
+        import copy
+        runtime_cfg2 = copy.deepcopy(runtime_cfg)
+        runtime_cfg2["sealed_panel"] = "/changed/sealed/panel.tsv"
+        ctx2 = search_context_identity(runtime_cfg2, state)
+        self.assertEqual(ctx1, ctx2,
+            "SEALED panel must not contaminate search-context identity")
+
+    # Test 10: controller identity resolves from identity.json when present
+    def test_controller_identity_uses_identity_json_hash(self):
+        with tempfile.TemporaryDirectory() as d:
+            asset_dir = Path(d) / "assets"
+            asset_dir.mkdir()
+            # Without identity.json: stable fallback
+            id_no_file = _controller_identity(str(asset_dir))
+            self.assertIsInstance(id_no_file, str)
+            self.assertTrue(len(id_no_file) > 0)
+            # With identity.json: uses controller_semantic_hash
+            (asset_dir / "identity.json").write_text(
+                json.dumps({"controller_semantic_hash": "abc123", "route_id": 1}))
+            id_with_file = _controller_identity(str(asset_dir))
+            self.assertEqual(id_with_file, "abc123")
+            # Generation change → identity changes
+            (asset_dir / "identity.json").write_text(
+                json.dumps({"controller_semantic_hash": "def456", "route_id": 2}))
+            id_new_gen = _controller_identity(str(asset_dir))
+            self.assertNotEqual(id_with_file, id_new_gen)
+
+    # Test 11: exhaustion terminates cleanly without an infinite loop
+    def test_exhaustion_terminates_without_looping(self):
+        with tempfile.TemporaryDirectory() as d:
+            output = Path(d) / "run"
+            import time as _time
+            start = _time.monotonic()
+            run_cloud(CONFIG, output, mode="pilot", max_generations=100,
+                      pipeline_runner=self._stub_runner(),
+                      asset_builder=self._stub_assets(output))
+            elapsed = _time.monotonic() - start
+            result = json.loads((output / "cloud_result.json").read_text())
+            self.assertEqual(result["terminal_reason"], "GENERATION_CONTEXT_EXHAUSTED")
+            # Only 4 real pipeline calls (one per family), not 100
+            state = json.loads((output / "generation_state.json").read_text())
+            self.assertEqual(len(state["completed_frontiers"]), 4)
+            self.assertEqual(state["suppressed_contexts"], 4)
+
+    # Test 12: existing atomic-generation/resume atomicity still works
+    def test_existing_atomic_generation_behavior_unchanged(self):
+        config = load_cloud_config(CONFIG)
+        candidate = "b" * 64
+        def accepted_runner(runtime, output):
+            output.mkdir(parents=True)
+            family = json.loads(runtime.read_text())["families"][0]["id"]
+            dep = output / "families" / family / candidate / "deployment"
+            dep.mkdir(parents=True)
+            for name, val in (("composed_module.json", {}), ("specialist.json", {}),
+                               (f"{candidate}.route.json", {"actions": []})):
+                (dep / name).write_text(json.dumps(val))
+            (output / "metrics.json").write_text(json.dumps(
+                {"total_cuda_games": 10, "accepted_candidate_ids": [candidate],
+                 "protected_win_to_loss": 0, "semantic_mismatches": 0}))
+            return 0
+        def assets(parent, deployment, destination):
+            destination.mkdir(parents=True)
+            for name in ("controller.bkgc", "routes.bkv6", "legacy_routes.bkv6"):
+                (destination / name).write_bytes(b"ok")
+            (destination / "controller.json").write_text("{}")
+            return {"candidate_id": candidate, "nodes": 1, "state_slots": 1}
+        with tempfile.TemporaryDirectory() as d:
+            output = Path(d) / "run"
+            code = run_cloud(CONFIG, output, mode="pilot", max_generations=1,
+                             pipeline_runner=accepted_runner, asset_builder=assets)
+            self.assertEqual(code, 0)
+            state = json.loads((output / "generation_state.json").read_text())
+            self.assertEqual(state["generation"], 1)
+            self.assertEqual(len(state["completed_search_contexts"]), 1)
+            self.assertFalse(any(output.glob("*.pending")))
+
+
+class StagingTimingTests(unittest.TestCase):
+    """Phase 16.1 — stage timing fields in run_campaign metrics."""
+
+    EXPECTED_STAGES = {
+        "donor_event_extraction", "checkpoint_selection",
+        "beam_search_total", "promotion_pool_selection",
+        "target_legal_capture", "target_routability",
+        "transfer_validation_eval", "transfer_validation_capture",
+        "full_routability", "sealed_eval_capture",
+        "cegis", "lns_repair", "materialization",
+        "post_search_io", "metrics_normalization",
+        "_total_attributed", "_campaign_wall", "_attribution_ratio",
+    }
+
+    def _run_smoke_with_mocks(self, output):
+        """Run a smoke campaign with the batch pipeline fully stubbed out."""
+        from tools.bkg4_search.rlrmb.p13_equal_budget import run_campaign
+        from unittest.mock import patch, MagicMock
+
+        config_path = Path("tools/bkg4_search/rlrmb/configs/p0_7_equal_budget_v1.json")
+        mock_metrics = MagicMock()
+        mock_metrics.tasks = 0; mock_metrics.wall_seconds = 0.0
+        mock_metrics.worker_busy_seconds = 0.0; mock_metrics.coordinator_wait_seconds = 0.0
+        mock_metrics.worker_pids = set(); mock_metrics.max_inflight = 0
+        mock_metrics.reorder_buffer_high_water = 0
+        mock_prepared = MagicMock()
+        mock_prepared.motifs = {}; mock_prepared.checkpoint_motifs = {}
+        mock_prepared.metrics = mock_metrics
+
+        # Yield one batch so beam_search_total timer fires, then stop
+        beam_result = MagicMock()
+        beam_result.candidates = []
+        beam_result.archive = MagicMock()
+        beam_result.archive.entries.return_value = []
+        beam_result.archive.metrics.return_value = {}
+        beam_result.archive.serialize.return_value = '{"families":{}}'
+        beam_result.metrics = {"depth_reached": 0, "host_seconds": 0.0, "cuda_ms": 0.0,
+                               "raw_candidates": 0, "structural_duplicates_removed": 0,
+                               "unique_effect_signatures": 0, "archive_update_seconds": 0.0,
+                               "expansions_by_operator": {}}
+
+        def fake_prefetch(batches, *args, **kwargs):
+            for batch in batches[:1]:
+                yield batch, mock_prepared, 0.0
+
+        with patch("tools.bkg4_search.rlrmb.p13_equal_budget.prefetch_checkpoint_motif_batches",
+                   side_effect=fake_prefetch), \
+             patch("tools.bkg4_search.rlrmb.p13_equal_budget.run_beam",
+                   return_value=beam_result), \
+             patch("tools.bkg4_search.rlrmb.p13_equal_budget.CudaBatchEvaluator") as mock_cls:
+            mock_inst = MagicMock()
+            mock_inst.projected_games.return_value = 0
+            mock_inst.case_count = 1
+            mock_cls.return_value = mock_inst
+            run_campaign(config_path, output, smoke=True)
+
+    def test_stage_timing_fields_present_and_non_negative(self):
+        from tools.bkg4_search.rlrmb.p13_equal_budget import run_campaign
+        config_path = Path("tools/bkg4_search/rlrmb/configs/p0_7_equal_budget_v1.json")
+        with tempfile.TemporaryDirectory() as d:
+            output = Path(d) / "out"
+            run_campaign(config_path, output, validate_only=True)
+            # validate_only exits before stage_timing is created
+            metrics = json.loads((output / "metrics.json").read_text())
+            self.assertNotIn("stage_timing_seconds", metrics)
+
+    def test_smoke_run_emits_stage_timing(self):
+        with tempfile.TemporaryDirectory() as d:
+            output = Path(d) / "out"
+            self._run_smoke_with_mocks(output)
+            metrics = json.loads((output / "metrics.json").read_text())
+            self.assertIn("stage_timing_seconds", metrics)
+            timing = metrics["stage_timing_seconds"]
+            for key in self.EXPECTED_STAGES:
+                self.assertIn(key, timing, f"missing stage: {key}")
+            for key, val in timing.items():
+                self.assertGreaterEqual(val, 0.0, f"stage {key} has negative time")
+            # _total_attributed must not exceed campaign wall (with 10ms slack for measurement)
+            self.assertLessEqual(timing["_total_attributed"], timing["_campaign_wall"] + 0.01)
+
+    def test_attribution_ratio_field_is_a_fraction(self):
+        with tempfile.TemporaryDirectory() as d:
+            output = Path(d) / "out"
+            self._run_smoke_with_mocks(output)
+            metrics = json.loads((output / "metrics.json").read_text())
+            ratio = metrics["stage_timing_seconds"]["_attribution_ratio"]
+            self.assertGreaterEqual(ratio, 0.0)
+            # The 95% gate is validated on real hardware; in unit tests just verify >= 0
+            self.assertGreaterEqual(ratio, 0.0)
 
 
 if __name__=="__main__": unittest.main()

@@ -17,10 +17,50 @@ from .cloud.telemetry import TelemetrySampler
 from .schema import stable_identity
 
 CLOUD_STATE_VERSION = 1
+_SEARCH_CONTEXT_SEARCH_KEYS = (
+    "checkpoint_limit", "donor_limit", "motif_steps", "beam_depth",
+    "max_candidates_per_expansion", "stagnation_rounds", "max_phases",
+    "archive_elites_per_cell", "checkpoint_batch_size",
+)
 
 
 def _read(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _controller_identity(working_asset_dir: str) -> str:
+    """Resolve the BKG4 controller semantic hash from the committed identity file."""
+    path = Path(working_asset_dir) / "identity.json"
+    if path.exists():
+        doc = json.loads(path.read_text(encoding="utf-8"))
+        return str(doc.get("controller_semantic_hash", ""))
+    return stable_identity("RLRMB-P16-INITIAL-ASSETS-V1", working_asset_dir)
+
+
+def search_context_identity(runtime_config: Mapping[str, Any], state: Mapping[str, Any]) -> str:
+    """Exact deterministic identity for one (generation, family, search-config) triple.
+
+    This hash proves whether two cloud attempts are semantically identical.
+    It binds controller identity, generation, family, panels, search config, and
+    donor/checkpoint sources. It intentionally excludes attempt number, output
+    path, timestamp, SEALED panel, and provenance-only labels.
+    """
+    family = runtime_config["families"][0]
+    search = runtime_config.get("search", {})
+    context = {
+        "controller": _controller_identity(state["working_asset_dir"]),
+        "generation": int(state["generation"]),
+        "family_id": family["id"],
+        "target_panel": family.get("target_panel"),
+        "checkpoint_evidence": family.get("checkpoint_evidence"),
+        "transfer_panel": runtime_config.get("transfer_panel"),
+        "validation_panel": runtime_config.get("validation_panel"),
+        "donor_manifest": runtime_config.get("donor_manifest"),
+        "search": {k: search.get(k) for k in _SEARCH_CONTEXT_SEARCH_KEYS},
+        "promotion": runtime_config.get("promotion"),
+        "repair": runtime_config.get("repair"),
+    }
+    return stable_identity("RLRMB-P16-SEARCH-CONTEXT-V1", context)
 
 
 def load_cloud_config(path: Path) -> dict[str, Any]:
@@ -62,6 +102,9 @@ def initial_state(config: Mapping[str, Any]) -> dict[str, Any]:
         "accepted_specialists": [],
         "completed_frontiers": [],
         "commits": [],
+        "completed_search_contexts": {},
+        "suppressed_contexts": 0,
+        "avoided_cuda_games": 0,
     }
 
 
@@ -78,6 +121,9 @@ def load_state(output: Path, config: Mapping[str, Any], resume: bool) -> dict[st
         raise ValueError("unsupported cloud checkpoint version")
     if state.get("config_identity") != stable_identity("RLRMB-P16-CONFIG-V1", config):
         raise ValueError("cloud checkpoint config identity mismatch")
+    state.setdefault("completed_search_contexts", {})
+    state.setdefault("suppressed_contexts", 0)
+    state.setdefault("avoided_cuda_games", 0)
     return state
 
 
@@ -236,14 +282,31 @@ def run_cloud(config_path: Path, output: Path, *, mode: str, resume: bool = Fals
         limit = int(max_generations or policy["max_generations"])
         started = time.monotonic()
         wall_limit = int(policy["wall_time_limit_seconds"])
+        n_families = len(config["families"])
+        consecutive_suppressions = 0
+        terminal_reason = "MAX_GENERATIONS"
         for _ in range(limit):
             if time.monotonic() - started >= wall_limit:
+                terminal_reason = "WALL_TIME_LIMIT"
+                break
+            if consecutive_suppressions >= n_families:
+                terminal_reason = "GENERATION_CONTEXT_EXHAUSTED"
                 break
             attempt = len(state["completed_frontiers"])
             pending = output / f"attempt_{attempt:04d}.pending"
             if pending.exists():
                 shutil.rmtree(pending)
             runtime_config = generation_config(config, state, mode, operational_overrides=overrides)
+            family_id = runtime_config["families"][0]["id"]
+            context_id = search_context_identity(runtime_config, state)
+            if context_id in state["completed_search_contexts"]:
+                state["suppressed_contexts"] += 1
+                state["avoided_cuda_games"] += int(runtime_config["budget"]["total_cuda_games"])
+                state["next_frontier"] += 1
+                consecutive_suppressions += 1
+                _write_atomic(output / "generation_state.json", state)
+                continue
+            consecutive_suppressions = 0
             pending.mkdir(parents=True)
             runtime_path = pending / "config.json"
             _write_atomic(runtime_path, runtime_config)
@@ -253,8 +316,12 @@ def run_cloud(config_path: Path, output: Path, *, mode: str, resume: bool = Fals
                 return EXIT_INFRASTRUCTURE
             metrics = _read(run_dir / "metrics.json")
             state["cuda_games_consumed"] += int(metrics.get("total_cuda_games", 0))
-            family_id = runtime_config["families"][0]["id"]
             accepted = tuple(sorted(metrics.get("accepted_candidate_ids", ())))
+            state["completed_search_contexts"][context_id] = {
+                "family_id": family_id,
+                "generation": int(state["generation"]),
+                "cuda_games": int(metrics.get("total_cuda_games", 0)),
+            }
             state["completed_frontiers"].append(family_id)
             state["next_frontier"] += 1
             if accepted:
@@ -279,6 +346,7 @@ def run_cloud(config_path: Path, output: Path, *, mode: str, resume: bool = Fals
                 state["commits"].append({"generation": next_generation, "candidate_id": candidate_id,
                                          "family_id": family_id, "identity": identity,
                                          "cuda_games": int(metrics.get("total_cuda_games", 0))})
+                consecutive_suppressions = 0
             else:
                 compact_generation_artifacts(run_dir, ())
                 completed = output / "completed_attempts" / f"attempt_{attempt:04d}"
@@ -287,6 +355,10 @@ def run_cloud(config_path: Path, output: Path, *, mode: str, resume: bool = Fals
             _write_atomic(output / "generation_state.json", state)
         result = {"schema_version": 1, "mode": mode, "wall_seconds": time.monotonic() - started,
                   "terminal_verdict": "PROMOTION_READY" if state["accepted_specialists"] else "NOT_PROMOTION_READY",
+                  "terminal_reason": terminal_reason,
+                  "searches_considered": len(state["completed_frontiers"]) + state["suppressed_contexts"],
+                  "exact_repeat_contexts_suppressed": state["suppressed_contexts"],
+                  "avoided_cuda_games": state["avoided_cuda_games"],
                   "operational_overrides": overrides,
                   "telemetry_interval_seconds": float(telemetry_interval_seconds),
                   **state}
