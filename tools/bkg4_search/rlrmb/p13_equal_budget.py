@@ -19,7 +19,8 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 from .archive import Archive, make_cell_key
-from .beam import BeamCandidate, BeamConfig, CudaBatchEvaluator, run_beam
+from .beam import BatchEvaluation, BeamCandidate, BeamConfig, CudaBatchEvaluator, EvaluatedProgram, run_beam
+from .search_memory import evaluation_context_id, effect_from_json, effect_to_json
 from .checkpoints import EventEvidence, EventType, extract_trace_events, select_checkpoints
 from .ir import ActionFamily, MacroProgram
 from .motifs import Motif, motif_from_actions, motif_from_route_window
@@ -103,6 +104,143 @@ class AccountedEvaluator:
         result = self.inner(programs, motifs)
         self.ledger.consume(self.family, self.category, result.games)
         return result
+
+
+class MemoryBackedEvaluator:
+    """Wraps AccountedEvaluator; skips CUDA for same-context cache hits.
+
+    For each program in a batch, if ``SearchMemory`` has an exact evaluation
+    record for ``(semantic_id, context_id)``, the result is reconstructed from
+    storage and zero CUDA games are consumed.  New programs are evaluated
+    normally by the inner ``AccountedEvaluator`` (which also charges the ledger).
+
+    ``projected_games`` is always pessimistic (assumes all programs are new) so
+    the beam never over-commits budget.  Actual ledger charges are lower when
+    cache hits occur.
+    """
+
+    def __init__(
+        self,
+        inner: AccountedEvaluator,
+        memory: Any,
+        context_id: str,
+        *,
+        generation: int = 0,
+    ) -> None:
+        self.inner = inner
+        self._memory = memory
+        self._context_id = context_id
+        self._generation = generation
+        self.case_count = inner.case_count
+        self.avoided_games = 0
+        self.avoided_candidates = 0
+
+    def projected_games(self, count: int) -> int:
+        return self.inner.projected_games(count)
+
+    @property
+    def last_profile(self) -> Mapping[str, float]:
+        return self.inner.last_profile
+
+    def __call__(
+        self,
+        programs: Sequence[MacroProgram],
+        motifs: Mapping[str, Motif],
+    ) -> BatchEvaluation:
+        if not programs:
+            return self.inner(programs, motifs)
+
+        # Partition: cached (effect_json available) vs. new
+        hit_by_sid: dict[str, tuple[Any, dict[str, Any]]] = {}
+        new_programs: list[MacroProgram] = []
+        for prog in programs:
+            rec = self._memory.get_exact_evaluation(prog.semantic_id, self._context_id)
+            if rec is not None and rec.get("effect_json"):
+                hit_by_sid[prog.semantic_id] = (prog, rec)
+            else:
+                new_programs.append(prog)
+                self._memory.record_structural(
+                    prog.semantic_id,
+                    generation=self._generation,
+                    context_id=self._context_id,
+                )
+
+        # Evaluate only new programs (ledger is charged inside AccountedEvaluator)
+        inner_result: BatchEvaluation | None = None
+        if new_programs:
+            inner_result = self.inner(new_programs, motifs)
+            self._record_inner(inner_result)
+
+        if not hit_by_sid:
+            return inner_result  # type: ignore[return-value]
+
+        # Reconstruct cached EvaluatedPrograms
+        cached_map: dict[str, EvaluatedProgram] = {}
+        for prog in programs:
+            sid = prog.semantic_id
+            if sid not in hit_by_sid:
+                continue
+            orig_prog, rec = hit_by_sid[sid]
+            try:
+                effect = effect_from_json(rec["effect_json"])
+            except Exception:
+                new_programs.append(orig_prog)
+                continue
+            ep = EvaluatedProgram(
+                program=orig_prog,
+                effect=effect,
+                valid=rec["valid"],
+                fault=rec["fault"],
+            )
+            cached_map[sid] = ep
+            self.avoided_games += self.case_count
+            self.avoided_candidates += 1
+            self._memory.avoided_cuda_games += self.case_count
+            self._memory.avoided_candidate_evaluations += 1
+
+        # Merge in original program order
+        new_by_sid = {
+            ep.program.semantic_id: ep
+            for ep in (inner_result.programs if inner_result is not None else ())
+        }
+        merged: list[EvaluatedProgram] = []
+        for prog in programs:
+            sid = prog.semantic_id
+            if sid in new_by_sid:
+                merged.append(new_by_sid[sid])
+            elif sid in cached_map:
+                merged.append(cached_map[sid])
+
+        if inner_result is not None:
+            return BatchEvaluation(
+                tuple(merged),
+                inner_result.cases,
+                inner_result.games,
+                inner_result.launches,
+                inner_result.host_seconds,
+                inner_result.cuda_ms,
+            )
+        return BatchEvaluation(tuple(merged), self.case_count, 0, 0, 0.0, 0.0)
+
+    def _record_inner(self, result: BatchEvaluation) -> None:
+        for ep in result.programs:
+            ej = effect_to_json(ep.effect) if ep.effect is not None else None
+            failure_class = ep.fault if not ep.valid else None
+            self._memory.record_evaluation(
+                ep.program.semantic_id,
+                self._context_id,
+                generation=self._generation,
+                valid=ep.valid,
+                fault=ep.fault,
+                effect_json=ej,
+                failure_class=failure_class,
+                cuda_games=result.games,
+            )
+            self._memory.record_structural(
+                ep.program.semantic_id,
+                generation=self._generation,
+                context_id=self._context_id,
+            )
 
 
 def validate_config(config_path: Path) -> dict[str, Any]:
@@ -433,6 +571,9 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
     donor_paths = tuple(Path(line.strip()) for line in (root / config["donor_manifest"]).read_text().splitlines() if line.strip())[:config["search"]["donor_limit"]]
     asset = root / config["asset_dir"]; binary = root / config["cuda_binary"]
     all_metrics: dict[str, Any] = {}; failures = Counter(); accepted = []; global_effects = set(); target_clusters = set(); total_l2w = 0
+    # Phase 16.5: evaluation context ID (stable across same-controller retry attempts)
+    _p165_memory = getattr(resources, "search_memory", None) if resources is not None else None
+    _eval_ctx_id = evaluation_context_id(config) if _p165_memory is not None else ""
     if smoke:
         campaign_families=config["families"][:1]
     elif probe:
@@ -491,6 +632,9 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
         else:
             _inner_target = CudaBatchEvaluator(binary=binary, asset_dir=asset, cases_path=root/family["target_panel"])
         evaluator = AccountedEvaluator(_inner_target, ledger, family_id, "target_beam")
+        # Phase 16.5: wrap with memory-backed evaluator to skip CUDA for cache hits.
+        if _p165_memory is not None:
+            evaluator = MemoryBackedEvaluator(evaluator, _p165_memory, _eval_ctx_id)
         # Phase 16.3: ExitStack manages per-family pools only when resources is None.
         # When resources is provided, pools are persistent and managed by RunResources.
         with ExitStack() as _pool_stack:
@@ -719,6 +863,12 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
              "protected_win_to_loss":0,"semantic_mismatches":0,"sealed_generation_uses":0,"budget":ledger.document(),"families":all_metrics}
     metrics["legal_state_capture"]={"launches":capture_cache.launches,"reuses":capture_cache.reuses,
                                      "host_seconds":capture_cache.seconds}
+    # Phase 16.5: search memory metrics
+    if _p165_memory is not None:
+        metrics["p165_memory"] = _p165_memory.metrics()
+    else:
+        from .search_memory import _ZERO_METRICS
+        metrics["p165_memory"] = dict(_ZERO_METRICS)
     # Phase 16.3: persistent-resource metrics (present when resources provided, zeros otherwise)
     if resources is not None:
         metrics["p163_resources"] = resources.metrics_document()

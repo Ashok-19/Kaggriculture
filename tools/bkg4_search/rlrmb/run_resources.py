@@ -75,6 +75,8 @@ class RunResources:
     _entered: bool = field(default=False, init=False, repr=False)
     # Phase 16.4: optional persistent CUDA evaluator (one GPU owner per cloud run)
     _evaluator: Any = field(default=None, init=False, repr=False)
+    # Phase 16.5: optional durable semantic search memory
+    _search_memory: Any = field(default=None, init=False, repr=False)
 
     @classmethod
     def from_host_execution(
@@ -133,6 +135,12 @@ class RunResources:
             except Exception:
                 pass
             self._evaluator = None
+        if self._search_memory is not None:
+            try:
+                self._search_memory.close()
+            except Exception:
+                pass
+            self._search_memory = None
         try:
             self.producer_pool.__exit__(exc_type, exc, tb)
         finally:
@@ -142,6 +150,23 @@ class RunResources:
                 shutil.rmtree(self.capture_cache.stable_dir, ignore_errors=True)
             except Exception:
                 pass
+
+    # --- search memory (Phase 16.5) ---
+
+    def open_search_memory(self, db_path: "Path") -> None:
+        """Open (or reopen from disk) the durable semantic search memory.
+
+        Must be called after the context manager is entered.  The memory is
+        closed automatically by ``__exit__``.
+        """
+        from .search_memory import SearchMemory
+        mem = SearchMemory(db_path)
+        mem.open()
+        self._search_memory = mem
+
+    @property
+    def search_memory(self) -> Any:
+        return self._search_memory
 
     # --- persistent evaluator (Phase 16.4) ---
 
@@ -263,4 +288,9 @@ class RunResources:
                 "total_result_parsing_seconds": 0.0,
                 "total_evaluator_host_seconds": 0.0,
             }
+        if self._search_memory is not None:
+            doc["p165_memory"] = self._search_memory.metrics()
+        else:
+            from .search_memory import _ZERO_METRICS
+            doc["p165_memory"] = dict(_ZERO_METRICS)
         return doc

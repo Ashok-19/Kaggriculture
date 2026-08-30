@@ -284,6 +284,8 @@ def run_cloud(config_path: Path, output: Path, *, mode: str, resume: bool = Fals
     _resources = RunResources.from_host_execution(host_ex, stable_cache_dir=stable_cache_dir)
     try:
         with _resources:
+            # Phase 16.5: open durable semantic search memory at cloud-run scope.
+            _resources.open_search_memory(output / "search_memory.db")
             return _run_cloud_inner(
                 config, config_path, output, mode=mode, resume=resume,
                 max_generations=max_generations, pipeline_runner=pipeline_runner,
@@ -366,6 +368,10 @@ def _run_cloud_inner(
             committed.parent.mkdir(parents=True, exist_ok=True)
             os.replace(pending, committed)
             state["generation"] = next_generation
+            # Phase 16.5: promote old evaluation records to historical so they
+            # are not treated as authoritative truth for the new generation.
+            if resources.search_memory is not None:
+                resources.search_memory.promote_to_historical(context_id, next_generation)
             state["working_asset_dir"] = str((committed / "working_assets").resolve())
             route_copy = committed / "working_parent.route.json"
             shutil.copy2(committed / "run" / deployment.relative_to(run_dir) / route.name, route_copy)
