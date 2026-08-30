@@ -17,6 +17,7 @@ from .run_resources import RunResources
 from .cloud.telemetry import TelemetrySampler
 from .schema import stable_identity
 from .search_memory import evaluation_context_id as _evaluation_context_id
+from .search_allocator import SearchAllocator
 
 CLOUD_STATE_VERSION = 1
 _SEARCH_CONTEXT_SEARCH_KEYS = (
@@ -154,12 +155,16 @@ def _validated_operational_overrides(overrides: Mapping[str, Any] | None) -> dic
 
 
 def generation_config(config: Mapping[str, Any], state: Mapping[str, Any], mode: str,
-                      operational_overrides: Mapping[str, Any] | None = None) -> dict[str, Any]:
+                      operational_overrides: Mapping[str, Any] | None = None,
+                      family_override: "Mapping[str, Any] | None" = None) -> dict[str, Any]:
     policy = _mode_policy(config, mode)
     overrides = _validated_operational_overrides(operational_overrides)
-    families = tuple(config["families"])
-    index = int(state["next_frontier"]) % len(families)
-    selected = dict(families[index])
+    if family_override is not None:
+        selected = dict(family_override)
+    else:
+        families = tuple(config["families"])
+        index = int(state["next_frontier"]) % len(families)
+        selected = dict(families[index])
     allocation = int(policy["cuda_games_per_generation"])
     categories = dict(policy["per_generation_categories"])
     if sum(categories.values()) > allocation:
@@ -184,6 +189,46 @@ def generation_config(config: Mapping[str, Any], state: Mapping[str, Any], mode:
     runtime["deployment"]["authority_name"] = str(config["cloud"]["authority_name"])
     runtime["deployment"]["authority_slot"] = str(config["cloud"]["authority_slot"])
     return runtime
+
+
+def _family_search_ctx(
+    config: Mapping[str, Any],
+    state: Mapping[str, Any],
+    family: Mapping[str, Any],
+    policy: Mapping[str, Any],
+    overrides: Mapping[str, Any],
+) -> str:
+    """Compute search_context_identity for one family without a full runtime_config."""
+    search = dict(config.get("search", {}))
+    search["checkpoint_batch_size"] = int(
+        overrides.get("checkpoint_batch_size", policy["checkpoint_batch_size"])
+    )
+    mini: dict[str, Any] = {
+        "families": [family],
+        "transfer_panel": config.get("transfer_panel"),
+        "validation_panel": config.get("validation_panel"),
+        "donor_manifest": config.get("donor_manifest"),
+        "search": search,
+        "promotion": config.get("promotion"),
+        "repair": config.get("repair"),
+    }
+    return search_context_identity(mini, state)
+
+
+def _family_eval_ctx(
+    config: Mapping[str, Any],
+    state: Mapping[str, Any],
+    family: Mapping[str, Any],
+) -> str:
+    """Compute evaluation_context_id for one family (used by allocator scoring)."""
+    mini: dict[str, Any] = {
+        "asset_dir": state["working_asset_dir"],
+        "families": [family],
+        "transfer_panel": config.get("transfer_panel"),
+        "validation_panel": config.get("validation_panel"),
+        "search": config.get("search", {}),
+    }
+    return _evaluation_context_id(mini)
 
 
 def _load_bkg4() -> Any:
@@ -287,12 +332,15 @@ def run_cloud(config_path: Path, output: Path, *, mode: str, resume: bool = Fals
         with _resources:
             # Phase 16.5: open durable semantic search memory at cloud-run scope.
             _resources.open_search_memory(output / "search_memory.db")
+            # Phase 16.6: create adaptive allocator backed by the open memory.
+            allocator = SearchAllocator(_resources.search_memory)
             return _run_cloud_inner(
                 config, config_path, output, mode=mode, resume=resume,
                 max_generations=max_generations, pipeline_runner=pipeline_runner,
                 asset_builder=asset_builder, operational_overrides=operational_overrides,
                 telemetry_interval_seconds=telemetry_interval_seconds,
                 overrides=overrides, policy=policy, resources=_resources,
+                allocator=allocator,
             )
     finally:
         telemetry.stop()
@@ -303,36 +351,61 @@ def _run_cloud_inner(
     max_generations: "int | None", pipeline_runner: Any, asset_builder: Any,
     operational_overrides: "Any", telemetry_interval_seconds: float,
     overrides: dict, policy: Any, resources: RunResources,
+    allocator: "SearchAllocator | None" = None,
 ) -> int:
     state = load_state(output, config, resume)
     limit = int(max_generations or policy["max_generations"])
     started = time.monotonic()
     wall_limit = int(policy["wall_time_limit_seconds"])
-    n_families = len(config["families"])
-    consecutive_suppressions = 0
+    if allocator is None:
+        allocator = SearchAllocator(getattr(resources, "search_memory", None))
     terminal_reason = "MAX_GENERATIONS"
+    allocation_per_gen = int(policy["cuda_games_per_generation"])
     for _ in range(limit):
         if time.monotonic() - started >= wall_limit:
             terminal_reason = "WALL_TIME_LIMIT"
             break
-        if consecutive_suppressions >= n_families:
+        # Phase 16.6: build eligible candidates (not yet complete in this context).
+        # Compute search_context_identity per family to detect exact suppressions.
+        eligible: list[tuple[str, str, int, Any]] = []
+        suppressed_count = 0
+        for cfg_idx, family in enumerate(config["families"]):
+            sc_id = _family_search_ctx(config, state, family, policy, overrides)
+            if sc_id in state["completed_search_contexts"]:
+                suppressed_count += 1
+            else:
+                ec_id = _family_eval_ctx(config, state, family)
+                eligible.append((family["id"], ec_id, cfg_idx, family))
+        if not eligible:
+            # All families are suppressed in the current context; record the exhaustion
+            # event as suppressed_contexts increments (one per suppressed family, matching
+            # the Phase 16.1 per-family-encounter accounting the tests verify).
+            state["suppressed_contexts"] = state.get("suppressed_contexts", 0) + suppressed_count
+            state["avoided_cuda_games"] = (
+                state.get("avoided_cuda_games", 0) + suppressed_count * allocation_per_gen
+            )
+            _write_atomic(output / "generation_state.json", state)
             terminal_reason = "GENERATION_CONTEXT_EXHAUSTED"
             break
+        # Adaptive selection via allocator
+        alloc_candidates = [(fid, ectx, cidx) for fid, ectx, cidx, _ in eligible]
+        selected_row = allocator.select(alloc_candidates, set(state["completed_search_contexts"]))
+        if selected_row is None:
+            terminal_reason = "GENERATION_CONTEXT_EXHAUSTED"
+            break
+        best_fid, _best_ectx, best_cidx, _score = selected_row
+        selected_family = next(f for fid, _, cidx, f in eligible if fid == best_fid and cidx == best_cidx)
+        allocator.record_budget(best_fid, allocation_per_gen)
         attempt = len(state["completed_frontiers"])
         pending = output / f"attempt_{attempt:04d}.pending"
         if pending.exists():
             shutil.rmtree(pending)
-        runtime_config = generation_config(config, state, mode, operational_overrides=overrides)
+        runtime_config = generation_config(
+            config, state, mode, operational_overrides=overrides,
+            family_override=selected_family,
+        )
         family_id = runtime_config["families"][0]["id"]
         context_id = search_context_identity(runtime_config, state)
-        if context_id in state["completed_search_contexts"]:
-            state["suppressed_contexts"] += 1
-            state["avoided_cuda_games"] += int(runtime_config["budget"]["total_cuda_games"])
-            state["next_frontier"] += 1
-            consecutive_suppressions += 1
-            _write_atomic(output / "generation_state.json", state)
-            continue
-        consecutive_suppressions = 0
         pending.mkdir(parents=True)
         runtime_path = pending / "config.json"
         _write_atomic(runtime_path, runtime_config)
@@ -401,6 +474,7 @@ def _run_cloud_inner(
               "operational_overrides": overrides,
               "telemetry_interval_seconds": float(telemetry_interval_seconds),
               "p163_resources": resources.metrics_document(),
+              "p166_allocator": allocator.metrics_document(),
               **state}
     _write_atomic(output / "cloud_result.json", result)
     return 0

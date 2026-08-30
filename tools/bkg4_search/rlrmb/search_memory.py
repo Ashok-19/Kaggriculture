@@ -361,6 +361,62 @@ class SearchMemory:
             (semantic_id, context_id, int(passed), int(time.time())),
         )
 
+    # ── allocator query API (Phase 16.6) — never reads sealed_audit ───────────
+
+    def get_context_evaluation_stats(self, context_id: str) -> dict[str, Any]:
+        """Aggregate evaluation statistics for one evaluation-context.
+
+        Used by SearchAllocator for scoring.  Reads only the ``evaluation``
+        and ``structural`` tables.  ``sealed_audit`` is intentionally excluded.
+        Returns an empty dict when no records exist.
+        """
+        row = self._conn.execute(
+            "SELECT COUNT(*),"
+            "  SUM(valid),"
+            "  SUM(CASE WHEN effect_json IS NOT NULL AND valid=1 THEN 1 ELSE 0 END),"
+            "  SUM(CASE WHEN failure_class='NON_TRANSFERABLE' THEN 1 ELSE 0 END),"
+            "  SUM(CASE WHEN failure_class='FUTURE_DEPENDENT' THEN 1 ELSE 0 END),"
+            "  SUM(CASE WHEN failure_class IS NOT NULL"
+            "       AND failure_class NOT IN ('NON_TRANSFERABLE','FUTURE_DEPENDENT')"
+            "       THEN 1 ELSE 0 END),"
+            "  SUM(cuda_games)"
+            " FROM evaluation WHERE context_id=?",
+            (context_id,),
+        ).fetchone()
+        total = int(row[0] or 0) if row else 0
+        if total == 0:
+            return {}
+        nov = self._conn.execute(
+            "SELECT COUNT(*) FROM structural WHERE context_id_first=?",
+            (context_id,),
+        ).fetchone()
+        return {
+            "total_evaluations": total,
+            "valid_evaluations": int(row[1] or 0),
+            "effect_evaluations": int(row[2] or 0),
+            "non_transferable_count": int(row[3] or 0),
+            "future_dependent_count": int(row[4] or 0),
+            "other_failure_count": int(row[5] or 0),
+            "total_cuda_games": int(row[6] or 0),
+            "novel_structural": int(nov[0] or 0) if nov else 0,
+        }
+
+    def get_context_historical_stats(self, context_id: str) -> dict[str, Any]:
+        """Aggregate historical prior statistics for one evaluation-context.
+
+        Used by SearchAllocator for prior-based scoring.  Never reads
+        ``sealed_audit``.  Returns ``{"total": 0, "failures": 0}`` when empty.
+        """
+        row = self._conn.execute(
+            "SELECT COUNT(*),"
+            "  SUM(CASE WHEN failure_class IS NOT NULL THEN 1 ELSE 0 END)"
+            " FROM historical WHERE context_id=?",
+            (context_id,),
+        ).fetchone()
+        if row is None or row[0] == 0:
+            return {"total": 0, "failures": 0}
+        return {"total": int(row[0] or 0), "failures": int(row[1] or 0)}
+
     # ── aggregate metrics ──────────────────────────────────────────────────────
 
     def record_count(self) -> int:
