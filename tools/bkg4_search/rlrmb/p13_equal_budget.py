@@ -183,9 +183,11 @@ class MemoryBackedEvaluator:
             orig_prog, rec = hit_by_sid[sid]
             try:
                 effect = effect_from_json(rec["effect_json"])
-            except Exception:
-                new_programs.append(orig_prog)
-                continue
+            except Exception as exc:
+                raise RuntimeError(
+                    f"SearchMemory: corrupt effect_json for semantic_id={sid!r}"
+                    f" context_id={self._context_id!r}: {exc}"
+                ) from exc
             ep = EvaluatedProgram(
                 program=orig_prog,
                 effect=effect,

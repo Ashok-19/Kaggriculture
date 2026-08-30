@@ -430,3 +430,129 @@ def test_close_is_idempotent(tmp_path: Path) -> None:
     mem.open()
     mem.close()
     mem.close()  # second close must not raise
+
+
+# ── test 20 (regression): promote_to_historical uses evaluation_context_id ──────
+# Defect 1: cloud_runner was passing search_context_identity (includes generation)
+# to promote_to_historical, but evaluations are stored under evaluation_context_id
+# (excludes generation). The two IDs never matched → 0 records promoted.
+
+def test_promote_uses_evaluation_context_id_not_search_context(tmp_path: Path) -> None:
+    """Using evaluation_context_id for promotion must find the stored records."""
+    from ..search_memory import evaluation_context_id
+
+    # Minimal fake config that evaluation_context_id accepts.
+    # No identity.json → falls back to stable_identity of the dir string.
+    fake_config = {
+        "asset_dir": str(tmp_path),
+        "families": [{"id": "test-family", "target_panel": "tp"}],
+        "transfer_panel": "xfr",
+        "validation_panel": "val",
+        "search": {},
+    }
+    eval_ctx = evaluation_context_id(fake_config)
+
+    # Simulate what search_context_identity would produce: different ID because
+    # it additionally hashes in generation, donor_manifest, checkpoint_evidence, etc.
+    wrong_ctx = stable_identity("RLRMB-P16-SEARCH-CONTEXT-V1", {
+        "controller": stable_identity("RLRMB-P165-ASSET-FALLBACK-V1", str(tmp_path)),
+        "generation": 0,
+        "family_id": "test-family",
+    })
+    assert eval_ctx != wrong_ctx, "test precondition: eval ctx != search ctx"
+
+    sids = [_sid(f"p20-prog-{i}") for i in range(3)]
+    ej = effect_to_json(_effect())
+
+    db = tmp_path / "mem.db"
+    with SearchMemory(db) as mem:
+        for sid in sids:
+            mem.record_evaluation(sid, eval_ctx, valid=True, effect_json=ej, cuda_games=5)
+
+        # Using the wrong context (old bug): promotes 0 records
+        promoted_wrong = mem.promote_to_historical(wrong_ctx, new_generation=1)
+        assert promoted_wrong == 0, "wrong ctx must find nothing"
+
+        # Using the correct evaluation context: promotes all records
+        promoted_right = mem.promote_to_historical(eval_ctx, new_generation=1)
+        assert promoted_right == len(sids)
+
+        # Historical records were created
+        for sid in sids:
+            priors = mem.get_historical_priors(sid)
+            assert len(priors) == 1
+            assert priors[0]["generation"] == 0
+
+        # New-generation context (different controller hash) has no exact hit
+        new_ctx = _ctx("new-gen-controller")
+        assert mem.get_exact_evaluation(sids[0], new_ctx) is None
+
+
+# ── test 21 (regression): corrupt effect_json raises, does not silently drop ────
+# Defect 2: corrupt effect_json was caught silently; the program disappeared from
+# the result because it ended up in neither new_by_sid nor cached_map.
+
+def test_corrupt_effect_json_fails_closed(tmp_path: Path) -> None:
+    from ..p13_equal_budget import MemoryBackedEvaluator
+    from ..beam import BatchEvaluation, EvaluatedProgram
+    from ..archive import Lane
+    from ..checkpoints import Checkpoint, EventType
+    from ..ir import MacroProgram, Phase, ActionSource, ActionFamily, Termination, TerminationType
+    from ..motifs import motif_from_actions
+
+    _MARKET_ACTIONS = list(range(8))
+
+    def _make_prog(seed: int) -> MacroProgram:
+        cp = Checkpoint(step=seed % 5 + 1, lane=Lane.MARKET_LIQUIDITY,
+                        reasons=(EventType.REGRET_PEAK,))
+        actions = [_MARKET_ACTIONS] * (4 + seed % 3)
+        motif = motif_from_actions(actions, (ActionFamily.MARKET,), provenance=(f"seed-{seed}",))
+        ph = Phase(ActionSource.SEMANTIC_SPLICE, (ActionFamily.MARKET,),
+                   Termination(TerminationType.FIXED_CAP, 4), motif.semantic_id)
+        return MacroProgram(lane=Lane.MARKET_LIQUIDITY, initiation=cp, phases=(ph,), max_total_steps=4)
+
+    prog = _make_prog(5)
+    eff = _effect()
+
+    class _FakeInner:
+        case_count = 10
+        last_profile: dict = {}
+        calls: int = 0
+
+        def projected_games(self, count: int) -> int:
+            return (count + 1) * self.case_count
+
+        def __call__(self, programs, motifs):
+            self.calls += 1
+            evaluated = tuple(
+                EvaluatedProgram(program=p, effect=eff, valid=True, fault=None)
+                for p in programs
+            )
+            return BatchEvaluation(evaluated, self.case_count,
+                                   len(programs) * self.case_count, 1, 0.1, 5.0)
+
+    db = tmp_path / "mem.db"
+    ctx = _ctx("corrupt-ctx")
+
+    with SearchMemory(db) as mem:
+        # Store a record with corrupt effect_json (looks like a cache hit, but won't parse)
+        mem._conn.execute(
+            "INSERT INTO evaluation"
+            " (semantic_id, context_id, generation, valid, fault,"
+            "  effect_json, failure_class, cuda_games, insert_time)"
+            " VALUES (?,?,?,?,?,?,?,?,?)",
+            (prog.semantic_id, ctx, 0, 1, None, "CORRUPT{{NOT_JSON", None, 10, 0),
+        )
+
+        fake = _FakeInner()
+        mbe = MemoryBackedEvaluator(fake, mem, ctx)
+
+        # Must raise — fail closed, not silently drop
+        with pytest.raises(RuntimeError, match="corrupt effect_json"):
+            mbe([prog], {})
+
+        # Inner evaluator was never called (corrupt prog went to cache path, not new_programs)
+        assert fake.calls == 0
+        # No false "avoided" bookkeeping was recorded
+        assert mem.avoided_cuda_games == 0
+        assert mem.avoided_candidate_evaluations == 0

@@ -16,6 +16,7 @@ from .pipeline import EXIT_INFRASTRUCTURE, run_production_pipeline
 from .run_resources import RunResources
 from .cloud.telemetry import TelemetrySampler
 from .schema import stable_identity
+from .search_memory import evaluation_context_id as _evaluation_context_id
 
 CLOUD_STATE_VERSION = 1
 _SEARCH_CONTEXT_SEARCH_KEYS = (
@@ -370,8 +371,12 @@ def _run_cloud_inner(
             state["generation"] = next_generation
             # Phase 16.5: promote old evaluation records to historical so they
             # are not treated as authoritative truth for the new generation.
+            # Must use evaluation_context_id (excludes generation) — not
+            # search_context_identity (includes generation) — so the IDs match
+            # what MemoryBackedEvaluator stored during the just-completed run.
             if resources.search_memory is not None:
-                resources.search_memory.promote_to_historical(context_id, next_generation)
+                _eval_ctx_id = _evaluation_context_id(runtime_config)
+                resources.search_memory.promote_to_historical(_eval_ctx_id, next_generation)
             state["working_asset_dir"] = str((committed / "working_assets").resolve())
             route_copy = committed / "working_parent.route.json"
             shutil.copy2(committed / "run" / deployment.relative_to(run_dir) / route.name, route_copy)
