@@ -664,6 +664,36 @@ def run_beam(
     return BeamResult(archive, tuple(all_candidates), metrics, terminal)
 
 
+def _process_cuda_results(
+    programs: Sequence[MacroProgram],
+    rows: tuple,
+    cases: int,
+    gpu_ms: float,
+    encode_seconds: float,
+    subprocess_seconds: float,
+    parse_seconds: float,
+) -> BatchEvaluation:
+    """Shared post-processing for both legacy and persistent evaluators."""
+    baseline_rows = rows[:cases]
+    baseline = tuple(row.own_money - row.opp_money for row in baseline_rows)
+    panel_id = stable_identity("RLRMB-BEAM-TARGET-PANEL-V1", [f"slot-{i:04d}" for i in range(cases)], baseline)
+    evaluated = []
+    for index, program in enumerate(programs, start=1):
+        selected = rows[index * cases:(index + 1) * cases]
+        if any(row.semantic_id != program.semantic_id for row in selected):
+            raise RuntimeError("SEMANTIC_MISMATCH: CUDA semantic ID mismatch")
+        margins = tuple(row.own_money - row.opp_money for row in selected)
+        block = EffectBlock(DatasetRole.TARGET, panel_id, baseline,
+                            tuple(value - base for value, base in zip(margins, baseline)),
+                            tuple(row.action_changes for row in selected))
+        faults = tuple(row.fault for row in selected if row.fault is not FaultCode.NONE)
+        evaluated.append(EvaluatedProgram(program, EffectVector((block,)), not faults,
+                                          None if not faults else faults[0].name))
+    total_programs = 1 + len(programs)  # parent + candidates
+    return BatchEvaluation(tuple(evaluated), cases, total_programs * cases, 1,
+                           encode_seconds + subprocess_seconds + parse_seconds, gpu_ms)
+
+
 class CudaBatchEvaluator:
     """One-invocation candidate-by-case adapter over the unchanged Phase-4 binary."""
 
@@ -713,20 +743,225 @@ class CudaBatchEvaluator:
             self.last_profile = {"serialization_seconds": encode_seconds,
                                  "subprocess_seconds": subprocess_seconds,
                                  "result_parsing_seconds": parse_seconds}
-        baseline_rows = rows[:self.case_count]
-        baseline = tuple(row.own_money - row.opp_money for row in baseline_rows)
-        panel_id = stable_identity("RLRMB-BEAM-TARGET-PANEL-V1", [f"slot-{i:04d}" for i in range(cases)], baseline)
-        evaluated = []
-        for index, program in enumerate(programs, start=1):
-            selected = rows[index * cases:(index + 1) * cases]
-            if any(row.semantic_id != program.semantic_id for row in selected):
-                raise RuntimeError("SEMANTIC_MISMATCH: CUDA semantic ID mismatch")
-            margins = tuple(row.own_money - row.opp_money for row in selected)
-            block = EffectBlock(DatasetRole.TARGET, panel_id, baseline,
-                                tuple(value - base for value, base in zip(margins, baseline)),
-                                tuple(row.action_changes for row in selected))
-            faults = tuple(row.fault for row in selected if row.fault is not FaultCode.NONE)
-            evaluated.append(EvaluatedProgram(program, EffectVector((block,)), not faults,
-                                              None if not faults else faults[0].name))
-        return BatchEvaluation(tuple(evaluated), cases, len(batch_programs) * cases, 1,
-                               encode_seconds + subprocess_seconds + parse_seconds, gpu_ms)
+        return _process_cuda_results(programs, rows, cases, gpu_ms, encode_seconds, subprocess_seconds, parse_seconds)
+
+
+# ---------------------------------------------------------------------------
+# Phase 16.4 — Persistent CUDA evaluator process
+#
+# Eliminates per-batch CUDA context startup by keeping the evaluator process
+# alive across all beam depths and families within a single cloud run.
+# The subprocess loads controller/routes once; case panels are cached by path
+# inside the process. Request/result association uses an explicit integer ID.
+# ---------------------------------------------------------------------------
+
+import io as _io
+import struct as _struct
+
+_RESULT_HEADER_FMT = _struct.Struct("<8sIII")  # magic, version, candidates, cases
+_RESULT_RECORD_FMT = _struct.Struct("<iiHHBBBB32s")
+
+
+class PersistentCudaEvaluator:
+    """Persistent CUDA subprocess reused across all evaluator calls in a cloud run.
+
+    The binary is invoked once with ``--persist``; it loads controller/routes/
+    legacy-routes once and accepts batches from stdin until a ``SHUTDOWN``
+    sentinel. Case panels are cached inside the process by absolute path, so
+    only the first request for each panel incurs tape-loading cost.
+
+    Satisfies the Phase-16.4 hard constraints:
+    * Exactly one GPU owner (single subprocess, one CUDA context).
+    * Deterministic request/result association (monotonic integer request IDs).
+    * Fail-closed: if the subprocess dies, the next call raises RuntimeError.
+    * Central budget authorization is unchanged: ``AccountedEvaluator`` checks
+      the ledger before each ``__call__``; the subprocess never executes work
+      before that check completes in the coordinator.
+    * Clean shutdown via ``SHUTDOWN`` sentinel or ``stop()`` / ``__exit__``.
+    """
+
+    def __init__(self, *, binary: str | Path, asset_dir: str | Path,
+                 feed_slot: int = 5, feed_count: int = 13,
+                 strategic_route_slot: int = 19) -> None:
+        self.binary = Path(binary)
+        self.asset_dir = Path(asset_dir)
+        self._feed_slot = feed_slot
+        self._feed_count = feed_count
+        self._strategic_route_slot = strategic_route_slot
+        self._proc: "subprocess.Popen | None" = None
+        self._next_id: int = 0
+        # Metrics
+        self.evaluator_process_starts: int = 0
+        self.evaluator_requests: int = 0
+        self.persistent_evaluator_reuses: int = 0
+        self.total_serialization_seconds: float = 0.0
+        self.total_result_parsing_seconds: float = 0.0
+        self.total_evaluator_host_seconds: float = 0.0
+
+    def _build_command(self) -> list[str]:
+        return [
+            str(self.binary),
+            "--controller", str(self.asset_dir / "controller.bkgc"),
+            "--routes", str(self.asset_dir / "routes.bkv6"),
+            "--legacy-routes", str(self.asset_dir / "legacy_routes.bkv6"),
+            "--persist",
+            "--feed-slot", str(self._feed_slot),
+            "--feed-count", str(self._feed_count),
+            "--strategic-route-slot", str(self._strategic_route_slot),
+        ]
+
+    def start(self) -> None:
+        """Start the persistent subprocess (called lazily on first request)."""
+        self._proc = subprocess.Popen(
+            self._build_command(),
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        self.evaluator_process_starts += 1
+
+    def _check_alive(self) -> None:
+        """Raise if the subprocess has exited; start it if it was never started."""
+        if self._proc is not None and self._proc.poll() is not None:
+            stderr = b""
+            try:
+                stderr = self._proc.stderr.read()
+            except Exception:
+                pass
+            self._proc = None
+            raise RuntimeError(
+                f"persistent CUDA evaluator process exited unexpectedly: "
+                f"{stderr.decode('utf-8', errors='replace').strip()}"
+            )
+        if self._proc is None:
+            self.start()
+
+    def submit_batch(
+        self,
+        cases_path: Path,
+        programs: Sequence[MacroProgram],
+        motif_library: Mapping[str, Motif],
+        case_count: int,
+    ) -> BatchEvaluation:
+        """Submit one batch to the persistent process and return the result."""
+        self._check_alive()
+        first = programs[0]
+        parent = MacroProgram(first.lane, first.initiation,
+                              (Phase(ActionSource.PARENT, (), Termination(TerminationType.MAX_STEPS, 1)),), 1)
+        batch_programs = (parent, *programs)
+
+        encode_started = time.perf_counter()
+        batch_bytes = encode_device_batch(batch_programs, motif_library)
+        encode_seconds = time.perf_counter() - encode_started
+
+        rid = self._next_id
+        self._next_id = (self._next_id + 1) & 0xFFFFFFFF
+        header_line = f"BATCH {rid} {len(batch_bytes)} {cases_path.resolve()}\n".encode("utf-8")
+
+        host_started = time.perf_counter()
+        self._proc.stdin.write(header_line + batch_bytes)  # type: ignore[union-attr]
+        self._proc.stdin.flush()  # type: ignore[union-attr]
+
+        response_line = self._proc.stdout.readline()  # type: ignore[union-attr]
+        if not response_line:
+            self._proc = None
+            raise RuntimeError("persistent CUDA evaluator closed stdout unexpectedly")
+
+        parts = response_line.decode("utf-8").split()
+        if len(parts) < 4 or parts[0] != "RESULT":
+            self._proc = None
+            raise RuntimeError(f"persistent evaluator bad response header: {response_line!r}")
+        if int(parts[1]) != rid:
+            self._proc = None
+            raise RuntimeError(f"persistent evaluator request/result ID mismatch: sent {rid}, got {parts[1]}")
+        result_bytes = int(parts[2])
+        gpu_ms = float(parts[3])
+
+        raw_result = self._proc.stdout.read(result_bytes)  # type: ignore[union-attr]
+        if len(raw_result) != result_bytes:
+            self._proc = None
+            raise RuntimeError("persistent evaluator returned short result")
+
+        parse_started = time.perf_counter()
+        host_seconds = parse_started - host_started
+        count, cases, rows = decode_device_results(raw_result)
+        if (count, cases) != (len(batch_programs), case_count):
+            raise RuntimeError("persistent evaluator result dimensions mismatch")
+        parse_seconds = time.perf_counter() - parse_started
+
+        self.evaluator_requests += 1
+        if self.evaluator_requests > 1:
+            self.persistent_evaluator_reuses += 1
+        self.total_serialization_seconds += encode_seconds
+        self.total_result_parsing_seconds += parse_seconds
+        self.total_evaluator_host_seconds += host_seconds
+
+        return _process_cuda_results(programs, rows, cases, gpu_ms, encode_seconds, host_seconds, parse_seconds)
+
+    def bind(self, cases_path: "str | Path", *,
+             feed_slot: int = 5, feed_count: int = 13,
+             strategic_route_slot: int = 19) -> "_PersistentBoundEvaluator":
+        """Return a family-scoped wrapper with the same API as CudaBatchEvaluator."""
+        cases_path = Path(cases_path)
+        case_count = len([ln for ln in cases_path.read_text(encoding="utf-8").splitlines() if ln.strip()])
+        return _PersistentBoundEvaluator(self, cases_path, case_count)
+
+    def stop(self) -> None:
+        """Send shutdown sentinel and wait for the subprocess to exit."""
+        if self._proc is not None:
+            try:
+                self._proc.stdin.write(b"SHUTDOWN\n")  # type: ignore[union-attr]
+                self._proc.stdin.flush()  # type: ignore[union-attr]
+                self._proc.wait(timeout=15)
+            except Exception:
+                try:
+                    self._proc.kill()
+                except Exception:
+                    pass
+            finally:
+                self._proc = None
+
+    def __enter__(self) -> "PersistentCudaEvaluator":
+        self.start()
+        return self
+
+    def __exit__(self, *args: object) -> None:
+        self.stop()
+
+    def metrics_document(self) -> dict[str, Any]:
+        return {
+            "evaluator_process_starts": self.evaluator_process_starts,
+            "evaluator_requests": self.evaluator_requests,
+            "persistent_evaluator_reuses": self.persistent_evaluator_reuses,
+            "total_serialization_seconds": round(self.total_serialization_seconds, 6),
+            "total_result_parsing_seconds": round(self.total_result_parsing_seconds, 6),
+            "total_evaluator_host_seconds": round(self.total_evaluator_host_seconds, 6),
+        }
+
+
+class _PersistentBoundEvaluator:
+    """Drop-in replacement for CudaBatchEvaluator, delegates to a shared PersistentCudaEvaluator.
+
+    This allows the same persistent process to serve multiple case panels
+    (families) while satisfying the single-GPU-owner constraint.
+    """
+
+    def __init__(self, persistent: PersistentCudaEvaluator, cases_path: Path, case_count: int) -> None:
+        self._persistent = persistent
+        self.cases_path = cases_path
+        self.case_count = case_count
+        self.last_profile: dict[str, float] = {}
+
+    def projected_games(self, candidate_count: int) -> int:
+        return (candidate_count + 1) * self.case_count
+
+    def __call__(self, programs: Sequence[MacroProgram], motif_library: Mapping[str, Motif]) -> BatchEvaluation:
+        if not programs:
+            return BatchEvaluation((), self.case_count, 0, 0, 0.0, 0.0)
+        result = self._persistent.submit_batch(self.cases_path, programs, motif_library, self.case_count)
+        self.last_profile = {
+            "serialization_seconds": self._persistent.total_serialization_seconds,
+            "subprocess_seconds": self._persistent.total_evaluator_host_seconds,
+            "result_parsing_seconds": self._persistent.total_result_parsing_seconds,
+        }
+        return result

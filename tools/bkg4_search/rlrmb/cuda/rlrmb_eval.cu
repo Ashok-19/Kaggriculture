@@ -15,6 +15,8 @@
 #include <cstring>
 #include <fstream>
 #include <iostream>
+#include <map>
+#include <memory>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -66,14 +68,91 @@ __global__ void kernel(Config cfg0,DeviceTables tables,bonsaikg4::PolicyView4 po
 }
 
 static void write_results(const std::string&p,const std::vector<rlrmb::ResultRecord>&r,int np,int nc){std::ofstream o(p,std::ios::binary);ResultHeader h{{'R','L','R','M','B','R','1','\0'},1u,(uint32_t)np,(uint32_t)nc};o.write((char*)&h,sizeof(h));o.write((char*)r.data(),r.size()*sizeof(r[0]));}
+
+// Write result to stdout for the persistent protocol.
+static void write_results_stdout(const std::vector<rlrmb::ResultRecord>&r,int np,int nc,uint32_t rid,float gpu_ms){
+    size_t result_bytes=sizeof(ResultHeader)+r.size()*sizeof(rlrmb::ResultRecord);
+    std::cout<<"RESULT "<<rid<<" "<<result_bytes<<" "<<gpu_ms<<"\n";
+    ResultHeader h{{'R','L','R','M','B','R','1','\0'},1u,(uint32_t)np,(uint32_t)nc};
+    std::cout.write(reinterpret_cast<const char*>(&h),sizeof(h));
+    std::cout.write(reinterpret_cast<const char*>(r.data()),r.size()*sizeof(r[0]));
+    std::cout.flush();
+}
+
+// Cached case panel (host + device allocations kept until shutdown).
+struct PersistCasesEntry {
+    int count=0;
+    Action*dca=nullptr; TapeDesc*dcd=nullptr; CaseDev*dcases=nullptr;
+    ~PersistCasesEntry(){if(dca)cudaFree(dca);if(dcd)cudaFree(dcd);if(dcases)cudaFree(dcases);}
+    PersistCasesEntry()=default;
+    PersistCasesEntry(const PersistCasesEntry&)=delete;
+    PersistCasesEntry&operator=(const PersistCasesEntry&)=delete;
+};
+
 }
 
 int main(int argc,char**argv){try{
- std::string controller,routes,legacy,casesp,programsp,outp;int feed_slot=5,feed_count=13,strategic_route_slot=-1,tpb=64;
- for(int i=1;i<argc;++i){std::string a=argv[i];auto need=[&](){if(i+1>=argc)throw std::runtime_error("missing "+a);return std::string(argv[++i]);};if(a=="--controller")controller=need();else if(a=="--routes")routes=need();else if(a=="--legacy-routes")legacy=need();else if(a=="--cases")casesp=need();else if(a=="--programs")programsp=need();else if(a=="--out")outp=need();else if(a=="--feed-slot")feed_slot=std::stoi(need());else if(a=="--feed-count")feed_count=std::stoi(need());else if(a=="--strategic-route-slot")strategic_route_slot=std::stoi(need());else if(a=="--tpb")tpb=std::stoi(need());else throw std::runtime_error("unknown "+a);}if(controller.empty()||routes.empty()||legacy.empty()||casesp.empty()||programsp.empty()||outp.empty())throw std::runtime_error("required args");
- auto batch=rlrmb::load_batch(programsp);auto owned=bonsaikg4::load_compiled4(controller);auto hp=owned.view();DevicePolicyOwner4 po;po.n=cp(owned.nodes);po.c=cp(owned.child_refs);po.bb=cp(owned.bb);po.v=cp(owned.values);po.a=cp(owned.feature_args);po.q=cp(owned.predicates);po.l=cp(owned.lifecycles);po.e=cp(owned.effects);auto dp=hp;dp.nodes=po.n;dp.child_refs=po.c;dp.bb=po.bb;dp.values=po.v;dp.feature_args=po.a;dp.predicates=po.q;dp.lifecycles=po.l;dp.effects=po.e;
+ std::string controller,routes,legacy,casesp,programsp,outp;int feed_slot=5,feed_count=13,strategic_route_slot=-1,tpb=64;bool persist=false;
+ for(int i=1;i<argc;++i){std::string a=argv[i];auto need=[&](){if(i+1>=argc)throw std::runtime_error("missing "+a);return std::string(argv[++i]);};if(a=="--controller")controller=need();else if(a=="--routes")routes=need();else if(a=="--legacy-routes")legacy=need();else if(a=="--cases")casesp=need();else if(a=="--programs")programsp=need();else if(a=="--out")outp=need();else if(a=="--feed-slot")feed_slot=std::stoi(need());else if(a=="--feed-count")feed_count=std::stoi(need());else if(a=="--strategic-route-slot")strategic_route_slot=std::stoi(need());else if(a=="--tpb")tpb=std::stoi(need());else if(a=="--persist")persist=true;else throw std::runtime_error("unknown "+a);}
+ if(persist){if(controller.empty()||routes.empty()||legacy.empty())throw std::runtime_error("--persist requires --controller --routes --legacy-routes");}
+ else{if(controller.empty()||routes.empty()||legacy.empty()||casesp.empty()||programsp.empty()||outp.empty())throw std::runtime_error("required args");}
+
+ // Load static assets (policy, routes, legacy) once.
+ auto owned=bonsaikg4::load_compiled4(controller);auto hp=owned.view();DevicePolicyOwner4 po;po.n=cp(owned.nodes);po.c=cp(owned.child_refs);po.bb=cp(owned.bb);po.v=cp(owned.values);po.a=cp(owned.feature_args);po.q=cp(owned.predicates);po.l=cp(owned.lifecycles);po.e=cp(owned.effects);auto dp=hp;dp.nodes=po.n;dp.child_refs=po.c;dp.bb=po.bb;dp.values=po.v;dp.feature_args=po.a;dp.predicates=po.q;dp.lifecycles=po.l;dp.effects=po.e;
  auto rp=bonsaikg4_champion::load_extended_route_pack(routes),lg=load_legacy_pack(legacy);auto*dr=cp(rp.routes);auto*da=cp(rp.actions);auto*dlr=cp(lg.routes);auto*dla=cp(lg.actions);DeviceBasePack bp{dr,da,(int)rp.routes.size()};bonsaikg4_champion::CudaLegacyPack lp{dlr,dla,(int)lg.routes.size()};
+ configure_device();TablesOwner tables;Config cfg;cfg.episode_steps=720;
+
+ if(persist){
+  // Persistent mode: serve multiple batches from stdin.
+  // Case panels are cached by path; per-batch program device memory is freed after each response.
+  std::map<std::string,std::unique_ptr<PersistCasesEntry>> cases_cache;
+  cudaEvent_t e0,e1;KAGCUDA_CHECK(cudaEventCreate(&e0));KAGCUDA_CHECK(cudaEventCreate(&e1));
+  std::string line;
+  while(std::getline(std::cin,line)){
+   if(line=="SHUTDOWN")break;
+   // Parse: "BATCH rid batch_len cases_path"
+   std::istringstream iss(line);std::string cmd;uint32_t rid,batch_len;std::string req_cases;
+   iss>>cmd>>rid>>batch_len>>req_cases;
+   if(cmd!="BATCH"){std::cerr<<"ERROR: expected BATCH, got "<<cmd<<"\n";return 2;}
+   // Read batch bytes from stdin
+   std::vector<uint8_t>raw(batch_len);
+   if(!std::cin.read(reinterpret_cast<char*>(raw.data()),batch_len)){std::cerr<<"ERROR: short stdin\n";return 2;}
+   // Load/cache cases
+   auto&entry=cases_cache[req_cases];
+   if(!entry){
+    entry=std::make_unique<PersistCasesEntry>();
+    auto hc=load_cases(req_cases);std::vector<Action>hca;std::vector<TapeDesc>hcd;std::vector<CaseDev>hcases;
+    for(const auto&c:hc){auto t=load_native_tape(c.path);int off=(int)hca.size();hca.insert(hca.end(),t.actions.begin(),t.actions.end());hcd.push_back({off,(int)t.actions.size()});hcases.push_back({(int)hcd.size()-1,c.seat,c.seed});}
+    entry->count=(int)hc.size();entry->dca=cp(hca);entry->dcd=cp(hcd);entry->dcases=cp(hcases);
+   }
+   PersistCasesEntry&cc=*entry;
+   // Load batch from memory
+   auto batch=rlrmb::load_batch_from_memory(raw);
+   // Allocate per-batch device memory
+   auto*dprograms=cp(batch.programs);auto*dphases=cp(batch.phases);auto*ddecisions=cp(batch.decisions);auto*dmotifs=cp(batch.motifs);auto*dactions=cp(batch.actions);
+   size_t jobs=(size_t)batch.programs.size()*cc.count;
+   int32_t*dbb=nullptr;bonsaikg4::NodeState4*dns=nullptr;bonsaikg4::RuntimeMeta4*dm=nullptr;Sim*ds=nullptr;rlrmb::ResultRecord*dout=nullptr;
+   if(hp.n_bb)KAGCUDA_CHECK(cudaMalloc((void**)&dbb,jobs*hp.n_bb*sizeof(int32_t)));
+   if(hp.n_state)KAGCUDA_CHECK(cudaMalloc((void**)&dns,jobs*hp.n_state*sizeof(*dns)));
+   KAGCUDA_CHECK(cudaMalloc((void**)&dm,jobs*sizeof(*dm)));KAGCUDA_CHECK(cudaMalloc((void**)&ds,jobs*sizeof(*ds)));KAGCUDA_CHECK(cudaMalloc((void**)&dout,jobs*sizeof(*dout)));
+   // Run kernel
+   KAGCUDA_CHECK(cudaEventRecord(e0));
+   kernel<<<(jobs+tpb-1)/tpb,tpb>>>(cfg,tables.dev,dp,bp,lp,cc.dca,cc.dcd,cc.dcases,cc.count,dprograms,(int)batch.programs.size(),dphases,ddecisions,dmotifs,(int)batch.motifs.size(),dactions,feed_slot,feed_count,strategic_route_slot,dbb,dns,dm,ds,dout);
+   KAGCUDA_CHECK(cudaGetLastError());KAGCUDA_CHECK(cudaEventRecord(e1));KAGCUDA_CHECK(cudaEventSynchronize(e1));
+   float ms=0;KAGCUDA_CHECK(cudaEventElapsedTime(&ms,e0,e1));
+   std::vector<rlrmb::ResultRecord>hr(jobs);KAGCUDA_CHECK(cudaMemcpy(hr.data(),dout,jobs*sizeof(*dout),cudaMemcpyDeviceToHost));
+   write_results_stdout(hr,(int)batch.programs.size(),cc.count,rid,ms);
+   // Free per-batch device memory
+   cudaFree(dprograms);cudaFree(dphases);cudaFree(ddecisions);cudaFree(dmotifs);cudaFree(dactions);
+   if(dbb)cudaFree(dbb);if(dns)cudaFree(dns);cudaFree(dm);cudaFree(ds);cudaFree(dout);
+  }
+  cudaEventDestroy(e0);cudaEventDestroy(e1);
+  return 0;
+ }
+
+ // One-shot mode (existing behaviour, unchanged).
+ auto batch=rlrmb::load_batch(programsp);
  auto hc=load_cases(casesp);std::vector<Action>hca;std::vector<TapeDesc>hcd;std::vector<CaseDev>hcases;for(const auto&c:hc){auto t=load_native_tape(c.path);int off=(int)hca.size();hca.insert(hca.end(),t.actions.begin(),t.actions.end());hcd.push_back({off,(int)t.actions.size()});hcases.push_back({(int)hcd.size()-1,c.seat,c.seed});}
  auto*dca=cp(hca);auto*dcd=cp(hcd);auto*dcases=cp(hcases);auto*dprograms=cp(batch.programs);auto*dphases=cp(batch.phases);auto*ddecisions=cp(batch.decisions);auto*dmotifs=cp(batch.motifs);auto*dactions=cp(batch.actions);size_t jobs=(size_t)batch.programs.size()*hc.size();int32_t*dbb=nullptr;bonsaikg4::NodeState4*dns=nullptr;bonsaikg4::RuntimeMeta4*dm=nullptr;Sim*ds=nullptr;rlrmb::ResultRecord*dout=nullptr;if(hp.n_bb)KAGCUDA_CHECK(cudaMalloc((void**)&dbb,jobs*hp.n_bb*sizeof(int32_t)));if(hp.n_state)KAGCUDA_CHECK(cudaMalloc((void**)&dns,jobs*hp.n_state*sizeof(*dns)));KAGCUDA_CHECK(cudaMalloc((void**)&dm,jobs*sizeof(*dm)));KAGCUDA_CHECK(cudaMalloc((void**)&ds,jobs*sizeof(*ds)));KAGCUDA_CHECK(cudaMalloc((void**)&dout,jobs*sizeof(*dout)));
- configure_device();TablesOwner tables;Config cfg;cfg.episode_steps=720;cudaEvent_t e0,e1;KAGCUDA_CHECK(cudaEventCreate(&e0));KAGCUDA_CHECK(cudaEventCreate(&e1));KAGCUDA_CHECK(cudaEventRecord(e0));kernel<<<(jobs+tpb-1)/tpb,tpb>>>(cfg,tables.dev,dp,bp,lp,dca,dcd,dcases,(int)hc.size(),dprograms,(int)batch.programs.size(),dphases,ddecisions,dmotifs,(int)batch.motifs.size(),dactions,feed_slot,feed_count,strategic_route_slot,dbb,dns,dm,ds,dout);KAGCUDA_CHECK(cudaGetLastError());KAGCUDA_CHECK(cudaEventRecord(e1));KAGCUDA_CHECK(cudaEventSynchronize(e1));float ms=0;KAGCUDA_CHECK(cudaEventElapsedTime(&ms,e0,e1));std::vector<rlrmb::ResultRecord>hr(jobs);KAGCUDA_CHECK(cudaMemcpy(hr.data(),dout,jobs*sizeof(*dout),cudaMemcpyDeviceToHost));write_results(outp,hr,(int)batch.programs.size(),(int)hc.size());int bad=0;for(auto&r:hr)bad+=r.fault!=0;std::cout<<"candidates="<<batch.programs.size()<<" cases="<<hc.size()<<" games="<<jobs<<" launches=1 gpu_ms="<<ms<<" bad="<<bad<<"\n";return bad?1:0;
+ cudaEvent_t e0,e1;KAGCUDA_CHECK(cudaEventCreate(&e0));KAGCUDA_CHECK(cudaEventCreate(&e1));KAGCUDA_CHECK(cudaEventRecord(e0));kernel<<<(jobs+tpb-1)/tpb,tpb>>>(cfg,tables.dev,dp,bp,lp,dca,dcd,dcases,(int)hc.size(),dprograms,(int)batch.programs.size(),dphases,ddecisions,dmotifs,(int)batch.motifs.size(),dactions,feed_slot,feed_count,strategic_route_slot,dbb,dns,dm,ds,dout);KAGCUDA_CHECK(cudaGetLastError());KAGCUDA_CHECK(cudaEventRecord(e1));KAGCUDA_CHECK(cudaEventSynchronize(e1));float ms=0;KAGCUDA_CHECK(cudaEventElapsedTime(&ms,e0,e1));std::vector<rlrmb::ResultRecord>hr(jobs);KAGCUDA_CHECK(cudaMemcpy(hr.data(),dout,jobs*sizeof(*dout),cudaMemcpyDeviceToHost));write_results(outp,hr,(int)batch.programs.size(),(int)hc.size());int bad=0;for(auto&r:hr)bad+=r.fault!=0;std::cout<<"candidates="<<batch.programs.size()<<" cases="<<hc.size()<<" games="<<jobs<<" launches=1 gpu_ms="<<ms<<" bad="<<bad<<"\n";return bad?1:0;
 }catch(const std::exception&e){std::cerr<<"ERROR: "<<e.what()<<'\n';return 2;}}

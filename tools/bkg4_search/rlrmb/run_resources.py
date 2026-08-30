@@ -73,6 +73,8 @@ class RunResources:
     checkpoint_cache_misses: int = field(default=0, init=False)
 
     _entered: bool = field(default=False, init=False, repr=False)
+    # Phase 16.4: optional persistent CUDA evaluator (one GPU owner per cloud run)
+    _evaluator: Any = field(default=None, init=False, repr=False)
 
     @classmethod
     def from_host_execution(
@@ -125,6 +127,12 @@ class RunResources:
 
     def __exit__(self, exc_type: Any, exc: Any, tb: Any) -> None:
         self._entered = False
+        if self._evaluator is not None:
+            try:
+                self._evaluator.stop()
+            except Exception:
+                pass
+            self._evaluator = None
         try:
             self.producer_pool.__exit__(exc_type, exc, tb)
         finally:
@@ -134,6 +142,36 @@ class RunResources:
                 shutil.rmtree(self.capture_cache.stable_dir, ignore_errors=True)
             except Exception:
                 pass
+
+    # --- persistent evaluator (Phase 16.4) ---
+
+    def get_or_create_evaluator(
+        self,
+        binary: "Path",
+        asset_dir: "Path",
+        *,
+        feed_slot: int = 5,
+        feed_count: int = 13,
+        strategic_route_slot: int = 19,
+    ) -> Any:
+        """Return the shared persistent CUDA evaluator, creating it on first call.
+
+        Only one evaluator is created per cloud run (one GPU owner).  Subsequent
+        calls with any arguments return the same object — parameters are fixed at
+        creation time.
+        """
+        if self._evaluator is None:
+            from .beam import PersistentCudaEvaluator
+            ev = PersistentCudaEvaluator(
+                binary=binary,
+                asset_dir=asset_dir,
+                feed_slot=feed_slot,
+                feed_count=feed_count,
+                strategic_route_slot=strategic_route_slot,
+            )
+            ev.start()
+            self._evaluator = ev
+        return self._evaluator
 
     # --- pool reuse recording ---
 
@@ -197,7 +235,7 @@ class RunResources:
     # --- aggregate metrics ---
 
     def metrics_document(self) -> dict[str, Any]:
-        return {
+        doc: dict[str, Any] = {
             "producer_pool_creations": self.producer_pool_creations,
             "candidate_pool_creations": self.candidate_pool_creations,
             "process_pool_reuses": self.process_pool_reuses,
@@ -214,3 +252,15 @@ class RunResources:
             "checkpoint_cache_hits": self.checkpoint_cache_hits,
             "checkpoint_cache_misses": self.checkpoint_cache_misses,
         }
+        if self._evaluator is not None:
+            doc["p164_evaluator"] = self._evaluator.metrics_document()
+        else:
+            doc["p164_evaluator"] = {
+                "evaluator_process_starts": 0,
+                "evaluator_requests": 0,
+                "persistent_evaluator_reuses": 0,
+                "total_serialization_seconds": 0.0,
+                "total_result_parsing_seconds": 0.0,
+                "total_evaluator_host_seconds": 0.0,
+            }
+        return doc

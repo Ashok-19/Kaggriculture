@@ -485,7 +485,12 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
             raise ValueError("checkpoint_batch_size must be positive")
         checkpoint_batches = tuple(tuple(checkpoints[index:index + checkpoint_batch_size])
                                    for index in range(0, len(checkpoints), checkpoint_batch_size))
-        evaluator = AccountedEvaluator(CudaBatchEvaluator(binary=binary, asset_dir=asset, cases_path=root/family["target_panel"]), ledger, family_id, "target_beam")
+        # Phase 16.4: use persistent evaluator when resources provide one (one GPU owner).
+        if resources is not None and hasattr(resources, "get_or_create_evaluator"):
+            _inner_target = resources.get_or_create_evaluator(binary, asset).bind(root / family["target_panel"])
+        else:
+            _inner_target = CudaBatchEvaluator(binary=binary, asset_dir=asset, cases_path=root/family["target_panel"])
+        evaluator = AccountedEvaluator(_inner_target, ledger, family_id, "target_beam")
         # Phase 16.3: ExitStack manages per-family pools only when resources is None.
         # When resources is provided, pools are persistent and managed by RunResources.
         with ExitStack() as _pool_stack:
@@ -576,8 +581,13 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
         ) if promotion_pool else ()
         if risk_shortlist:
             programs=tuple(c.program for c in risk_shortlist)
-            transfer_eval=AccountedEvaluator(CudaBatchEvaluator(binary=binary,asset_dir=asset,cases_path=root/config["transfer_panel"]),ledger,family_id,"transfer")
-            validation_eval=AccountedEvaluator(CudaBatchEvaluator(binary=binary,asset_dir=asset,cases_path=root/config["validation_panel"]),ledger,family_id,"validation")
+            if resources is not None and hasattr(resources, "get_or_create_evaluator"):
+                _pev = resources.get_or_create_evaluator(binary, asset)
+                transfer_eval=AccountedEvaluator(_pev.bind(root/config["transfer_panel"]),ledger,family_id,"transfer")
+                validation_eval=AccountedEvaluator(_pev.bind(root/config["validation_panel"]),ledger,family_id,"validation")
+            else:
+                transfer_eval=AccountedEvaluator(CudaBatchEvaluator(binary=binary,asset_dir=asset,cases_path=root/config["transfer_panel"]),ledger,family_id,"transfer")
+                validation_eval=AccountedEvaluator(CudaBatchEvaluator(binary=binary,asset_dir=asset,cases_path=root/config["validation_panel"]),ledger,family_id,"validation")
             max_count=min(len(programs), max(0,ledger.remaining(family_id,"transfer")//transfer_eval.case_count-1), max(0,ledger.remaining(family_id,"validation")//validation_eval.case_count-1))
             programs=programs[:max_count]; by_id={c.program.semantic_id:c for c in risk_shortlist}
             if programs:
@@ -611,7 +621,10 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
                         # SEALED is evaluated only now, after search, archive selection and
                         # routability have frozen the candidate. The unchanged adapter keeps
                         # these rows out of synthesis and applies them to the frozen gate.
-                        sealed_eval=AccountedEvaluator(CudaBatchEvaluator(binary=binary,asset_dir=asset,cases_path=root/config["sealed_panel"]),ledger,family_id,"certification")
+                        if resources is not None and hasattr(resources, "get_or_create_evaluator"):
+                            sealed_eval=AccountedEvaluator(resources.get_or_create_evaluator(binary,asset).bind(root/config["sealed_panel"]),ledger,family_id,"certification")
+                        else:
+                            sealed_eval=AccountedEvaluator(CudaBatchEvaluator(binary=binary,asset_dir=asset,cases_path=root/config["sealed_panel"]),ledger,family_id,"certification")
                         _t0=time.monotonic()
                         sealed_batch=sealed_eval((program,),motifs_all)
                         sealed_raw=_effect_rows(program,DatasetRole.SEALED,root/config["sealed_panel"],sealed_batch.programs[0].effect.blocks[0])
@@ -628,8 +641,13 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
                         else:
                             reason=cegis.rejection_reason or "CEGIS_REJECTED"; failures[reason]+=1
                             if reason == FailureClass.NON_TRANSFERABLE.value:
-                                target_lns=AccountedEvaluator(CudaBatchEvaluator(binary=binary,asset_dir=asset,cases_path=root/family["target_panel"]),ledger,family_id,"lns_repair")
-                                transfer_lns=AccountedEvaluator(CudaBatchEvaluator(binary=binary,asset_dir=asset,cases_path=root/config["transfer_panel"]),ledger,family_id,"lns_repair")
+                                if resources is not None and hasattr(resources, "get_or_create_evaluator"):
+                                    _pev2=resources.get_or_create_evaluator(binary,asset)
+                                    target_lns=AccountedEvaluator(_pev2.bind(root/family["target_panel"]),ledger,family_id,"lns_repair")
+                                    transfer_lns=AccountedEvaluator(_pev2.bind(root/config["transfer_panel"]),ledger,family_id,"lns_repair")
+                                else:
+                                    target_lns=AccountedEvaluator(CudaBatchEvaluator(binary=binary,asset_dir=asset,cases_path=root/family["target_panel"]),ledger,family_id,"lns_repair")
+                                    transfer_lns=AccountedEvaluator(CudaBatchEvaluator(binary=binary,asset_dir=asset,cases_path=root/config["transfer_panel"]),ledger,family_id,"lns_repair")
                                 dual=DualPanelEvaluator(target_lns,transfer_lns)
                                 max_repairs=min(config["repair"]["lns_max_candidates"],max(0,ledger.remaining(family_id,"lns_repair")//dual.case_count-2))
                                 if max_repairs:
