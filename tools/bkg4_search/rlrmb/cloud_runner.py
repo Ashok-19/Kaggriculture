@@ -376,6 +376,22 @@ def _run_cloud_inner(
     wall_limit = int(policy["wall_time_limit_seconds"])
     if allocator is None:
         allocator = SearchAllocator(getattr(resources, "search_memory", None))
+    # Phase 16.7 recovery hardening: region_allocation is the durable ledger for
+    # completed pipeline attempts. Rehydrate process-local allocator telemetry
+    # from it on every run/resume, and recover CUDA games that were executed and
+    # durably recorded before a later composition/commit failure.
+    memory = getattr(resources, "search_memory", None)
+    if memory is not None and hasattr(memory, "get_region_allocation_stats"):
+        durable_cuda_games = 0
+        for family in config["families"]:
+            region_id = _family_region_id(config, family)
+            region_games = int(memory.get_region_allocation_stats(region_id).get("cuda_games", 0))
+            if region_games:
+                allocator.record_budget(str(family["id"]), region_games)
+                durable_cuda_games += region_games
+        if durable_cuda_games > int(state.get("cuda_games_consumed", 0)):
+            state["cuda_games_consumed"] = durable_cuda_games
+            _write_atomic(output / "generation_state.json", state)
     terminal_reason = "MAX_GENERATIONS"
     allocation_per_gen = int(policy["cuda_games_per_generation"])
     for _ in range(limit):

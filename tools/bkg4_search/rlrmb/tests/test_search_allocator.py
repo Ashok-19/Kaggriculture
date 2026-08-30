@@ -717,3 +717,127 @@ def test_real_safe_routability_feedback_deprioritizes_failure_region(tmp_path: P
         assert ranked[0][0] == "clean"
         failed_stats = alloc._query_stats(failed_ctx, "failed", 1)
         assert failed_stats.future_dependent_count == 6
+
+
+def test_allocator_budget_telemetry_is_cumulative_across_resume(tmp_path: Path) -> None:
+    """Final cloud allocator budget telemetry must reconcile with cumulative campaign CUDA games."""
+    import json
+    from ..cloud_runner import run_cloud
+    from .test_p163_resources import CONFIG, _stub_assets
+
+    output = tmp_path / "allocator-resume-budget"
+    candidate = "c" * 64
+
+    def accepted_runner(runtime_path: Path, run_dir: Path) -> int:
+        cfg = json.loads(runtime_path.read_text(encoding="utf-8"))
+        family_id = cfg["families"][0]["id"]
+        run_dir.mkdir(parents=True)
+        (run_dir / "metrics.json").write_text(json.dumps({
+            "total_cuda_games": 10,
+            "accepted_candidate_ids": [candidate],
+            "protected_win_to_loss": 0,
+            "semantic_mismatches": 0,
+        }))
+        dep = run_dir / "families" / family_id / candidate / "deployment"
+        dep.mkdir(parents=True)
+        (dep / "composed_module.json").write_text("{}")
+        (dep / "specialist.json").write_text("{}")
+        (dep / f"{candidate}.route.json").write_text(json.dumps({"actions": []}))
+        return 0
+
+    assert run_cloud(
+        CONFIG,
+        output,
+        mode="pilot",
+        max_generations=4,
+        pipeline_runner=accepted_runner,
+        asset_builder=_stub_assets(candidate),
+        telemetry_interval_seconds=60,
+    ) == 0
+    assert run_cloud(
+        CONFIG,
+        output,
+        mode="pilot",
+        resume=True,
+        max_generations=4,
+        pipeline_runner=accepted_runner,
+        asset_builder=_stub_assets(candidate),
+        telemetry_interval_seconds=60,
+    ) == 0
+
+    result = json.loads((output / "cloud_result.json").read_text(encoding="utf-8"))
+    allocator_games = sum(result["p166_allocator"]["allocator_budget_by_region"].values())
+    assert result["generation"] == 8
+    assert allocator_games == result["cuda_games_consumed"] == 80
+
+
+def test_cuda_accounting_recovers_completed_evaluation_after_composition_failure(tmp_path: Path) -> None:
+    """Resume must retain CUDA games already executed before a failed generation commit."""
+    import json
+    from ..cloud_runner import run_cloud
+    from .test_p163_resources import CONFIG, _stub_assets
+
+    output = tmp_path / "allocator-failure-recovery-budget"
+    candidate = "d" * 64
+
+    def accepted_runner(runtime_path: Path, run_dir: Path) -> int:
+        cfg = json.loads(runtime_path.read_text(encoding="utf-8"))
+        family_id = cfg["families"][0]["id"]
+        run_dir.mkdir(parents=True)
+        (run_dir / "metrics.json").write_text(json.dumps({
+            "total_cuda_games": 10,
+            "accepted_candidate_ids": [candidate],
+            "protected_win_to_loss": 0,
+            "semantic_mismatches": 0,
+        }))
+        dep = run_dir / "families" / family_id / candidate / "deployment"
+        dep.mkdir(parents=True)
+        (dep / "composed_module.json").write_text("{}")
+        (dep / "specialist.json").write_text("{}")
+        (dep / f"{candidate}.route.json").write_text(json.dumps({"actions": []}))
+        return 0
+
+    def failing_assets(parent: Path, deployment: Path, destination: Path) -> dict:
+        raise RuntimeError("synthetic composition failure")
+
+    assert run_cloud(
+        CONFIG,
+        output,
+        mode="pilot",
+        max_generations=1,
+        pipeline_runner=accepted_runner,
+        asset_builder=_stub_assets(candidate),
+        telemetry_interval_seconds=60,
+    ) == 0
+
+    with pytest.raises(RuntimeError, match="synthetic composition failure"):
+        run_cloud(
+            CONFIG,
+            output,
+            mode="pilot",
+            resume=True,
+            max_generations=1,
+            pipeline_runner=accepted_runner,
+            asset_builder=failing_assets,
+            telemetry_interval_seconds=60,
+        )
+
+    failed_state = json.loads((output / "generation_state.json").read_text(encoding="utf-8"))
+    assert failed_state["generation"] == 1
+    assert failed_state["cuda_games_consumed"] == 10
+
+    assert run_cloud(
+        CONFIG,
+        output,
+        mode="pilot",
+        resume=True,
+        max_generations=1,
+        pipeline_runner=accepted_runner,
+        asset_builder=_stub_assets(candidate),
+        telemetry_interval_seconds=60,
+    ) == 0
+
+    result = json.loads((output / "cloud_result.json").read_text(encoding="utf-8"))
+    allocator_games = sum(result["p166_allocator"]["allocator_budget_by_region"].values())
+    assert result["generation"] == 2
+    assert allocator_games == result["cuda_games_consumed"] == 30
