@@ -459,3 +459,26 @@ class TestP164DutyCycle(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestP164GenerationSafety(unittest.TestCase):
+    def test_asset_generation_change_restarts_persistent_evaluator(self):
+        """Same assets reuse one GPU process; changed assets stop it before replacement."""
+        resources = _make_resources()
+        first = MagicMock()
+        second = MagicMock()
+
+        with patch(
+            "tools.bkg4_search.rlrmb.beam.PersistentCudaEvaluator",
+            side_effect=[first, second],
+        ) as MockPCE:
+            ev1 = resources.get_or_create_evaluator(Path("/fake/bin"), Path("/gen0/assets"))
+            ev1_again = resources.get_or_create_evaluator(Path("/fake/bin"), Path("/gen0/assets"))
+            ev2 = resources.get_or_create_evaluator(Path("/fake/bin"), Path("/gen1/assets"))
+
+        self.assertIs(ev1, ev1_again)
+        self.assertIsNot(ev1, ev2)
+        self.assertEqual(MockPCE.call_count, 2)
+        first.start.assert_called_once()
+        first.stop.assert_called_once()
+        second.start.assert_called_once()

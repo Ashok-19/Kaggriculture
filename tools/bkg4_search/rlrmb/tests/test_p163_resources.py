@@ -366,3 +366,50 @@ class TestCloudRunnerIntegration(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestCaptureCacheSemanticBoundary(unittest.TestCase):
+    def test_real_capture_cache_does_not_reuse_across_asset_generation(self):
+        """The production capture function must miss when the working asset dir changes."""
+        from types import SimpleNamespace
+        from unittest.mock import patch
+        from tools.bkg4_search.rlrmb.pipeline import capture_candidate_legal_states
+
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            cases = root / "cases.tsv"
+            cases.write_text("case\n")
+            asset0 = root / "gen0"
+            asset1 = root / "gen1"
+            asset0.mkdir()
+            asset1.mkdir()
+            cache = LegalStateCaptureCache(stable_dir=root / "cache")
+            program = SimpleNamespace(
+                semantic_id="c" * 64,
+                initiation=SimpleNamespace(step=7),
+                decisions=(),
+                phases=(),
+            )
+            rows = (SimpleNamespace(candidate_id=program.semantic_id),)
+
+            def fake_run(command, **kwargs):
+                out = Path(command[command.index("--out") + 1])
+                truth = Path(command[command.index("--truth-out") + 1])
+                out.write_bytes(b"capture")
+                truth.write_bytes(b"truth")
+                return SimpleNamespace(returncode=0)
+
+            with patch("tools.bkg4_search.rlrmb.pipeline.subprocess.run", side_effect=fake_run) as run_mock, \
+                 patch("tools.bkg4_search.rlrmb.pipeline.load_candidate_legal_states", return_value=rows):
+                capture_candidate_legal_states(
+                    program, rows, cases, root / "out0",
+                    capture_binary=root / "capture-bin", asset_dir=asset0, cache=cache,
+                )
+                capture_candidate_legal_states(
+                    program, rows, cases, root / "out1",
+                    capture_binary=root / "capture-bin", asset_dir=asset1, cache=cache,
+                )
+
+            self.assertEqual(run_mock.call_count, 2)
+            self.assertEqual(cache.reuses, 0)
+            self.assertEqual(cache.launches, 2)

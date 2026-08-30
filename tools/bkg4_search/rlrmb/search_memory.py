@@ -29,13 +29,18 @@ import time
 from pathlib import Path
 from typing import Any
 
-MEMORY_SCHEMA_VERSION = 1
+MEMORY_SCHEMA_VERSION = 2
 
 _EVAL_CTX_KEYS = (
     "checkpoint_limit", "donor_limit", "motif_steps", "beam_depth",
     "max_candidates_per_expansion", "stagnation_rounds", "max_phases",
     "archive_elites_per_cell",
 )
+
+_SAFE_SEARCH_FEEDBACK_STAGES = frozenset({
+    "TARGET_ROUTABILITY",
+    "FULL_ROUTABILITY",
+})
 
 
 def evaluation_context_id(config: dict[str, Any]) -> str:
@@ -64,6 +69,35 @@ def evaluation_context_id(config: dict[str, Any]) -> str:
         "search": {k: search.get(k) for k in _EVAL_CTX_KEYS},
     }
     return stable_identity("RLRMB-P165-EVAL-CTX-V1", context)
+
+
+def historical_region_id(config: dict[str, Any]) -> str:
+    """Stable cross-generation identity for one allocator search region.
+
+    Unlike :func:`evaluation_context_id`, this deliberately excludes the
+    controller/BKG4 generation.  It binds the family/frontier, panel roles,
+    donor/checkpoint sources, and search-neighborhood dimensions that make
+    historical yield evidence comparable across successive parents.
+
+    This identity is guidance-only: exact evaluation cache lookups continue to
+    use ``evaluation_context_id`` and therefore remain controller-specific.
+    SEALED is intentionally absent.
+    """
+    from .schema import stable_identity
+
+    family = config["families"][0]
+    search = config.get("search", {})
+    region = {
+        "family_id": family.get("id"),
+        "lane_metadata": family.get("lane_metadata"),
+        "target_panel": family.get("target_panel"),
+        "checkpoint_evidence": family.get("checkpoint_evidence"),
+        "donor_manifest": config.get("donor_manifest"),
+        "transfer_panel": config.get("transfer_panel"),
+        "validation_panel": config.get("validation_panel"),
+        "search": {k: search.get(k) for k in _EVAL_CTX_KEYS},
+    }
+    return stable_identity("RLRMB-P166-HIST-REGION-V1", region)
 
 
 def effect_to_json(effect_vector: Any) -> str:
@@ -147,14 +181,31 @@ class SearchMemory:
                 PRIMARY KEY (semantic_id, context_id))""")
             conn.execute("""CREATE INDEX IF NOT EXISTS evaluation_by_context
                 ON evaluation (context_id)""")
+            conn.execute("""CREATE TABLE IF NOT EXISTS search_feedback (
+                semantic_id   TEXT NOT NULL,
+                context_id    TEXT NOT NULL,
+                generation    INTEGER NOT NULL,
+                stage         TEXT NOT NULL,
+                failure_class TEXT,
+                insert_time   INTEGER NOT NULL,
+                PRIMARY KEY (semantic_id, context_id))""")
+            conn.execute("""CREATE INDEX IF NOT EXISTS search_feedback_by_context
+                ON search_feedback (context_id)""")
             conn.execute("""CREATE TABLE IF NOT EXISTS historical (
                 semantic_id   TEXT NOT NULL,
                 context_id    TEXT NOT NULL,
+                region_id     TEXT,
                 generation    INTEGER NOT NULL,
                 failure_class TEXT,
                 outcome_summary TEXT,
                 insert_time   INTEGER NOT NULL,
                 PRIMARY KEY (semantic_id, context_id, generation))""")
+            conn.execute("""CREATE TABLE IF NOT EXISTS region_allocation (
+                region_id       TEXT NOT NULL PRIMARY KEY,
+                selections      INTEGER NOT NULL DEFAULT 0,
+                last_generation INTEGER NOT NULL DEFAULT -1,
+                cuda_games      INTEGER NOT NULL DEFAULT 0,
+                update_time     INTEGER NOT NULL)""")
             # SEALED firewall: this table has NO read API in the search code path.
             conn.execute("""CREATE TABLE IF NOT EXISTS sealed_audit (
                 semantic_id TEXT NOT NULL,
@@ -170,12 +221,32 @@ class SearchMemory:
                     "INSERT INTO schema_meta (key, value) VALUES ('schema_version', ?)",
                     (str(MEMORY_SCHEMA_VERSION),),
                 )
-            elif int(row[0]) != MEMORY_SCHEMA_VERSION:
-                conn.execute("ROLLBACK")
-                raise ValueError(
-                    f"SearchMemory schema mismatch: expected {MEMORY_SCHEMA_VERSION},"
-                    f" got {row[0]}"
-                )
+            else:
+                version = int(row[0])
+                if version == 1:
+                    # Phase 16.6 hardening migration.  Old historical rows do
+                    # not contain enough information to reconstruct a stable
+                    # cross-generation region ID, so they remain NULL rather
+                    # than being misrepresented as current-region evidence.
+                    columns = {
+                        str(info[1]) for info in conn.execute(
+                            "PRAGMA table_info(historical)"
+                        ).fetchall()
+                    }
+                    if "region_id" not in columns:
+                        conn.execute("ALTER TABLE historical ADD COLUMN region_id TEXT")
+                    conn.execute(
+                        "UPDATE schema_meta SET value=? WHERE key='schema_version'",
+                        (str(MEMORY_SCHEMA_VERSION),),
+                    )
+                elif version != MEMORY_SCHEMA_VERSION:
+                    conn.execute("ROLLBACK")
+                    raise ValueError(
+                        f"SearchMemory schema mismatch: expected {MEMORY_SCHEMA_VERSION},"
+                        f" got {row[0]}"
+                    )
+            conn.execute("CREATE INDEX IF NOT EXISTS historical_by_region"
+                         " ON historical (region_id)")
             conn.execute("COMMIT")
         except Exception:
             try:
@@ -282,24 +353,117 @@ class SearchMemory:
         if effect_json:
             self.persisted_effect_signatures += 1
 
+    # ── allocator-visible pre-SEALED feedback ─────────────────────────────────
+
+    def record_search_feedback(
+        self,
+        semantic_id: str,
+        context_id: str,
+        *,
+        generation: int,
+        stage: str,
+        failure_class: str | None,
+    ) -> None:
+        """Persist safe routability feedback without mutating exact evaluation truth.
+
+        Only TARGET and TARGET+TRANSFER+VALIDATION routability are permitted.
+        SEALED/certification/CEGIS outcomes have no write path into allocator-visible
+        memory.  FULL_ROUTABILITY supersedes TARGET_ROUTABILITY for the same exact
+        candidate/context and cannot later be downgraded by target-only evidence.
+        """
+        if stage not in _SAFE_SEARCH_FEEDBACK_STAGES:
+            raise ValueError(f"unsupported search feedback stage: {stage!r}")
+        if type(generation) is not int or generation < 0:
+            raise ValueError("search feedback generation must be a non-negative integer")
+        if failure_class is not None and (type(failure_class) is not str or not failure_class):
+            raise ValueError("search feedback failure_class must be a non-empty string or None")
+
+        exact = self._conn.execute(
+            "SELECT generation FROM evaluation WHERE semantic_id=? AND context_id=?",
+            (semantic_id, context_id),
+        ).fetchone()
+        if exact is None:
+            raise ValueError("search feedback requires an existing exact evaluation")
+        if int(exact[0]) != generation:
+            raise ValueError("search feedback generation does not match exact evaluation")
+
+        existing = self._conn.execute(
+            "SELECT stage FROM search_feedback WHERE semantic_id=? AND context_id=?",
+            (semantic_id, context_id),
+        ).fetchone()
+        if existing is not None and existing[0] == "FULL_ROUTABILITY" and stage == "TARGET_ROUTABILITY":
+            return
+
+        self._conn.execute("BEGIN")
+        try:
+            self._conn.execute(
+                "INSERT INTO search_feedback"
+                " (semantic_id, context_id, generation, stage, failure_class, insert_time)"
+                " VALUES (?,?,?,?,?,?)"
+                " ON CONFLICT(semantic_id, context_id) DO UPDATE SET"
+                " generation=excluded.generation,"
+                " stage=excluded.stage,"
+                " failure_class=excluded.failure_class,"
+                " insert_time=excluded.insert_time",
+                (
+                    semantic_id,
+                    context_id,
+                    generation,
+                    stage,
+                    failure_class,
+                    int(time.time()),
+                ),
+            )
+            self._conn.execute("COMMIT")
+        except Exception:
+            try:
+                self._conn.execute("ROLLBACK")
+            except Exception:
+                pass
+            raise
+
     # ── historical scope ───────────────────────────────────────────────────────
 
-    def promote_to_historical(self, context_id: str, new_generation: int) -> int:
-        """Copy evaluation records for ``context_id`` into the historical table.
+    def promote_to_historical(
+        self,
+        context_id: str,
+        new_generation: int,
+        *,
+        region_id: str | None = None,
+    ) -> int:
+        """Copy one exact evaluation context into cross-generation history.
 
-        Returns the number of records promoted.  Call this when the BKG4
-        generation advances so old exact records become non-authoritative priors.
+        ``context_id`` identifies the authoritative old exact-evaluation scope.
+        ``region_id`` identifies the stable allocator region that may consume
+        the copied outcomes as a decayed prior after the controller changes.
+        The exact evaluation rows are retained and never become exact hits for a
+        different evaluation context.
         """
         rows = self._conn.execute(
-            "SELECT semantic_id, context_id, generation, failure_class, effect_json"
-            " FROM evaluation WHERE context_id=?",
+            "SELECT e.semantic_id, e.context_id, e.generation,"
+            " COALESCE(f.failure_class, e.failure_class), e.effect_json"
+            " FROM evaluation e"
+            " LEFT JOIN search_feedback f"
+            "   ON f.semantic_id=e.semantic_id AND f.context_id=e.context_id"
+            " WHERE e.context_id=?",
             (context_id,),
         ).fetchall()
         if not rows:
             return 0
         now = int(time.time())
+        stable_region_id = str(region_id or context_id)
         self._conn.execute("BEGIN")
         try:
+            # A schema-v1 database may already contain the same historical
+            # primary-key rows without a stable region ID.  Once the real
+            # production promotion path supplies that identity, backfill only
+            # legacy/unscoped rows; never rewrite a row already bound to a
+            # different stable region.
+            self._conn.execute(
+                "UPDATE historical SET region_id=?"
+                " WHERE context_id=? AND (region_id IS NULL OR region_id=context_id)",
+                (stable_region_id, context_id),
+            )
             for semantic_id, ctx, gen, failure_class, effect_json in rows:
                 summary = json.dumps(
                     {
@@ -310,13 +474,19 @@ class SearchMemory:
                     sort_keys=True,
                     separators=(",", ":"),
                 )
-                self._conn.execute(
-                    "INSERT OR IGNORE INTO historical"
-                    " (semantic_id, context_id, generation, failure_class,"
-                    "  outcome_summary, insert_time)"
-                    " VALUES (?,?,?,?,?,?)",
-                    (semantic_id, ctx, gen, failure_class, summary, now),
+                updated = self._conn.execute(
+                    "UPDATE historical SET failure_class=?, outcome_summary=?, insert_time=?"
+                    " WHERE semantic_id=? AND context_id=? AND generation=?",
+                    (failure_class, summary, now, semantic_id, ctx, gen),
                 )
+                if updated.rowcount == 0:
+                    self._conn.execute(
+                        "INSERT INTO historical"
+                        " (semantic_id, context_id, region_id, generation, failure_class,"
+                        "  outcome_summary, insert_time)"
+                        " VALUES (?,?,?,?,?,?,?)",
+                        (semantic_id, ctx, stable_region_id, gen, failure_class, summary, now),
+                    )
             self._conn.execute("COMMIT")
         except Exception:
             try:
@@ -329,19 +499,70 @@ class SearchMemory:
 
     def get_historical_priors(self, semantic_id: str) -> list[dict[str, Any]]:
         rows = self._conn.execute(
-            "SELECT context_id, generation, failure_class, outcome_summary"
+            "SELECT context_id, region_id, generation, failure_class, outcome_summary"
             " FROM historical WHERE semantic_id=? ORDER BY generation DESC",
             (semantic_id,),
         ).fetchall()
         return [
             {
                 "context_id": r[0],
-                "generation": int(r[1]),
-                "failure_class": r[2],
-                "outcome_summary": r[3],
+                "region_id": r[1],
+                "generation": int(r[2]),
+                "failure_class": r[3],
+                "outcome_summary": r[4],
             }
             for r in rows
         ]
+
+    def record_region_allocation(
+        self,
+        region_id: str,
+        *,
+        generation: int,
+        cuda_games: int,
+    ) -> None:
+        """Persist one completed allocator visit for starvation-safe exploration.
+
+        This records only search-control bookkeeping.  It is not evaluation
+        truth and cannot satisfy any acceptance/certification gate.
+        """
+        if generation < 0 or cuda_games < 0:
+            raise ValueError("region allocation generation/games must be non-negative")
+        now = int(time.time())
+        self._conn.execute("BEGIN")
+        try:
+            self._conn.execute(
+                "INSERT INTO region_allocation"
+                " (region_id, selections, last_generation, cuda_games, update_time)"
+                " VALUES (?,1,?,?,?)"
+                " ON CONFLICT(region_id) DO UPDATE SET"
+                " selections=region_allocation.selections+1,"
+                " last_generation=excluded.last_generation,"
+                " cuda_games=region_allocation.cuda_games+excluded.cuda_games,"
+                " update_time=excluded.update_time",
+                (region_id, generation, cuda_games, now),
+            )
+            self._conn.execute("COMMIT")
+        except Exception:
+            try:
+                self._conn.execute("ROLLBACK")
+            except Exception:
+                pass
+            raise
+
+    def get_region_allocation_stats(self, region_id: str) -> dict[str, int]:
+        row = self._conn.execute(
+            "SELECT selections, last_generation, cuda_games"
+            " FROM region_allocation WHERE region_id=?",
+            (region_id,),
+        ).fetchone()
+        if row is None:
+            return {"selections": 0, "last_generation": -1, "cuda_games": 0}
+        return {
+            "selections": int(row[0]),
+            "last_generation": int(row[1]),
+            "cuda_games": int(row[2]),
+        }
 
     # ── SEALED firewall — write-only audit, no search-path read ───────────────
 
@@ -366,21 +587,31 @@ class SearchMemory:
     def get_context_evaluation_stats(self, context_id: str) -> dict[str, Any]:
         """Aggregate evaluation statistics for one evaluation-context.
 
-        Used by SearchAllocator for scoring.  Reads only the ``evaluation``
-        and ``structural`` tables.  ``sealed_audit`` is intentionally excluded.
-        Returns an empty dict when no records exist.
+        Used by SearchAllocator for scoring.  Reads exact ``evaluation`` truth plus
+        the separate safe ``search_feedback`` routability channel and ``structural``
+        novelty.  ``sealed_audit`` is intentionally excluded.  Returns an empty dict
+        when no exact evaluation records exist.
         """
         row = self._conn.execute(
             "SELECT COUNT(*),"
-            "  SUM(valid),"
-            "  SUM(CASE WHEN effect_json IS NOT NULL AND valid=1 THEN 1 ELSE 0 END),"
-            "  SUM(CASE WHEN failure_class='NON_TRANSFERABLE' THEN 1 ELSE 0 END),"
-            "  SUM(CASE WHEN failure_class='FUTURE_DEPENDENT' THEN 1 ELSE 0 END),"
-            "  SUM(CASE WHEN failure_class IS NOT NULL"
-            "       AND failure_class NOT IN ('NON_TRANSFERABLE','FUTURE_DEPENDENT')"
+            "  SUM(e.valid),"
+            "  SUM(CASE WHEN e.effect_json IS NOT NULL AND e.valid=1 THEN 1 ELSE 0 END),"
+            "  SUM(CASE WHEN COALESCE(f.failure_class,e.failure_class)='NON_TRANSFERABLE'"
+            "           THEN 1 ELSE 0 END),"
+            "  SUM(CASE WHEN COALESCE(f.failure_class,e.failure_class)='FUTURE_DEPENDENT'"
+            "           THEN 1 ELSE 0 END),"
+            "  SUM(CASE WHEN COALESCE(f.failure_class,e.failure_class) IS NOT NULL"
+            "       AND COALESCE(f.failure_class,e.failure_class)"
+            "           NOT IN ('NON_TRANSFERABLE','FUTURE_DEPENDENT')"
             "       THEN 1 ELSE 0 END),"
-            "  SUM(cuda_games)"
-            " FROM evaluation WHERE context_id=?",
+            "  SUM(e.cuda_games),"
+            "  SUM(CASE WHEN f.semantic_id IS NOT NULL THEN 1 ELSE 0 END),"
+            "  SUM(CASE WHEN f.semantic_id IS NOT NULL AND f.failure_class IS NULL"
+            "           THEN 1 ELSE 0 END)"
+            " FROM evaluation e"
+            " LEFT JOIN search_feedback f"
+            "   ON f.semantic_id=e.semantic_id AND f.context_id=e.context_id"
+            " WHERE e.context_id=?",
             (context_id,),
         ).fetchone()
         total = int(row[0] or 0) if row else 0
@@ -398,8 +629,26 @@ class SearchMemory:
             "future_dependent_count": int(row[4] or 0),
             "other_failure_count": int(row[5] or 0),
             "total_cuda_games": int(row[6] or 0),
+            "routability_observed_count": int(row[7] or 0),
+            "routable_count": int(row[8] or 0),
             "novel_structural": int(nov[0] or 0) if nov else 0,
         }
+
+    def get_region_historical_stats(self, region_id: str) -> dict[str, Any]:
+        """Aggregate decayed-prior inputs for one stable search region.
+
+        Reads only ``historical`` rows explicitly promoted into ``region_id``.
+        SEALED remains structurally inaccessible here.
+        """
+        row = self._conn.execute(
+            "SELECT COUNT(*),"
+            "  SUM(CASE WHEN failure_class IS NOT NULL THEN 1 ELSE 0 END)"
+            " FROM historical WHERE region_id=?",
+            (region_id,),
+        ).fetchone()
+        if row is None or row[0] == 0:
+            return {"total": 0, "failures": 0}
+        return {"total": int(row[0] or 0), "failures": int(row[1] or 0)}
 
     def get_context_historical_stats(self, context_id: str) -> dict[str, Any]:
         """Aggregate historical prior statistics for one evaluation-context.

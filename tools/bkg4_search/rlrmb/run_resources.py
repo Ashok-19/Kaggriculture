@@ -73,10 +73,13 @@ class RunResources:
     checkpoint_cache_misses: int = field(default=0, init=False)
 
     _entered: bool = field(default=False, init=False, repr=False)
-    # Phase 16.4: optional persistent CUDA evaluator (one GPU owner per cloud run)
+    # Phase 16.4: optional persistent CUDA evaluator (one GPU owner at a time).
     _evaluator: Any = field(default=None, init=False, repr=False)
+    _evaluator_key: tuple[Any, ...] | None = field(default=None, init=False, repr=False)
+    _retired_evaluator_metrics: dict[str, float] = field(default_factory=dict, init=False, repr=False)
     # Phase 16.5: optional durable semantic search memory
     _search_memory: Any = field(default=None, init=False, repr=False)
+    _search_generation: int = field(default=0, init=False, repr=False)
 
     @classmethod
     def from_host_execution(
@@ -135,6 +138,7 @@ class RunResources:
             except Exception:
                 pass
             self._evaluator = None
+            self._evaluator_key = None
         if self._search_memory is not None:
             try:
                 self._search_memory.close()
@@ -168,6 +172,15 @@ class RunResources:
     def search_memory(self) -> Any:
         return self._search_memory
 
+    def set_search_generation(self, generation: int) -> None:
+        if type(generation) is not int or generation < 0:
+            raise ValueError("search generation must be a non-negative integer")
+        self._search_generation = generation
+
+    @property
+    def search_generation(self) -> int:
+        return self._search_generation
+
     # --- persistent evaluator (Phase 16.4) ---
 
     def get_or_create_evaluator(
@@ -179,12 +192,33 @@ class RunResources:
         feed_count: int = 13,
         strategic_route_slot: int = 19,
     ) -> Any:
-        """Return the shared persistent CUDA evaluator, creating it on first call.
+        """Return the shared persistent CUDA evaluator for one exact asset scope.
 
-        Only one evaluator is created per cloud run (one GPU owner).  Subsequent
-        calls with any arguments return the same object — parameters are fixed at
-        creation time.
+        Calls with the same binary/assets/ABI reuse the existing process.  A new
+        committed BKG4 asset directory is a semantic boundary: the old process
+        is stopped before a replacement is created, preserving exactly one GPU
+        owner while guaranteeing the subprocess reloads controller/routes.
         """
+        key = (
+            str(Path(binary).resolve()),
+            str(Path(asset_dir).resolve()),
+            int(feed_slot),
+            int(feed_count),
+            int(strategic_route_slot),
+        )
+        if self._evaluator is not None and self._evaluator_key != key:
+            try:
+                doc = self._evaluator.metrics_document()
+                if isinstance(doc, Mapping):
+                    for name, value in doc.items():
+                        if isinstance(value, (int, float)):
+                            self._retired_evaluator_metrics[name] = (
+                                self._retired_evaluator_metrics.get(name, 0.0) + float(value)
+                            )
+            finally:
+                self._evaluator.stop()
+                self._evaluator = None
+                self._evaluator_key = None
         if self._evaluator is None:
             from .beam import PersistentCudaEvaluator
             ev = PersistentCudaEvaluator(
@@ -196,6 +230,7 @@ class RunResources:
             )
             ev.start()
             self._evaluator = ev
+            self._evaluator_key = key
         return self._evaluator
 
     # --- pool reuse recording ---
@@ -277,17 +312,31 @@ class RunResources:
             "checkpoint_cache_hits": self.checkpoint_cache_hits,
             "checkpoint_cache_misses": self.checkpoint_cache_misses,
         }
+        evaluator_metrics: dict[str, float] = {
+            "evaluator_process_starts": 0.0,
+            "evaluator_requests": 0.0,
+            "persistent_evaluator_reuses": 0.0,
+            "total_serialization_seconds": 0.0,
+            "total_result_parsing_seconds": 0.0,
+            "total_evaluator_host_seconds": 0.0,
+        }
+        for name, value in self._retired_evaluator_metrics.items():
+            if name in evaluator_metrics:
+                evaluator_metrics[name] += float(value)
         if self._evaluator is not None:
-            doc["p164_evaluator"] = self._evaluator.metrics_document()
-        else:
-            doc["p164_evaluator"] = {
-                "evaluator_process_starts": 0,
-                "evaluator_requests": 0,
-                "persistent_evaluator_reuses": 0,
-                "total_serialization_seconds": 0.0,
-                "total_result_parsing_seconds": 0.0,
-                "total_evaluator_host_seconds": 0.0,
-            }
+            current = self._evaluator.metrics_document()
+            if isinstance(current, Mapping):
+                for name, value in current.items():
+                    if name in evaluator_metrics and isinstance(value, (int, float)):
+                        evaluator_metrics[name] += float(value)
+        doc["p164_evaluator"] = {
+            "evaluator_process_starts": int(evaluator_metrics["evaluator_process_starts"]),
+            "evaluator_requests": int(evaluator_metrics["evaluator_requests"]),
+            "persistent_evaluator_reuses": int(evaluator_metrics["persistent_evaluator_reuses"]),
+            "total_serialization_seconds": evaluator_metrics["total_serialization_seconds"],
+            "total_result_parsing_seconds": evaluator_metrics["total_result_parsing_seconds"],
+            "total_evaluator_host_seconds": evaluator_metrics["total_evaluator_host_seconds"],
+        }
         if self._search_memory is not None:
             doc["p165_memory"] = self._search_memory.metrics()
         else:

@@ -34,6 +34,7 @@ from typing import Any, Sequence
 
 
 _EXPLORE_W: float = 2.0
+_GLOBAL_EXPLORE_W: float = 0.5
 _NOVELTY_W: float = 3.0
 _TRANSFER_W: float = 2.0
 _FAILURE_W: float = 1.5
@@ -49,6 +50,7 @@ class RegionStats:
     context_id: str
     family_id: str
     config_index: int = 0
+    region_id: str = ""
     total_evaluations: int = 0
     valid_evaluations: int = 0
     effect_evaluations: int = 0
@@ -59,6 +61,9 @@ class RegionStats:
     novel_structural: int = 0
     historical_evaluations: int = 0
     historical_failures: int = 0
+    allocation_visits: int = 0
+    last_selected_generation: int = -1
+    global_allocation_visits: int = 0
 
 
 class SearchAllocator:
@@ -82,10 +87,19 @@ class SearchAllocator:
     # ── query ──────────────────────────────────────────────────────────────────
 
     def _query_stats(
-        self, context_id: str, family_id: str, config_index: int
+        self,
+        context_id: str,
+        family_id: str,
+        config_index: int,
+        *,
+        region_id: str | None = None,
     ) -> RegionStats:
+        stable_region = str(region_id or context_id)
         stats = RegionStats(
-            context_id=context_id, family_id=family_id, config_index=config_index
+            context_id=context_id,
+            family_id=family_id,
+            config_index=config_index,
+            region_id=stable_region,
         )
         if self._memory is None:
             return stats
@@ -99,11 +113,18 @@ class SearchAllocator:
             stats.other_failure_count = row.get("other_failure_count", 0)
             stats.total_cuda_games = row.get("total_cuda_games", 0)
             stats.novel_structural = row.get("novel_structural", 0)
-        hist = self._memory.get_context_historical_stats(context_id)
+        if hasattr(self._memory, "get_region_historical_stats"):
+            hist = self._memory.get_region_historical_stats(stable_region)
+        else:
+            hist = self._memory.get_context_historical_stats(context_id)
         if hist and hist.get("total", 0) > 0:
             stats.historical_evaluations = hist["total"]
             stats.historical_failures = hist.get("failures", 0)
             self.historical_prior_uses += 1
+        if hasattr(self._memory, "get_region_allocation_stats"):
+            visits = self._memory.get_region_allocation_stats(stable_region)
+            stats.allocation_visits = int(visits.get("selections", 0))
+            stats.last_selected_generation = int(visits.get("last_generation", -1))
         return stats
 
     # ── scoring ────────────────────────────────────────────────────────────────
@@ -114,7 +135,22 @@ class SearchAllocator:
         n_hist = stats.historical_evaluations
         n_eff = n + _HISTORICAL_DECAY * n_hist
 
-        exploration_bonus = _EXPLORE_W / math.sqrt(1.0 + n_eff)
+        # Durable completed-region visits contribute to exploration pressure even
+        # when a search produced no evaluation rows. A generation commit therefore
+        # cannot reset every family to an identical unseen score and permanently
+        # favor config item #1.
+        exploration_n = n_eff + stats.allocation_visits
+        exploration_bonus = _EXPLORE_W / math.sqrt(1.0 + exploration_n)
+        # Global visitation pressure is zero at bootstrap, but grows for regions
+        # that remain unselected while other eligible regions consume durable
+        # visits.  This is deterministic UCB-style exploration: exploitation can
+        # dominate for long stretches, but no still-eligible region is starved
+        # permanently merely because its historical prior is poor.
+        if stats.global_allocation_visits > 0:
+            exploration_bonus += _GLOBAL_EXPLORE_W * math.sqrt(
+                math.log1p(stats.global_allocation_visits)
+                / (1.0 + stats.allocation_visits)
+            )
 
         if n_eff == 0:
             return exploration_bonus
@@ -148,9 +184,20 @@ class SearchAllocator:
 
     # ── ranking ────────────────────────────────────────────────────────────────
 
+    @staticmethod
+    def _candidate_parts(candidate: tuple[Any, ...]) -> tuple[str, str, str, int]:
+        """Normalize legacy 3-tuples and production 4-tuples deterministically."""
+        if len(candidate) == 3:
+            family_id, eval_ctx, config_idx = candidate
+            return str(family_id), str(eval_ctx), str(eval_ctx), int(config_idx)
+        if len(candidate) == 4:
+            family_id, eval_ctx, region_id, config_idx = candidate
+            return str(family_id), str(eval_ctx), str(region_id), int(config_idx)
+        raise ValueError("allocator candidate must have 3 or 4 fields")
+
     def rank_families(
         self,
-        candidates: Sequence[tuple[str, str, int]],
+        candidates: Sequence[tuple[Any, ...]],
         completed_exact: "set[str]",
     ) -> list[tuple[str, str, int, float]]:
         """Rank eligible families by adaptive score.
@@ -163,10 +210,18 @@ class SearchAllocator:
             List of (family_id, eval_context_id, config_index, score), sorted by
             score descending then config_index ascending for deterministic tie-breaking.
         """
-        scored: list[tuple[str, str, int, float]] = []
-        for family_id, eval_ctx, config_idx in candidates:
+        queried: list[tuple[str, str, int, RegionStats]] = []
+        for candidate in candidates:
+            family_id, eval_ctx, region_id, config_idx = self._candidate_parts(candidate)
             self.regions_considered += 1
-            stats = self._query_stats(eval_ctx, family_id, config_idx)
+            stats = self._query_stats(
+                eval_ctx, family_id, config_idx, region_id=region_id
+            )
+            queried.append((family_id, eval_ctx, config_idx, stats))
+        global_visits = sum(stats.allocation_visits for _, _, _, stats in queried)
+        scored: list[tuple[str, str, int, float]] = []
+        for family_id, eval_ctx, config_idx, stats in queried:
+            stats.global_allocation_visits = global_visits
             score = self.score_region(stats)
             scored.append((family_id, eval_ctx, config_idx, score))
         scored.sort(key=lambda x: (-x[3], x[2]))
@@ -175,7 +230,7 @@ class SearchAllocator:
 
     def select(
         self,
-        candidates: Sequence[tuple[str, str, int]],
+        candidates: Sequence[tuple[Any, ...]],
         completed_exact: "set[str]",
     ) -> "tuple[str, str, int, float] | None":
         """Select the best eligible family. Returns None if candidates is empty."""
@@ -183,7 +238,13 @@ class SearchAllocator:
         if not ranked:
             return None
         fid, ectx, cidx, score = ranked[0]
-        stats = self._query_stats(ectx, fid, cidx)
+        region_id = ectx
+        for candidate in candidates:
+            cfid, cectx, cregion, ccidx = self._candidate_parts(candidate)
+            if (cfid, cectx, ccidx) == (fid, ectx, cidx):
+                region_id = cregion
+                break
+        stats = self._query_stats(ectx, fid, cidx, region_id=region_id)
         if stats.total_evaluations == 0 and stats.historical_evaluations == 0:
             self.exploration_picks += 1
         else:

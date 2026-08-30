@@ -556,3 +556,362 @@ def test_corrupt_effect_json_fails_closed(tmp_path: Path) -> None:
         # No false "avoided" bookkeeping was recorded
         assert mem.avoided_cuda_games == 0
         assert mem.avoided_candidate_evaluations == 0
+
+
+# ── Phase 16.1–16.6 integration hardening regressions ───────────────────────
+
+def test_historical_region_identity_survives_controller_change(tmp_path: Path) -> None:
+    """Historical priors use a stable search-region identity, not exact eval context."""
+    from .. import search_memory as sm
+
+    assert hasattr(sm, "historical_region_id"), "stable historical region identity API is missing"
+    region_id_fn = getattr(sm, "historical_region_id")
+
+    old_assets = tmp_path / "assets-old"
+    new_assets = tmp_path / "assets-new"
+    old_assets.mkdir()
+    new_assets.mkdir()
+    (old_assets / "identity.json").write_text(
+        json.dumps({"controller_semantic_hash": "controller-old"}), encoding="utf-8"
+    )
+    (new_assets / "identity.json").write_text(
+        json.dumps({"controller_semantic_hash": "controller-new"}), encoding="utf-8"
+    )
+    family = {
+        "id": "family-stable",
+        "target_panel": "target.tsv",
+        "checkpoint_evidence": "checkpoint.jsonl",
+    }
+    common = {
+        "families": [family],
+        "donor_manifest": "donors.txt",
+        "transfer_panel": "transfer.tsv",
+        "validation_panel": "validation.tsv",
+        "search": {"beam_depth": 3, "motif_steps": 48},
+    }
+    old_cfg = {**common, "asset_dir": str(old_assets)}
+    new_cfg = {**common, "asset_dir": str(new_assets)}
+
+    old_eval = sm.evaluation_context_id(old_cfg)
+    new_eval = sm.evaluation_context_id(new_cfg)
+    old_region = region_id_fn(old_cfg)
+    new_region = region_id_fn(new_cfg)
+    assert old_eval != new_eval
+    assert old_region == new_region
+
+    sid = _sid("stable-region")
+    db = tmp_path / "region.db"
+    with SearchMemory(db) as mem:
+        mem.record_evaluation(
+            sid, old_eval, generation=0, valid=True,
+            effect_json=effect_to_json(_effect()), cuda_games=5,
+        )
+        assert mem.get_exact_evaluation(sid, new_eval) is None
+        assert hasattr(mem, "get_region_historical_stats")
+        promoted = mem.promote_to_historical(
+            old_eval, new_generation=1, region_id=old_region
+        )
+        assert promoted == 1
+        before = mem.get_region_historical_stats(new_region)
+        assert before == {"total": 1, "failures": 0}
+
+        # SEALED audit rows are outside every allocator-visible region query.
+        mem.record_sealed_audit(_sid("sealed-region"), new_eval, passed=False)
+        assert mem.get_region_historical_stats(new_region) == before
+
+
+def test_region_allocation_history_persists_restart(tmp_path: Path) -> None:
+    """Completed region visits remain durable across allocator/process restart."""
+    db = tmp_path / "allocation.db"
+    region = _ctx("stable-region-allocation")
+    with SearchMemory(db) as mem:
+        assert hasattr(mem, "record_region_allocation")
+        mem.record_region_allocation(region, generation=0, cuda_games=11)
+        mem.record_region_allocation(region, generation=1, cuda_games=7)
+        assert mem.get_region_allocation_stats(region) == {
+            "selections": 2,
+            "last_generation": 1,
+            "cuda_games": 18,
+        }
+
+    with SearchMemory(db) as mem:
+        assert mem.get_region_allocation_stats(region) == {
+            "selections": 2,
+            "last_generation": 1,
+            "cuda_games": 18,
+        }
+
+
+def test_cached_invalid_exact_failure_avoids_cuda(tmp_path: Path) -> None:
+    """A completed invalid same-context evaluation is an exact cache hit too."""
+    from types import SimpleNamespace
+    from ..p13_equal_budget import MemoryBackedEvaluator
+    from ..beam import BatchEvaluation, EvaluatedProgram
+
+    prog = SimpleNamespace(semantic_id=_sid("invalid-cache-hit"))
+
+    class _FakeInner:
+        case_count = 10
+        last_profile: dict = {}
+
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def projected_games(self, count: int) -> int:
+            return (count + 1) * self.case_count
+
+        def __call__(self, programs, motifs):
+            self.calls += 1
+            return BatchEvaluation(
+                tuple(EvaluatedProgram(p, None, True, None) for p in programs),
+                self.case_count,
+                len(programs) * self.case_count,
+                1,
+                0.1,
+                0.0,
+            )
+
+    ctx = _ctx("invalid-cache-context")
+    db = tmp_path / "invalid-cache.db"
+    with SearchMemory(db) as mem:
+        mem.record_evaluation(
+            prog.semantic_id,
+            ctx,
+            generation=2,
+            valid=False,
+            fault="CUDA_FAULT",
+            failure_class="CUDA_FAULT",
+            effect_json=None,
+            cuda_games=10,
+        )
+        fake = _FakeInner()
+        result = MemoryBackedEvaluator(fake, mem, ctx, generation=2)([prog], {})
+
+        assert fake.calls == 0
+        assert result.games == 0
+        assert len(result.programs) == 1
+        assert result.programs[0].valid is False
+        assert result.programs[0].fault == "CUDA_FAULT"
+        assert mem.avoided_cuda_games == 10
+        assert mem.avoided_candidate_evaluations == 1
+
+
+def test_v1_historical_row_is_backfilled_when_region_becomes_known(tmp_path: Path) -> None:
+    """A pre-hardening DB can attach existing history to its stable region on promotion."""
+    db = tmp_path / "v1-memory.db"
+    sid = _sid("v1-existing-history")
+    ctx = _ctx("v1-old-context")
+    region = _ctx("v1-stable-region")
+    conn = sqlite3.connect(str(db))
+    conn.execute("CREATE TABLE schema_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
+    conn.execute("INSERT INTO schema_meta VALUES ('schema_version', '1')")
+    conn.execute("CREATE TABLE structural (semantic_id TEXT PRIMARY KEY, lane TEXT, operator TEXT, generation_first INTEGER NOT NULL DEFAULT 0, context_id_first TEXT, insert_time INTEGER NOT NULL)")
+    conn.execute("CREATE TABLE evaluation (semantic_id TEXT NOT NULL, context_id TEXT NOT NULL, generation INTEGER NOT NULL DEFAULT 0, valid INTEGER NOT NULL DEFAULT 1, fault TEXT, effect_json TEXT, failure_class TEXT, cuda_games INTEGER NOT NULL DEFAULT 0, insert_time INTEGER NOT NULL, PRIMARY KEY (semantic_id, context_id))")
+    conn.execute("CREATE TABLE historical (semantic_id TEXT NOT NULL, context_id TEXT NOT NULL, generation INTEGER NOT NULL, failure_class TEXT, outcome_summary TEXT, insert_time INTEGER NOT NULL, PRIMARY KEY (semantic_id, context_id, generation))")
+    conn.execute("CREATE TABLE sealed_audit (semantic_id TEXT NOT NULL, context_id TEXT NOT NULL, passed INTEGER NOT NULL DEFAULT 0, insert_time INTEGER NOT NULL, PRIMARY KEY (semantic_id, context_id))")
+    conn.execute(
+        "INSERT INTO evaluation VALUES (?,?,?,?,?,?,?,?,?)",
+        (sid, ctx, 0, 1, None, effect_to_json(_effect()), None, 5, 0),
+    )
+    conn.execute(
+        "INSERT INTO historical VALUES (?,?,?,?,?,?)",
+        (sid, ctx, 0, None, '{}', 0),
+    )
+    conn.commit()
+    conn.close()
+
+    with SearchMemory(db) as mem:
+        assert mem.get_region_historical_stats(region) == {"total": 0, "failures": 0}
+        assert mem.promote_to_historical(ctx, new_generation=1, region_id=region) == 1
+        assert mem.get_region_historical_stats(region) == {"total": 1, "failures": 0}
+
+
+def test_memory_batch_cuda_cost_is_not_multiplied_per_candidate(tmp_path: Path) -> None:
+    """Context memory must sum to actual batch games, not batch_games × candidates."""
+    from types import SimpleNamespace
+    from ..p13_equal_budget import MemoryBackedEvaluator
+    from ..beam import BatchEvaluation, EvaluatedProgram
+
+    programs = [
+        SimpleNamespace(semantic_id=_sid("batch-cost-a")),
+        SimpleNamespace(semantic_id=_sid("batch-cost-b")),
+    ]
+    eff = _effect()
+
+    class _FakeInner:
+        case_count = 10
+        last_profile: dict = {}
+
+        def projected_games(self, count: int) -> int:
+            return (count + 1) * self.case_count
+
+        def __call__(self, rows, motifs):
+            return BatchEvaluation(
+                tuple(EvaluatedProgram(p, eff, True, None) for p in rows),
+                self.case_count,
+                30,
+                1,
+                0.1,
+                0.0,
+            )
+
+    ctx = _ctx("batch-cost-context")
+    with SearchMemory(tmp_path / "batch-cost.db") as mem:
+        result = MemoryBackedEvaluator(_FakeInner(), mem, ctx)(programs, {})
+        assert result.games == 30
+        stats = mem.get_context_evaluation_stats(ctx)
+        assert stats["total_cuda_games"] == 30
+
+
+def test_safe_feedback_is_separate_from_exact_evaluation_truth(tmp_path: Path) -> None:
+    """Pre-SEALED routability can guide allocation without mutating exact cache truth."""
+    sid = _sid("future-dependent-row")
+    ctx = _ctx("future-dependent-context")
+    ej = effect_to_json(_effect())
+    with SearchMemory(tmp_path / "future-dependent.db") as mem:
+        mem.record_evaluation(
+            sid, ctx, generation=4, valid=True, effect_json=ej, cuda_games=5
+        )
+        mem.record_search_feedback(
+            sid,
+            ctx,
+            generation=4,
+            stage="FULL_ROUTABILITY",
+            failure_class="FUTURE_DEPENDENT",
+        )
+
+        exact = mem.get_exact_evaluation(sid, ctx)
+        assert exact is not None
+        assert exact["valid"] is True
+        assert exact["fault"] is None
+        assert exact["failure_class"] is None
+        assert exact["effect_json"] == ej
+
+        stats = mem.get_context_evaluation_stats(ctx)
+        assert stats["future_dependent_count"] == 1
+        assert stats["other_failure_count"] == 0
+        assert stats["routability_observed_count"] == 1
+        assert stats["routable_count"] == 0
+
+
+def test_safe_feedback_persists_restart_and_promotes_effective_failure(tmp_path: Path) -> None:
+    """Durable pre-SEALED failure evidence survives restart and becomes historical prior."""
+    db = tmp_path / "feedback-restart.db"
+    sid = _sid("feedback-restart")
+    ctx = _ctx("feedback-restart-context")
+    region = _ctx("feedback-stable-region")
+    ej = effect_to_json(_effect())
+
+    with SearchMemory(db) as mem:
+        mem.record_evaluation(
+            sid, ctx, generation=2, valid=True, effect_json=ej, cuda_games=7
+        )
+        mem.record_search_feedback(
+            sid,
+            ctx,
+            generation=2,
+            stage="TARGET_ROUTABILITY",
+            failure_class="FUTURE_DEPENDENT",
+        )
+
+    with SearchMemory(db) as mem:
+        stats = mem.get_context_evaluation_stats(ctx)
+        assert stats["future_dependent_count"] == 1
+        assert stats["routability_observed_count"] == 1
+        assert mem.promote_to_historical(ctx, new_generation=3, region_id=region) == 1
+        assert mem.get_region_historical_stats(region) == {"total": 1, "failures": 1}
+        prior = mem.get_historical_priors(sid)[0]
+        assert prior["failure_class"] == "FUTURE_DEPENDENT"
+
+
+def test_search_feedback_stage_whitelist_and_sealed_firewall(tmp_path: Path) -> None:
+    """Only safe routability stages are allocator-visible; SEALED/CEGIS stay isolated."""
+    sid = _sid("feedback-firewall")
+    ctx = _ctx("feedback-firewall-context")
+    with SearchMemory(tmp_path / "feedback-firewall.db") as mem:
+        mem.record_evaluation(
+            sid, ctx, generation=1, valid=True, effect_json=effect_to_json(_effect())
+        )
+        mem.record_search_feedback(
+            sid,
+            ctx,
+            generation=1,
+            stage="TARGET_ROUTABILITY",
+            failure_class="FUTURE_DEPENDENT",
+        )
+        # Later full-panel evidence is authoritative for allocator feedback and may
+        # replace the target-only classification without touching exact truth.
+        mem.record_search_feedback(
+            sid,
+            ctx,
+            generation=1,
+            stage="FULL_ROUTABILITY",
+            failure_class=None,
+        )
+        stats_before = mem.get_context_evaluation_stats(ctx)
+        assert stats_before["future_dependent_count"] == 0
+        assert stats_before["routability_observed_count"] == 1
+        assert stats_before["routable_count"] == 1
+
+        for forbidden in ("SEALED", "CEGIS", "CERTIFICATION"):
+            with pytest.raises(ValueError, match="feedback stage"):
+                mem.record_search_feedback(
+                    sid,
+                    ctx,
+                    generation=1,
+                    stage=forbidden,
+                    failure_class="FUTURE_DEPENDENT",
+                )
+
+        mem.record_sealed_audit(sid, ctx, passed=False)
+        assert mem.get_context_evaluation_stats(ctx) == stats_before
+
+
+def test_production_routability_feedback_helper_records_only_safe_signal(tmp_path: Path) -> None:
+    """The production helper records routability and rejects any non-pre-SEALED stage."""
+    from types import SimpleNamespace
+    from ..p13_equal_budget import _record_routability_feedback
+    from ..routability import RoutabilityClassification
+
+    sid = _sid("production-feedback-helper")
+    ctx = _ctx("production-feedback-helper-context")
+    program = SimpleNamespace(semantic_id=sid)
+    with SearchMemory(tmp_path / "production-feedback-helper.db") as mem:
+        mem.record_evaluation(
+            sid, ctx, generation=5, valid=True, effect_json=effect_to_json(_effect())
+        )
+        _record_routability_feedback(
+            mem,
+            ctx,
+            5,
+            program,
+            SimpleNamespace(classification=RoutabilityClassification.ROUTABLE_CANDIDATE),
+            "TARGET_ROUTABILITY",
+        )
+        stats = mem.get_context_evaluation_stats(ctx)
+        assert stats["routability_observed_count"] == 1
+        assert stats["routable_count"] == 1
+        assert stats["future_dependent_count"] == 0
+
+        _record_routability_feedback(
+            mem,
+            ctx,
+            5,
+            program,
+            SimpleNamespace(classification=RoutabilityClassification.FUTURE_DEPENDENT),
+            "FULL_ROUTABILITY",
+        )
+        stats = mem.get_context_evaluation_stats(ctx)
+        assert stats["routability_observed_count"] == 1
+        assert stats["routable_count"] == 0
+        assert stats["future_dependent_count"] == 1
+
+        with pytest.raises(ValueError, match="feedback stage"):
+            _record_routability_feedback(
+                mem,
+                ctx,
+                5,
+                program,
+                SimpleNamespace(classification=RoutabilityClassification.FUTURE_DEPENDENT),
+                "CEGIS",
+            )

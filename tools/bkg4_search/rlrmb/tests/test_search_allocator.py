@@ -494,3 +494,226 @@ def test_equal_budget_adaptive_outperforms_fixed(tmp_path: Path) -> None:
     assert adaptive_alloc.decisions == n_decisions
     assert adaptive_alloc.regions_considered == n_decisions * 2
     assert adaptive_alloc.exploitation_picks > 0
+
+
+# ── Phase 16.6 production-lifecycle hardening regressions ────────────────────
+
+def test_allocator_reads_cross_generation_prior_by_stable_region(tmp_path: Path) -> None:
+    """New-controller exact context is fresh while old evidence remains a decayed prior."""
+    import json
+    from .. import search_memory as sm
+
+    assert hasattr(sm, "historical_region_id"), "stable historical region identity API is missing"
+    region_id_fn = getattr(sm, "historical_region_id")
+
+    old_assets = tmp_path / "old-assets"
+    new_assets = tmp_path / "new-assets"
+    old_assets.mkdir()
+    new_assets.mkdir()
+    (old_assets / "identity.json").write_text(json.dumps({"controller_semantic_hash": "old"}))
+    (new_assets / "identity.json").write_text(json.dumps({"controller_semantic_hash": "new"}))
+    family = {
+        "id": "family-A",
+        "target_panel": "target.tsv",
+        "checkpoint_evidence": "checkpoint.tsv",
+    }
+    common = {
+        "families": [family],
+        "donor_manifest": "donors.txt",
+        "transfer_panel": "transfer.tsv",
+        "validation_panel": "validation.tsv",
+        "search": {"beam_depth": 3},
+    }
+    old_cfg = {**common, "asset_dir": str(old_assets)}
+    new_cfg = {**common, "asset_dir": str(new_assets)}
+    old_eval = sm.evaluation_context_id(old_cfg)
+    new_eval = sm.evaluation_context_id(new_cfg)
+    region = region_id_fn(old_cfg)
+    assert region == region_id_fn(new_cfg)
+    assert old_eval != new_eval
+
+    db = tmp_path / "allocator-region.db"
+    with SearchMemory(db) as mem:
+        for i in range(5):
+            mem.record_evaluation(
+                _sid(f"hist-region-{i}"), old_eval, generation=0,
+                valid=True, effect_json=effect_to_json(_effect()), cuda_games=5,
+            )
+        mem.promote_to_historical(old_eval, new_generation=1, region_id=region)
+
+        alloc = SearchAllocator(mem)
+        stats = alloc._query_stats(new_eval, family["id"], 0, region_id=region)
+        assert stats.total_evaluations == 0
+        assert stats.historical_evaluations == 5
+        assert alloc.score_region(stats) < _EXPLORE_W
+        assert alloc.score_region(stats) > 0
+
+
+def test_six_accepted_generations_explore_multiple_families_and_charge_actual_games(tmp_path: Path) -> None:
+    """Durable deterministic exploration prevents first-family starvation across commits."""
+    import json
+    from ..cloud_runner import run_cloud
+    from .test_p163_resources import CONFIG, _stub_assets
+
+    output = tmp_path / "six-generations"
+    selected: list[str] = []
+    candidate = "a" * 64
+
+    def accepted_runner(runtime_path: Path, run_dir: Path) -> int:
+        cfg = json.loads(runtime_path.read_text(encoding="utf-8"))
+        family_id = cfg["families"][0]["id"]
+        selected.append(family_id)
+        run_dir.mkdir(parents=True)
+        (run_dir / "metrics.json").write_text(json.dumps({
+            "total_cuda_games": 10,
+            "accepted_candidate_ids": [candidate],
+            "protected_win_to_loss": 0,
+            "semantic_mismatches": 0,
+        }))
+        dep = run_dir / "families" / family_id / candidate / "deployment"
+        dep.mkdir(parents=True)
+        (dep / "composed_module.json").write_text("{}")
+        (dep / "specialist.json").write_text("{}")
+        (dep / f"{candidate}.route.json").write_text(json.dumps({"actions": []}))
+        return 0
+
+    rc = run_cloud(
+        CONFIG,
+        output,
+        mode="pilot",
+        max_generations=6,
+        pipeline_runner=accepted_runner,
+        asset_builder=_stub_assets(),
+        telemetry_interval_seconds=60,
+    )
+    assert rc == 0
+    assert len(selected) == 6
+    assert len(set(selected)) > 1, selected
+
+    result = json.loads((output / "cloud_result.json").read_text(encoding="utf-8"))
+    allocator_games = sum(result["p166_allocator"]["allocator_budget_by_region"].values())
+    assert allocator_games == result["cuda_games_consumed"] == 60
+
+
+def test_generation_promotion_preserves_history_for_all_searched_families(tmp_path: Path) -> None:
+    """A commit promotes every old-generation family context, not only the accepted family."""
+    import json
+    from .. import search_memory as sm
+    from ..cloud_runner import (
+        _family_eval_ctx,
+        initial_state,
+        load_cloud_config,
+        run_cloud,
+    )
+    from .test_p163_resources import CONFIG, _stub_assets
+
+    assert hasattr(sm, "historical_region_id")
+    config = load_cloud_config(CONFIG)
+    state = initial_state(config)
+    output = tmp_path / "promote-all"
+    output.mkdir()
+    (output / "generation_state.json").write_text(
+        json.dumps(state, sort_keys=True, indent=2) + "\n", encoding="utf-8"
+    )
+
+    with SearchMemory(output / "search_memory.db") as mem:
+        for idx, family in enumerate(config["families"][:2]):
+            eval_ctx = _family_eval_ctx(config, state, family)
+            mem.record_evaluation(
+                _sid(f"precommit-family-{idx}"), eval_ctx, generation=0,
+                valid=True, effect_json=effect_to_json(_effect()), cuda_games=5,
+            )
+
+    candidate = "b" * 64
+    def accepted_runner(runtime_path: Path, run_dir: Path) -> int:
+        cfg = json.loads(runtime_path.read_text(encoding="utf-8"))
+        family_id = cfg["families"][0]["id"]
+        run_dir.mkdir(parents=True)
+        (run_dir / "metrics.json").write_text(json.dumps({
+            "total_cuda_games": 10,
+            "accepted_candidate_ids": [candidate],
+            "protected_win_to_loss": 0,
+            "semantic_mismatches": 0,
+        }))
+        dep = run_dir / "families" / family_id / candidate / "deployment"
+        dep.mkdir(parents=True)
+        (dep / "composed_module.json").write_text("{}")
+        (dep / "specialist.json").write_text("{}")
+        (dep / f"{candidate}.route.json").write_text(json.dumps({"actions": []}))
+        return 0
+
+    assert run_cloud(
+        CONFIG,
+        output,
+        mode="pilot",
+        resume=True,
+        max_generations=1,
+        pipeline_runner=accepted_runner,
+        asset_builder=_stub_assets(candidate),
+        telemetry_interval_seconds=60,
+    ) == 0
+
+    with SearchMemory(output / "search_memory.db") as mem:
+        for family in config["families"][:2]:
+            region_cfg = {
+                "families": [family],
+                "donor_manifest": config.get("donor_manifest"),
+                "transfer_panel": config.get("transfer_panel"),
+                "validation_panel": config.get("validation_panel"),
+                "search": config.get("search", {}),
+            }
+            region_id = sm.historical_region_id(region_cfg)
+            assert mem.get_region_historical_stats(region_id)["total"] >= 1
+
+
+def test_global_durable_exploration_eventually_revisits_failure_heavy_region() -> None:
+    """An eligible bad-history region cannot be starved forever by exploitation."""
+    alloc = SearchAllocator(memory=None)
+
+    productive = _stats("productive", h=100, hf=0)
+    productive.allocation_visits = 10_000
+    productive.global_allocation_visits = 10_001
+
+    failure_heavy = _stats("failure-heavy", h=100, hf=100)
+    failure_heavy.allocation_visits = 1
+    failure_heavy.global_allocation_visits = 10_001
+
+    assert alloc.score_region(failure_heavy) > alloc.score_region(productive)
+
+
+def test_real_safe_routability_feedback_deprioritizes_failure_region(tmp_path: Path) -> None:
+    """Production SearchMemory stats make a safe FUTURE_DEPENDENT region rank lower."""
+    db = tmp_path / "safe-feedback-ranking.db"
+    clean_ctx = _ctx("safe-feedback-clean")
+    failed_ctx = _ctx("safe-feedback-failed")
+    ej = effect_to_json(_effect())
+
+    with SearchMemory(db) as mem:
+        for i in range(6):
+            clean_sid = _sid(f"safe-clean-{i}")
+            failed_sid = _sid(f"safe-failed-{i}")
+            mem.record_evaluation(clean_sid, clean_ctx, valid=True, effect_json=ej, cuda_games=5)
+            mem.record_evaluation(failed_sid, failed_ctx, valid=True, effect_json=ej, cuda_games=5)
+            mem.record_search_feedback(
+                clean_sid,
+                clean_ctx,
+                generation=0,
+                stage="FULL_ROUTABILITY",
+                failure_class=None,
+            )
+            mem.record_search_feedback(
+                failed_sid,
+                failed_ctx,
+                generation=0,
+                stage="FULL_ROUTABILITY",
+                failure_class="FUTURE_DEPENDENT",
+            )
+
+        alloc = SearchAllocator(mem)
+        ranked = alloc.rank_families(
+            [("clean", clean_ctx, 0), ("failed", failed_ctx, 1)],
+            set(),
+        )
+        assert ranked[0][0] == "clean"
+        failed_stats = alloc._query_stats(failed_ctx, "failed", 1)
+        assert failed_stats.future_dependent_count == 6

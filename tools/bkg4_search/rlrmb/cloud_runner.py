@@ -16,7 +16,10 @@ from .pipeline import EXIT_INFRASTRUCTURE, run_production_pipeline
 from .run_resources import RunResources
 from .cloud.telemetry import TelemetrySampler
 from .schema import stable_identity
-from .search_memory import evaluation_context_id as _evaluation_context_id
+from .search_memory import (
+    evaluation_context_id as _evaluation_context_id,
+    historical_region_id as _historical_region_id,
+)
 from .search_allocator import SearchAllocator
 
 CLOUD_STATE_VERSION = 1
@@ -231,6 +234,20 @@ def _family_eval_ctx(
     return _evaluation_context_id(mini)
 
 
+def _family_region_id(
+    config: Mapping[str, Any], family: Mapping[str, Any]
+) -> str:
+    """Compute controller-independent historical allocator region identity."""
+    mini: dict[str, Any] = {
+        "families": [family],
+        "donor_manifest": config.get("donor_manifest"),
+        "transfer_panel": config.get("transfer_panel"),
+        "validation_panel": config.get("validation_panel"),
+        "search": config.get("search", {}),
+    }
+    return _historical_region_id(mini)
+
+
 def _load_bkg4() -> Any:
     root = Path(__file__).resolve().parents[3]
     path = root / "bonsai-kg" / "python"
@@ -367,7 +384,7 @@ def _run_cloud_inner(
             break
         # Phase 16.6: build eligible candidates (not yet complete in this context).
         # Compute search_context_identity per family to detect exact suppressions.
-        eligible: list[tuple[str, str, int, Any]] = []
+        eligible: list[tuple[str, str, str, int, Any]] = []
         suppressed_count = 0
         for cfg_idx, family in enumerate(config["families"]):
             sc_id = _family_search_ctx(config, state, family, policy, overrides)
@@ -375,7 +392,8 @@ def _run_cloud_inner(
                 suppressed_count += 1
             else:
                 ec_id = _family_eval_ctx(config, state, family)
-                eligible.append((family["id"], ec_id, cfg_idx, family))
+                region_id = _family_region_id(config, family)
+                eligible.append((family["id"], ec_id, region_id, cfg_idx, family))
         if not eligible:
             # All families are suppressed in the current context; record the exhaustion
             # event as suppressed_contexts increments (one per suppressed family, matching
@@ -388,14 +406,19 @@ def _run_cloud_inner(
             terminal_reason = "GENERATION_CONTEXT_EXHAUSTED"
             break
         # Adaptive selection via allocator
-        alloc_candidates = [(fid, ectx, cidx) for fid, ectx, cidx, _ in eligible]
+        alloc_candidates = [
+            (fid, ectx, region_id, cidx)
+            for fid, ectx, region_id, cidx, _ in eligible
+        ]
         selected_row = allocator.select(alloc_candidates, set(state["completed_search_contexts"]))
         if selected_row is None:
             terminal_reason = "GENERATION_CONTEXT_EXHAUSTED"
             break
         best_fid, _best_ectx, best_cidx, _score = selected_row
-        selected_family = next(f for fid, _, cidx, f in eligible if fid == best_fid and cidx == best_cidx)
-        allocator.record_budget(best_fid, allocation_per_gen)
+        selected_match = next(
+            row for row in eligible if row[0] == best_fid and row[3] == best_cidx
+        )
+        _fid, _ectx, best_region_id, _cidx, selected_family = selected_match
         attempt = len(state["completed_frontiers"])
         pending = output / f"attempt_{attempt:04d}.pending"
         if pending.exists():
@@ -412,6 +435,7 @@ def _run_cloud_inner(
         run_dir = pending / "run"
         # Phase 16.3: pass persistent resources to the real pipeline runner.
         # Custom stub runners (tests) do not receive resources.
+        resources.set_search_generation(int(state["generation"]))
         if pipeline_runner is run_production_pipeline:
             code = run_production_pipeline(runtime_path, run_dir, resources=resources)
         else:
@@ -419,7 +443,15 @@ def _run_cloud_inner(
         if code == EXIT_INFRASTRUCTURE:
             return EXIT_INFRASTRUCTURE
         metrics = _read(run_dir / "metrics.json")
-        state["cuda_games_consumed"] += int(metrics.get("total_cuda_games", 0))
+        actual_cuda_games = int(metrics.get("total_cuda_games", 0))
+        state["cuda_games_consumed"] += actual_cuda_games
+        allocator.record_budget(best_fid, actual_cuda_games)
+        if resources.search_memory is not None:
+            resources.search_memory.record_region_allocation(
+                best_region_id,
+                generation=int(state["generation"]),
+                cuda_games=actual_cuda_games,
+            )
         accepted = tuple(sorted(metrics.get("accepted_candidate_ids", ())))
         state["completed_search_contexts"][context_id] = {
             "family_id": family_id,
@@ -441,15 +473,20 @@ def _run_cloud_inner(
             committed = output / "generations" / f"generation_{next_generation:04d}"
             committed.parent.mkdir(parents=True, exist_ok=True)
             os.replace(pending, committed)
-            state["generation"] = next_generation
-            # Phase 16.5: promote old evaluation records to historical so they
-            # are not treated as authoritative truth for the new generation.
-            # Must use evaluation_context_id (excludes generation) — not
-            # search_context_identity (includes generation) — so the IDs match
-            # what MemoryBackedEvaluator stored during the just-completed run.
+            # Phase 16.5/16.6: before changing the authoritative parent, copy
+            # every outgoing-generation family evaluation context into its stable
+            # cross-generation search region.  These rows guide allocation only;
+            # the new controller still has distinct exact evaluation contexts.
             if resources.search_memory is not None:
-                _eval_ctx_id = _evaluation_context_id(runtime_config)
-                resources.search_memory.promote_to_historical(_eval_ctx_id, next_generation)
+                for old_family in config["families"]:
+                    old_eval_ctx = _family_eval_ctx(config, state, old_family)
+                    old_region_id = _family_region_id(config, old_family)
+                    resources.search_memory.promote_to_historical(
+                        old_eval_ctx,
+                        next_generation,
+                        region_id=old_region_id,
+                    )
+            state["generation"] = next_generation
             state["working_asset_dir"] = str((committed / "working_assets").resolve())
             route_copy = committed / "working_parent.route.json"
             shutil.copy2(committed / "run" / deployment.relative_to(run_dir) / route.name, route_copy)

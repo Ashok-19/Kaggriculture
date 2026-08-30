@@ -50,6 +50,41 @@ _PROMOTION_CLASS_RANK = {
     RoutabilityClassification.FUTURE_DEPENDENT: 3,
 }
 
+_SAFE_ROUTABILITY_FEEDBACK_STAGES = frozenset({
+    "TARGET_ROUTABILITY",
+    "FULL_ROUTABILITY",
+})
+
+
+def _record_routability_feedback(
+    memory: Any,
+    context_id: str,
+    generation: int,
+    program: MacroProgram,
+    routing: RoutabilityResult,
+    stage: str,
+) -> None:
+    """Persist only pre-SEALED routability as adaptive allocator feedback."""
+    if memory is None:
+        return
+    if stage not in _SAFE_ROUTABILITY_FEEDBACK_STAGES:
+        raise ValueError(f"unsupported search feedback stage: {stage!r}")
+    classification = routing.classification
+    if not isinstance(classification, RoutabilityClassification):
+        classification = RoutabilityClassification(classification)
+    failure_class = (
+        None
+        if classification is RoutabilityClassification.ROUTABLE_CANDIDATE
+        else classification.value
+    )
+    memory.record_search_feedback(
+        program.semantic_id,
+        context_id,
+        generation=generation,
+        stage=stage,
+        failure_class=failure_class,
+    )
+
 
 def _read_json(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
@@ -150,12 +185,19 @@ class MemoryBackedEvaluator:
         if not programs:
             return self.inner(programs, motifs)
 
-        # Partition: cached (effect_json available) vs. new
+        # Partition: every completed exact record is authoritative in this
+        # evaluation context.  Valid records require a serialized EffectVector;
+        # invalid/fault records may legitimately have no effect payload.
         hit_by_sid: dict[str, tuple[Any, dict[str, Any]]] = {}
         new_programs: list[MacroProgram] = []
         for prog in programs:
             rec = self._memory.get_exact_evaluation(prog.semantic_id, self._context_id)
-            if rec is not None and rec.get("effect_json"):
+            if rec is not None:
+                if rec.get("valid") and not rec.get("effect_json"):
+                    raise RuntimeError(
+                        f"SearchMemory: valid exact record missing effect_json for"
+                        f" semantic_id={prog.semantic_id!r} context_id={self._context_id!r}"
+                    )
                 hit_by_sid[prog.semantic_id] = (prog, rec)
             else:
                 new_programs.append(prog)
@@ -181,13 +223,15 @@ class MemoryBackedEvaluator:
             if sid not in hit_by_sid:
                 continue
             orig_prog, rec = hit_by_sid[sid]
-            try:
-                effect = effect_from_json(rec["effect_json"])
-            except Exception as exc:
-                raise RuntimeError(
-                    f"SearchMemory: corrupt effect_json for semantic_id={sid!r}"
-                    f" context_id={self._context_id!r}: {exc}"
-                ) from exc
+            effect = None
+            if rec.get("effect_json"):
+                try:
+                    effect = effect_from_json(rec["effect_json"])
+                except Exception as exc:
+                    raise RuntimeError(
+                        f"SearchMemory: corrupt effect_json for semantic_id={sid!r}"
+                        f" context_id={self._context_id!r}: {exc}"
+                    ) from exc
             ep = EvaluatedProgram(
                 program=orig_prog,
                 effect=effect,
@@ -225,9 +269,20 @@ class MemoryBackedEvaluator:
         return BatchEvaluation(tuple(merged), self.case_count, 0, 0, 0.0, 0.0)
 
     def _record_inner(self, result: BatchEvaluation) -> None:
-        for ep in result.programs:
+        candidate_count = len(result.programs)
+        if candidate_count == 0:
+            return
+        candidate_games = self.case_count * candidate_count
+        if result.games < candidate_games:
+            raise RuntimeError("SearchMemory: evaluator reported fewer games than candidate rows")
+        # Attribute the shared parent/baseline overhead deterministically to the
+        # first candidate.  The persisted context total then equals the actual
+        # executed batch games exactly instead of multiplying batch cost by N.
+        shared_overhead = result.games - candidate_games
+        for index, ep in enumerate(result.programs):
             ej = effect_to_json(ep.effect) if ep.effect is not None else None
             failure_class = ep.fault if not ep.valid else None
+            persisted_games = self.case_count + (shared_overhead if index == 0 else 0)
             self._memory.record_evaluation(
                 ep.program.semantic_id,
                 self._context_id,
@@ -236,7 +291,7 @@ class MemoryBackedEvaluator:
                 fault=ep.fault,
                 effect_json=ej,
                 failure_class=failure_class,
-                cuda_games=result.games,
+                cuda_games=persisted_games,
             )
             self._memory.record_structural(
                 ep.program.semantic_id,
@@ -576,6 +631,7 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
     # Phase 16.5: evaluation context ID (stable across same-controller retry attempts)
     _p165_memory = getattr(resources, "search_memory", None) if resources is not None else None
     _eval_ctx_id = evaluation_context_id(config) if _p165_memory is not None else ""
+    _memory_generation = int(getattr(resources, "search_generation", 0)) if resources is not None else 0
     if smoke:
         campaign_families=config["families"][:1]
     elif probe:
@@ -636,7 +692,9 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
         evaluator = AccountedEvaluator(_inner_target, ledger, family_id, "target_beam")
         # Phase 16.5: wrap with memory-backed evaluator to skip CUDA for cache hits.
         if _p165_memory is not None:
-            evaluator = MemoryBackedEvaluator(evaluator, _p165_memory, _eval_ctx_id)
+            evaluator = MemoryBackedEvaluator(
+                evaluator, _p165_memory, _eval_ctx_id, generation=_memory_generation
+            )
         # Phase 16.3: ExitStack manages per-family pools only when resources is None.
         # When resources is provided, pools are persistent and managed by RunResources.
         with ExitStack() as _pool_stack:
@@ -718,6 +776,14 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
             )
             stage_timing["target_legal_capture"]+=time.monotonic()-_t0
             _t0=time.monotonic(); routing=screen_routability(build_routability_evidence(program,captured)); stage_timing["target_routability"]+=time.monotonic()-_t0
+            _record_routability_feedback(
+                _p165_memory,
+                _eval_ctx_id,
+                _memory_generation,
+                program,
+                routing,
+                "TARGET_ROUTABILITY",
+            )
             target_rows_by_id[program.semantic_id]=captured; target_risks[program.semantic_id]=routing
             prepromotion_results.append({"candidate_id":program.semantic_id,"stage":"TARGET_LEGAL_RISK",
                                          "routability":routing.to_document(),
@@ -750,6 +816,14 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
                         rows.extend(captured)
                         _write_json(candidate_dir/role.value.lower()/"evidence.json",[{"case_id":x.meta.case_id,"role":x.role.value,"baseline_margin":x.baseline_margin,"candidate_margin":x.candidate_margin,"delta":x.delta,"seat":x.meta.seat,"family":x.meta.family,"exact_signature":list(x.exact_signature)} for x in captured])
                     _t0=time.monotonic(); routing=screen_routability(build_routability_evidence(program,rows)); stage_timing["full_routability"]+=time.monotonic()-_t0
+                    _record_routability_feedback(
+                        _p165_memory,
+                        _eval_ctx_id,
+                        _memory_generation,
+                        program,
+                        routing,
+                        "FULL_ROUTABILITY",
+                    )
                     full_risks[program.semantic_id]=routing; full_rows[program.semantic_id]=tuple(rows)
                     prepromotion_results.append({"candidate_id":program.semantic_id,"stage":"FULL_LEGAL_RISK",
                                                  "routability":routing.to_document(),
