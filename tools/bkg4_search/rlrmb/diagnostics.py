@@ -8,7 +8,7 @@ acceptance-authoritative.
 from __future__ import annotations
 
 import json
-from collections import defaultdict
+from collections import Counter, defaultdict
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
@@ -19,7 +19,7 @@ from tools.bkg4_search.module_codec import FEATURES as GATE_GRAMMAR_FEATURES
 from .effects import EffectBlock, EffectVector
 from .schema import DatasetRole, canonical_json, stable_identity
 
-DIAGNOSTICS_SCHEMA_VERSION = 1
+DIAGNOSTICS_SCHEMA_VERSION = 2
 
 _GATE_FEATURE_SET = frozenset(GATE_GRAMMAR_FEATURES)
 
@@ -31,6 +31,32 @@ class DiagnosticRoutabilityClass(str, Enum):
     GATE_LIMITATION = "GATE_LIMITATION"
     FUTURE_DEPENDENT = "FUTURE_DEPENDENT"
     UNKNOWN = "UNKNOWN"
+
+
+class BinaryOpportunityClass(str, Enum):
+    BINARY_PARENT_PLAUSIBLE = "BINARY_PARENT_PLAUSIBLE"
+    GATE_LIMITED = "GATE_LIMITED"
+    DEFERRED_DECISION_PLAUSIBLE = "DEFERRED_DECISION_PLAUSIBLE"
+    TRUE_FUTURE_DEPENDENT = "TRUE_FUTURE_DEPENDENT"
+    UNKNOWN = "UNKNOWN"
+
+
+def classify_binary_opportunity(routability_doc: Mapping[str, Any]) -> BinaryOpportunityClass:
+    """Map exact useful-vs-protected routing evidence to an architecture hint."""
+    classification = routability_doc.get("classification", "")
+    diagnostic = classify_diagnostic_routability(routability_doc)
+    if diagnostic is DiagnosticRoutabilityClass.ROUTABLE:
+        return BinaryOpportunityClass.BINARY_PARENT_PLAUSIBLE
+    if classification in {
+        "REPAIR_LATER_CHECKPOINT", "REPAIR_COMMON_PREFIX",
+        "REPAIR_BRANCH_AT_REVEAL", "REPAIR_ABORT_RECOVERY",
+    }:
+        return BinaryOpportunityClass.DEFERRED_DECISION_PLAUSIBLE
+    if diagnostic is DiagnosticRoutabilityClass.GATE_LIMITATION:
+        return BinaryOpportunityClass.GATE_LIMITED
+    if diagnostic is DiagnosticRoutabilityClass.FUTURE_DEPENDENT:
+        return BinaryOpportunityClass.TRUE_FUTURE_DEPENDENT
+    return BinaryOpportunityClass.UNKNOWN
 
 
 def classify_diagnostic_routability(
@@ -90,6 +116,10 @@ class PerCaseEffect:
     def harmful(self) -> bool:
         return self.delta < 0
 
+    @property
+    def preserves_win(self) -> bool:
+        return self.baseline_margin > 0 and self.candidate_margin > 0
+
     def to_document(self) -> dict[str, Any]:
         return {
             "case_id": self.case_id,
@@ -141,6 +171,31 @@ def per_case_effects_from_effect_vector(
     return tuple(results)
 
 
+def protected_effect_metrics(block: EffectBlock) -> dict[str, int]:
+    """Summarize exact protected outcomes without conflating harm and W->L."""
+    if not isinstance(block, EffectBlock):
+        raise TypeError("protected metrics require an EffectBlock")
+    return {
+        "protected_win_to_loss": sum(block.win_to_loss),
+        "protected_loss_to_win": sum(block.loss_to_win),
+        "protected_harm_count": sum(delta < 0 for delta in block.margin_deltas),
+        "protected_positive_count": sum(delta > 0 for delta in block.margin_deltas),
+        "protected_worst_delta": min(block.margin_deltas),
+        "protected_aggregate_margin": sum(block.margin_deltas),
+    }
+
+
+def select_binary_routing_rows(rows: Sequence[Any]) -> tuple[Any, ...]:
+    """Keep only useful TARGET solves and actual protected/validation breaks."""
+    return tuple(row for row in rows if (
+        (row.role is DatasetRole.TARGET and
+         row.baseline_margin < 0 < row.candidate_margin)
+        or
+        (row.role is DatasetRole.VALIDATION and
+         row.baseline_margin > 0 > row.candidate_margin)
+    ))
+
+
 # ── imperfect candidate record ───────────────────────────────────────────────
 
 @dataclass(frozen=True)
@@ -150,13 +205,19 @@ class ImperfectCandidateRecord:
     family: str
     lane: str
     target_loss_to_win: int
-    target_win_to_loss: int
     target_harm_count: int
-    worst_delta: int
-    aggregate_margin: int
+    target_worst_delta: int
+    target_aggregate_margin: int
+    protected_win_to_loss: int
+    protected_loss_to_win: int
+    protected_harm_count: int
+    protected_positive_count: int
+    protected_worst_delta: int
+    protected_aggregate_margin: int
     effect_signature: str
     routability_classification: str
     diagnostic_routability: str
+    binary_opportunity: str
     per_case_effects: tuple[PerCaseEffect, ...]
     effect_vector_doc: dict[str, Any] | None
     initiation_step: int
@@ -183,13 +244,19 @@ class ImperfectCandidateRecord:
             "family": self.family,
             "lane": self.lane,
             "target_loss_to_win": self.target_loss_to_win,
-            "target_win_to_loss": self.target_win_to_loss,
             "target_harm_count": self.target_harm_count,
-            "worst_delta": self.worst_delta,
-            "aggregate_margin": self.aggregate_margin,
+            "target_worst_delta": self.target_worst_delta,
+            "target_aggregate_margin": self.target_aggregate_margin,
+            "protected_win_to_loss": self.protected_win_to_loss,
+            "protected_loss_to_win": self.protected_loss_to_win,
+            "protected_harm_count": self.protected_harm_count,
+            "protected_positive_count": self.protected_positive_count,
+            "protected_worst_delta": self.protected_worst_delta,
+            "protected_aggregate_margin": self.protected_aggregate_margin,
             "effect_signature": self.effect_signature,
             "routability_classification": self.routability_classification,
             "diagnostic_routability": self.diagnostic_routability,
+            "binary_opportunity": self.binary_opportunity,
             "per_case_effects": [e.to_document() for e in self.per_case_effects],
             "effect_vector": self.effect_vector_doc,
             "initiation_step": self.initiation_step,
@@ -207,13 +274,19 @@ class ImperfectCandidateRecord:
             family=doc["family"],
             lane=doc["lane"],
             target_loss_to_win=doc["target_loss_to_win"],
-            target_win_to_loss=doc["target_win_to_loss"],
             target_harm_count=doc["target_harm_count"],
-            worst_delta=doc["worst_delta"],
-            aggregate_margin=doc["aggregate_margin"],
+            target_worst_delta=doc["target_worst_delta"],
+            target_aggregate_margin=doc["target_aggregate_margin"],
+            protected_win_to_loss=doc["protected_win_to_loss"],
+            protected_loss_to_win=doc["protected_loss_to_win"],
+            protected_harm_count=doc["protected_harm_count"],
+            protected_positive_count=doc["protected_positive_count"],
+            protected_worst_delta=doc["protected_worst_delta"],
+            protected_aggregate_margin=doc["protected_aggregate_margin"],
             effect_signature=doc["effect_signature"],
             routability_classification=doc["routability_classification"],
             diagnostic_routability=doc["diagnostic_routability"],
+            binary_opportunity=doc["binary_opportunity"],
             per_case_effects=tuple(
                 PerCaseEffect(**e) for e in doc["per_case_effects"]
             ),
@@ -231,6 +304,16 @@ class ImperfectSpecialistDiagnostics:
 
     def __init__(self) -> None:
         self._records: list[ImperfectCandidateRecord] = []
+        self._total_candidates_evaluated = 0
+
+    def observe_population(self, count: int) -> None:
+        if type(count) is not int or count < 0:
+            raise ValueError("evaluated candidate count must be non-negative")
+        self._total_candidates_evaluated += count
+
+    @property
+    def total_candidates_evaluated(self) -> int:
+        return self._total_candidates_evaluated
 
     def record(self, entry: ImperfectCandidateRecord) -> None:
         if not isinstance(entry, ImperfectCandidateRecord):
@@ -265,21 +348,72 @@ class ImperfectSpecialistDiagnostics:
         return cls.deserialize(path.read_text(encoding="utf-8"))
 
 
+def select_diagnostic_shortlist(
+    candidates: Sequence[Any], *, limit: int,
+) -> tuple[Any, ...]:
+    """Select useful pre-promotion candidates deterministically and within cap.
+
+    Callers provide compact candidate views with the named diagnostic fields.
+    Diversity is rewarded after target quality, without weakening the hard cap.
+    """
+    if type(limit) is not int or limit <= 0:
+        raise ValueError("diagnostic shortlist limit must be positive")
+    unique: dict[str, Any] = {}
+    for item in candidates:
+        if item.target_loss_to_win <= 0:
+            continue
+        current = unique.get(item.candidate_semantic_id)
+        quality = (-item.target_loss_to_win, item.target_harm_count,
+                   -item.target_worst_delta, -item.target_aggregate_margin,
+                   item.candidate_semantic_id)
+        if current is None:
+            unique[item.candidate_semantic_id] = item
+        else:
+            old = (-current.target_loss_to_win, current.target_harm_count,
+                   -current.target_worst_delta, -current.target_aggregate_margin,
+                   current.candidate_semantic_id)
+            if quality < old:
+                unique[item.candidate_semantic_id] = item
+    remaining = list(unique.values())
+    selected: list[Any] = []
+    seen_effects: set[str] = set()
+    seen_structures: set[str] = set()
+    seen_epochs: set[tuple[str, int]] = set()
+    while remaining and len(selected) < limit:
+        def key(item: Any) -> tuple[Any, ...]:
+            epoch = (item.lane, item.initiation_step // 24)
+            novelty = ((item.effect_signature not in seen_effects) +
+                       (item.structural_id not in seen_structures) +
+                       (epoch not in seen_epochs))
+            return (-item.target_loss_to_win, item.target_harm_count,
+                    -item.target_worst_delta, -item.target_aggregate_margin,
+                    -novelty, item.lane, item.initiation_step,
+                    item.candidate_semantic_id)
+        chosen = min(remaining, key=key)
+        remaining.remove(chosen)
+        selected.append(chosen)
+        seen_effects.add(chosen.effect_signature)
+        seen_structures.add(chosen.structural_id)
+        seen_epochs.add((chosen.lane, chosen.initiation_step // 24))
+    return tuple(selected)
+
+
 # ── aggregate diagnostic summaries ───────────────────────────────────────────
 
 def aggregate_diagnostics(
     records: Sequence[ImperfectCandidateRecord],
+    *, total_candidates_evaluated: int | None = None,
 ) -> dict[str, Any]:
     """Compute distribution and classification summaries."""
     total = len(records)
     l2w_positive = [r for r in records if r.target_loss_to_win > 0]
-    l2w_and_w2l = [r for r in l2w_positive if r.target_win_to_loss > 0]
+    l2w_and_w2l = [r for r in l2w_positive if r.protected_win_to_loss > 0]
 
     # W→L distribution buckets
     w2l_buckets = {"w2l_eq_0": 0, "w2l_eq_1": 0, "w2l_eq_2": 0,
                    "w2l_3_to_5": 0, "w2l_gt_5": 0}
     for r in records:
-        w = r.target_win_to_loss
+        w = r.protected_win_to_loss
         if w == 0:
             w2l_buckets["w2l_eq_0"] += 1
         elif w == 1:
@@ -294,16 +428,16 @@ def aggregate_diagnostics(
     # Useful imperfect buckets
     useful = {
         "l2w_ge2_w2l_eq1": sum(
-            1 for r in records if r.target_loss_to_win >= 2 and r.target_win_to_loss == 1
+            1 for r in records if r.target_loss_to_win >= 2 and r.protected_win_to_loss == 1
         ),
         "l2w_ge3_w2l_le2": sum(
-            1 for r in records if r.target_loss_to_win >= 3 and r.target_win_to_loss <= 2
+            1 for r in records if r.target_loss_to_win >= 3 and r.protected_win_to_loss <= 2
         ),
         "l2w_ge5_w2l_le2": sum(
-            1 for r in records if r.target_loss_to_win >= 5 and r.target_win_to_loss <= 2
+            1 for r in records if r.target_loss_to_win >= 5 and r.protected_win_to_loss <= 2
         ),
         "l2w_gt_w2l": sum(
-            1 for r in records if r.target_loss_to_win > r.target_win_to_loss
+            1 for r in records if r.target_loss_to_win > r.protected_win_to_loss
         ),
     }
 
@@ -311,6 +445,9 @@ def aggregate_diagnostics(
     routability_classes: dict[str, int] = defaultdict(int)
     for r in records:
         routability_classes[r.diagnostic_routability] += 1
+    opportunity_classes: dict[str, int] = defaultdict(int)
+    for r in records:
+        opportunity_classes[r.binary_opportunity] += 1
 
     # By family
     by_family: dict[str, int] = defaultdict(int)
@@ -324,12 +461,19 @@ def aggregate_diagnostics(
 
     return {
         "schema_version": DIAGNOSTICS_SCHEMA_VERSION,
-        "total_evaluated_candidates": total,
+        "protected_panel_role": "VALIDATION_AS_PROTECTED",
+        "total_candidates_evaluated": total if total_candidates_evaluated is None else total_candidates_evaluated,
+        "diagnostic_shortlist_size": total,
         "candidates_with_l2w_gt_0": len(l2w_positive),
         "candidates_with_l2w_gt_0_and_w2l_gt_0": len(l2w_and_w2l),
-        "w2l_distribution": dict(sorted(w2l_buckets.items())),
+        "protected_w2l_distribution": dict(sorted(w2l_buckets.items())),
         "useful_imperfect_buckets": useful,
         "diagnostic_routability_classes": dict(sorted(routability_classes.items())),
+        "binary_opportunity_classes": dict(sorted(opportunity_classes.items())),
+        "target_l2w_distribution": dict(sorted(Counter(r.target_loss_to_win for r in records).items())),
+        "target_harm_distribution": dict(sorted(Counter(r.target_harm_count for r in records).items())),
+        "protected_harm_distribution": dict(sorted(Counter(r.protected_harm_count for r in records).items())),
+        "protected_worst_delta_distribution": dict(sorted(Counter(r.protected_worst_delta for r in records).items())),
         "by_family": dict(sorted(by_family.items())),
         "by_lane": dict(sorted(by_lane.items())),
     }
@@ -372,18 +516,20 @@ def audit_feature_sets() -> dict[str, Any]:
 class ComplementarityPair:
     candidate_a: str
     candidate_b: str
-    a_solves_b_breaks: frozenset[str]
-    b_solves_a_breaks: frozenset[str]
+    a_protects_b_breaks: frozenset[str]
+    b_protects_a_breaks: frozenset[str]
+    distinct_target_gains: int
     classification: str
 
     def to_document(self) -> dict[str, Any]:
         return {
             "candidate_a": self.candidate_a,
             "candidate_b": self.candidate_b,
-            "a_solves_b_breaks": sorted(self.a_solves_b_breaks),
-            "b_solves_a_breaks": sorted(self.b_solves_a_breaks),
-            "a_solves_b_breaks_count": len(self.a_solves_b_breaks),
-            "b_solves_a_breaks_count": len(self.b_solves_a_breaks),
+            "a_protects_b_breaks": sorted(self.a_protects_b_breaks),
+            "b_protects_a_breaks": sorted(self.b_protects_a_breaks),
+            "a_protects_b_breaks_count": len(self.a_protects_b_breaks),
+            "b_protects_a_breaks_count": len(self.b_protects_a_breaks),
+            "distinct_target_gains": self.distinct_target_gains,
             "classification": self.classification,
         }
 
@@ -394,7 +540,7 @@ def _compatible_for_comparison(a: ImperfectCandidateRecord, b: ImperfectCandidat
         return False
     if a.lane != b.lane:
         return False
-    return True
+    return a.checkpoint_metadata.get("routing_epoch") == b.checkpoint_metadata.get("routing_epoch")
 
 
 def compute_static_complementarity(
@@ -404,40 +550,45 @@ def compute_static_complementarity(
 ) -> dict[str, Any]:
     """STATIC COMPLEMENTARITY HEURISTIC — offline diagnostic only.
 
-    Never labelled COMPOSITION_SAFE.  Uses per-case TARGET EffectVector
-    SOLVES/BREAKS sets for pairwise analysis within compatible candidates.
+    Never labelled COMPOSITION_SAFE. Uses actual protected BREAKS and positive
+    protected effects, within a deterministic lane/day routing epoch.
     """
     useful = [r for r in records if r.target_loss_to_win > 0]
     pairs: list[ComplementarityPair] = []
-    pair_count = 0
+    pairs_examined = 0
 
     for i, a in enumerate(useful):
-        if pair_count >= max_pairs:
+        if pairs_examined >= max_pairs:
             break
-        a_solves = a.solves_set()
-        a_breaks = a.breaks_set()
+        a_solves = a.solves_set("TARGET")
+        a_breaks = a.breaks_set("PROTECTED")
+        a_protects = frozenset(e.case_id for e in a.per_case_effects
+                               if e.role == "PROTECTED" and e.preserves_win)
         if not a_solves and not a_breaks:
             continue
         for b in useful[i + 1:]:
-            if pair_count >= max_pairs:
+            if pairs_examined >= max_pairs:
                 break
             if not _compatible_for_comparison(a, b):
                 continue
-            b_solves = b.solves_set()
-            b_breaks = b.breaks_set()
+            pairs_examined += 1
+            b_solves = b.solves_set("TARGET")
+            b_breaks = b.breaks_set("PROTECTED")
+            b_protects = frozenset(e.case_id for e in b.per_case_effects
+                                   if e.role == "PROTECTED" and e.preserves_win)
             if not b_solves and not b_breaks:
                 continue
-            a_solves_b_breaks = a_solves & b_breaks
-            b_solves_a_breaks = b_solves & a_breaks
-            if not a_solves_b_breaks and not b_solves_a_breaks:
+            a_protects_b_breaks = a_protects & b_breaks
+            b_protects_a_breaks = b_protects & a_breaks
+            if not a_protects_b_breaks and not b_protects_a_breaks:
                 continue
 
-            if a_solves_b_breaks and b_solves_a_breaks:
-                if a_breaks <= b_solves and b_breaks <= a_solves:
+            if a_protects_b_breaks and b_protects_a_breaks:
+                if a_breaks <= b_protects and b_breaks <= a_protects:
                     classification = "NEAR_CLOSED_PAIR"
                 else:
                     classification = "TWO_WAY_COMPLEMENT"
-            elif a_solves_b_breaks or b_solves_a_breaks:
+            elif a_protects_b_breaks or b_protects_a_breaks:
                 classification = "ONE_WAY_COMPLEMENT"
             else:
                 classification = "UNRESOLVED_PAIR"
@@ -445,11 +596,11 @@ def compute_static_complementarity(
             pairs.append(ComplementarityPair(
                 candidate_a=a.candidate_semantic_id,
                 candidate_b=b.candidate_semantic_id,
-                a_solves_b_breaks=a_solves_b_breaks,
-                b_solves_a_breaks=b_solves_a_breaks,
+                a_protects_b_breaks=a_protects_b_breaks,
+                b_protects_a_breaks=b_protects_a_breaks,
+                distinct_target_gains=len(a_solves ^ b_solves),
                 classification=classification,
             ))
-            pair_count += 1
 
     classifications: dict[str, int] = defaultdict(int)
     for p in pairs:
@@ -460,7 +611,8 @@ def compute_static_complementarity(
         "label": "STATIC_COMPLEMENTARITY_HEURISTIC",
         "warning": "NOT_COMPOSITION_SAFE",
         "candidates_analyzed": len(useful),
-        "pairs_evaluated": len(pairs),
+        "pairs_examined": pairs_examined,
+        "complement_pairs": len(pairs),
         "max_pairs_cap": max_pairs,
         "classifications": dict(sorted(classifications.items())),
         "pairs": [p.to_document() for p in sorted(
@@ -474,6 +626,7 @@ def compute_static_complementarity(
 def write_diagnostic_artifacts(
     output_dir: Path,
     diagnostics: ImperfectSpecialistDiagnostics,
+    *, max_complementarity_pairs: int = 1000,
 ) -> dict[str, str]:
     """Persist all diagnostic artifacts and return path manifest."""
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -483,7 +636,8 @@ def write_diagnostic_artifacts(
     if not records:
         summary = {
             "schema_version": DIAGNOSTICS_SCHEMA_VERSION,
-            "total_evaluated_candidates": 0,
+            "total_candidates_evaluated": diagnostics.total_candidates_evaluated,
+            "diagnostic_shortlist_size": 0,
             "note": "No imperfect candidates observed in this campaign.",
         }
         path = output_dir / "imperfect_specialist_summary.json"
@@ -494,12 +648,14 @@ def write_diagnostic_artifacts(
         return manifest
 
     # Per-candidate JSONL
-    records_path = output_dir / "imperfect_candidates.jsonl"
+    records_path = output_dir / "useful_candidates_protected_effects.jsonl"
     diagnostics.persist(records_path)
-    manifest["imperfect_candidates"] = str(records_path)
+    manifest["useful_candidates_protected_effects"] = str(records_path)
 
     # Aggregate summary
-    agg = aggregate_diagnostics(records)
+    agg = aggregate_diagnostics(
+        records, total_candidates_evaluated=diagnostics.total_candidates_evaluated
+    )
     agg_path = output_dir / "imperfect_specialist_summary.json"
     agg_path.write_text(
         json.dumps(agg, sort_keys=True, indent=2) + "\n", encoding="utf-8"
@@ -515,7 +671,7 @@ def write_diagnostic_artifacts(
     manifest["feature_audit"] = str(audit_path)
 
     # Static complementarity
-    comp = compute_static_complementarity(records)
+    comp = compute_static_complementarity(records, max_pairs=max_complementarity_pairs)
     comp_path = output_dir / "static_complementarity.json"
     comp_path.write_text(
         json.dumps(comp, sort_keys=True, indent=2) + "\n", encoding="utf-8"

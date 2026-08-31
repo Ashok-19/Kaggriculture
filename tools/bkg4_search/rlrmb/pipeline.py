@@ -85,7 +85,7 @@ def validate_production_config(config_path: str | Path, output: str | Path) -> d
     allowed = {"schema_version", "cuda_binary", "capture_binary", "asset_dir", "donor_manifest",
                "parent_route", "transfer_panel", "validation_panel", "sealed_panel", "sealed_role",
                "budget", "search", "promotion", "probe", "repair", "deployment", "output", "families", "cloud",
-               "host_execution", "source_provenance"}
+               "host_execution", "source_provenance", "diagnostics"}
     unknown = set(config) - allowed
     if config.get("schema_version") != PIPELINE_SCHEMA_VERSION or unknown:
         raise ValueError(f"unsupported production config schema/fields: {sorted(unknown)}")
@@ -125,7 +125,9 @@ def validate_production_config(config_path: str | Path, output: str | Path) -> d
     if sum(row["cuda_games"] for row in families) > total:
         raise ValueError("frontier allocations exceed the authoritative CUDA budget")
     required_categories = {"target_beam", "transfer", "validation", "lns_repair", "reactive_repair", "certification"}
-    if set(categories) != required_categories or any(type(value) is not int or value < 0 for value in categories.values()):
+    allowed_categories = required_categories | {"diagnostic_protected"}
+    if (not required_categories <= set(categories) or not set(categories) <= allowed_categories
+            or any(type(value) is not int or value < 0 for value in categories.values())):
         raise ValueError("all CUDA game categories require non-negative integer caps")
     if any(sum(categories.values()) > row["cuda_games"] for row in families):
         raise ValueError("per-family category caps exceed a family allocation")

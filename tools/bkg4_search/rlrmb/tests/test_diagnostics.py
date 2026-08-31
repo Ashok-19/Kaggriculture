@@ -7,6 +7,7 @@ import unittest
 from pathlib import Path
 
 from tools.bkg4_search.rlrmb.diagnostics import (
+    BinaryOpportunityClass,
     ComplementarityPair,
     DiagnosticRoutabilityClass,
     ImperfectCandidateRecord,
@@ -16,6 +17,9 @@ from tools.bkg4_search.rlrmb.diagnostics import (
     audit_feature_sets,
     classify_diagnostic_routability,
     compute_static_complementarity,
+    protected_effect_metrics,
+    select_diagnostic_shortlist,
+    select_binary_routing_rows,
     write_diagnostic_artifacts,
 )
 from tools.bkg4_search.rlrmb.pipeline import (
@@ -44,18 +48,25 @@ def _case(case_id, role, baseline, delta, seat=0, family="f"):
 
 
 def _record(
-    cid, family="f", lane="GENERAL", l2w=2, w2l=1, harm=1, worst=-5,
+    cid, family="f", lane="GENERAL", l2w=2, protected_w2l=1, harm=1, worst=-5,
     agg=10, per_case=(), routability="ROUTABLE_CANDIDATE",
-    diag_routability="ROUTABLE",
+    diag_routability="ROUTABLE", opportunity="BINARY_PARENT_PLAUSIBLE",
+    initiation_step=100,
 ):
     return ImperfectCandidateRecord(
         candidate_semantic_id=cid, structural_id=cid, family=family,
-        lane=lane, target_loss_to_win=l2w, target_win_to_loss=w2l,
-        target_harm_count=harm, worst_delta=worst, aggregate_margin=agg,
+        lane=lane, target_loss_to_win=l2w, target_harm_count=harm,
+        target_worst_delta=worst, target_aggregate_margin=agg,
+        protected_win_to_loss=protected_w2l, protected_loss_to_win=0,
+        protected_harm_count=protected_w2l, protected_positive_count=0,
+        protected_worst_delta=worst, protected_aggregate_margin=agg,
         effect_signature=f"sig_{cid}", routability_classification=routability,
-        diagnostic_routability=diag_routability,
+        diagnostic_routability=diag_routability, binary_opportunity=opportunity,
         per_case_effects=per_case, effect_vector_doc=None,
-        initiation_step=100, checkpoint_metadata={"lane": lane, "step": 100},
+        initiation_step=initiation_step, checkpoint_metadata={
+            "lane": lane, "step": initiation_step,
+            "routing_epoch": initiation_step // 24,
+        },
         gate_evidence={},
     )
 
@@ -71,6 +82,21 @@ class TestPerCaseEffect(unittest.TestCase):
         neutral = _case("c3", "TARGET", 5, 3)
         self.assertFalse(neutral.solves)
         self.assertFalse(neutral.breaks)
+
+    def test_negative_protected_delta_is_not_a_break(self):
+        harm = _case("p1", "PROTECTED", 20, -5)
+        self.assertTrue(harm.harmful)
+        self.assertFalse(harm.breaks)
+
+    def test_protected_summary_counts_crossings_not_all_harm(self):
+        block = EffectBlock(
+            DatasetRole.VALIDATION, "protected", (20, 20, -10),
+            (-5, -25, 20),
+        )
+        metrics = protected_effect_metrics(block)
+        self.assertEqual(metrics["protected_harm_count"], 2)
+        self.assertEqual(metrics["protected_win_to_loss"], 1)
+        self.assertEqual(metrics["protected_loss_to_win"], 1)
 
     def test_serialization(self):
         case = _case("c1", "TARGET", -10, 20)
@@ -97,7 +123,7 @@ class TestImperfectCandidateRecord(unittest.TestCase):
         restored = ImperfectCandidateRecord.from_document(doc)
         self.assertEqual(r.candidate_semantic_id, restored.candidate_semantic_id)
         self.assertEqual(r.target_loss_to_win, restored.target_loss_to_win)
-        self.assertEqual(r.target_win_to_loss, restored.target_win_to_loss)
+        self.assertEqual(r.protected_win_to_loss, restored.protected_win_to_loss)
         self.assertEqual(len(r.per_case_effects), len(restored.per_case_effects))
 
     def test_deterministic_serialization(self):
@@ -113,7 +139,7 @@ class TestImperfectSpecialistDiagnostics(unittest.TestCase):
         diag = ImperfectSpecialistDiagnostics()
         cases = (_case("c1", "TARGET", -10, 20),)
         diag.record(_record("a", per_case=cases))
-        diag.record(_record("b", per_case=cases, l2w=3, w2l=0))
+        diag.record(_record("b", per_case=cases, l2w=3, protected_w2l=0))
         with tempfile.TemporaryDirectory() as d:
             path = Path(d) / "test.jsonl"
             diag.persist(path)
@@ -140,13 +166,13 @@ class TestSafeCandidatesUnchanged(unittest.TestCase):
 
     def test_safe_candidate_representation(self):
         cases = (_case("c1", "TARGET", -10, 20), _case("c2", "TARGET", 5, 3))
-        r = _record("safe", w2l=0, per_case=cases)
-        self.assertEqual(r.target_win_to_loss, 0)
-        self.assertEqual(r.breaks_set(), frozenset())
+        r = _record("safe", protected_w2l=0, per_case=cases)
+        self.assertEqual(r.protected_win_to_loss, 0)
+        self.assertEqual(r.breaks_set("PROTECTED"), frozenset())
 
     def test_imperfect_not_promoted(self):
-        r = _record("imp", l2w=3, w2l=1)
-        self.assertGreater(r.target_win_to_loss, 0)
+        r = _record("imp", l2w=3, protected_w2l=1)
+        self.assertGreater(r.protected_win_to_loss, 0)
 
 
 class TestDiagnosticRoutabilityClassification(unittest.TestCase):
@@ -272,27 +298,28 @@ class TestExistingFutureDependentFailsClosed(unittest.TestCase):
 class TestAggregateDiagnostics(unittest.TestCase):
     def test_distribution_buckets(self):
         records = [
-            _record("a", l2w=5, w2l=0),
-            _record("b", l2w=3, w2l=1),
-            _record("c", l2w=2, w2l=2),
-            _record("d", l2w=1, w2l=4),
-            _record("e", l2w=1, w2l=7),
+            _record("a", l2w=5, protected_w2l=0),
+            _record("b", l2w=3, protected_w2l=1),
+            _record("c", l2w=2, protected_w2l=2),
+            _record("d", l2w=1, protected_w2l=4),
+            _record("e", l2w=1, protected_w2l=7),
         ]
         agg = aggregate_diagnostics(records)
-        self.assertEqual(agg["total_evaluated_candidates"], 5)
+        self.assertEqual(agg["total_candidates_evaluated"], 5)
+        self.assertEqual(agg["diagnostic_shortlist_size"], 5)
         self.assertEqual(agg["candidates_with_l2w_gt_0"], 5)
         self.assertEqual(agg["candidates_with_l2w_gt_0_and_w2l_gt_0"], 4)
-        self.assertEqual(agg["w2l_distribution"]["w2l_eq_0"], 1)
-        self.assertEqual(agg["w2l_distribution"]["w2l_eq_1"], 1)
-        self.assertEqual(agg["w2l_distribution"]["w2l_eq_2"], 1)
-        self.assertEqual(agg["w2l_distribution"]["w2l_3_to_5"], 1)
-        self.assertEqual(agg["w2l_distribution"]["w2l_gt_5"], 1)
+        self.assertEqual(agg["protected_w2l_distribution"]["w2l_eq_0"], 1)
+        self.assertEqual(agg["protected_w2l_distribution"]["w2l_eq_1"], 1)
+        self.assertEqual(agg["protected_w2l_distribution"]["w2l_eq_2"], 1)
+        self.assertEqual(agg["protected_w2l_distribution"]["w2l_3_to_5"], 1)
+        self.assertEqual(agg["protected_w2l_distribution"]["w2l_gt_5"], 1)
 
     def test_useful_imperfect_buckets(self):
         records = [
-            _record("a", l2w=5, w2l=2),
-            _record("b", l2w=3, w2l=1),
-            _record("c", l2w=2, w2l=1),
+            _record("a", l2w=5, protected_w2l=2),
+            _record("b", l2w=3, protected_w2l=1),
+            _record("c", l2w=2, protected_w2l=1),
         ]
         agg = aggregate_diagnostics(records)
         self.assertEqual(agg["useful_imperfect_buckets"]["l2w_ge2_w2l_eq1"], 2)
@@ -304,8 +331,8 @@ class TestAggregateDiagnostics(unittest.TestCase):
 class TestStaticComplementarity(unittest.TestCase):
     def test_two_way_complement(self):
         a_cases = (
-            _case("c1", "TARGET", -10, 20),   # A SOLVES
-            _case("c2", "TARGET", 10, -20),    # A BREAKS
+            _case("t1", "TARGET", -10, 20),
+            _case("p1", "PROTECTED", 10, -20),
         )
         b_cases = (
             _case("c1", "TARGET", -10, -5),    # B doesn't solve c1
@@ -313,8 +340,8 @@ class TestStaticComplementarity(unittest.TestCase):
         )
         # To get two-way complement, B should solve what A breaks
         b_cases2 = (
-            _case("c1", "TARGET", 5, -10),     # B BREAKS c1
-            _case("c2", "TARGET", -10, 20),    # B SOLVES c2 (which A broke)
+            _case("t2", "TARGET", -10, 20),
+            _case("p1", "PROTECTED", 10, -5),  # preserves the baseline win
         )
         a = _record("a", per_case=a_cases)
         b = _record("b", per_case=b_cases2)
@@ -326,6 +353,7 @@ class TestStaticComplementarity(unittest.TestCase):
             self.assertIn(pair["classification"], [
                 "ONE_WAY_COMPLEMENT", "TWO_WAY_COMPLEMENT", "NEAR_CLOSED_PAIR",
             ])
+            self.assertEqual(pair["b_protects_a_breaks"], ["p1"])
 
     def test_no_complement_without_overlap(self):
         a_cases = (_case("c1", "TARGET", -10, 20),)
@@ -333,7 +361,8 @@ class TestStaticComplementarity(unittest.TestCase):
         a = _record("a", per_case=a_cases)
         b = _record("b", per_case=b_cases)
         result = compute_static_complementarity([a, b])
-        self.assertEqual(result["pairs_evaluated"], 0)
+        self.assertEqual(result["pairs_examined"], 1)
+        self.assertEqual(result["complement_pairs"], 0)
 
     def test_incompatible_lanes_skipped(self):
         a_cases = (_case("c1", "TARGET", -10, 20), _case("c2", "TARGET", 10, -20))
@@ -341,7 +370,7 @@ class TestStaticComplementarity(unittest.TestCase):
         a = _record("a", lane="LAND_INVESTMENT", per_case=a_cases)
         b = _record("b", lane="ANIMAL_TRANSITION", per_case=b_cases)
         result = compute_static_complementarity([a, b])
-        self.assertEqual(result["pairs_evaluated"], 0)
+        self.assertEqual(result["pairs_examined"], 0)
 
     def test_max_pairs_cap(self):
         records = [_record(f"r{i}", per_case=(
@@ -349,7 +378,75 @@ class TestStaticComplementarity(unittest.TestCase):
             _case("c2", "TARGET", 10, -20),
         )) for i in range(10)]
         result = compute_static_complementarity(records, max_pairs=3)
-        self.assertLessEqual(result["pairs_evaluated"], 3)
+        self.assertLessEqual(result["pairs_examined"], 3)
+
+    def test_adjacent_steps_in_different_epochs_are_not_compared(self):
+        cases = (_case("p1", "PROTECTED", 10, -20),)
+        a = _record("a", initiation_step=23, per_case=cases)
+        b = _record("b", initiation_step=24, per_case=cases)
+        self.assertEqual(compute_static_complementarity([a, b])["pairs_examined"], 0)
+
+
+class TestPhase01Shortlist(unittest.TestCase):
+    class Candidate:
+        def __init__(self, cid, l2w, harm, worst, aggregate, lane="GENERAL", step=100):
+            self.candidate_semantic_id = cid
+            self.target_loss_to_win = l2w
+            self.target_harm_count = harm
+            self.target_worst_delta = worst
+            self.target_aggregate_margin = aggregate
+            self.effect_signature = f"sig-{cid}"
+            self.structural_id = cid
+            self.lane = lane
+            self.initiation_step = step
+
+    def test_shortlist_is_useful_deterministic_and_bounded(self):
+        rows = [self.Candidate("z", 0, 0, 0, 100)]
+        rows += [self.Candidate(f"c{i:02d}", 6 - i % 3, i % 2, -i, 100 - i) for i in range(20)]
+        first = select_diagnostic_shortlist(rows, limit=8)
+        second = select_diagnostic_shortlist(tuple(reversed(rows)), limit=8)
+        self.assertEqual([r.candidate_semantic_id for r in first], [r.candidate_semantic_id for r in second])
+        self.assertEqual(len(first), 8)
+        self.assertTrue(all(r.target_loss_to_win > 0 for r in first))
+
+
+class TestBinaryParentOpportunity(unittest.TestCase):
+    def test_requested_classes_remain_distinct(self):
+        self.assertEqual(BinaryOpportunityClass.BINARY_PARENT_PLAUSIBLE.value, "BINARY_PARENT_PLAUSIBLE")
+        self.assertEqual(BinaryOpportunityClass.GATE_LIMITED.value, "GATE_LIMITED")
+        self.assertEqual(BinaryOpportunityClass.DEFERRED_DECISION_PLAUSIBLE.value, "DEFERRED_DECISION_PLAUSIBLE")
+        self.assertEqual(BinaryOpportunityClass.TRUE_FUTURE_DEPENDENT.value, "TRUE_FUTURE_DEPENDENT")
+
+    def test_repair_at_reveal_is_deferred_not_gate_limited(self):
+        doc = {
+            "classification": "REPAIR_BRANCH_AT_REVEAL",
+            "diagnostics": {
+                "legal_predicate": {"feature": "OWN_TILE_WATERED"},
+                "gate_predicate": None,
+            },
+        }
+        from tools.bkg4_search.rlrmb.diagnostics import classify_binary_opportunity
+        self.assertEqual(
+            classify_binary_opportunity(doc),
+            BinaryOpportunityClass.DEFERRED_DECISION_PLAUSIBLE,
+        )
+
+    def test_routing_rows_are_target_solves_vs_actual_protected_breaks(self):
+        context = (("OWN_MONEY", 0, 1000),)
+        rows = (
+            ExactCaseEvidence(CaseMeta("target-solve", "t", 0, 1, "f"), DatasetRole.TARGET,
+                              -10, 10, context, context, (1,), "c"),
+            ExactCaseEvidence(CaseMeta("target-harm", "t", 0, 1, "f"), DatasetRole.TARGET,
+                              -10, -20, context, context, (1,), "c"),
+            ExactCaseEvidence(CaseMeta("protected-harm", "p", 0, 1, "f"), DatasetRole.VALIDATION,
+                              20, 10, context, context, (1,), "c"),
+            ExactCaseEvidence(CaseMeta("protected-break", "p", 0, 1, "f"), DatasetRole.VALIDATION,
+                              20, -1, context, context, (1,), "c"),
+        )
+        self.assertEqual(
+            [row.meta.case_id for row in select_binary_routing_rows(rows)],
+            ["target-solve", "protected-break"],
+        )
 
 
 class TestFeatureSetAudit(unittest.TestCase):
@@ -414,11 +511,11 @@ class TestWriteDiagnosticArtifacts(unittest.TestCase):
             _case("c2", "TARGET", 10, -20),
         )
         diag.record(_record("a", per_case=cases))
-        diag.record(_record("b", per_case=cases, l2w=3, w2l=0))
+        diag.record(_record("b", per_case=cases, l2w=3, protected_w2l=0))
         with tempfile.TemporaryDirectory() as d:
             out = Path(d) / "diagnostics"
             manifest = write_diagnostic_artifacts(out, diag)
-            self.assertIn("imperfect_candidates", manifest)
+            self.assertIn("useful_candidates_protected_effects", manifest)
             self.assertIn("summary", manifest)
             self.assertIn("feature_audit", manifest)
             self.assertIn("complementarity", manifest)
@@ -438,7 +535,8 @@ class TestWriteDiagnosticArtifacts(unittest.TestCase):
             manifest = write_diagnostic_artifacts(out, diag)
             self.assertIn("summary", manifest)
             summary = json.loads(Path(manifest["summary"]).read_text())
-            self.assertEqual(summary["total_evaluated_candidates"], 0)
+            self.assertEqual(summary["total_candidates_evaluated"], 0)
+            self.assertEqual(summary["diagnostic_shortlist_size"], 0)
 
 
 class TestExactCaseEvidenceGateContext(unittest.TestCase):

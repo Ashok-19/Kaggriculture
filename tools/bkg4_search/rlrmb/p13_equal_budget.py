@@ -33,16 +33,19 @@ from .pipeline import (
 from .routability import RoutabilityClassification, RoutabilityResult, screen_routability
 from .cegis_adapter import run_hardened_cegis
 from .diagnostics import (
-    DiagnosticRoutabilityClass, ImperfectCandidateRecord, ImperfectSpecialistDiagnostics,
-    classify_diagnostic_routability, per_case_effects_from_evidence, write_diagnostic_artifacts,
+    BinaryOpportunityClass, DiagnosticRoutabilityClass, ImperfectCandidateRecord,
+    ImperfectSpecialistDiagnostics, PerCaseEffect, classify_binary_opportunity,
+    classify_diagnostic_routability, per_case_effects_from_evidence,
+    protected_effect_metrics, select_diagnostic_shortlist, write_diagnostic_artifacts,
+    select_binary_routing_rows,
 )
-from .effects import EffectVector, effect_signature
+from .effects import EffectBlock, EffectVector, effect_signature
 from .failures import FailureClass
 from .lns import DualPanelEvaluator, run_lns
 from .schema import DatasetRole, stable_identity
 
 SCHEMA_VERSION = 1
-GAME_CATEGORIES = ("target_beam", "transfer", "validation", "lns_repair", "reactive_repair", "certification")
+GAME_CATEGORIES = ("target_beam", "diagnostic_protected", "transfer", "validation", "lns_repair", "reactive_repair", "certification")
 
 _PROMOTION_CLASS_RANK = {
     RoutabilityClassification.ROUTABLE_CANDIDATE: 0,
@@ -342,6 +345,17 @@ def validate_config(config_path: Path) -> dict[str, Any]:
             or probe["target_games_per_checkpoint"] <= 0
             or not probe["risk_pool_size"] >= probe["full_risk_pool_size"] > 0):
         raise ValueError("invalid bounded Phase-13 correction probe")
+    diagnostics = config.get("diagnostics")
+    if diagnostics is not None and (diagnostics.get("protected_panel") != "validation_panel"
+            or type(diagnostics.get("shortlist_size")) is not int
+            or not 1 <= diagnostics["shortlist_size"] <= 32
+            or diagnostics.get("max_protected_cuda_games")
+               != budget["per_family_categories"].get("diagnostic_protected")
+            or diagnostics.get("routing_only_when_protected_win_to_loss") is not True
+            or diagnostics.get("routing_epoch_steps") != 24
+            or type(diagnostics.get("static_complementarity_max_pairs")) is not int
+            or not 1 <= diagnostics["static_complementarity_max_pairs"] <= 10000):
+        raise ValueError("invalid bounded protected diagnostics configuration")
     return config
 
 
@@ -564,6 +578,54 @@ def select_refinement_candidates(
     return tuple(selected)
 
 
+@dataclass(frozen=True)
+class _DiagnosticCandidateView:
+    candidate_semantic_id: str
+    structural_id: str
+    lane: str
+    initiation_step: int
+    target_loss_to_win: int
+    target_harm_count: int
+    target_worst_delta: int
+    target_aggregate_margin: int
+    effect_signature: str
+    candidate: BeamCandidate
+
+
+def select_pre_promotion_diagnostic_candidates(
+    candidates: Sequence[BeamCandidate], *, limit: int,
+) -> tuple[BeamCandidate, ...]:
+    """Shortlist useful candidates without applying production safety filters."""
+    views = []
+    for candidate in candidates:
+        if candidate.effect is None:
+            continue
+        block = _target_block(candidate)
+        views.append(_DiagnosticCandidateView(
+            candidate.program.semantic_id,
+            candidate.program.semantic_id,
+            candidate.checkpoint.lane.value,
+            candidate.program.initiation.step,
+            sum(block.loss_to_win),
+            sum(delta < 0 for delta in block.margin_deltas),
+            min(block.margin_deltas),
+            sum(block.margin_deltas),
+            effect_signature(candidate.effect),
+            candidate,
+        ))
+    return tuple(view.candidate for view in select_diagnostic_shortlist(views, limit=limit))
+
+
+def fit_diagnostic_budget(
+    candidates: Sequence[BeamCandidate], evaluator: Any, remaining_games: int,
+) -> tuple[BeamCandidate, ...]:
+    """Truncate deterministically using the evaluator's exact projected cost."""
+    fitted = tuple(candidates)
+    while fitted and evaluator.projected_games(len(fitted)) > remaining_games:
+        fitted = fitted[:-1]
+    return fitted
+
+
 def repair_disposition(classification: RoutabilityClassification) -> str:
     """Map exact Phase-9 evidence to the existing bounded repair/search layer."""
     if classification is RoutabilityClassification.REPAIR_LATER_CHECKPOINT:
@@ -621,6 +683,7 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
     stage_timing: dict[str, float] = {k: 0.0 for k in (
         "donor_event_extraction", "checkpoint_selection",
         "beam_search_total", "promotion_pool_selection",
+        "diagnostic_protected_eval", "diagnostic_legal_capture", "diagnostic_routability",
         "target_legal_capture", "target_routability",
         "transfer_validation_eval", "transfer_validation_capture",
         "full_routability", "sealed_eval_capture",
@@ -762,6 +825,114 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
                         elif key == "expansions_by_operator": family_operators.update(value)
             finally:
                 batch_stream.close()
+        _imperfect_diag.observe_population(archive.metrics()["candidates_considered"])
+        diagnostic_config = config.get("diagnostics")
+        diagnostic_shortlist = (() if diagnostic_config is None else
+            select_pre_promotion_diagnostic_candidates(
+                candidates, limit=diagnostic_config["shortlist_size"]
+            ))
+        if diagnostic_shortlist:
+            if resources is not None and hasattr(resources, "get_or_create_evaluator"):
+                _diag_base = resources.get_or_create_evaluator(binary, asset).bind(root / config["validation_panel"])
+            else:
+                _diag_base = CudaBatchEvaluator(
+                    binary=binary, asset_dir=asset,
+                    cases_path=root / config["validation_panel"],
+                )
+            protected_eval = AccountedEvaluator(
+                _diag_base, ledger, family_id, "diagnostic_protected"
+            )
+            diagnostic_shortlist = fit_diagnostic_budget(
+                diagnostic_shortlist, protected_eval,
+                ledger.remaining(family_id, "diagnostic_protected"),
+            )
+            if diagnostic_shortlist:
+                _t0 = time.monotonic()
+                protected_batch = protected_eval(
+                    tuple(candidate.program for candidate in diagnostic_shortlist), motifs_all
+                )
+                stage_timing["diagnostic_protected_eval"] += time.monotonic() - _t0
+                for position, candidate in enumerate(diagnostic_shortlist):
+                    program = candidate.program
+                    target_block = _target_block(candidate)
+                    protected_block = protected_batch.programs[position].effect.blocks[0]
+                    target_raw = _effect_rows(
+                        program, DatasetRole.TARGET, root / family["target_panel"], target_block
+                    )
+                    protected_raw = _effect_rows(
+                        program, DatasetRole.VALIDATION,
+                        root / config["validation_panel"], protected_block,
+                    )
+                    target_effects = per_case_effects_from_evidence(target_raw)
+                    protected_effects = tuple(PerCaseEffect(
+                        case_id=row.meta.case_id, role="PROTECTED",
+                        baseline_margin=row.baseline_margin,
+                        candidate_margin=row.candidate_margin, delta=row.delta,
+                        seat=row.meta.seat, family=row.meta.family,
+                    ) for row in protected_raw)
+                    protected_metrics = protected_effect_metrics(protected_block)
+                    protected_w2l = protected_metrics["protected_win_to_loss"]
+                    risk_doc: dict[str, Any] = {}
+                    diag_class = DiagnosticRoutabilityClass.UNKNOWN
+                    opportunity = BinaryOpportunityClass.UNKNOWN
+                    if protected_w2l > 0:
+                        diagnostic_dir = family_dir / "diagnostics" / program.semantic_id
+                        _write_json(diagnostic_dir / "program.json", program.to_document())
+                        _write_json(diagnostic_dir / "protected_evidence.json", [
+                            effect.to_document() for effect in protected_effects
+                        ])
+                        _t0 = time.monotonic()
+                        target_captured = capture_candidate_legal_states(
+                            program, target_raw, root / family["target_panel"],
+                            diagnostic_dir / "target", capture_binary=root / config["capture_binary"],
+                            asset_dir=asset, cache=capture_cache,
+                        )
+                        protected_captured = capture_candidate_legal_states(
+                            program, protected_raw, root / config["validation_panel"],
+                            diagnostic_dir / "protected", capture_binary=root / config["capture_binary"],
+                            asset_dir=asset, cache=capture_cache,
+                        )
+                        stage_timing["diagnostic_legal_capture"] += time.monotonic() - _t0
+                        routing_rows = select_binary_routing_rows(
+                            (*target_captured, *protected_captured)
+                        )
+                        _t0 = time.monotonic()
+                        risk = screen_routability(build_routability_evidence(program, routing_rows))
+                        stage_timing["diagnostic_routability"] += time.monotonic() - _t0
+                        risk_doc = risk.to_document()
+                        diag_class = classify_diagnostic_routability(risk_doc)
+                        opportunity = classify_binary_opportunity(risk_doc)
+                        _write_json(diagnostic_dir / "routing.json", risk_doc)
+                    _imperfect_diag.record(ImperfectCandidateRecord(
+                        candidate_semantic_id=program.semantic_id,
+                        structural_id=program.semantic_id,
+                        family=family_id,
+                        lane=candidate.checkpoint.lane.value,
+                        target_loss_to_win=sum(target_block.loss_to_win),
+                        target_harm_count=sum(delta < 0 for delta in target_block.margin_deltas),
+                        target_worst_delta=min(target_block.margin_deltas),
+                        target_aggregate_margin=sum(target_block.margin_deltas),
+                        **protected_metrics,
+                        effect_signature=effect_signature(candidate.effect),
+                        routability_classification=risk_doc.get("classification", "NOT_REQUIRED"),
+                        diagnostic_routability=diag_class.value,
+                        binary_opportunity=opportunity.value,
+                        per_case_effects=(*target_effects, *protected_effects),
+                        effect_vector_doc=EffectVector((target_block, EffectBlock(
+                            DatasetRole.VALIDATION, protected_block.panel_id,
+                            protected_block.baseline_margins, protected_block.margin_deltas,
+                            protected_block.action_changes,
+                        ))).to_document(),
+                        initiation_step=program.initiation.step,
+                        checkpoint_metadata={"lane": candidate.checkpoint.lane.value,
+                                             "step": candidate.checkpoint.step,
+                                             "routing_epoch": program.initiation.step // diagnostic_config["routing_epoch_steps"]},
+                        gate_evidence={
+                            "legal_predicate": risk_doc.get("diagnostics", {}).get("legal_predicate"),
+                            "gate_predicate": risk_doc.get("diagnostics", {}).get("gate_predicate"),
+                        },
+                    ))
+
         elites = {entry.program_id for entry in archive.entries() if entry.target_win_to_loss == 0 and entry.target_loss_to_win > 0}
         promotion_config=config["probe"] if probe else config["promotion"]
         _t0=time.monotonic(); promotion_pool=select_promotion_pool(candidates,elites,promotion_config["risk_pool_size"]); stage_timing["promotion_pool_selection"]+=time.monotonic()-_t0
@@ -889,39 +1060,6 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
                     family_results.append(item)
         for c in refined:
             block=c.effect.blocks[0]; total_l2w+=sum(block.loss_to_win); global_effects.add(_effect_identity(c.effect)); target_clusters.add((family_id,tuple(block.loss_to_win),tuple(x>0 for x in block.margin_deltas)))
-        # Phase-0 imperfect-specialist diagnostics (observational only)
-        for candidate in promotion_pool:
-            block = _target_block(candidate)
-            l2w = sum(block.loss_to_win); w2l = sum(block.win_to_loss)
-            if l2w == 0:
-                continue
-            program = candidate.program
-            risk = full_risks.get(program.semantic_id) or target_risks.get(program.semantic_id)
-            risk_doc = risk.to_document() if risk else {}
-            diag_class = classify_diagnostic_routability(risk_doc) if risk else DiagnosticRoutabilityClass.UNKNOWN
-            rows = target_rows_by_id.get(program.semantic_id, ())
-            per_case = per_case_effects_from_evidence(rows) if rows else ()
-            _imperfect_diag.record(ImperfectCandidateRecord(
-                candidate_semantic_id=program.semantic_id,
-                structural_id=program.semantic_id,
-                family=family_id,
-                lane=candidate.checkpoint.lane.value if hasattr(candidate.checkpoint, "lane") else "GENERAL",
-                target_loss_to_win=l2w,
-                target_win_to_loss=w2l,
-                target_harm_count=sum(d < 0 for d in block.margin_deltas),
-                worst_delta=min(block.margin_deltas),
-                aggregate_margin=sum(block.margin_deltas),
-                effect_signature=effect_signature(candidate.effect) if candidate.effect else "",
-                routability_classification=risk_doc.get("classification", "UNKNOWN"),
-                diagnostic_routability=diag_class.value,
-                per_case_effects=per_case,
-                effect_vector_doc=candidate.effect.to_document() if candidate.effect else None,
-                initiation_step=program.initiation.step,
-                checkpoint_metadata={"lane": candidate.checkpoint.lane.value if hasattr(candidate.checkpoint, "lane") else "GENERAL",
-                                     "step": candidate.checkpoint.step},
-                gate_evidence={"legal_predicate": risk_doc.get("diagnostics", {}).get("legal_predicate"),
-                               "gate_predicate": risk_doc.get("diagnostics", {}).get("gate_predicate")} if risk_doc else {},
-            ))
         target_future=sum(risk.classification is RoutabilityClassification.FUTURE_DEPENDENT for risk in target_risks.values())
         full_future=sum(risk.classification is RoutabilityClassification.FUTURE_DEPENDENT for risk in full_risks.values())
         host_pipeline_metrics = {
@@ -1037,7 +1175,12 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
     _write_json(output/"metrics.json",metrics);_write_json(output/"failures.json",{"counts":dict(sorted(failures.items()))});_write_json(output/"archive_summary.json",{"families":{k:v["archive"] for k,v in all_metrics.items()}})
     _write_json(output/"run.json",{**manifest,"finished_unix":int(time.time()),"verdict":"CAMPAIGN_COMPLETE"})
     # Phase-0 imperfect-specialist diagnostic artifacts (observational only)
-    _diag_manifest = write_diagnostic_artifacts(output / "diagnostics", _imperfect_diag)
+    _diag_manifest = write_diagnostic_artifacts(
+        output / "diagnostics", _imperfect_diag,
+        max_complementarity_pairs=config.get("diagnostics", {}).get(
+            "static_complementarity_max_pairs", 1000
+        ),
+    )
     if _diag_manifest:
         _write_json(output / "diagnostics" / "manifest.json", _diag_manifest)
     stage_timing["post_search_io"]+=time.monotonic()-_t0

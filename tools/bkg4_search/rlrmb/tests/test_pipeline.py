@@ -17,6 +17,7 @@ from tools.bkg4_search.rlrmb.ir import ActionFamily, MacroProgram
 from tools.bkg4_search.rlrmb.p13_equal_budget import (
     BudgetLedger, GAME_CATEGORIES, _effect_identity, dispatch_repair, repair_disposition,
     run_campaign, select_promotion_pool, select_refinement_candidates, validate_config,
+    fit_diagnostic_budget, select_pre_promotion_diagnostic_candidates,
 )
 from tools.bkg4_search.rlrmb.effects import EffectBlock, EffectVector, effect_signature
 from tools.bkg4_search.rlrmb.beam import BeamCandidate, SeedSource
@@ -158,6 +159,24 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(early.program.semantic_id,duplicate.program.semantic_id)
         pool=select_promotion_pool((duplicate,late,early),{early.program.semantic_id,late.program.semantic_id},2)
         self.assertEqual({x.program.initiation.step for x in pool},{1,120})
+
+    def test_diagnostics_observe_useful_candidate_before_safe_promotion_filter(self):
+        useful_but_unsafe=self.candidate(1,(3,-5))
+        safe=self.candidate(120,(3,0))
+        elites={safe.program.semantic_id}
+        promoted=select_promotion_pool((useful_but_unsafe,safe),elites,2)
+        diagnosed=select_pre_promotion_diagnostic_candidates((useful_but_unsafe,safe),limit=2)
+        self.assertNotIn(useful_but_unsafe,promoted)
+        self.assertIn(useful_but_unsafe,diagnosed)
+        self.assertIn(safe,promoted)
+
+    def test_diagnostic_budget_accounts_for_shared_baseline_overhead(self):
+        class Evaluator:
+            def projected_games(self, count):
+                return (count + 1) * 40
+        candidates=tuple(self.candidate(step,(3,0)) for step in range(16))
+        self.assertEqual(len(fit_diagnostic_budget(candidates,Evaluator(),680)),16)
+        self.assertEqual(len(fit_diagnostic_budget(candidates,Evaluator(),640)),15)
 
     def test_failure_driven_repair_dispositions_are_exact(self):
         expected={

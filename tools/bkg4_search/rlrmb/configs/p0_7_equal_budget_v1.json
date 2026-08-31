@@ -12,7 +12,8 @@
   "budget": {
     "total_cuda_games": 265226,
     "per_family_categories": {
-      "target_beam": 50000,
+      "target_beam": 49320,
+      "diagnostic_protected": 680,
       "transfer": 6000,
       "validation": 500,
       "lns_repair": 7000,
@@ -47,6 +48,14 @@
     "target_games_per_checkpoint": 256,
     "risk_pool_size": 16,
     "full_risk_pool_size": 9
+  },
+  "diagnostics": {
+    "protected_panel": "validation_panel",
+    "shortlist_size": 16,
+    "max_protected_cuda_games": 680,
+    "routing_only_when_protected_win_to_loss": true,
+    "routing_epoch_steps": 24,
+    "static_complementarity_max_pairs": 1000
   },
   "repair": {
     "lns_max_candidates": 16,
