@@ -85,7 +85,7 @@ def validate_production_config(config_path: str | Path, output: str | Path) -> d
     allowed = {"schema_version", "cuda_binary", "capture_binary", "asset_dir", "donor_manifest",
                "parent_route", "transfer_panel", "validation_panel", "sealed_panel", "sealed_role",
                "budget", "search", "promotion", "probe", "repair", "deployment", "output", "families", "cloud",
-               "host_execution"}
+               "host_execution", "source_provenance"}
     unknown = set(config) - allowed
     if config.get("schema_version") != PIPELINE_SCHEMA_VERSION or unknown:
         raise ValueError(f"unsupported production config schema/fields: {sorted(unknown)}")
@@ -104,6 +104,16 @@ def validate_production_config(config_path: str | Path, output: str | Path) -> d
         raise ValueError("host_execution.queue_depth must be an integer in 1..64")
     if start_method not in {"spawn", "forkserver", "fork"}:
         raise ValueError("host_execution.start_method must be spawn, forkserver, or fork")
+    provenance = config.get("source_provenance")
+    if provenance is not None:
+        if not isinstance(provenance, Mapping):
+            raise ValueError("source_provenance must be a mapping")
+        if provenance.get("kind") not in {"git", "bundle_manifest"}:
+            raise ValueError("source_provenance.kind must be git or bundle_manifest")
+        source_head = provenance.get("source_head")
+        if (not isinstance(source_head, str) or len(source_head) != 40
+                or any(c not in "0123456789abcdef" for c in source_head)):
+            raise ValueError("source_provenance.source_head must be a lowercase 40-hex commit id")
     families = config.get("families", ())
     budget = config.get("budget", {})
     total = budget.get("total_cuda_games")
@@ -238,13 +248,19 @@ def _terminal_verdict(metrics: Mapping[str, Any]) -> TerminalVerdict:
 def _production_summary(config: Mapping[str, Any], output: Path, metrics: Mapping[str, Any],
                         verdict: TerminalVerdict, started: float, finished: float) -> dict[str, Any]:
     config_id = stable_identity("RLRMB-PRODUCTION-CONFIG-V1", config)
-    run_id = stable_identity("RLRMB-PRODUCTION-RUN-V1", config_id, _repository_head())
+    repository_head = _repository_head(config)
+    provenance = dict(config.get("source_provenance") or {
+        "kind": "git" if repository_head != "UNKNOWN" else "unknown",
+        "source_head": repository_head,
+    })
+    run_id = stable_identity("RLRMB-PRODUCTION-RUN-V1", config_id, repository_head)
     accepted = tuple(metrics.get("accepted_candidate_ids", ()))
     return {
         "schema_version": PIPELINE_SCHEMA_VERSION,
         "run_id": run_id,
         "config_identity": config_id,
-        "repository_head": _repository_head(),
+        "repository_head": repository_head,
+        "source_provenance": provenance,
         "current_bkg4_reference": config.get("parent_route"),
         "start_state": "FRONTIER_SELECTION",
         "end_state": verdict.value,
@@ -259,7 +275,14 @@ def _production_summary(config: Mapping[str, Any], output: Path, metrics: Mappin
     }
 
 
-def _repository_head() -> str:
+def _repository_head(config: Mapping[str, Any] | None = None) -> str:
+    if config is not None:
+        provenance = config.get("source_provenance")
+        if isinstance(provenance, Mapping):
+            source_head = provenance.get("source_head")
+            if (isinstance(source_head, str) and len(source_head) == 40
+                    and all(c in "0123456789abcdef" for c in source_head)):
+                return source_head
     result = subprocess.run(("git", "rev-parse", "HEAD"), check=False, capture_output=True, text=True)
     return result.stdout.strip() if result.returncode == 0 else "UNKNOWN"
 
@@ -302,8 +325,16 @@ def run_production_pipeline(config_path: str | Path, output: str | Path, *,
         metrics = json.loads((output_path / "metrics.json").read_text(encoding="utf-8"))
         if validate_only:
             run = json.loads((output_path / "run.json").read_text(encoding="utf-8"))
-            run.update({"schema_version": PIPELINE_SCHEMA_VERSION,
-                        "terminal_verdict": "CONFIG_VALIDATED", "repository_head": _repository_head()})
+            repository_head = _repository_head(config)
+            run.update({
+                "schema_version": PIPELINE_SCHEMA_VERSION,
+                "terminal_verdict": "CONFIG_VALIDATED",
+                "repository_head": repository_head,
+                "source_provenance": dict(config.get("source_provenance") or {
+                    "kind": "git" if repository_head != "UNKNOWN" else "unknown",
+                    "source_head": repository_head,
+                }),
+            })
             _write_document(output_path / "run.json", run)
             return EXIT_ACCEPTED
         metrics = _normalise_metrics(output_path, metrics)
@@ -336,10 +367,20 @@ def run_production_pipeline(config_path: str | Path, output: str | Path, *,
                                 "recommended_next_action": "FIX_INFRASTRUCTURE",
                                 "diagnostic": str(exc)}]}
         _write_document(output_path / "failures.json", failure)
+        try:
+            failure_config = json.loads(config_source.read_text(encoding="utf-8")) if config_source.exists() else {}
+        except (OSError, json.JSONDecodeError):
+            failure_config = {}
+        repository_head = _repository_head(failure_config)
         _write_document(output_path / "run.json", {"schema_version": PIPELINE_SCHEMA_VERSION,
                         "run_id": stable_identity("RLRMB-PRODUCTION-FAILED-RUN-V1", str(output_path)),
                         "terminal_verdict": TerminalVerdict.INFRASTRUCTURE_FAILURE.value,
-                        "repository_head": _repository_head(), "error": str(exc)})
+                        "repository_head": repository_head,
+                        "source_provenance": dict(failure_config.get("source_provenance") or {
+                            "kind": "git" if repository_head != "UNKNOWN" else "unknown",
+                            "source_head": repository_head,
+                        }),
+                        "error": str(exc)})
         (output_path / "traceback.log").write_text(traceback.format_exc(), encoding="utf-8")
         return EXIT_INFRASTRUCTURE
 
@@ -563,8 +604,10 @@ def materialize_certified_candidate(program: MacroProgram, motifs: Mapping[str, 
         raise ValueError("materialization requires the matching accepted CEGIS result")
     output_dir = Path(output_dir); output_dir.mkdir(parents=True, exist_ok=True)
     route_path = emit_candidate_route(program, motifs, parent_route, output_dir / f"{program.semantic_id}.route.json")
+    # Route source is deployment-relative so materialization/composer metadata
+    # survives cloud attempt-directory atomic renames without stale .pending paths.
     source = MaterializationInput(program.semantic_id, program, _gate_conditions(result.gate), motifs, route_id,
-                                  base_route_id, str(route_path), authority_name, authority_slot)
+                                  base_route_id, route_path.name, authority_name, authority_slot)
     artifact = materialize_program(source)
     parent = dict(parent_module) if parent_module is not None else {
         "name": "rlrmb_certification_parent",

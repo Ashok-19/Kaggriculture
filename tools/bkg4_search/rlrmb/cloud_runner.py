@@ -7,11 +7,17 @@ import json
 import os
 import shutil
 import struct
+import subprocess
 import sys
 import time
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
+from tools.bkg4_search.bonsai_composer import SpecialistDeclaration, StrategicAuthority, compose_specialists
+from tools.bkg4_search.bounded_macro import BoundedRouteMacro
+from tools.bkg4_search.module_codec import ConditionGene
+
+from .ir import MacroProgram
 from .pipeline import EXIT_INFRASTRUCTURE, run_production_pipeline
 from .run_resources import RunResources
 from .cloud.telemetry import TelemetrySampler
@@ -96,6 +102,42 @@ def _write_atomic(path: Path, value: Any) -> None:
     os.replace(temporary, path)
 
 
+def _source_provenance(config: Mapping[str, Any]) -> dict[str, Any]:
+    """Resolve auditable source identity from git or an extracted bundle manifest."""
+    embedded = Path.cwd() / "phase16_bundle_manifest.json"
+    if embedded.exists():
+        document = _read(embedded)
+        source_head = str(document.get("source_head") or "")
+        expected_config = stable_identity("RLRMB-P16-CONFIG-V1", config)
+        if len(source_head) != 40 or any(c not in "0123456789abcdef" for c in source_head):
+            raise ValueError("bundle manifest source_head is invalid")
+        if document.get("production_config_identity") != expected_config:
+            raise ValueError("bundle manifest production config identity mismatch")
+        return {
+            "kind": "bundle_manifest",
+            "source_head": source_head,
+            "production_config_identity": expected_config,
+        }
+    result = subprocess.run(("git", "rev-parse", "HEAD"), cwd=Path.cwd(), check=False,
+                            capture_output=True, text=True)
+    source_head = result.stdout.strip() if result.returncode == 0 else ""
+    if len(source_head) != 40 or any(c not in "0123456789abcdef" for c in source_head):
+        raise ValueError("source HEAD is unavailable without git or bundle provenance")
+    return {"kind": "git", "source_head": source_head}
+
+
+def _recover_next_route_id(config: Mapping[str, Any], state: Mapping[str, Any]) -> int:
+    """Recover the next authoritative route id from committed generation metadata only."""
+    base = int(config["cloud"]["route_id_base"])
+    used: list[int] = []
+    for commit in state.get("commits", ()):
+        used.extend(int(value) for value in commit.get("route_ids", ()))
+        identity = commit.get("identity") or {}
+        if "route_id" in identity:
+            used.append(int(identity["route_id"]))
+    return max(base, (max(used) + 1) if used else base)
+
+
 def initial_state(config: Mapping[str, Any]) -> dict[str, Any]:
     return {
         "schema_version": CLOUD_STATE_VERSION,
@@ -106,11 +148,13 @@ def initial_state(config: Mapping[str, Any]) -> dict[str, Any]:
         "working_asset_dir": str(config["asset_dir"]),
         "working_parent_route": str(config["parent_route"]),
         "accepted_specialists": [],
+        "uncommitted_accepts": [],
         "completed_frontiers": [],
         "commits": [],
         "completed_search_contexts": {},
         "suppressed_contexts": 0,
         "avoided_cuda_games": 0,
+        "next_route_id": int(config["cloud"]["route_id_base"]),
     }
 
 
@@ -130,6 +174,8 @@ def load_state(output: Path, config: Mapping[str, Any], resume: bool) -> dict[st
     state.setdefault("completed_search_contexts", {})
     state.setdefault("suppressed_contexts", 0)
     state.setdefault("avoided_cuda_games", 0)
+    state.setdefault("uncommitted_accepts", [])
+    state.setdefault("next_route_id", _recover_next_route_id(config, state))
     return state
 
 
@@ -159,7 +205,8 @@ def _validated_operational_overrides(overrides: Mapping[str, Any] | None) -> dic
 
 def generation_config(config: Mapping[str, Any], state: Mapping[str, Any], mode: str,
                       operational_overrides: Mapping[str, Any] | None = None,
-                      family_override: "Mapping[str, Any] | None" = None) -> dict[str, Any]:
+                      family_override: "Mapping[str, Any] | None" = None,
+                      source_provenance: Mapping[str, Any] | None = None) -> dict[str, Any]:
     policy = _mode_policy(config, mode)
     overrides = _validated_operational_overrides(operational_overrides)
     if family_override is not None:
@@ -188,9 +235,13 @@ def generation_config(config: Mapping[str, Any], state: Mapping[str, Any], mode:
     if "queue_depth" in overrides:
         runtime["host_execution"]["queue_depth"] = overrides["queue_depth"]
     runtime["deployment"] = dict(runtime["deployment"])
-    runtime["deployment"]["route_id_base"] = int(config["cloud"]["route_id_base"]) + int(state["generation"])
+    runtime["deployment"]["route_id_base"] = int(
+        state.get("next_route_id", _recover_next_route_id(config, state))
+    )
     runtime["deployment"]["authority_name"] = str(config["cloud"]["authority_name"])
     runtime["deployment"]["authority_slot"] = str(config["cloud"]["authority_slot"])
+    if source_provenance is not None:
+        runtime["source_provenance"] = dict(source_provenance)
     return runtime
 
 
@@ -280,12 +331,12 @@ def _extend_route_pack(base: Path, route_json: Path, route_id: int, destination:
 
 
 def build_working_assets(parent_assets: Path, deployment: Path, destination: Path) -> dict[str, Any]:
-    """Compile one fully composed module and extend the current route pack."""
+    """Compile one atomic generation deployment and extend its complete route set."""
     destination.mkdir(parents=True, exist_ok=False)
     module = _read(deployment / "composed_module.json")
     bkg4 = _load_bkg4()
     # Composer metadata is needed by the next composition generation, but is
-    # deliberately outside the BKG4 compiler schema.  Compile only executable
+    # deliberately outside the BKG4 compiler schema. Compile only executable
     # policy fields while retaining the complete module as controller.json.
     executable_fields = {
         "schema_version", "name", "feature_registry_version", "enums", "blackboard",
@@ -295,14 +346,61 @@ def build_working_assets(parent_assets: Path, deployment: Path, destination: Pat
     compiled = bkg4.compile_policy(executable)
     bkg4.save_compiled(compiled, destination / "controller.bkgc")
     (destination / "controller.json").write_text(json.dumps(module, sort_keys=True, indent=2) + "\n", encoding="utf-8")
-    specialist = _read(deployment / "specialist.json")
-    route_id = int(specialist["route_id"])
-    route_json = next(deployment.glob("*.route.json"))
-    _extend_route_pack(parent_assets / "routes.bkv6", route_json, route_id, destination / "routes.bkv6")
+
+    manifest_path = deployment / "specialists.json"
+    if manifest_path.exists():
+        rows = list(_read(manifest_path).get("specialists", ()))
+        if not rows:
+            raise ValueError("generation deployment has no specialists")
+    else:
+        # Backward-compatible single-specialist deployment used by bounded tests
+        # and old local artifacts. New cloud commits always emit specialists.json.
+        specialist = _read(deployment / "specialist.json")
+        route_json = next(deployment.glob("*.route.json"))
+        rows = [{
+            "candidate_id": specialist["provenance"]["candidate_semantic_id"],
+            "route_id": int(specialist["route_id"]),
+            "route_path": route_json.name,
+        }]
+
+    route_ids = [int(row["route_id"]) for row in rows]
+    candidate_ids = [str(row["candidate_id"]) for row in rows]
+    if len(set(route_ids)) != len(route_ids):
+        raise ValueError("generation deployment contains duplicate route ids")
+    current_pack = parent_assets / "routes.bkv6"
+    temporary_packs: list[Path] = []
+    try:
+        for index, row in enumerate(rows):
+            route_json = deployment / str(row["route_path"])
+            if not route_json.exists():
+                raise ValueError(f"generation deployment route is missing: {row['route_path']}")
+            destination_pack = (
+                destination / "routes.bkv6"
+                if index == len(rows) - 1
+                else destination / f".routes_{index:04d}.tmp"
+            )
+            _extend_route_pack(current_pack, route_json, int(row["route_id"]), destination_pack)
+            if current_pack.parent == destination and current_pack.name.startswith(".routes_"):
+                current_pack.unlink(missing_ok=True)
+            current_pack = destination_pack
+            if destination_pack.name.startswith(".routes_"):
+                temporary_packs.append(destination_pack)
+    finally:
+        for path in temporary_packs:
+            if path != current_pack:
+                path.unlink(missing_ok=True)
     shutil.copy2(parent_assets / "legacy_routes.bkv6", destination / "legacy_routes.bkv6")
-    identity = {"schema_version": 1, "controller_semantic_hash": compiled.semantic_hash,
-                "route_id": route_id, "candidate_id": specialist["provenance"]["candidate_semantic_id"],
-                "nodes": len(compiled.nodes), "state_slots": compiled.state_count}
+    identity: dict[str, Any] = {
+        "schema_version": 1,
+        "controller_semantic_hash": compiled.semantic_hash,
+        "route_ids": route_ids,
+        "candidate_ids": candidate_ids,
+        "nodes": len(compiled.nodes),
+        "state_slots": compiled.state_count,
+    }
+    if len(rows) == 1:
+        identity["route_id"] = route_ids[0]
+        identity["candidate_id"] = candidate_ids[0]
     _write_atomic(destination / "identity.json", identity)
     return identity
 
@@ -314,18 +412,266 @@ def _accepted_deployment(run_dir: Path, candidate_id: str) -> Path:
     return matches[0]
 
 
+class AcceptedCompositionConflict(ValueError):
+    """All candidates passed acceptance independently but cannot coexist atomically."""
+
+
+def _condition_rows(document: Sequence[Sequence[Mapping[str, Any]]]) -> tuple[tuple[ConditionGene, ...], ...]:
+    return tuple(tuple(
+        ConditionGene(str(row["feature"]), str(row["cmp"]), int(row.get("index", 0)), int(row["value"]))
+        for row in clause
+    ) for clause in document)
+
+
+def _materialization_hash(document: Mapping[str, Any]) -> str:
+    raw = json.dumps(document, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(b"RLRMB-BKG4-MATERIALIZATION-V1\0" + raw).hexdigest()
+
+
+def _refresh_materialization_audits(run_dir: Path, audits: Mapping[str, Mapping[str, Any]]) -> None:
+    """Keep root/family metrics aligned with authoritative rematerialization IDs."""
+    if not audits:
+        return
+
+    def replace(value: Any) -> None:
+        if isinstance(value, dict):
+            candidate_id = value.get("candidate_id")
+            if candidate_id in audits and "materialization" in value:
+                value["materialization"] = dict(audits[str(candidate_id)])
+            for nested in value.values():
+                replace(nested)
+        elif isinstance(value, list):
+            for nested in value:
+                replace(nested)
+
+    paths = [run_dir / "metrics.json", *sorted((run_dir / "families").glob("*/run.json"))]
+    for path in paths:
+        if not path.exists():
+            continue
+        document = _read(path)
+        replace(document)
+        _write_atomic(path, document)
+
+
+def _prepare_generation_deployment(
+    run_dir: Path,
+    parent_assets: Path,
+    parent_route: Path,
+    accepted: Sequence[str],
+    *,
+    route_id_base: int,
+    next_generation: int,
+    authority_name: str,
+    authority_slot: str,
+) -> tuple[Path, list[dict[str, Any]]]:
+    """Rebind accepted candidates to authoritative IDs and compose them atomically."""
+    candidate_ids = tuple(sorted(accepted))
+    if not candidate_ids:
+        raise ValueError("generation deployment requires accepted candidates")
+    deployments = [_accepted_deployment(run_dir, candidate_id) for candidate_id in candidate_ids]
+    # Existing stub tests intentionally provide only the legacy three-file shape.
+    # Keep that compatibility for one candidate; production materialization always
+    # includes materialization.json and therefore takes the authoritative path.
+    if len(candidate_ids) == 1 and not (deployments[0] / "materialization.json").exists():
+        specialist = _read(deployments[0] / "specialist.json") if (deployments[0] / "specialist.json").exists() else {}
+        route_id = int(specialist.get("route_id", route_id_base))
+        return deployments[0], [{"candidate_id": candidate_ids[0], "route_id": route_id}]
+
+    generation = run_dir / "generation_deployment"
+    if generation.exists():
+        shutil.rmtree(generation)
+    routes_dir = generation / "routes"
+    routes_dir.mkdir(parents=True)
+    parent_module = _read(parent_assets / "controller.json")
+    declarations: list[SpecialistDeclaration] = []
+    rows: list[dict[str, Any]] = []
+    authoritative_audits: dict[str, Mapping[str, Any]] = {}
+    evidence_rebinds: list[dict[str, Any]] = []
+    for offset, (candidate_id, source) in enumerate(zip(candidate_ids, deployments)):
+        materialization = _read(source / "materialization.json")
+        specialist_doc = _read(source / "specialist.json")
+        if str(materialization.get("candidate_id")) != candidate_id:
+            raise ValueError("accepted materialization candidate identity mismatch")
+        provenance = dict(specialist_doc.get("provenance") or {})
+        if provenance.get("candidate_semantic_id") != candidate_id:
+            raise ValueError("accepted specialist provenance candidate identity mismatch")
+        program = MacroProgram.from_document(materialization["program"])
+        gates = _condition_rows(materialization["outer_gate"])
+        route_id = route_id_base + offset
+        route_source = next(source.glob("*.route.json"))
+        route_name = f"{candidate_id}.route.json"
+        shutil.copy2(route_source, routes_dir / route_name)
+        macro = BoundedRouteMacro(
+            name=str(specialist_doc["name"]),
+            route_id=route_id,
+            base_route_id=64,
+            start_step=program.initiation.step,
+            duration=program.max_total_steps,
+            gate_clauses=gates,
+            provenance={"program_semantic_id": program.semantic_id},
+        )
+        declaration = SpecialistDeclaration.from_macro(
+            macro,
+            route_source=f"routes/{route_name}",
+            authorities=(authority_name,),
+            provenance={
+                "candidate_semantic_id": candidate_id,
+                "program_semantic_id": program.semantic_id,
+            },
+        )
+        declaration.validate()
+        declarations.append(declaration)
+        evidence_declaration = SpecialistDeclaration.from_macro(
+            macro,
+            route_source=route_source.name,
+            authorities=(authority_name,),
+            provenance={
+                "candidate_semantic_id": candidate_id,
+                "program_semantic_id": program.semantic_id,
+            },
+        )
+        evidence_declaration.validate()
+        # The per-candidate deployment is retained as exact acceptance evidence.
+        # Rebind its route-bearing metadata to the same authoritative ID that will
+        # appear in the atomic generation controller, rather than leaving the
+        # provisional materialization-order ID behind.
+        materialization_module = dict(materialization["module"])
+        materialization_module["tree"] = macro.specialist_tree(route_override_slot=authority_slot)
+        materialization_module["strategic_routes"] = [{
+            "name": declaration.name,
+            "route_id": route_id,
+            "source": route_source.name,
+        }]
+        materialization["module"] = materialization_module
+        materialization_id = _materialization_hash(materialization)
+        single = compose_specialists(
+            parent_module,
+            (evidence_declaration,),
+            (),
+            strategic_authorities=(StrategicAuthority(authority_name, authority_slot),),
+            output_name=f"certified_{candidate_id[:12]}",
+        )
+        audit = {
+            "materialization_id": materialization_id,
+            "node_count": int(materialization["node_count"]),
+            "state_slots": len(materialization_module.get("blackboard", ())),
+            "composition_order": single.report["composition_order"],
+            "unresolved_conflicts": single.report["unresolved_conflicts"],
+            "semantic_mismatches": 0,
+        }
+        evidence_rebinds.append({
+            "source": source,
+            "materialization": materialization,
+            "specialist": evidence_declaration.canonical(),
+            "composition": audit,
+            "composed_module": single.module,
+        })
+        authoritative_audits[candidate_id] = audit
+        rows.append({
+            "candidate_id": candidate_id,
+            "route_id": route_id,
+            "route_path": f"routes/{route_name}",
+            "active_window": [declaration.active_start, declaration.active_end],
+            "specialist": declaration.canonical(),
+        })
+
+    try:
+        composed = compose_specialists(
+            parent_module,
+            tuple(declarations),
+            (),
+            strategic_authorities=(StrategicAuthority(authority_name, authority_slot),),
+            output_name=f"rlrmb_generation_{next_generation:04d}",
+        )
+    except ValueError as exc:
+        if len(declarations) > 1 and "unresolved strategic authority conflict" in str(exc):
+            conflict = {
+                "schema_version": 1,
+                "status": "UNCOMMITTED_COMPOSITION_CONFLICT",
+                "candidate_ids": list(candidate_ids),
+                "provisional_route_ids": [row["route_id"] for row in rows],
+                "error": str(exc),
+            }
+            _write_atomic(run_dir / "composition_conflict.json", conflict)
+            shutil.rmtree(generation, ignore_errors=True)
+            raise AcceptedCompositionConflict(str(exc)) from exc
+        raise
+
+    _write_atomic(generation / "composed_module.json", composed.module)
+    _write_atomic(generation / "specialists.json", {
+        "schema_version": 1,
+        "specialists": rows,
+        "composition_order": list(composed.report.get("composition_order", ())),
+        "unresolved_conflicts": list(composed.report.get("unresolved_conflicts", ())),
+    })
+    _write_atomic(generation / "composition.json", composed.report)
+
+    # The route used for the next search parent must contain every accepted edit.
+    parent_actions = list(_read(parent_route)["actions"])
+    for row in rows:
+        route_actions = _read(generation / row["route_path"])["actions"]
+        start, end = (int(value) for value in row["active_window"])
+        if end >= len(parent_actions) or end >= len(route_actions):
+            raise ValueError("accepted specialist active window exceeds route length")
+        parent_actions[start:end + 1] = route_actions[start:end + 1]
+    # Only rewrite retained per-candidate evidence after the complete generation
+    # deployment has proven composable. A composition failure must preserve the
+    # original independently accepted evidence and its provisional route IDs.
+    for rebind in evidence_rebinds:
+        source = Path(rebind["source"])
+        _write_atomic(source / "materialization.json", rebind["materialization"])
+        _write_atomic(source / "specialist.json", rebind["specialist"])
+        _write_atomic(source / "composition.json", rebind["composition"])
+        _write_atomic(source / "composed_module.json", rebind["composed_module"])
+    _refresh_materialization_audits(run_dir, authoritative_audits)
+
+    _write_atomic(generation / "working_parent.route.json", {"actions": parent_actions})
+    return generation, rows
+
+
+def _refresh_run_manifest(run_dir: Path) -> None:
+    """Make run.json describe only artifacts that still exist after compaction."""
+    manifest_path = run_dir / "run.json"
+    if not manifest_path.exists():
+        return
+    manifest = _read(manifest_path)
+    if "artifact_references" not in manifest:
+        return
+    manifest["artifact_references"] = sorted(
+        str(path.relative_to(run_dir))
+        for path in run_dir.rglob("*.json")
+        if path.name != "run.json"
+    )
+    _write_atomic(manifest_path, manifest)
+
+
+def _assert_no_pending_references(root: Path) -> None:
+    """Fail closed rather than commit metadata that names a transient pending path."""
+    for path in root.rglob("*.json"):
+        document = _read(path)
+        stack = [document]
+        while stack:
+            value = stack.pop()
+            if isinstance(value, Mapping):
+                stack.extend(value.values())
+            elif isinstance(value, (list, tuple)):
+                stack.extend(value)
+            elif isinstance(value, str) and ".pending" in value:
+                raise ValueError(f"committed metadata contains transient pending path: {path}")
+
+
 def compact_generation_artifacts(run_dir: Path, accepted: Sequence[str]) -> None:
-    """Discard bulk search matrices while preserving exact accepted evidence."""
+    """Discard bulk search matrices and refresh manifests to retained evidence only."""
     keep = set(accepted)
     families = run_dir / "families"
-    if not families.exists():
-        return
-    for family in families.iterdir():
-        if not family.is_dir():
-            continue
-        for child in family.iterdir():
-            if child.is_dir() and (child.name == "prepromotion" or child.name not in keep):
-                shutil.rmtree(child)
+    if families.exists():
+        for family in families.iterdir():
+            if not family.is_dir():
+                continue
+            for child in family.iterdir():
+                if child.is_dir() and (child.name == "prepromotion" or child.name not in keep):
+                    shutil.rmtree(child)
+    _refresh_run_manifest(run_dir)
 
 
 def run_cloud(config_path: Path, output: Path, *, mode: str, resume: bool = False,
@@ -334,6 +680,7 @@ def run_cloud(config_path: Path, output: Path, *, mode: str, resume: bool = Fals
               operational_overrides: Mapping[str, Any] | None = None,
               telemetry_interval_seconds: float = 2.0) -> int:
     config = load_cloud_config(config_path)
+    source_provenance = _source_provenance(config)
     policy = _mode_policy(config, mode)
     overrides = _validated_operational_overrides(operational_overrides)
     if telemetry_interval_seconds <= 0 or telemetry_interval_seconds > 3600:
@@ -357,7 +704,7 @@ def run_cloud(config_path: Path, output: Path, *, mode: str, resume: bool = Fals
                 asset_builder=asset_builder, operational_overrides=operational_overrides,
                 telemetry_interval_seconds=telemetry_interval_seconds,
                 overrides=overrides, policy=policy, resources=_resources,
-                allocator=allocator,
+                allocator=allocator, source_provenance=source_provenance,
             )
     finally:
         telemetry.stop()
@@ -369,6 +716,7 @@ def _run_cloud_inner(
     operational_overrides: "Any", telemetry_interval_seconds: float,
     overrides: dict, policy: Any, resources: RunResources,
     allocator: "SearchAllocator | None" = None,
+    source_provenance: "Mapping[str, Any] | None" = None,
 ) -> int:
     state = load_state(output, config, resume)
     limit = int(max_generations or policy["max_generations"])
@@ -441,7 +789,7 @@ def _run_cloud_inner(
             shutil.rmtree(pending)
         runtime_config = generation_config(
             config, state, mode, operational_overrides=overrides,
-            family_override=selected_family,
+            family_override=selected_family, source_provenance=source_provenance,
         )
         family_id = runtime_config["families"][0]["id"]
         context_id = search_context_identity(runtime_config, state)
@@ -477,21 +825,53 @@ def _run_cloud_inner(
         state["completed_frontiers"].append(family_id)
         state["next_frontier"] += 1
         if accepted:
-            candidate_id = accepted[0]
-            deployment = _accepted_deployment(run_dir, candidate_id)
+            protected_w2l = int(metrics.get("protected_win_to_loss", 0))
+            semantic_mismatches = int(metrics.get("semantic_mismatches", 0))
+            if protected_w2l or semantic_mismatches:
+                raise RuntimeError("accepted generation failed protected regression/parity")
             next_generation = int(state["generation"]) + 1
+            committed = output / "generations" / f"generation_{next_generation:04d}"
+            try:
+                deployment, specialist_rows = _prepare_generation_deployment(
+                    run_dir,
+                    Path(state["working_asset_dir"]),
+                    Path(state["working_parent_route"]),
+                    accepted,
+                    route_id_base=int(state["next_route_id"]),
+                    next_generation=next_generation,
+                    authority_name=str(runtime_config["deployment"]["authority_name"]),
+                    authority_slot=str(runtime_config["deployment"]["authority_slot"]),
+                )
+            except AcceptedCompositionConflict as exc:
+                compact_generation_artifacts(run_dir, accepted)
+                completed = output / "completed_attempts" / f"attempt_{attempt:04d}"
+                completed.parent.mkdir(parents=True, exist_ok=True)
+                _assert_no_pending_references(pending)
+                os.replace(pending, completed)
+                state["uncommitted_accepts"].append({
+                    "family_id": family_id,
+                    "generation": int(state["generation"]),
+                    "candidate_ids": list(accepted),
+                    "reason": "COMPOSITION_CONFLICT",
+                    "diagnostic": str(exc),
+                    "attempt_path": str(completed.relative_to(output)),
+                    "cuda_games": actual_cuda_games,
+                })
+                _write_atomic(output / "generation_state.json", state)
+                continue
+
             assets = pending / "working_assets"
             identity = asset_builder(Path(state["working_asset_dir"]), deployment, assets)
-            if int(metrics.get("protected_win_to_loss", 0)) or int(metrics.get("semantic_mismatches", 0)):
-                raise RuntimeError("accepted generation failed protected regression/parity")
-            route = next(deployment.glob("*.route.json"))
+            route_ids = [int(row["route_id"]) for row in specialist_rows]
+            if len(set(route_ids)) != len(route_ids):
+                raise RuntimeError("generation route allocation produced a collision")
             compact_generation_artifacts(run_dir, accepted)
-            committed = output / "generations" / f"generation_{next_generation:04d}"
             committed.parent.mkdir(parents=True, exist_ok=True)
+            _assert_no_pending_references(pending)
             os.replace(pending, committed)
             # Phase 16.5/16.6: before changing the authoritative parent, copy
             # every outgoing-generation family evaluation context into its stable
-            # cross-generation search region.  These rows guide allocation only;
+            # cross-generation search region. These rows guide allocation only;
             # the new controller still has distinct exact evaluation contexts.
             if resources.search_memory is not None:
                 for old_family in config["families"]:
@@ -504,18 +884,36 @@ def _run_cloud_inner(
                     )
             state["generation"] = next_generation
             state["working_asset_dir"] = str((committed / "working_assets").resolve())
-            route_copy = committed / "working_parent.route.json"
-            shutil.copy2(committed / "run" / deployment.relative_to(run_dir) / route.name, route_copy)
-            state["working_parent_route"] = str(route_copy.resolve())
-            state["accepted_specialists"].append(candidate_id)
-            state["commits"].append({"generation": next_generation, "candidate_id": candidate_id,
-                                     "family_id": family_id, "identity": identity,
-                                     "cuda_games": int(metrics.get("total_cuda_games", 0))})
-            consecutive_suppressions = 0
+            committed_deployment = committed / "run" / deployment.relative_to(run_dir)
+            if (committed_deployment / "working_parent.route.json").exists():
+                parent_route = committed_deployment / "working_parent.route.json"
+            else:
+                # Compatibility for one-candidate legacy stub deployments.
+                route = next(committed_deployment.glob("*.route.json"))
+                parent_route = committed / "working_parent.route.json"
+                shutil.copy2(route, parent_route)
+            state["working_parent_route"] = str(parent_route.resolve())
+            state["accepted_specialists"].extend(accepted)
+            if route_ids:
+                state["next_route_id"] = max(int(state["next_route_id"]), max(route_ids) + 1)
+            commit_row: dict[str, Any] = {
+                "generation": next_generation,
+                "candidate_ids": list(accepted),
+                "route_ids": route_ids,
+                "family_id": family_id,
+                "identity": identity,
+                "cuda_games": actual_cuda_games,
+                "protected_win_to_loss": protected_w2l,
+                "semantic_mismatches": semantic_mismatches,
+            }
+            if len(accepted) == 1:
+                commit_row["candidate_id"] = accepted[0]
+            state["commits"].append(commit_row)
         else:
             compact_generation_artifacts(run_dir, ())
             completed = output / "completed_attempts" / f"attempt_{attempt:04d}"
             completed.parent.mkdir(parents=True, exist_ok=True)
+            _assert_no_pending_references(pending)
             os.replace(pending, completed)
         _write_atomic(output / "generation_state.json", state)
     result = {"schema_version": 1, "mode": mode, "wall_seconds": time.monotonic() - started,
