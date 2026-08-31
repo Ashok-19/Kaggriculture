@@ -32,6 +32,10 @@ from .pipeline import (
 )
 from .routability import RoutabilityClassification, RoutabilityResult, screen_routability
 from .cegis_adapter import run_hardened_cegis
+from .diagnostics import (
+    DiagnosticRoutabilityClass, ImperfectCandidateRecord, ImperfectSpecialistDiagnostics,
+    classify_diagnostic_routability, per_case_effects_from_evidence, write_diagnostic_artifacts,
+)
 from .effects import EffectVector, effect_signature
 from .failures import FailureClass
 from .lns import DualPanelEvaluator, run_lns
@@ -440,7 +444,7 @@ def prefetch_checkpoint_motif_batches(
 
 def _effect_rows(program: MacroProgram, role: DatasetRole, panel: Path, block) -> tuple[ExactCaseEvidence, ...]:
     meta = load_case_panel(panel, role.value.lower())
-    return tuple(ExactCaseEvidence(case, role, base, base + delta, (), (), program.semantic_id)
+    return tuple(ExactCaseEvidence(case, role, base, base + delta, (), (), (), program.semantic_id)
                  for case, base, delta in zip(meta, block.baseline_margins, block.margin_deltas))
 
 
@@ -628,6 +632,7 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
     donor_paths = tuple(Path(line.strip()) for line in (root / config["donor_manifest"]).read_text().splitlines() if line.strip())[:config["search"]["donor_limit"]]
     asset = root / config["asset_dir"]; binary = root / config["cuda_binary"]
     all_metrics: dict[str, Any] = {}; failures = Counter(); accepted = []; global_effects = set(); target_clusters = set(); total_l2w = 0
+    _imperfect_diag = ImperfectSpecialistDiagnostics()
     # Phase 16.5: evaluation context ID (stable across same-controller retry attempts)
     _p165_memory = getattr(resources, "search_memory", None) if resources is not None else None
     _eval_ctx_id = evaluation_context_id(config) if _p165_memory is not None else ""
@@ -884,6 +889,39 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
                     family_results.append(item)
         for c in refined:
             block=c.effect.blocks[0]; total_l2w+=sum(block.loss_to_win); global_effects.add(_effect_identity(c.effect)); target_clusters.add((family_id,tuple(block.loss_to_win),tuple(x>0 for x in block.margin_deltas)))
+        # Phase-0 imperfect-specialist diagnostics (observational only)
+        for candidate in promotion_pool:
+            block = _target_block(candidate)
+            l2w = sum(block.loss_to_win); w2l = sum(block.win_to_loss)
+            if l2w == 0:
+                continue
+            program = candidate.program
+            risk = full_risks.get(program.semantic_id) or target_risks.get(program.semantic_id)
+            risk_doc = risk.to_document() if risk else {}
+            diag_class = classify_diagnostic_routability(risk_doc) if risk else DiagnosticRoutabilityClass.UNKNOWN
+            rows = target_rows_by_id.get(program.semantic_id, ())
+            per_case = per_case_effects_from_evidence(rows) if rows else ()
+            _imperfect_diag.record(ImperfectCandidateRecord(
+                candidate_semantic_id=program.semantic_id,
+                structural_id=program.semantic_id,
+                family=family_id,
+                lane=candidate.checkpoint.lane.value if hasattr(candidate.checkpoint, "lane") else "GENERAL",
+                target_loss_to_win=l2w,
+                target_win_to_loss=w2l,
+                target_harm_count=sum(d < 0 for d in block.margin_deltas),
+                worst_delta=min(block.margin_deltas),
+                aggregate_margin=sum(block.margin_deltas),
+                effect_signature=effect_signature(candidate.effect) if candidate.effect else "",
+                routability_classification=risk_doc.get("classification", "UNKNOWN"),
+                diagnostic_routability=diag_class.value,
+                per_case_effects=per_case,
+                effect_vector_doc=candidate.effect.to_document() if candidate.effect else None,
+                initiation_step=program.initiation.step,
+                checkpoint_metadata={"lane": candidate.checkpoint.lane.value if hasattr(candidate.checkpoint, "lane") else "GENERAL",
+                                     "step": candidate.checkpoint.step},
+                gate_evidence={"legal_predicate": risk_doc.get("diagnostics", {}).get("legal_predicate"),
+                               "gate_predicate": risk_doc.get("diagnostics", {}).get("gate_predicate")} if risk_doc else {},
+            ))
         target_future=sum(risk.classification is RoutabilityClassification.FUTURE_DEPENDENT for risk in target_risks.values())
         full_future=sum(risk.classification is RoutabilityClassification.FUTURE_DEPENDENT for risk in full_risks.values())
         host_pipeline_metrics = {
@@ -998,6 +1036,10 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
     _t0=time.monotonic()
     _write_json(output/"metrics.json",metrics);_write_json(output/"failures.json",{"counts":dict(sorted(failures.items()))});_write_json(output/"archive_summary.json",{"families":{k:v["archive"] for k,v in all_metrics.items()}})
     _write_json(output/"run.json",{**manifest,"finished_unix":int(time.time()),"verdict":"CAMPAIGN_COMPLETE"})
+    # Phase-0 imperfect-specialist diagnostic artifacts (observational only)
+    _diag_manifest = write_diagnostic_artifacts(output / "diagnostics", _imperfect_diag)
+    if _diag_manifest:
+        _write_json(output / "diagnostics" / "manifest.json", _diag_manifest)
     stage_timing["post_search_io"]+=time.monotonic()-_t0
     return 0
 

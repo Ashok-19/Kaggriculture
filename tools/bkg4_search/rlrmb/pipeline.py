@@ -20,7 +20,7 @@ from typing import Any, Callable, Mapping, Sequence
 from tools.bkg4_search.edit_search.goals import CONTRASTIVE_FEATURES
 from tools.bkg4_search.information_state_io import load_r0, registry_manifest
 from tools.bkg4_search.bonsai_composer import StrategicAuthority, compose_specialists
-from tools.bkg4_search.module_codec import ConditionGene
+from tools.bkg4_search.module_codec import ConditionGene, FEATURES as _GATE_GRAMMAR_FEATURES
 
 from .beam import CudaBatchEvaluator
 from .cegis_adapter import AdapterCase, CegisAdapterInput, CegisAdapterResult, run_hardened_cegis
@@ -401,6 +401,7 @@ class ExactCaseEvidence:
     baseline_margin: int
     candidate_margin: int
     legal_context: tuple[tuple[str, int, int], ...]
+    gate_context: tuple[tuple[str, int, int], ...]
     exact_signature: tuple[int, ...]
     candidate_id: str
 
@@ -430,7 +431,7 @@ def evaluate_candidate_panel(program: MacroProgram, motifs: Mapping[str, Motif],
     meta = load_case_panel(cases_path, role.value.lower())
     batch = CudaBatchEvaluator(binary=binary, asset_dir=asset_dir, cases_path=cases_path)((program,), motifs)
     block = batch.programs[0].effect.blocks[0]
-    return tuple(ExactCaseEvidence(row, role, base, base + delta, (), (), program.semantic_id)
+    return tuple(ExactCaseEvidence(row, role, base, base + delta, (), (), (), program.semantic_id)
                  for row, base, delta in zip(meta, block.baseline_margins, block.margin_deltas))
 
 
@@ -503,12 +504,15 @@ def load_candidate_legal_states(program: MacroProgram, rows: Sequence[ExactCaseE
     data = load_r0(capture); registry = registry_manifest()
     if data.cases != len(rows) or data.probes[0] != program.initiation.step:
         raise ValueError("candidate capture shape/boundary mismatch")
+    _gate_features = frozenset(_GATE_GRAMMAR_FEATURES)
     result = []
     for index, row in enumerate(rows):
         frame = data.frame(index, 0); signature = tuple(int(x) for x in frame[:data.registry_width + data.bb_width + data.compat_width])
-        context = tuple((feature, int(args[0]) if args else 0, int(frame[ri])) for ri, (feature, args) in enumerate(registry)
-                        if feature in CONTRASTIVE_FEATURES and len(args) <= 1)
-        result.append(ExactCaseEvidence(row.meta, row.role, row.baseline_margin, row.candidate_margin, context, signature, row.candidate_id))
+        legal_context = tuple((feature, int(args[0]) if args else 0, int(frame[ri])) for ri, (feature, args) in enumerate(registry)
+                              if len(args) <= 1)
+        gate_context = tuple((feature, idx, val) for feature, idx, val in legal_context
+                             if feature in _gate_features)
+        result.append(ExactCaseEvidence(row.meta, row.role, row.baseline_margin, row.candidate_margin, legal_context, gate_context, signature, row.candidate_id))
     return tuple(result)
 
 
@@ -524,7 +528,7 @@ def build_routability_evidence(program: MacroProgram, rows: Sequence[ExactCaseEv
         continuation = program.semantic_id if row.delta > 0 else "PARENT"
         trajectories.append(TrajectoryEvidence(
             row.meta.case_id, row.role,
-            (BoundaryState(program.initiation.step, row.exact_signature, row.legal_context, row.legal_context),),
+            (BoundaryState(program.initiation.step, row.exact_signature, row.legal_context, row.gate_context),),
             (RequiredContinuation(program.initiation.step, continuation),), row.delta,
             row.meta.family, row.meta.family, row.meta.seat, required_support=row.role is DatasetRole.TARGET and row.delta > 0,
         ))

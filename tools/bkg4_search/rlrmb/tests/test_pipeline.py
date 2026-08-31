@@ -29,7 +29,7 @@ class PipelineTests(unittest.TestCase):
         self.context = (("OWN_MONEY", 0, 3000),)
     def row(self, name, role, delta, signature=(1,), candidate=None):
         return ExactCaseEvidence(CaseMeta(name, "tape.json", 0, 1, name), role, -1, -1 + delta,
-                                 self.context, signature, candidate or self.program.semantic_id)
+                                 self.context, self.context, signature, candidate or self.program.semantic_id)
     def test_candidate_specific_capture_binding_and_role_conversion(self):
         rows=(self.row("t",DatasetRole.TARGET,2),self.row("x",DatasetRole.TRANSFER,2,(2,)),self.row("v",DatasetRole.VALIDATION,0,(3,)))
         evidence=build_routability_evidence(self.program,rows)
