@@ -221,6 +221,9 @@ class SearchMemory:
                 passed      INTEGER NOT NULL DEFAULT 0,
                 insert_time INTEGER NOT NULL,
                 PRIMARY KEY (semantic_id, context_id))""")
+            # Phase 1.5: binary pipeline restart state
+            from .binary_restart import init_binary_pipeline_schema
+            init_binary_pipeline_schema(conn)
             row = conn.execute(
                 "SELECT value FROM schema_meta WHERE key='schema_version'"
             ).fetchone()
