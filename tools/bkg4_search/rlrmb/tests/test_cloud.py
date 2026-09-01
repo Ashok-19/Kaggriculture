@@ -466,7 +466,7 @@ class StagingTimingTests(unittest.TestCase):
         beam_result.candidates = []
         beam_result.archive = MagicMock()
         beam_result.archive.entries.return_value = []
-        beam_result.archive.metrics.return_value = {}
+        beam_result.archive.metrics.return_value = {"candidates_considered": 0}
         beam_result.archive.serialize.return_value = '{"families":{}}'
         beam_result.metrics = {"depth_reached": 0, "host_seconds": 0.0, "cuda_ms": 0.0,
                                "raw_candidates": 0, "structural_duplicates_removed": 0,

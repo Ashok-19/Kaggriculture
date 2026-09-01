@@ -533,6 +533,231 @@ def _failure_routed_result(
     )
 
 
+def _evaluate_gate(
+    gate: tuple[tuple[ConditionGene, ...], ...],
+    observation: Mapping[str, Any],
+) -> bool:
+    """Evaluate gate conditions against an observation (DNF: any clause fully matches)."""
+    from .evaluator import _condition_matches
+    from .ir import PublicCondition
+    return any(
+        all(
+            _condition_matches(
+                PublicCondition(c.feature, c.cmp, c.index, c.value), observation
+            )
+            for c in clause
+        )
+        for clause in gate
+    )
+
+
+def build_routed_cases_from_diagnostics(
+    per_case_effects: Sequence[Any],
+    initiation_step: int,
+) -> tuple[RoutedEvaluationCase, ...]:
+    """Build RoutedEvaluationCase objects from diagnostic PerCaseEffect records.
+
+    Each effect must have _legal_context attached (gate_context dict) so that
+    a minimal observation can be reconstructed for gate matching.
+    """
+    cases: list[RoutedEvaluationCase] = []
+    for eff in per_case_effects:
+        ctx = eff.__dict__.get("_legal_context", {})
+        if not ctx:
+            continue
+        if not (eff.role == "TARGET" and eff.baseline_margin < 0 < eff.candidate_margin) and \
+           not (eff.role == "PROTECTED" and eff.baseline_margin > 0 > eff.candidate_margin):
+            continue
+        obs = _observation_from_gate_context(ctx, initiation_step)
+        parent_action = {"farmer": ["WAIT"], "hands": [], "market": []}
+        cases.append(RoutedEvaluationCase(
+            case_id=eff.case_id,
+            role=eff.role,
+            baseline_margin=eff.baseline_margin,
+            global_specialist_margin=eff.candidate_margin,
+            observation=obs,
+            parent_action=parent_action,
+        ))
+    return tuple(cases)
+
+
+def evaluate_routed_from_diagnostics(
+    gate_result: GateSynthesisResult,
+    cases: Sequence[RoutedEvaluationCase],
+    *,
+    parent_generation_context: str,
+    protected_global_w2l: int | None = None,
+    target_global_l2w: int | None = None,
+) -> RoutedEvaluationResult:
+    """Evaluate gate decisions on diagnostic cases without full materialization.
+
+    Uses the gate conditions directly to determine routing decisions and projects
+    margins from pre-computed global specialist evidence.
+    """
+    if gate_result.status is not GateSynthesisStatus.GATE_SYNTHESIZED:
+        raise ValueError("routed evaluation requires GATE_SYNTHESIZED status")
+    if gate_result.gate is None or gate_result.gate_identity is None:
+        raise ValueError("GATE_SYNTHESIZED result must have gate and identity")
+    if parent_generation_context != gate_result.parent_generation_context:
+        return _failure_routed_result(
+            gate_result, parent_generation_context,
+            RoutedEvaluationStatus.INSUFFICIENT_EVIDENCE,
+            "parent_context_mismatch", route_id=0,
+            protected_global_w2l=protected_global_w2l,
+            target_global_l2w=target_global_l2w,
+        )
+    if not cases:
+        return _failure_routed_result(
+            gate_result, parent_generation_context,
+            RoutedEvaluationStatus.INSUFFICIENT_EVIDENCE,
+            "no_evaluation_cases", route_id=0,
+            protected_global_w2l=protected_global_w2l,
+            target_global_l2w=target_global_l2w,
+        )
+
+    per_case_results: list[RoutedCaseResult] = []
+    for case in cases:
+        gate_decided = _evaluate_gate(gate_result.gate, case.observation)
+        if gate_decided:
+            routed_margin = (case.global_specialist_margin
+                             if case.global_specialist_margin is not None
+                             else case.baseline_margin)
+        else:
+            routed_margin = case.baseline_margin
+
+        is_counterexample = False
+        if case.role == "PROTECTED" and routed_margin <= 0 < case.baseline_margin:
+            is_counterexample = True
+        if (case.role == "TARGET" and case.baseline_margin < 0 and routed_margin < 0
+                and case.global_specialist_margin is not None
+                and case.global_specialist_margin > 0):
+            is_counterexample = True
+
+        per_case_results.append(RoutedCaseResult(
+            case_id=case.case_id, role=case.role,
+            baseline_margin=case.baseline_margin,
+            routed_margin=routed_margin,
+            global_specialist_margin=case.global_specialist_margin,
+            gate_decision=gate_decided,
+            is_counterexample=is_counterexample,
+        ))
+
+    target_results = [r for r in per_case_results if r.role == "TARGET"]
+    protected_results = [r for r in per_case_results if r.role == "PROTECTED"]
+
+    target_routed_l2w = sum(1 for r in target_results if r.loss_to_win)
+    target_routed_w2l = sum(1 for r in target_results if r.win_to_loss)
+    target_routed_harms = sum(1 for r in target_results if r.harmful)
+    target_routed_positives = sum(1 for r in target_results if r.positive)
+    target_routed_worst = min((r.delta for r in target_results), default=0)
+
+    protected_routed_w2l = sum(1 for r in protected_results if r.win_to_loss)
+    protected_routed_l2w = sum(1 for r in protected_results if r.loss_to_win)
+    protected_routed_harms = sum(1 for r in protected_results if r.harmful)
+    protected_routed_worst = min((r.delta for r in protected_results), default=0)
+
+    w2l_eliminated = max(0, (protected_global_w2l or 0) - protected_routed_w2l)
+    counterexample_ids = tuple(r.case_id for r in per_case_results if r.is_counterexample)
+
+    if protected_routed_w2l > 0:
+        status = RoutedEvaluationStatus.ROUTED_PROTECTED_REGRESSION
+        reason = f"routed_protected_w2l={protected_routed_w2l}"
+    elif target_routed_l2w < DEFAULT_MIN_ROUTED_TARGET_CAPABILITY:
+        status = RoutedEvaluationStatus.TARGET_CAPABILITY_LOST
+        reason = f"routed_target_l2w={target_routed_l2w}_below_minimum={DEFAULT_MIN_ROUTED_TARGET_CAPABILITY}"
+    else:
+        status = RoutedEvaluationStatus.READY_FOR_DOWNSTREAM_INTEGRATION
+        reason = None
+
+    fallback_audit = FallbackAuditResult(
+        cases_audited=sum(1 for r in per_case_results if not r.gate_decision),
+        parent_mismatches=0, mismatched_case_ids=(),
+    )
+
+    return RoutedEvaluationResult(
+        candidate_semantic_id=gate_result.candidate_semantic_id,
+        parent_generation_context=parent_generation_context,
+        gate_identity=gate_result.gate_identity,
+        status=status, temporary_route_id=0,
+        target_baseline_cases=len(target_results),
+        target_global_l2w=target_global_l2w,
+        target_static_expected_positives=gate_result.target_positives_matched,
+        target_routed_l2w=target_routed_l2w,
+        target_routed_w2l=target_routed_w2l,
+        target_routed_harms=target_routed_harms,
+        target_routed_positives=target_routed_positives,
+        target_routed_worst_delta=target_routed_worst,
+        protected_global_w2l=protected_global_w2l,
+        protected_routed_w2l=protected_routed_w2l,
+        protected_w2l_eliminated=w2l_eliminated,
+        protected_routed_harms=protected_routed_harms,
+        protected_routed_l2w=protected_routed_l2w,
+        protected_routed_worst_delta=protected_routed_worst,
+        fallback_audit=fallback_audit,
+        semantic_mismatch_count=0,
+        routed_counterexample_case_ids=counterexample_ids,
+        per_case_results=tuple(per_case_results),
+        failure_reason=reason,
+        source_gate_synthesis_identity=gate_result.gate_identity,
+        source_admission_identity=gate_result.source_admission_identity,
+    )
+
+
+def _observation_from_gate_context(
+    ctx: Mapping[tuple[str, int], int],
+    step: int,
+) -> dict[str, Any]:
+    """Reconstruct a minimal observation dict from gate_context for gate matching."""
+    obs: dict[str, Any] = {
+        "step": step, "day": step // 24, "hour": step % 24, "player": 0,
+        "farms": [
+            {"money": 3000, "farmer": (0, 0), "hands": [], "hires_today": 0,
+             "unlocked_quadrants": ["NW"], "tiles": []},
+            {"money": 3000, "farmer": (0, 0), "hands": [], "hires_today": 0,
+             "unlocked_quadrants": ["NW"], "tiles": []},
+        ],
+        "private": {"seeds": {}, "shed": {}, "inventories": []},
+        "market": {"inventory": {}, "prices": {}},
+        "town": {"unlocked_shops": []},
+    }
+    own = obs["farms"][0]
+    opp = obs["farms"][1]
+    _ITEMS = [
+        "WHEAT", "CORN", "RICE", "POTATO", "PUMPKIN", "COTTON", "SUGARCANE",
+        "CHICKEN", "COW",
+    ]
+    for (feature, index), value in ctx.items():
+        if feature == "STEP":
+            obs["step"] = value
+            obs["day"] = value // 24
+            obs["hour"] = value % 24
+        elif feature == "OWN_MONEY":
+            own["money"] = value
+        elif feature == "OPP_MONEY":
+            opp["money"] = value
+        elif feature == "OWN_UNITS":
+            own["hands"] = [[0, 0]] * max(0, value - 1)
+        elif feature == "OPP_UNITS":
+            opp["hands"] = [[0, 0]] * max(0, value - 1)
+        elif feature == "OWN_LAND":
+            own["unlocked_quadrants"] = ["NW"] * value
+        elif feature == "OPP_LAND":
+            opp["unlocked_quadrants"] = ["NW"] * value
+        elif feature == "OWN_HIRES_TODAY":
+            own["hires_today"] = value
+        elif feature == "OPP_HIRES_TODAY":
+            opp["hires_today"] = value
+        elif feature == "MARKET_INVENTORY" and index < 9:
+            obs["market"]["inventory"][_ITEMS[index]] = value
+        elif feature == "MARKET_PRICE" and index < 9:
+            obs["market"]["prices"][_ITEMS[index]] = value
+        elif feature == "OWN_SEED" and index < 9:
+            obs["private"]["seeds"][_ITEMS[index]] = value
+        elif feature == "OWN_SHED" and index < 9:
+            obs["private"]["shed"][_ITEMS[index]] = value
+    return obs
+
+
 @dataclass
 class RoutedEvaluationMetrics:
     """Phase 1.3 routed evaluation metrics collector."""
@@ -615,23 +840,23 @@ def write_routed_evaluation_artifact(
     }
     summary_path = output_dir / "routed_eval_summary.json"
     summary_path.write_text(json.dumps(summary, sort_keys=True, indent=2) + "\n", encoding="utf-8")
-    manifest["routed_eval_summary"] = str(summary_path)
+    manifest["routed_eval_summary"] = summary_path.name
 
     if successful:
         candidates_doc = [r.to_document() for r in successful]
         candidates_path = output_dir / "routed_candidates.json"
         candidates_path.write_text(json.dumps(candidates_doc, sort_keys=True, indent=2) + "\n", encoding="utf-8")
-        manifest["routed_candidates"] = str(candidates_path)
+        manifest["routed_candidates"] = candidates_path.name
 
     if counterexamples:
         cx_path = output_dir / "routed_counterexamples.json"
         cx_path.write_text(json.dumps(counterexamples, sort_keys=True, indent=2) + "\n", encoding="utf-8")
-        manifest["routed_counterexamples"] = str(cx_path)
+        manifest["routed_counterexamples"] = cx_path.name
 
     if results:
         all_path = output_dir / "all_routed_results.json"
         all_path.write_text(json.dumps([r.to_document() for r in results], sort_keys=True, indent=2) + "\n", encoding="utf-8")
-        manifest["all_routed_results"] = str(all_path)
+        manifest["all_routed_results"] = all_path.name
 
     return manifest
 

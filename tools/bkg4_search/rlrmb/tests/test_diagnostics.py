@@ -521,7 +521,7 @@ class TestWriteDiagnosticArtifacts(unittest.TestCase):
             self.assertIn("complementarity", manifest)
             # All files are valid JSON/JSONL
             for key, path in manifest.items():
-                content = Path(path).read_text()
+                content = (out / path).read_text()
                 if path.endswith(".jsonl"):
                     for line in content.strip().splitlines():
                         json.loads(line)
@@ -534,7 +534,7 @@ class TestWriteDiagnosticArtifacts(unittest.TestCase):
             out = Path(d) / "diagnostics"
             manifest = write_diagnostic_artifacts(out, diag)
             self.assertIn("summary", manifest)
-            summary = json.loads(Path(manifest["summary"]).read_text())
+            summary = json.loads((out / manifest["summary"]).read_text())
             self.assertEqual(summary["total_candidates_evaluated"], 0)
             self.assertEqual(summary["diagnostic_shortlist_size"], 0)
 

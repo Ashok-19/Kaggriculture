@@ -462,7 +462,7 @@ def write_admission_artifact(
     summary_path.write_text(
         json.dumps(summary, sort_keys=True, indent=2) + "\n", encoding="utf-8"
     )
-    manifest["admission_summary"] = str(summary_path)
+    manifest["admission_summary"] = summary_path.name
 
     # Per-candidate evidence for admitted shortlist
     if shortlist:
@@ -478,7 +478,7 @@ def write_admission_artifact(
             json.dumps(evidence_list, sort_keys=True, indent=2) + "\n",
             encoding="utf-8",
         )
-        manifest["binary_route_candidates"] = str(evidence_path)
+        manifest["binary_route_candidates"] = evidence_path.name
 
     return manifest
 

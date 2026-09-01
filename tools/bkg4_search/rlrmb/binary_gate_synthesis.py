@@ -781,7 +781,7 @@ def write_gate_synthesis_artifact(
     summary_path.write_text(
         json.dumps(summary, sort_keys=True, indent=2) + "\n", encoding="utf-8"
     )
-    manifest["gate_synthesis_summary"] = str(summary_path)
+    manifest["gate_synthesis_summary"] = summary_path.name
 
     if synthesized:
         candidates_doc = [r.to_document() for r in synthesized]
@@ -790,7 +790,7 @@ def write_gate_synthesis_artifact(
             json.dumps(candidates_doc, sort_keys=True, indent=2) + "\n",
             encoding="utf-8",
         )
-        manifest["binary_gate_candidates"] = str(candidates_path)
+        manifest["binary_gate_candidates"] = candidates_path.name
 
     if results:
         all_doc = [r.to_document() for r in results]
@@ -799,7 +799,7 @@ def write_gate_synthesis_artifact(
             json.dumps(all_doc, sort_keys=True, indent=2) + "\n",
             encoding="utf-8",
         )
-        manifest["all_gate_results"] = str(all_path)
+        manifest["all_gate_results"] = all_path.name
 
     return manifest
 

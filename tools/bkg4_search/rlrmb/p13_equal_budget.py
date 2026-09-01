@@ -44,6 +44,7 @@ from .binary_gate_synthesis import (
 )
 from .routed_evaluation import (
     RoutedEvaluationMetrics, RoutedEvaluationStatus,
+    build_routed_cases_from_diagnostics, evaluate_routed_from_diagnostics,
     record_routed_evaluation_to_memory, write_routed_evaluation_artifact,
 )
 from .diagnostics import (
@@ -921,6 +922,16 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
                         diag_class = classify_diagnostic_routability(risk_doc)
                         opportunity = classify_binary_opportunity(risk_doc)
                         _write_json(diagnostic_dir / "routing.json", risk_doc)
+                        _captured_ctx = {}
+                        for _ce in (*target_captured, *protected_captured):
+                            if _ce.gate_context:
+                                _captured_ctx[_ce.meta.case_id] = {
+                                    (f, i): v for f, i, v in _ce.gate_context
+                                }
+                        for _eff in (*target_effects, *protected_effects):
+                            _ctx = _captured_ctx.get(_eff.case_id)
+                            if _ctx:
+                                _eff.__dict__["_legal_context"] = _ctx
                     _imperfect_diag.record(ImperfectCandidateRecord(
                         candidate_semantic_id=program.semantic_id,
                         structural_id=program.semantic_id,
@@ -1270,11 +1281,43 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
                     _gate_manifest,
                 )
     metrics["phase1_gate_synthesis"] = _gate_metrics.to_document()
-    # Phase-1.3: routed evaluation metrics placeholder
-    # Actual routed CUDA evaluation is orchestrated separately using
-    # routed_evaluation.evaluate_routed_candidate() with real CUDA engine.
-    # The synthesized gates are persisted above for consumption.
+    # Phase-1.3: routed evaluation for GATE_SYNTHESIZED candidates
     _routed_metrics = RoutedEvaluationMetrics()
+    _routed_results = []
+    _records_by_id = {r.candidate_semantic_id: r for r in _diag_records}
+    for _gate_result in _gate_results:
+        if _gate_result.status is not GateSynthesisStatus.GATE_SYNTHESIZED:
+            continue
+        _rec = _records_by_id.get(_gate_result.candidate_semantic_id)
+        if _rec is None:
+            continue
+        _routed_cases = build_routed_cases_from_diagnostics(
+            _rec.per_case_effects, _rec.initiation_step,
+        )
+        if not _routed_cases:
+            continue
+        _routed_result = evaluate_routed_from_diagnostics(
+            _gate_result, _routed_cases,
+            parent_generation_context=_eval_ctx_id or "local",
+            protected_global_w2l=_rec.protected_win_to_loss,
+            target_global_l2w=_rec.target_loss_to_win,
+        )
+        _routed_metrics.observe(_routed_result)
+        _routed_results.append(_routed_result)
+        if _p165_memory is not None:
+            record_routed_evaluation_to_memory(
+                _p165_memory, _eval_ctx_id, _memory_generation, _routed_result,
+            )
+    if _routed_results:
+        _routed_manifest = write_routed_evaluation_artifact(
+            output / "phase1_routed_evaluation", _routed_results, _routed_metrics,
+            parent_generation_context=_eval_ctx_id or "local",
+        )
+        if _routed_manifest:
+            _write_json(
+                output / "phase1_routed_evaluation" / "manifest.json",
+                _routed_manifest,
+            )
     metrics["phase1_routed_evaluation"] = _routed_metrics.to_document()
     stage_timing["post_search_io"]+=time.monotonic()-_t0
     return 0

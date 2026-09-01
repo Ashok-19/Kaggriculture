@@ -644,13 +644,13 @@ def write_diagnostic_artifacts(
         path.write_text(
             json.dumps(summary, sort_keys=True, indent=2) + "\n", encoding="utf-8"
         )
-        manifest["summary"] = str(path)
+        manifest["summary"] = path.name
         return manifest
 
     # Per-candidate JSONL
     records_path = output_dir / "useful_candidates_protected_effects.jsonl"
     diagnostics.persist(records_path)
-    manifest["useful_candidates_protected_effects"] = str(records_path)
+    manifest["useful_candidates_protected_effects"] = records_path.name
 
     # Aggregate summary
     agg = aggregate_diagnostics(
@@ -660,7 +660,7 @@ def write_diagnostic_artifacts(
     agg_path.write_text(
         json.dumps(agg, sort_keys=True, indent=2) + "\n", encoding="utf-8"
     )
-    manifest["summary"] = str(agg_path)
+    manifest["summary"] = agg_path.name
 
     # Feature set audit
     audit = audit_feature_sets()
@@ -668,7 +668,7 @@ def write_diagnostic_artifacts(
     audit_path.write_text(
         json.dumps(audit, sort_keys=True, indent=2) + "\n", encoding="utf-8"
     )
-    manifest["feature_audit"] = str(audit_path)
+    manifest["feature_audit"] = audit_path.name
 
     # Static complementarity
     comp = compute_static_complementarity(records, max_pairs=max_complementarity_pairs)
@@ -676,6 +676,6 @@ def write_diagnostic_artifacts(
     comp_path.write_text(
         json.dumps(comp, sort_keys=True, indent=2) + "\n", encoding="utf-8"
     )
-    manifest["complementarity"] = str(comp_path)
+    manifest["complementarity"] = comp_path.name
 
     return manifest
