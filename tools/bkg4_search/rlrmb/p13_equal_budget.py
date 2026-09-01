@@ -37,6 +37,11 @@ from .binary_admission import (
     classify_all_candidates, record_admission_to_memory,
     select_binary_admission_shortlist, write_admission_artifact,
 )
+from .binary_gate_synthesis import (
+    GateSynthesisMetrics, GateSynthesisStatus,
+    build_gate_cases, record_gate_synthesis_to_memory,
+    synthesize_binary_gate, write_gate_synthesis_artifact,
+)
 from .diagnostics import (
     BinaryOpportunityClass, DiagnosticRoutabilityClass, ImperfectCandidateRecord,
     ImperfectSpecialistDiagnostics, PerCaseEffect, classify_binary_opportunity,
@@ -66,6 +71,7 @@ _SAFE_ROUTABILITY_FEEDBACK_STAGES = frozenset({
     "TARGET_ROUTABILITY",
     "FULL_ROUTABILITY",
     "BINARY_ADMISSION",
+    "BINARY_GATE_SYNTHESIS",
 })
 
 
@@ -1222,6 +1228,43 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
         _all_classified = ()
         _admission_shortlist = ()
     metrics["phase1_admission"] = _admission_metrics.to_document()
+    # Phase-1.2: binary gate synthesis for admitted candidates
+    _gate_metrics = GateSynthesisMetrics()
+    _gate_results = []
+    if _admission_shortlist:
+        for _rec, _adm in _admission_shortlist:
+            if _adm.admission_class is not CandidateAdmissionClass.BINARY_ROUTE_CANDIDATE:
+                continue
+            _case_ctxs = {}
+            for _eff in _rec.per_case_effects:
+                _ctx = _eff.__dict__.get("_legal_context", {})
+                if _ctx:
+                    _case_ctxs[_eff.case_id] = _ctx
+            _cases = build_gate_cases(_rec, _case_ctxs)
+            if _cases:
+                _gate_result = synthesize_binary_gate(
+                    _rec.candidate_semantic_id,
+                    _cases,
+                    parent_generation_context=_eval_ctx_id or "local",
+                    source_admission_identity=_rec.candidate_semantic_id,
+                )
+                _gate_metrics.observe(_gate_result)
+                _gate_results.append(_gate_result)
+                if _p165_memory is not None:
+                    record_gate_synthesis_to_memory(
+                        _p165_memory, _eval_ctx_id, _memory_generation, _gate_result,
+                    )
+        if _gate_results:
+            _gate_manifest = write_gate_synthesis_artifact(
+                output / "phase1_binary_gates", _gate_results, _gate_metrics,
+                parent_generation_context=_eval_ctx_id or "local",
+            )
+            if _gate_manifest:
+                _write_json(
+                    output / "phase1_binary_gates" / "manifest.json",
+                    _gate_manifest,
+                )
+    metrics["phase1_gate_synthesis"] = _gate_metrics.to_document()
     stage_timing["post_search_io"]+=time.monotonic()-_t0
     return 0
 
