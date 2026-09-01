@@ -605,7 +605,7 @@ def materialize_certified_candidate(program: MacroProgram, motifs: Mapping[str, 
                                     base_route_id: int = 64,
                                     parent_module: Mapping[str, Any] | None = None,
                                     authority_name: str = "strategic_route",
-                                    authority_slot: str = "slot_1") -> tuple[MaterializationArtifact, Mapping[str, Any]]:
+                                    authority_slot: str = "day2_capital_specialist_v1_route_override") -> tuple[MaterializationArtifact, Mapping[str, Any]]:
     if result.candidate_id != program.semantic_id or not result.accepted:
         raise ValueError("materialization requires the matching accepted CEGIS result")
     output_dir = Path(output_dir); output_dir.mkdir(parents=True, exist_ok=True)
@@ -617,7 +617,7 @@ def materialize_certified_candidate(program: MacroProgram, motifs: Mapping[str, 
     artifact = materialize_program(source)
     parent = dict(parent_module) if parent_module is not None else {
         "name": "rlrmb_certification_parent",
-        "blackboard": [{"name": "slot_1", "type": "I32", "initial": 0, "owner": "parent"}],
+        "blackboard": [{"name": authority_slot, "type": "I32", "initial": 0, "owner": "parent"}],
         "tree": {"type": "Sequence", "children": []}, "strategic_routes": [],
     }
     composed = compose_specialists(parent, (artifact.specialist,), (),

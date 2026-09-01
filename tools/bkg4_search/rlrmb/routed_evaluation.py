@@ -32,6 +32,9 @@ ROUTED_EVALUATION_SCHEMA_VERSION = 1
 TEMPORARY_ROUTE_ID_BASE = 60000
 TEMPORARY_ROUTE_ID_MAX = 60999
 
+PRODUCTION_AUTHORITY_NAME = "strategic_route"
+PRODUCTION_AUTHORITY_SLOT = "day2_capital_specialist_v1_route_override"
+
 DEFAULT_MAX_ROUTED_CANDIDATES = 16
 DEFAULT_MIN_ROUTED_TARGET_CAPABILITY = 1
 
@@ -284,8 +287,8 @@ def _materialize_temporary_routed(
     route_id: int,
     *,
     base_route_id: int = 64,
-    authority: str = "strategic_route",
-    authority_slot: str = "slot_1",
+    authority: str = PRODUCTION_AUTHORITY_NAME,
+    authority_slot: str = PRODUCTION_AUTHORITY_SLOT,
 ) -> MaterializationArtifact:
     source = MaterializationInput(
         candidate_id=candidate_id,

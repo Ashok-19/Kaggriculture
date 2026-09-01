@@ -1049,7 +1049,7 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
                         if cegis.accepted:
                             parent_module = _read_json(asset / "controller.json")
                             _t0=time.monotonic()
-                            artifact,audit=materialize_certified_candidate(program,motifs_all,cegis,parent_route=root/config["parent_route"],output_dir=family_dir/program.semantic_id/"deployment",route_id=config["deployment"]["route_id_base"]+family_index*100+len(accepted),parent_module=parent_module,authority_name=config["deployment"].get("authority_name","strategic_route"),authority_slot=config["deployment"].get("authority_slot","slot_1"))
+                            artifact,audit=materialize_certified_candidate(program,motifs_all,cegis,parent_route=root/config["parent_route"],output_dir=family_dir/program.semantic_id/"deployment",route_id=config["deployment"]["route_id_base"]+family_index*100+len(accepted),parent_module=parent_module,authority_name=config["deployment"].get("authority_name","strategic_route"),authority_slot=config["deployment"].get("authority_slot","day2_capital_specialist_v1_route_override"))
                             stage_timing["materialization"]+=time.monotonic()-_t0
                             item["materialization"]=audit; accepted.append(program.semantic_id)
                         else:
