@@ -32,6 +32,11 @@ from .pipeline import (
 )
 from .routability import RoutabilityClassification, RoutabilityResult, screen_routability
 from .cegis_adapter import run_hardened_cegis
+from .binary_admission import (
+    BinaryAdmissionMetrics, CandidateAdmissionClass,
+    classify_all_candidates, record_admission_to_memory,
+    select_binary_admission_shortlist, write_admission_artifact,
+)
 from .diagnostics import (
     BinaryOpportunityClass, DiagnosticRoutabilityClass, ImperfectCandidateRecord,
     ImperfectSpecialistDiagnostics, PerCaseEffect, classify_binary_opportunity,
@@ -60,6 +65,7 @@ _PROMOTION_CLASS_RANK = {
 _SAFE_ROUTABILITY_FEEDBACK_STAGES = frozenset({
     "TARGET_ROUTABILITY",
     "FULL_ROUTABILITY",
+    "BINARY_ADMISSION",
 })
 
 
@@ -696,6 +702,7 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
     asset = root / config["asset_dir"]; binary = root / config["cuda_binary"]
     all_metrics: dict[str, Any] = {}; failures = Counter(); accepted = []; global_effects = set(); target_clusters = set(); total_l2w = 0
     _imperfect_diag = ImperfectSpecialistDiagnostics()
+    _admission_metrics = BinaryAdmissionMetrics()
     # Phase 16.5: evaluation context ID (stable across same-controller retry attempts)
     _p165_memory = getattr(resources, "search_memory", None) if resources is not None else None
     _eval_ctx_id = evaluation_context_id(config) if _p165_memory is not None else ""
@@ -1183,6 +1190,38 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
     )
     if _diag_manifest:
         _write_json(output / "diagnostics" / "manifest.json", _diag_manifest)
+    # Phase-1.1: binary-route candidate admission
+    _diag_records = _imperfect_diag.records
+    if _diag_records:
+        _all_classified = classify_all_candidates(_diag_records)
+        for _rec, _adm in _all_classified:
+            _admission_metrics.observe(_adm, _rec.family, _rec.lane)
+        _admission_shortlist_limit = config.get("diagnostics", {}).get(
+            "shortlist_size", 8
+        )
+        _admission_shortlist = select_binary_admission_shortlist(
+            _diag_records, limit=_admission_shortlist_limit,
+        )
+        _admission_manifest = write_admission_artifact(
+            output / "phase1_admission", _admission_shortlist, _all_classified,
+            _admission_metrics,
+            parent_generation_context=_eval_ctx_id or "local",
+        )
+        if _admission_manifest:
+            _write_json(
+                output / "phase1_admission" / "manifest.json",
+                _admission_manifest,
+            )
+        # Record admission to SearchMemory
+        if _p165_memory is not None:
+            for _rec, _adm in _all_classified:
+                record_admission_to_memory(
+                    _p165_memory, _eval_ctx_id, _memory_generation, _adm,
+                )
+    else:
+        _all_classified = ()
+        _admission_shortlist = ()
+    metrics["phase1_admission"] = _admission_metrics.to_document()
     stage_timing["post_search_io"]+=time.monotonic()-_t0
     return 0
 
