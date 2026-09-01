@@ -42,6 +42,10 @@ from .binary_gate_synthesis import (
     build_gate_cases, record_gate_synthesis_to_memory,
     synthesize_binary_gate, write_gate_synthesis_artifact,
 )
+from .routed_evaluation import (
+    RoutedEvaluationMetrics, RoutedEvaluationStatus,
+    record_routed_evaluation_to_memory, write_routed_evaluation_artifact,
+)
 from .diagnostics import (
     BinaryOpportunityClass, DiagnosticRoutabilityClass, ImperfectCandidateRecord,
     ImperfectSpecialistDiagnostics, PerCaseEffect, classify_binary_opportunity,
@@ -72,6 +76,7 @@ _SAFE_ROUTABILITY_FEEDBACK_STAGES = frozenset({
     "FULL_ROUTABILITY",
     "BINARY_ADMISSION",
     "BINARY_GATE_SYNTHESIS",
+    "BINARY_ROUTED_EVALUATION",
 })
 
 
@@ -1265,6 +1270,12 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
                     _gate_manifest,
                 )
     metrics["phase1_gate_synthesis"] = _gate_metrics.to_document()
+    # Phase-1.3: routed evaluation metrics placeholder
+    # Actual routed CUDA evaluation is orchestrated separately using
+    # routed_evaluation.evaluate_routed_candidate() with real CUDA engine.
+    # The synthesized gates are persisted above for consumption.
+    _routed_metrics = RoutedEvaluationMetrics()
+    metrics["phase1_routed_evaluation"] = _routed_metrics.to_document()
     stage_timing["post_search_io"]+=time.monotonic()-_t0
     return 0
 
