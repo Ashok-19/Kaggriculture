@@ -35,3 +35,7 @@ rl/puffer_kaggriculture/logs/
 
 # Local downloaded BonsaiEditFormer edit corpus; validated data, not source.
 /data/edit_corpus/kaggriculture_bonsai_edit_corpus/
+
+
+b4im-elite-corpus-dual-t4.log  
+submission-gold.tar.gz
