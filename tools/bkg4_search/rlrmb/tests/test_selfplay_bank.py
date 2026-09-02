@@ -103,6 +103,32 @@ class SelfplayBankTests(unittest.TestCase):
             self.assertEqual(result["new_tapes"], 2)
             self.assertEqual(bank.size, 4)
 
+    def test_legacy_entries_gain_regime_provenance_on_load(self):
+        with tempfile.TemporaryDirectory() as d:
+            bank_dir = Path(d) / "bank"
+            bank_dir.mkdir()
+            (bank_dir / "index.json").write_text(json.dumps({"entries": [{
+                "tape_path": "old.json", "seat": 0, "seed": 1,
+                "policy_name": "bkg4_candidate", "opponent_policy": "bkg4_noisy_010",
+                "margin": 1.0, "reward": 2.0, "opponent_reward": 1.0,
+                "generation": 0, "bkg4_version": "current",
+            }]}))
+            bank = SelfplayBank(bank_dir)
+            self.assertEqual(bank.entries[0].policy_family, "bkg4_mutation")
+            self.assertEqual(bank.entries[0].regime_metadata["legacy_schema"], 1)
+
+    def test_assemble_panel_rejects_missing_tape_payload(self):
+        with tempfile.TemporaryDirectory() as d:
+            bank = SelfplayBank(Path(d) / "bank")
+            bank._entries = [BankEntry(
+                tape_path=str(Path(d) / "missing.json"), seat=0, seed=1,
+                policy_name="bkg4_candidate", opponent_policy="mirror",
+                margin=0.0, reward=0.0, opponent_reward=0.0,
+                generation=0, bkg4_version="current",
+            )]
+            with self.assertRaisesRegex(ValueError, "missing tape payload"):
+                bank.assemble_panel(Path(d) / "panel.tsv")
+
 
 if __name__ == "__main__":
     unittest.main()

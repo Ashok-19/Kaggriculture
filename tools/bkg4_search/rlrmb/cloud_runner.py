@@ -791,6 +791,17 @@ def _generate_selfplay_panel(
     generation = int(state.get("generation", 0))
     workers = int(selfplay_cfg.get("workers", 4))
     bank_path = selfplay_cfg.get("bank_dir")
+    panel_tapes = selfplay_cfg.get("panel_tapes")
+    if panel_tapes is not None and (type(panel_tapes) is not int or panel_tapes <= 0):
+        raise ValueError("selfplay panel_tapes must be a positive integer")
+    policy_rows = selfplay_cfg.get("policies")
+    if policy_rows is not None:
+        from .selfplay_generator import SelfplayPolicy
+        policies = tuple(SelfplayPolicy(**dict(row)) for row in policy_rows)
+        if not policies or len({policy.name for policy in policies}) != len(policies):
+            raise ValueError("selfplay policies must be non-empty with unique names")
+    else:
+        policies = None
 
     if bank_path:
         from .selfplay_bank import SelfplayBank
@@ -800,25 +811,27 @@ def _generate_selfplay_panel(
         )
         if generation == 0:
             bank.generate(
-                num_seeds=num_seeds, generation=generation, workers=workers,
+                num_seeds=num_seeds, policies=policies, generation=generation, workers=workers,
             )
         else:
             refresh_seeds = max(4, num_seeds // 4)
             bank.refresh(
-                num_new_seeds=refresh_seeds, generation=generation, workers=workers,
+                num_new_seeds=refresh_seeds, policies=policies, generation=generation, workers=workers,
             )
         selfplay_dir = output / "selfplay" / f"generation_{generation:04d}"
         selfplay_dir.mkdir(parents=True, exist_ok=True)
         panel_path = selfplay_dir / "target_panel.tsv"
-        bank.assemble_panel(panel_path)
+        bank.assemble_panel(panel_path, max_tapes=panel_tapes)
         manifest = bank.stats()
         manifest["generation"] = generation
+        manifest["panel_tapes"] = panel_tapes or bank.size
+        manifest["policy_mix"] = str(selfplay_cfg.get("policy_mix", "default"))
     else:
         from .selfplay_generator import generate_selfplay_family
         rng_seed = hash((generation, family["id"], num_seeds)) & 0x7FFFFFFF
         selfplay_dir = output / "selfplay" / f"generation_{generation:04d}"
         panel_path, manifest = generate_selfplay_family(
-            selfplay_dir, num_seeds=num_seeds, rng_seed=rng_seed,
+            selfplay_dir, num_seeds=num_seeds, policies=policies, rng_seed=rng_seed,
         )
 
     runtime_config = dict(runtime_config)

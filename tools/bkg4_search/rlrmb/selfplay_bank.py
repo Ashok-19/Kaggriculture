@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 import multiprocessing
 import time
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Sequence
 
@@ -38,6 +38,9 @@ class BankEntry:
     opponent_reward: float
     generation: int
     bkg4_version: str
+    policy_family: str = "baseline"
+    policy_kind: str = "champion"
+    regime_metadata: dict[str, Any] = field(default_factory=dict)
 
 
 def _run_single_game(args: tuple) -> list[dict[str, Any]]:
@@ -59,6 +62,7 @@ def _run_single_game(args: tuple) -> list[dict[str, Any]]:
 
     from kaggle_environments import make  # type: ignore[import]
     from runtime import BKG4ChampionAgent  # type: ignore[import]
+    from .selfplay_generator import _make_agent
 
     policy = SelfplayPolicy(**policy_dict)
     rng = random.Random(rng_state_int)
@@ -67,33 +71,7 @@ def _run_single_game(args: tuple) -> list[dict[str, Any]]:
     opponent_rng = random.Random(rng.randint(0, 2**31))
 
     champion_agent = BKG4ChampionAgent()
-
-    def _make_opp(pol, opp_rng):
-        agent = BKG4ChampionAgent()
-        if pol.kind == "champion":
-            return agent
-
-        def wrapped(obs, config=None):
-            step = int(obs.get("step", 0) or 0)
-            if pol.kind == "passive" and step < pol.passive_until:
-                return {"farmer": ["PASS"], "hands": [], "market": []}
-            if pol.kind == "random_early" and step < pol.random_prefix:
-                action = agent(obs, config)
-                if opp_rng.random() < 0.5:
-                    action["market"] = []
-                return action
-            action = agent(obs, config)
-            if pol.kind == "noisy" and opp_rng.random() < pol.noise_rate:
-                action["market"] = []
-            if pol.kind == "greedy_market" and opp_rng.random() < pol.market_bias:
-                market = action.get("market", [])
-                sell_ops = [op for op in market if isinstance(op, list) and op and op[0] == "SELL"]
-                if sell_ops:
-                    action["market"] = sell_ops
-            return action
-        return wrapped
-
-    opp_agent = _make_opp(policy, opponent_rng)
+    opp_agent = _make_agent(policy, opponent_rng)
 
     candidate_actions: list[dict] = []
     opp_actions: list[dict] = []
@@ -134,13 +112,23 @@ def _run_single_game(args: tuple) -> list[dict[str, Any]]:
             document = {
                 "source": {
                     "kind": "selfplay",
-                    "schema_version": 1,
+                "schema_version": 2,
                     "seed": game_seed,
                     "seat": record_seat,
                     "policy": name,
                     "opponent_policy": policy.name,
                     "reward": float(final[record_seat].reward),
-                    "opponent_reward": float(final[1 - record_seat].reward),
+                "opponent_reward": float(final[1 - record_seat].reward),
+                "policy_family": policy.family,
+                "policy_kind": policy.kind,
+                "regime_metadata": {
+                    "noise_rate": policy.noise_rate,
+                    "passive_until": policy.passive_until,
+                    "land_target": policy.land_target,
+                    "crop": policy.crop,
+                    "animal": policy.animal,
+                    "checkpoint_asset_dir": policy.checkpoint_asset_dir,
+                },
                 },
                 "actions": actions,
             }
@@ -159,6 +147,16 @@ def _run_single_game(args: tuple) -> list[dict[str, Any]]:
         "margin": reward - opp_reward,
         "reward": reward,
         "opponent_reward": opp_reward,
+        "policy_family": policy.family,
+        "policy_kind": policy.kind,
+        "regime_metadata": {
+            "noise_rate": policy.noise_rate,
+            "passive_until": policy.passive_until,
+            "land_target": policy.land_target,
+            "crop": policy.crop,
+            "animal": policy.animal,
+            "checkpoint_asset_dir": policy.checkpoint_asset_dir,
+        },
     })
     return results
 
@@ -184,7 +182,19 @@ class SelfplayBank:
     def _load(self):
         if self.index_path.exists():
             doc = json.loads(self.index_path.read_text(encoding="utf-8"))
-            self._entries = [BankEntry(**e) for e in doc.get("entries", [])]
+            known = {policy.name: policy for policy in DEFAULT_POLICIES}
+            entries = []
+            for stored in doc.get("entries", []):
+                row = dict(stored)
+                legacy_policy = known.get(str(row.get("opponent_policy", "")))
+                if "policy_family" not in row:
+                    row["policy_family"] = legacy_policy.family if legacy_policy else "legacy"
+                if "policy_kind" not in row:
+                    row["policy_kind"] = legacy_policy.kind if legacy_policy else "unknown"
+                if "regime_metadata" not in row:
+                    row["regime_metadata"] = {"legacy_schema": 1}
+                entries.append(BankEntry(**row))
+            self._entries = entries
         else:
             self._entries = []
 
@@ -205,6 +215,9 @@ class SelfplayBank:
                     "opponent_reward": e.opponent_reward,
                     "generation": e.generation,
                     "bkg4_version": e.bkg4_version,
+                    "policy_family": e.policy_family,
+                    "policy_kind": e.policy_kind,
+                    "regime_metadata": e.regime_metadata,
                 }
                 for e in self._entries
             ],
@@ -265,6 +278,11 @@ class SelfplayBank:
                             "market_bias": policy.market_bias,
                             "passive_until": policy.passive_until,
                             "random_prefix": policy.random_prefix,
+                            "family": policy.family,
+                            "land_target": policy.land_target,
+                            "crop": policy.crop,
+                            "animal": policy.animal,
+                            "checkpoint_asset_dir": policy.checkpoint_asset_dir,
                         },
                         rng_state,
                     ))
@@ -288,6 +306,8 @@ class SelfplayBank:
                         margin=r["margin"], reward=r["reward"],
                         opponent_reward=r["opponent_reward"],
                         generation=generation, bkg4_version=bkg4_version,
+                        policy_family=r["policy_family"], policy_kind=r["policy_kind"],
+                        regime_metadata=r["regime_metadata"],
                     ))
         else:
             ctx = multiprocessing.get_context("spawn")
@@ -300,6 +320,8 @@ class SelfplayBank:
                             margin=r["margin"], reward=r["reward"],
                             opponent_reward=r["opponent_reward"],
                             generation=generation, bkg4_version=bkg4_version,
+                            policy_family=r["policy_family"], policy_kind=r["policy_kind"],
+                            regime_metadata=r["regime_metadata"],
                         ))
 
         elapsed = time.monotonic() - started
@@ -341,8 +363,25 @@ class SelfplayBank:
         entries = self._entries
         if policy_filter:
             entries = [e for e in entries if e.opponent_policy in policy_filter]
+        missing = [entry.tape_path for entry in entries if not Path(entry.tape_path).is_file()]
+        if missing:
+            raise ValueError(
+                f"selfplay bank has {len(missing)} missing tape payload(s); "
+                "restore the bank before assembling BUILD"
+            )
         if max_tapes and len(entries) > max_tapes:
-            entries = entries[:max_tapes]
+            # Round-robin policy groups instead of allowing an older, plentiful
+            # baseline regime to crowd fresh strategic variants out of BUILD.
+            by_policy: dict[str, list[BankEntry]] = {}
+            for entry in entries:
+                by_policy.setdefault(entry.opponent_policy, []).append(entry)
+            for group in by_policy.values():
+                group.sort(key=lambda entry: (entry.generation, entry.seed, entry.seat), reverse=True)
+            entries = []
+            while len(entries) < max_tapes and any(by_policy.values()):
+                for policy in sorted(by_policy):
+                    if by_policy[policy] and len(entries) < max_tapes:
+                        entries.append(by_policy[policy].pop(0))
 
         tapes = [
             GeneratedTape(
@@ -361,16 +400,19 @@ class SelfplayBank:
         policy_counts: dict[str, int] = {}
         gen_counts: dict[int, int] = {}
         version_counts: dict[str, int] = {}
+        family_counts: dict[str, int] = {}
         for e in self._entries:
             policy_counts[e.opponent_policy] = policy_counts.get(e.opponent_policy, 0) + 1
             gen_counts[e.generation] = gen_counts.get(e.generation, 0) + 1
             version_counts[e.bkg4_version] = version_counts.get(e.bkg4_version, 0) + 1
+            family_counts[e.policy_family] = family_counts.get(e.policy_family, 0) + 1
         return {
             "size": len(self._entries),
             "unique_seeds": len(self.existing_seeds()),
             "policies": policy_counts,
             "generations": gen_counts,
             "bkg4_versions": version_counts,
+            "policy_families": family_counts,
             "margin_min": round(min(margins), 1),
             "margin_max": round(max(margins), 1),
             "margin_mean": round(sum(margins) / len(margins), 1),

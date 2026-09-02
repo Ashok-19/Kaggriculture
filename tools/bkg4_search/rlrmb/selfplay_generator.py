@@ -19,24 +19,40 @@ from typing import Any, Dict, Mapping, Sequence
 _KAG_ENV = Path(__file__).resolve().parents[3] / "kaggle-environments-master"
 _CHAMP = Path(__file__).resolve().parents[3] / "bonsai-kg" / "integrations" / "bkg4_champion"
 
-SELFPLAY_SCHEMA_VERSION = 1
+SELFPLAY_SCHEMA_VERSION = 2
 EPISODE_STEPS = 720
 
 
 @dataclass(frozen=True)
 class SelfplayPolicy:
     name: str
-    kind: str  # "champion", "noisy", "greedy_market", "passive", "random_early"
+    kind: str
+    family: str = "baseline"
     noise_rate: float = 0.0
     market_bias: float = 0.0
     passive_until: int = 0
     random_prefix: int = 0
+    land_target: int = 0
+    crop: str = "WHEAT"
+    animal: str = ""
+    checkpoint_asset_dir: str = ""
 
 
 DEFAULT_POLICIES = (
-    SelfplayPolicy("bkg4_mirror", "champion"),
-    SelfplayPolicy("bkg4_noisy_010", "noisy", noise_rate=0.10),
-    SelfplayPolicy("bkg4_passive_72", "passive", passive_until=72),
+    # Retain the proven baseline, but give each retained tape an explicit regime.
+    SelfplayPolicy("bkg4_mirror", "champion", family="baseline"),
+    SelfplayPolicy("bkg4_noisy_010", "noisy", family="bkg4_mutation", noise_rate=0.10),
+    SelfplayPolicy("bkg4_passive_72", "passive", family="capital_timing", passive_until=72),
+    # Deliberate economic regimes. These are not named opponents and never read HOLDOUT data.
+    SelfplayPolicy("bkg4_market_squeeze", "market_squeeze", family="market_liquidity"),
+    SelfplayPolicy("bkg4_cash_hoard_144", "cash_hoarder", family="capital_timing", passive_until=144),
+    SelfplayPolicy("bkg4_early_land", "early_expansion", family="land_investment", land_target=4, passive_until=288),
+    SelfplayPolicy("bkg4_late_land_288", "late_expansion", family="land_investment", land_target=4, passive_until=288),
+    SelfplayPolicy("bkg4_farm_strawberry", "farm_heavy", family="farming", crop="STRAWBERRY"),
+    SelfplayPolicy("bkg4_animal_cow", "animal_heavy", family="animals", animal="COW"),
+    SelfplayPolicy("bkg4_inventory_hoard", "inventory_hoarder", family="inventory"),
+    SelfplayPolicy("bkg4_liquidator_432", "liquidator", family="inventory", passive_until=432),
+    SelfplayPolicy("bkg4_mutated_025", "mutated_bkg4", family="bkg4_mutation", noise_rate=0.25),
 )
 
 
@@ -47,32 +63,113 @@ def _ensure_paths():
             sys.path.insert(0, s)
 
 
+def _own_state(obs: Mapping[str, Any]) -> tuple[Mapping[str, Any], Mapping[str, Any], Any]:
+    player = int(obs.get("player", 0) or 0)
+    farms = obs.get("farms") or []
+    farm = farms[player] if 0 <= player < len(farms) and isinstance(farms[player], Mapping) else {}
+    private = obs.get("private") if isinstance(obs.get("private"), Mapping) else {}
+    farmer = farm.get("farmer") or [0, 0]
+    tile = None
+    tiles = farm.get("tiles") or []
+    if len(farmer) >= 2:
+        x, y = int(farmer[0]), int(farmer[1])
+        if 0 <= y < len(tiles) and 0 <= x < len(tiles[y]):
+            tile = tiles[y][x]
+    return farm, private, tile
+
+
+def _sales_from_shed(private: Mapping[str, Any]) -> list[list[Any]]:
+    shed = private.get("shed") if isinstance(private.get("shed"), Mapping) else {}
+    return [["SELL", item, int(count)] for item, count in sorted(shed.items()) if int(count) > 0]
+
+
+def _prepend_market(market: list[list[Any]], orders: list[list[Any]]) -> list[list[Any]]:
+    return (orders + market)[:10]
+
+
+def apply_selfplay_policy(
+    policy: SelfplayPolicy,
+    obs: Mapping[str, Any],
+    action: Mapping[str, Any],
+    rng: random.Random,
+) -> Dict[str, Any]:
+    """Apply one deterministic, environment-only regime to a BKG4 action.
+
+    The wrapper sees exactly the live observation available to an agent. It never
+    accesses replay panels, holdout cases, or opponent identity.
+    """
+    result: Dict[str, Any] = copy.deepcopy(dict(action))
+    result.setdefault("farmer", ["PASS"])
+    result.setdefault("hands", [])
+    market = [list(order) for order in result.get("market", []) if isinstance(order, list)]
+    step = int(obs.get("step", 0) or 0)
+    farm, private, tile = _own_state(obs)
+    seeds = private.get("seeds") if isinstance(private.get("seeds"), Mapping) else {}
+    unlocked = farm.get("unlocked_quadrants") or []
+
+    if policy.kind == "passive" and step < policy.passive_until:
+        return {"farmer": ["PASS"], "hands": [], "market": []}
+    if policy.kind == "random_early" and step < policy.random_prefix:
+        result["market"] = [] if rng.random() < 0.5 else market
+        return result
+    if policy.kind == "noisy" and rng.random() < policy.noise_rate:
+        market = []
+    elif policy.kind == "greedy_market" and rng.random() < policy.market_bias:
+        market = [order for order in market if order and order[0] == "SELL"]
+    elif policy.kind == "mutated_bkg4" and rng.random() < policy.noise_rate:
+        if rng.random() < 0.5:
+            market = []
+        else:
+            result["farmer"] = ["PASS"]
+
+    if policy.kind == "cash_hoarder" and step < policy.passive_until:
+        market = [order for order in market if order and order[0] == "SELL"]
+    elif policy.kind == "inventory_hoarder":
+        market = [order for order in market if order and order[0] != "SELL"]
+    elif policy.kind == "liquidator" and step >= policy.passive_until:
+        market = _sales_from_shed(private)
+    elif policy.kind == "market_squeeze":
+        buys = [["BUY_PRODUCT", "WHEAT", 12], ["BUY_SEED", "CARROT", 4]]
+        market = _prepend_market([order for order in market if order and order[0] != "SELL"], buys)
+    elif policy.kind == "early_expansion" and step < policy.passive_until:
+        if len(unlocked) < policy.land_target:
+            market = _prepend_market(market, [["BUY_LAND"]])
+    elif policy.kind == "late_expansion" and step >= policy.passive_until:
+        if len(unlocked) < policy.land_target:
+            market = _prepend_market(market, [["BUY_LAND"]])
+    elif policy.kind == "farm_heavy":
+        market = _prepend_market(market, [["BUY_SEED", policy.crop, 4]])
+        if tile is None and int(seeds.get(policy.crop, 0)) > 0:
+            result["farmer"] = ["PLANT", policy.crop]
+    elif policy.kind == "animal_heavy":
+        animal = policy.animal or "COW"
+        structure = "COOP" if animal == "GOOSE" else "PASTURE"
+        market = _prepend_market(market, [["BUY_ANIMAL", animal, 1], ["BUY_PRODUCT", "WHEAT", 12]])
+        shed = private.get("shed") if isinstance(private.get("shed"), Mapping) else {}
+        if tile is None and 24 <= step < 288:
+            result["farmer"] = [f"BUILD_{structure}"]
+        elif isinstance(tile, Mapping) and tile.get("kind") == structure:
+            if int(shed.get(animal, 0)) > 0 and not tile.get("animal"):
+                result["farmer"] = ["PLACE", animal, 1]
+            elif tile.get("animal") and not tile.get("fed_today"):
+                result["farmer"] = ["FEED"]
+            elif tile.get("animal") and not tile.get("cared_today"):
+                result["farmer"] = ["CARE"]
+
+    result["market"] = market[:10]
+    return result
+
+
 def _make_agent(policy: SelfplayPolicy, rng: random.Random):
     _ensure_paths()
     from runtime import BKG4ChampionAgent  # type: ignore[import]
 
-    agent = BKG4ChampionAgent()
+    agent = BKG4ChampionAgent(policy.checkpoint_asset_dir or None)
     if policy.kind == "champion":
         return agent
 
     def wrapped(obs: Dict[str, Any], config: Any = None) -> Dict[str, Any]:
-        step = int(obs.get("step", 0) or 0)
-        if policy.kind == "passive" and step < policy.passive_until:
-            return {"farmer": ["PASS"], "hands": [], "market": []}
-        if policy.kind == "random_early" and step < policy.random_prefix:
-            action = agent(obs, config)
-            if rng.random() < 0.5:
-                action["market"] = []
-            return action
-        action = agent(obs, config)
-        if policy.kind == "noisy" and rng.random() < policy.noise_rate:
-            action["market"] = []
-        if policy.kind == "greedy_market" and rng.random() < policy.market_bias:
-            market = action.get("market", [])
-            sell_ops = [op for op in market if isinstance(op, list) and op and op[0] == "SELL"]
-            if sell_ops:
-                action["market"] = sell_ops
-        return action
+        return apply_selfplay_policy(policy, obs, agent(obs, config), rng)
 
     return wrapped
 

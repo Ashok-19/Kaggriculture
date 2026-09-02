@@ -43,7 +43,7 @@
     "protected_win_to_loss": 0
   },
   "probe": {
-    "family_ids": ["family_selfplay_fresh"],
+    "family_ids": ["family_selfplay_diverse_bank"],
     "checkpoint_limit": 16,
     "target_games_per_checkpoint": 256,
     "risk_pool_size": 16,
@@ -80,10 +80,14 @@
   },
   "families": [
     {
-      "id": "family_selfplay_fresh",
+      "id": "family_selfplay_diverse_bank",
       "source": "selfplay",
       "selfplay": {
-        "num_seeds": 8
+        "policy_mix": "strategic_regimes_v2",
+        "num_seeds": 3,
+        "workers": 6,
+        "bank_dir": "scratch/selfplay_bank",
+        "panel_tapes": 240
       },
       "lane_metadata": "DERIVE_FROM_CAUSAL_EVENTS",
       "target_panel": "__SELFPLAY_GENERATED__",
@@ -97,7 +101,7 @@
       "system_ram_gb": 16,
       "vcpus": 8
     },
-    "frontier_order": ["family_selfplay_fresh"],
+    "frontier_order": ["family_selfplay_diverse_bank"],
     "frontier_policy": "RECURRENT_HIGH_REGRET_BOTH_SEAT_UNRESOLVED_FIRST",
     "route_id_base": 340,
     "authority_name": "strategic_route_override",
