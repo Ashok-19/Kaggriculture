@@ -524,13 +524,15 @@ class StagingTimingTests(unittest.TestCase):
 
 
 def _stub_declaration(name: str, route_id: int, start: int, end: int,
-                       authority: str = "strategic_route_override") -> SpecialistDeclaration:
+                       authority: str = "strategic_route_override",
+                       candidate_id: str | None = None) -> SpecialistDeclaration:
     return SpecialistDeclaration(
         name=name, kind="bounded_route_macro", route_id=route_id,
         authorization_step=start, active_start=start, active_end=end,
         active_slot=f"active_{name}", authorities=(authority,),
         route_source=f"{name}.route.json", semantic_id=f"sem_{name}",
         gate_clauses=None, end_policy="RETURN_TO_PARENT", macro=None,
+        provenance={"candidate_semantic_id": candidate_id or name},
     )
 
 
@@ -601,6 +603,54 @@ class CompositionConflictResolutionTests(unittest.TestCase):
     def test_safe_fast_path_unchanged(self):
         decls = [_stub_declaration("safe", 300, 100, 110)]
         self.assertEqual(_resolve_composition_conflict(decls), [0])
+
+    def test_evidence_prefers_stronger_candidate(self):
+        decls = [
+            _stub_declaration("weak", 300, 190, 199, candidate_id="cid_weak"),
+            _stub_declaration("strong", 301, 191, 198, candidate_id="cid_strong"),
+        ]
+        evidence = {
+            "cid_weak": {"target_loss_to_win": 1, "protected_win_to_loss": 0},
+            "cid_strong": {"target_loss_to_win": 5, "protected_win_to_loss": 0},
+        }
+        result = _resolve_composition_conflict(decls, evidence=evidence)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(decls[result[0]].provenance["candidate_semantic_id"], "cid_strong")
+
+    def test_evidence_penalizes_protected_regression(self):
+        decls = [
+            _stub_declaration("risky", 300, 190, 199, candidate_id="cid_risky"),
+            _stub_declaration("safe_one", 301, 191, 198, candidate_id="cid_safe"),
+        ]
+        evidence = {
+            "cid_risky": {"target_loss_to_win": 10, "routed_protected_win_to_loss": 3},
+            "cid_safe": {"target_loss_to_win": 2, "routed_protected_win_to_loss": 0},
+        }
+        result = _resolve_composition_conflict(decls, evidence=evidence)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(decls[result[0]].provenance["candidate_semantic_id"], "cid_safe")
+
+    def test_evidence_missing_falls_back_to_position(self):
+        decls = [
+            _stub_declaration("early", 300, 190, 199, candidate_id="cid_early"),
+            _stub_declaration("late", 301, 191, 198, candidate_id="cid_late"),
+        ]
+        result_no_ev = _resolve_composition_conflict(decls)
+        result_empty_ev = _resolve_composition_conflict(decls, evidence={})
+        self.assertEqual(result_no_ev, result_empty_ev)
+
+    def test_evidence_with_transfer_tiebreak(self):
+        decls = [
+            _stub_declaration("low_transfer", 300, 190, 199, candidate_id="cid_lt"),
+            _stub_declaration("high_transfer", 301, 191, 198, candidate_id="cid_ht"),
+        ]
+        evidence = {
+            "cid_lt": {"target_loss_to_win": 3, "protected_win_to_loss": 0, "transfer_support": 1},
+            "cid_ht": {"target_loss_to_win": 3, "protected_win_to_loss": 0, "transfer_support": 5},
+        }
+        result = _resolve_composition_conflict(decls, evidence=evidence)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(decls[result[0]].provenance["candidate_semantic_id"], "cid_ht")
 
 
 if __name__=="__main__": unittest.main()

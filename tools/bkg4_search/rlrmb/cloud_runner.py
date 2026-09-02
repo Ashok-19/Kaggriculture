@@ -418,14 +418,17 @@ class AcceptedCompositionConflict(ValueError):
 
 def _resolve_composition_conflict(
     declarations: Sequence[SpecialistDeclaration],
+    evidence: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> list[int]:
     """Select a maximal compatible subset when specialists have authority conflicts.
 
     Returns indices into *declarations* of a compatible subset, or empty if
     no subset of size >= 1 exists (should not happen for valid inputs).
-    Deterministic: sorted by (active_start, name) for stability, greedy selection
-    preferring earlier-activating specialists (those with smaller windows tend to
-    be more targeted).
+
+    When *evidence* is provided (keyed by candidate_id), ranking uses verified
+    capability: target L→W gained, then routed protected W→L (lower is better),
+    then transfer support breadth.  Falls back to (active_start, name) when
+    evidence is missing for a candidate.
     """
     n = len(declarations)
     if n <= 1:
@@ -440,7 +443,22 @@ def _resolve_composition_conflict(
                 conflicts.add(frozenset((i, j)))
     if not conflicts:
         return list(range(n))
-    ranked = sorted(range(n), key=lambda i: (declarations[i].active_start, declarations[i].name))
+
+    def _rank_key(i: int) -> tuple:
+        d = declarations[i]
+        cid = (d.provenance or {}).get("candidate_semantic_id", "")
+        ev = (evidence or {}).get(cid, {})
+        target_lw = int(ev.get("target_loss_to_win", 0))
+        protected_wl = int(ev.get("routed_protected_win_to_loss", ev.get("protected_win_to_loss", 0)))
+        transfer = int(ev.get("transfer_support", 0))
+        # Protected regression is a hard penalty (sorted first).
+        # Then higher target_lw is better (negate for ascending sort).
+        # Higher transfer is better (negate).
+        # Fallback: earlier active_start, then name for determinism.
+        has_regression = 1 if protected_wl > 0 else 0
+        return (has_regression, -target_lw, -transfer, d.active_start, d.name)
+
+    ranked = sorted(range(n), key=_rank_key)
     selected: list[int] = []
     for i in ranked:
         compatible = all(frozenset((i, j)) not in conflicts for j in selected)
@@ -484,6 +502,32 @@ def _refresh_materialization_audits(run_dir: Path, audits: Mapping[str, Mapping[
         document = _read(path)
         replace(document)
         _write_atomic(path, document)
+
+
+def _gather_candidate_evidence(run_dir: Path, candidate_ids: Sequence[str]) -> dict[str, dict[str, Any]]:
+    """Extract per-candidate strength evidence from pipeline metrics."""
+    evidence: dict[str, dict[str, Any]] = {}
+    metrics_path = run_dir / "metrics.json"
+    if not metrics_path.exists():
+        return evidence
+    metrics = _read(metrics_path)
+    for family_data in (metrics.get("families") or {}).values():
+        for result in family_data.get("results", ()):
+            cid = str(result.get("candidate_id", ""))
+            if cid not in candidate_ids:
+                continue
+            cegis = result.get("cegis") or {}
+            ev: dict[str, Any] = {
+                "target_loss_to_win": int(result.get("target_loss_to_win", 0)),
+                "protected_win_to_loss": int(result.get("protected_win_to_loss", 0)),
+                "transfer_support": int(result.get("transfer_support", 0)),
+            }
+            routed = result.get("routed_evaluation") or {}
+            if routed:
+                ev["routed_protected_win_to_loss"] = int(routed.get("protected_win_to_loss", 0))
+                ev["routed_target_loss_to_win"] = int(routed.get("target_loss_to_win", 0))
+            evidence[cid] = ev
+    return evidence
 
 
 def _prepare_generation_deployment(
@@ -618,7 +662,8 @@ def _prepare_generation_deployment(
         )
     except ValueError as exc:
         if len(declarations) > 1 and "unresolved strategic authority conflict" in str(exc):
-            subset_indices = _resolve_composition_conflict(declarations)
+            conflict_evidence = _gather_candidate_evidence(run_dir, candidate_ids)
+            subset_indices = _resolve_composition_conflict(declarations, evidence=conflict_evidence)
             if not subset_indices:
                 conflict = {
                     "schema_version": 1,
@@ -731,6 +776,38 @@ def compact_generation_artifacts(run_dir: Path, accepted: Sequence[str]) -> None
                 if child.is_dir() and (child.name == "prepromotion" or child.name not in keep):
                     shutil.rmtree(child)
     _refresh_run_manifest(run_dir)
+
+
+def _generate_selfplay_panel(
+    runtime_config: dict[str, Any],
+    pending: Path,
+    state: Mapping[str, Any],
+    output: Path,
+) -> dict[str, Any]:
+    """Generate fresh selfplay tapes and rewrite the family target_panel path."""
+    from .selfplay_generator import generate_selfplay_family
+
+    family = dict(runtime_config["families"][0])
+    selfplay_cfg = family.get("selfplay", {})
+    num_seeds = int(selfplay_cfg.get("num_seeds", 20))
+    generation = int(state.get("generation", 0))
+    rng_seed = hash((generation, family["id"], num_seeds)) & 0x7FFFFFFF
+    selfplay_dir = output / "selfplay" / f"generation_{generation:04d}"
+    panel_path, manifest = generate_selfplay_family(
+        selfplay_dir,
+        num_seeds=num_seeds,
+        rng_seed=rng_seed,
+    )
+    runtime_config = dict(runtime_config)
+    root = Path.cwd()
+    try:
+        rel = panel_path.resolve().relative_to(root.resolve())
+        family["target_panel"] = str(rel)
+    except ValueError:
+        family["target_panel"] = str(panel_path.resolve())
+    runtime_config["families"] = [family]
+    _write_atomic(selfplay_dir / "manifest.json", manifest)
+    return runtime_config
 
 
 def run_cloud(config_path: Path, output: Path, *, mode: str, resume: bool = False,
@@ -851,8 +928,14 @@ def _run_cloud_inner(
             family_override=selected_family, source_provenance=source_provenance,
         )
         family_id = runtime_config["families"][0]["id"]
-        context_id = search_context_identity(runtime_config, state)
         pending.mkdir(parents=True)
+        # Generate fresh selfplay tapes when the family requests it.
+        family_cfg = runtime_config["families"][0]
+        if family_cfg.get("source") == "selfplay":
+            runtime_config = _generate_selfplay_panel(
+                runtime_config, pending, state, output,
+            )
+        context_id = search_context_identity(runtime_config, state)
         runtime_path = pending / "config.json"
         _write_atomic(runtime_path, runtime_config)
         run_dir = pending / "run"
