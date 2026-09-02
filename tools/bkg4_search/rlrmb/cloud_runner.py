@@ -785,19 +785,42 @@ def _generate_selfplay_panel(
     output: Path,
 ) -> dict[str, Any]:
     """Generate fresh selfplay tapes and rewrite the family target_panel path."""
-    from .selfplay_generator import generate_selfplay_family
-
     family = dict(runtime_config["families"][0])
     selfplay_cfg = family.get("selfplay", {})
     num_seeds = int(selfplay_cfg.get("num_seeds", 20))
     generation = int(state.get("generation", 0))
-    rng_seed = hash((generation, family["id"], num_seeds)) & 0x7FFFFFFF
-    selfplay_dir = output / "selfplay" / f"generation_{generation:04d}"
-    panel_path, manifest = generate_selfplay_family(
-        selfplay_dir,
-        num_seeds=num_seeds,
-        rng_seed=rng_seed,
-    )
+    workers = int(selfplay_cfg.get("workers", 4))
+    bank_path = selfplay_cfg.get("bank_dir")
+
+    if bank_path:
+        from .selfplay_bank import SelfplayBank
+        bank = SelfplayBank(
+            Path(bank_path),
+            asset_dir=runtime_config.get("asset_dir"),
+        )
+        if generation == 0:
+            bank.generate(
+                num_seeds=num_seeds, generation=generation, workers=workers,
+            )
+        else:
+            refresh_seeds = max(4, num_seeds // 4)
+            bank.refresh(
+                num_new_seeds=refresh_seeds, generation=generation, workers=workers,
+            )
+        selfplay_dir = output / "selfplay" / f"generation_{generation:04d}"
+        selfplay_dir.mkdir(parents=True, exist_ok=True)
+        panel_path = selfplay_dir / "target_panel.tsv"
+        bank.assemble_panel(panel_path)
+        manifest = bank.stats()
+        manifest["generation"] = generation
+    else:
+        from .selfplay_generator import generate_selfplay_family
+        rng_seed = hash((generation, family["id"], num_seeds)) & 0x7FFFFFFF
+        selfplay_dir = output / "selfplay" / f"generation_{generation:04d}"
+        panel_path, manifest = generate_selfplay_family(
+            selfplay_dir, num_seeds=num_seeds, rng_seed=rng_seed,
+        )
+
     runtime_config = dict(runtime_config)
     root = Path.cwd()
     try:
