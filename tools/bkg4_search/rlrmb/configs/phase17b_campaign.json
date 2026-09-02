@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "base_config": "tools/bkg4_search/rlrmb/configs/p0_7_equal_budget_v1.json",
+  "cloud": {
+    "expected_hardware": {
+      "gpu": "NVIDIA GeForce RTX 3050",
+      "system_ram_gb": 16,
+      "vcpus": 8
+    },
+    "frontier_order": [
+      "family_00_offline_10",
+      "family_01_offline_4",
+      "family_02_offline_0",
+      "family_03_offline_13"
+    ],
+    "frontier_policy": "RECURRENT_HIGH_REGRET_BOTH_SEAT_UNRESOLVED_FIRST",
+    "route_id_base": 310,
+    "authority_name": "strategic_route_override",
+    "authority_slot": "day2_capital_specialist_v1_route_override",
+    "artifact_retention": "ACCEPTED_EXACT_PLUS_COMPACT_REJECTED_SUMMARIES",
+    "live_champion_promotion": false,
+    "host_execution": {
+      "producer_workers": 1,
+      "queue_depth": 2,
+      "start_method": "spawn",
+      "candidate_workers": 1,
+      "candidate_queue_depth": 4
+    },
+    "modes": {
+      "campaign": {
+        "max_generations": 3,
+        "cuda_games_per_generation": 45000,
+        "checkpoint_batch_size": 4,
+        "wall_time_limit_seconds": 900,
+        "per_generation_categories": {
+          "target_beam": 20000,
+          "diagnostic_protected": 680,
+          "transfer": 9000,
+          "validation": 5000,
+          "lns_repair": 3000,
+          "reactive_repair": 820,
+          "certification": 6500
+        }
+      }
+    }
+  }
+}

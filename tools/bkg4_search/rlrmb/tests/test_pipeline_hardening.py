@@ -186,11 +186,9 @@ class PipelineHardeningTests(unittest.TestCase):
             self.assertEqual(final["commits"][0]["protected_win_to_loss"], 0)
             self.assertEqual(final["commits"][0]["semantic_mismatches"], 0)
 
-    def test_incompatible_multi_accept_preserves_evidence_without_partial_commit(self):
+    def test_incompatible_multi_accept_resolves_compatible_subset(self):
         left, right = _program_at(7), _program_at(7)
-        # Different semantics but deliberately overlapping authority/window.
         right = program(Phase(ActionSource.PARENT, (), fixed(1)), step=7, cap=2)
-        original_evidence: dict[str, tuple[dict, dict]] = {}
 
         def runner(runtime_path: Path, run_dir: Path) -> int:
             cfg = json.loads(runtime_path.read_text(encoding="utf-8"))
@@ -199,12 +197,6 @@ class PipelineHardeningTests(unittest.TestCase):
             run_dir.mkdir(parents=True)
             _write_accepted_deployment(run_dir, cfg, family_id, left, route_base)
             _write_accepted_deployment(run_dir, cfg, family_id, right, route_base + 1)
-            for candidate in (left, right):
-                deployment = run_dir / "families" / family_id / candidate.semantic_id / "deployment"
-                original_evidence[candidate.semantic_id] = (
-                    json.loads((deployment / "materialization.json").read_text(encoding="utf-8")),
-                    json.loads((deployment / "specialist.json").read_text(encoding="utf-8")),
-                )
             (run_dir / "metrics.json").write_text(json.dumps({
                 "total_cuda_games": 9,
                 "accepted_candidate_ids": [left.semantic_id, right.semantic_id],
@@ -221,26 +213,18 @@ class PipelineHardeningTests(unittest.TestCase):
                 telemetry_interval_seconds=60,
             ), 0)
             state = json.loads((output / "generation_state.json").read_text(encoding="utf-8"))
-            self.assertEqual(state["generation"], 0)
-            self.assertEqual(state["accepted_specialists"], [])
-            self.assertEqual(state["cuda_games_consumed"], 9)
-            self.assertEqual(len(state["uncommitted_accepts"]), 1)
-            attempt = output / state["uncommitted_accepts"][0]["attempt_path"]
-            conflict = json.loads((attempt / "run/composition_conflict.json").read_text(encoding="utf-8"))
-            self.assertEqual(conflict["candidate_ids"], sorted([left.semantic_id, right.semantic_id]))
-            for candidate_id in conflict["candidate_ids"]:
-                matches = list(attempt.glob(f"run/families/*/{candidate_id}/deployment"))
-                self.assertEqual(len(matches), 1)
-                deployment = matches[0]
-                self.assertEqual(
-                    json.loads((deployment / "materialization.json").read_text(encoding="utf-8")),
-                    original_evidence[candidate_id][0],
-                )
-                self.assertEqual(
-                    json.loads((deployment / "specialist.json").read_text(encoding="utf-8")),
-                    original_evidence[candidate_id][1],
-                )
-            self.assertFalse((output / "generations/generation_0001").exists())
+            self.assertEqual(state["generation"], 1)
+            self.assertEqual(len(state["commits"]), 1)
+            self.assertEqual(len(state["commits"][0]["route_ids"]), 1)
+            self.assertEqual(state["commits"][0]["protected_win_to_loss"], 0)
+            self.assertEqual(state["commits"][0]["semantic_mismatches"], 0)
+            generation = output / "generations" / "generation_0001"
+            self.assertTrue(generation.exists())
+            conflict = json.loads(
+                (generation / "run" / "composition_conflict.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(conflict["status"], "RESOLVED_COMPATIBLE_SUBSET")
+            self.assertEqual(len(conflict["selected_candidate_ids"]), 1)
 
     def test_compaction_refreshes_manifest_to_only_retained_artifacts(self):
         with tempfile.TemporaryDirectory() as directory:

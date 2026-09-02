@@ -6,12 +6,12 @@ import unittest
 from tools.bkg4_search.rlrmb.cloud_runner import (
     _extend_route_pack, _controller_identity, build_working_assets, compact_generation_artifacts,
     generation_config, _parser, initial_state, load_cloud_config, run_cloud,
-    search_context_identity,
+    search_context_identity, _resolve_composition_conflict,
 )
 from tools.bkg4_search.rlrmb.materialize import MaterializationInput, materialize_program
 from tools.bkg4_search.rlrmb.tests.test_ir import program, Phase, ActionSource, fixed
 from tools.bkg4_search.module_codec import ConditionGene
-from tools.bkg4_search.bonsai_composer import StrategicAuthority, compose_specialists
+from tools.bkg4_search.bonsai_composer import SpecialistDeclaration, StrategicAuthority, compose_specialists
 
 
 ROOT=Path(__file__).resolve().parents[4]
@@ -521,6 +521,86 @@ class StagingTimingTests(unittest.TestCase):
             self.assertGreaterEqual(ratio, 0.0)
             # The 95% gate is validated on real hardware; in unit tests just verify >= 0
             self.assertGreaterEqual(ratio, 0.0)
+
+
+def _stub_declaration(name: str, route_id: int, start: int, end: int,
+                       authority: str = "strategic_route_override") -> SpecialistDeclaration:
+    return SpecialistDeclaration(
+        name=name, kind="bounded_route_macro", route_id=route_id,
+        authorization_step=start, active_start=start, active_end=end,
+        active_slot=f"active_{name}", authorities=(authority,),
+        route_source=f"{name}.route.json", semantic_id=f"sem_{name}",
+        gate_clauses=None, end_policy="RETURN_TO_PARENT", macro=None,
+    )
+
+
+class CompositionConflictResolutionTests(unittest.TestCase):
+
+    def test_no_conflict_returns_all(self):
+        decls = [
+            _stub_declaration("a", 300, 100, 110),
+            _stub_declaration("b", 301, 150, 160),
+        ]
+        self.assertEqual(_resolve_composition_conflict(decls), [0, 1])
+
+    def test_two_conflicting_selects_earlier(self):
+        decls = [
+            _stub_declaration("alpha", 300, 190, 199),
+            _stub_declaration("beta", 301, 191, 198),
+        ]
+        result = _resolve_composition_conflict(decls)
+        self.assertEqual(len(result), 1)
+        selected = decls[result[0]]
+        self.assertEqual(selected.active_start, 190)
+
+    def test_unrelated_candidate_retained(self):
+        decls = [
+            _stub_declaration("early", 300, 100, 110),
+            _stub_declaration("late_a", 301, 190, 199),
+            _stub_declaration("late_b", 302, 191, 198),
+        ]
+        result = _resolve_composition_conflict(decls)
+        self.assertIn(0, result)
+        self.assertEqual(len(result), 2)
+
+    def test_deterministic_across_calls(self):
+        decls = [
+            _stub_declaration("x", 300, 190, 199),
+            _stub_declaration("y", 301, 191, 198),
+            _stub_declaration("z", 302, 100, 110),
+        ]
+        results = [_resolve_composition_conflict(decls) for _ in range(10)]
+        self.assertTrue(all(r == results[0] for r in results))
+
+    def test_best_safe_subset_with_three_way_conflict(self):
+        decls = [
+            _stub_declaration("a", 300, 100, 120),
+            _stub_declaration("b", 301, 110, 130),
+            _stub_declaration("c", 302, 125, 140),
+        ]
+        result = _resolve_composition_conflict(decls)
+        selected_names = {decls[i].name for i in result}
+        self.assertIn("a", selected_names)
+        self.assertIn("c", selected_names)
+        self.assertNotIn("b", selected_names)
+
+    def test_no_different_authority_conflict(self):
+        decls = [
+            _stub_declaration("a", 300, 190, 199, authority="auth_1"),
+            _stub_declaration("b", 301, 191, 198, authority="auth_2"),
+        ]
+        self.assertEqual(_resolve_composition_conflict(decls), [0, 1])
+
+    def test_single_candidate(self):
+        decls = [_stub_declaration("solo", 300, 100, 110)]
+        self.assertEqual(_resolve_composition_conflict(decls), [0])
+
+    def test_empty_returns_empty(self):
+        self.assertEqual(_resolve_composition_conflict([]), [])
+
+    def test_safe_fast_path_unchanged(self):
+        decls = [_stub_declaration("safe", 300, 100, 110)]
+        self.assertEqual(_resolve_composition_conflict(decls), [0])
 
 
 if __name__=="__main__": unittest.main()

@@ -713,6 +713,7 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
     donor_paths = tuple(Path(line.strip()) for line in (root / config["donor_manifest"]).read_text().splitlines() if line.strip())[:config["search"]["donor_limit"]]
     asset = root / config["asset_dir"]; binary = root / config["cuda_binary"]
     all_metrics: dict[str, Any] = {}; failures = Counter(); accepted = []; global_effects = set(); target_clusters = set(); total_l2w = 0
+    _family_motifs: dict[str, dict[str, Any]] = {}
     _imperfect_diag = ImperfectSpecialistDiagnostics()
     _admission_metrics = BinaryAdmissionMetrics()
     # Phase 16.5: evaluation context ID (stable across same-controller retry attempts)
@@ -1132,6 +1133,7 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
         _t0=time.monotonic()
         _write_json(family_dir/"prepromotion_summary.json",prepromotion_results)
         _write_json(family_dir/"run.json",all_metrics[family_id]); _write_json(family_dir/"archive_summary.json",json.loads(archive.serialize()))
+        _family_motifs[family_id] = dict(motifs_all)
         stage_timing["post_search_io"]+=time.monotonic()-_t0
     _t0=time.monotonic()
     refined_total=sum(row["refined"] for row in all_metrics.values()); mixed=failures["MIXED_LEGAL_STATE"]+failures["FUTURE_DEPENDENT"]+failures["REPAIR_BRANCH_AT_REVEAL"]+failures["REPAIR_COMMON_PREFIX"]
@@ -1319,6 +1321,182 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
                 _routed_manifest,
             )
     metrics["phase1_routed_evaluation"] = _routed_metrics.to_document()
+    # Phase-1.4+: binary downstream integration for READY_FOR_DOWNSTREAM candidates
+    _binary_committed = []
+    _binary_downstream_results = []
+    _ready_candidates = [
+        (_routed_result, _gate_result)
+        for _routed_result in _routed_results
+        if _routed_result.status is RoutedEvaluationStatus.READY_FOR_DOWNSTREAM_INTEGRATION
+        for _gate_result in _gate_results
+        if _gate_result.candidate_semantic_id == _routed_result.candidate_semantic_id
+        and _gate_result.gate is not None
+    ]
+    if _ready_candidates and not smoke:
+        from tools.bkg4_search.bonsai_synthesizer import (
+            assess_sealed_holdout, assess_transfer_gate_support,
+            threshold_robustness,
+        )
+        from tools.bkg4_search.macro_initiation_cegis import MacroEffectCase
+        from tools.bkg4_search.module_codec import ConditionGene
+        _binary_dir = output / "phase1_binary_downstream"
+        _binary_dir.mkdir(parents=True, exist_ok=True)
+        _max_binary = config.get("diagnostics", {}).get("max_binary_downstream", 3)
+        for _b_idx, (_b_routed, _b_gate) in enumerate(_ready_candidates[:_max_binary]):
+            _b_id = _b_routed.candidate_semantic_id
+            _b_rec = _records_by_id.get(_b_id)
+            if _b_rec is None:
+                continue
+            _b_family = _b_rec.family
+            _b_motifs = _family_motifs.get(_b_family)
+            if not _b_motifs:
+                _binary_downstream_results.append({"candidate_id": _b_id, "status": "MISSING_MOTIFS", "family": _b_family})
+                continue
+            _b_prog_path = output / "families" / _b_family / "diagnostics" / _b_id / "program.json"
+            if not _b_prog_path.exists():
+                _binary_downstream_results.append({"candidate_id": _b_id, "status": "MISSING_PROGRAM", "family": _b_family})
+                continue
+            _b_program = MacroProgram.from_document(_read_json(_b_prog_path))
+            _b_gate_conds = _b_gate.gate
+            _b_candidate_dir = _binary_dir / _b_id
+            _b_candidate_dir.mkdir(parents=True, exist_ok=True)
+            _b_result: dict[str, Any] = {"candidate_id": _b_id, "family": _b_family, "route_idx": _b_idx}
+            _t0_b = time.monotonic()
+            try:
+                if resources is not None and hasattr(resources, "get_or_create_evaluator"):
+                    _b_pev = resources.get_or_create_evaluator(binary, asset)
+                    _b_transfer_eval = AccountedEvaluator(_b_pev.bind(root / config["transfer_panel"]), ledger, _b_family, "transfer")
+                    _b_validation_eval = AccountedEvaluator(_b_pev.bind(root / config["validation_panel"]), ledger, _b_family, "validation")
+                    _b_sealed_eval = AccountedEvaluator(_b_pev.bind(root / config["sealed_panel"]), ledger, _b_family, "certification")
+                else:
+                    _b_transfer_eval = AccountedEvaluator(CudaBatchEvaluator(binary=binary, asset_dir=asset, cases_path=root / config["transfer_panel"]), ledger, _b_family, "transfer")
+                    _b_validation_eval = AccountedEvaluator(CudaBatchEvaluator(binary=binary, asset_dir=asset, cases_path=root / config["validation_panel"]), ledger, _b_family, "validation")
+                    _b_sealed_eval = AccountedEvaluator(CudaBatchEvaluator(binary=binary, asset_dir=asset, cases_path=root / config["sealed_panel"]), ledger, _b_family, "certification")
+                _b_transfer_batch = _b_transfer_eval((_b_program,), _b_motifs)
+                _b_validation_batch = _b_validation_eval((_b_program,), _b_motifs)
+                _b_transfer_block = _b_transfer_batch.programs[0].effect.blocks[0]
+                _b_validation_block = _b_validation_batch.programs[0].effect.blocks[0]
+                _b_transfer_raw = _effect_rows(_b_program, DatasetRole.TRANSFER, root / config["transfer_panel"], _b_transfer_block)
+                _b_validation_raw = _effect_rows(_b_program, DatasetRole.VALIDATION, root / config["validation_panel"], _b_validation_block)
+                _b_transfer_captured = capture_candidate_legal_states(
+                    _b_program, _b_transfer_raw, root / config["transfer_panel"],
+                    _b_candidate_dir / "transfer", capture_binary=root / config["capture_binary"],
+                    asset_dir=asset, cache=capture_cache,
+                )
+                _b_validation_captured = capture_candidate_legal_states(
+                    _b_program, _b_validation_raw, root / config["validation_panel"],
+                    _b_candidate_dir / "validation", capture_binary=root / config["capture_binary"],
+                    asset_dir=asset, cache=capture_cache,
+                )
+                _b_transfer_cases = []
+                for _ev in _b_transfer_captured:
+                    _ctx = {(f, i): v for f, i, v in _ev.gate_context} if _ev.gate_context else {}
+                    _b_transfer_cases.append(MacroEffectCase(
+                        case_id=_ev.meta.case_id, baseline_margin=_ev.baseline_margin,
+                        macro_margin=_ev.candidate_margin, context=_ctx,
+                        exact_signature=_ev.exact_signature, support_group=_ev.meta.family,
+                        dataset_role="transfer",
+                    ))
+                _b_validation_cases = []
+                for _ev in _b_validation_captured:
+                    _ctx = {(f, i): v for f, i, v in _ev.gate_context} if _ev.gate_context else {}
+                    _b_validation_cases.append(MacroEffectCase(
+                        case_id=_ev.meta.case_id, baseline_margin=_ev.baseline_margin,
+                        macro_margin=_ev.candidate_margin, context=_ctx,
+                        exact_signature=_ev.exact_signature, support_group=_ev.meta.family,
+                        dataset_role="validation",
+                    ))
+                _b_transfer_report = assess_transfer_gate_support(
+                    _b_gate_conds, _b_transfer_cases, min_positive=1, min_independent=1,
+                )
+                _b_result["transfer_support"] = _b_transfer_report.canonical()
+                if not _b_transfer_report.accepted:
+                    _b_result["status"] = "TRANSFER_REJECTED"
+                    _b_result["rejection_reason"] = _b_transfer_report.failure_reason
+                    _binary_downstream_results.append(_b_result)
+                    continue
+                _b_threshold = threshold_robustness(
+                    _b_gate_conds, _b_transfer_cases + _b_validation_cases, radius=2,
+                )
+                _b_result["threshold_robustness"] = _b_threshold
+                _b_selected = [row for row in _b_threshold if row["offset"] == 0]
+                _b_neighbors = [row for row in _b_threshold if abs(row["offset"]) == 1]
+                _b_unsafe_neighbors = [row for row in _b_neighbors if not row["safe"]]
+                if any(not row["safe"] for row in _b_selected) or (_b_neighbors and len(_b_unsafe_neighbors) == len(_b_neighbors)):
+                    _b_result["status"] = "THRESHOLD_BRITTLE"
+                    _binary_downstream_results.append(_b_result)
+                    continue
+                _b_sealed_batch = _b_sealed_eval((_b_program,), _b_motifs)
+                _b_sealed_block = _b_sealed_batch.programs[0].effect.blocks[0]
+                _b_sealed_raw = _effect_rows(_b_program, DatasetRole.SEALED, root / config["sealed_panel"], _b_sealed_block)
+                _b_sealed_captured = capture_candidate_legal_states(
+                    _b_program, _b_sealed_raw, root / config["sealed_panel"],
+                    _b_candidate_dir / "sealed", capture_binary=root / config["capture_binary"],
+                    asset_dir=asset, cache=capture_cache,
+                )
+                _b_sealed_cases = []
+                for _ev in _b_sealed_captured:
+                    _ctx = {(f, i): v for f, i, v in _ev.gate_context} if _ev.gate_context else {}
+                    _b_sealed_cases.append(MacroEffectCase(
+                        case_id=_ev.meta.case_id, baseline_margin=_ev.baseline_margin,
+                        macro_margin=_ev.candidate_margin, context=_ctx,
+                        exact_signature=_ev.exact_signature,
+                        dataset_role="sealed",
+                    ))
+                _b_sealed_report = assess_sealed_holdout(_b_gate_conds, _b_sealed_cases)
+                _b_result["sealed_status"] = "PASSED" if _b_sealed_report.accepted else "FAILED"
+                if not _b_sealed_report.accepted:
+                    _b_result["status"] = "SEALED_HOLDOUT_FAILURE"
+                    _b_result["rejection_reason"] = _b_sealed_report.failure_reason
+                    _binary_downstream_results.append(_b_result)
+                    continue
+                from .cegis_adapter import AdapterDisposition, CegisAdapterResult, ADAPTER_SCHEMA_VERSION
+                _b_gate_doc = _b_gate.gate_canonical
+                _b_cegis_result = CegisAdapterResult(
+                    candidate_id=_b_id, program_semantic_id=_b_id,
+                    program_schema_version=_b_program.schema_version,
+                    internal_decision_count=len(_b_program.decisions),
+                    disposition=AdapterDisposition.ENTER_CEGIS,
+                    cegis_invoked=False, accepted=True, rejection_reason=None,
+                    gate=_b_gate_doc, target_preserved=True,
+                    transfer_support=_b_transfer_report.canonical(),
+                    threshold_robustness=tuple(_b_threshold),
+                    sealed_status="PASSED", validation_counterexamples=(),
+                    cegis_trace=(), lineage=(), schema_version=ADAPTER_SCHEMA_VERSION,
+                )
+                _write_json(_b_candidate_dir / "cegis.json", _b_cegis_result.to_document())
+                parent_module = _read_json(asset / "controller.json")
+                _b_route_id = config["deployment"]["route_id_base"] + 50 + _b_idx
+                _b_artifact, _b_audit = materialize_certified_candidate(
+                    _b_program, _b_motifs, _b_cegis_result,
+                    parent_route=root / config["parent_route"],
+                    output_dir=_b_candidate_dir / "deployment",
+                    route_id=_b_route_id,
+                    parent_module=parent_module,
+                    authority_name=config["deployment"].get("authority_name", "strategic_route"),
+                    authority_slot=config["deployment"].get("authority_slot", "day2_capital_specialist_v1_route_override"),
+                )
+                _b_result["status"] = "BINARY_CERTIFIED"
+                _b_result["materialization"] = _b_audit
+                _b_result["route_id"] = _b_route_id
+                _b_result["routed_target_l2w"] = _b_routed.target_routed_l2w
+                _b_result["routed_protected_w2l"] = _b_routed.protected_routed_w2l
+                _b_result["global_protected_w2l"] = _b_routed.protected_global_w2l
+                _b_result["w2l_eliminated"] = _b_routed.protected_w2l_eliminated
+                _binary_committed.append(_b_id)
+                accepted.append(_b_id)
+            except Exception as _b_exc:
+                _b_result["status"] = "DOWNSTREAM_ERROR"
+                _b_result["error"] = str(_b_exc)
+            _b_result["wall_seconds"] = time.monotonic() - _t0_b
+            _binary_downstream_results.append(_b_result)
+        _write_json(_binary_dir / "downstream_results.json", _binary_downstream_results)
+    metrics["phase1_binary_downstream"] = {
+        "ready_for_downstream": len(_ready_candidates),
+        "attempted": len(_binary_downstream_results),
+        "binary_certified": len(_binary_committed),
+        "binary_committed_ids": _binary_committed,
+    }
     stage_timing["post_search_io"]+=time.monotonic()-_t0
     return 0
 

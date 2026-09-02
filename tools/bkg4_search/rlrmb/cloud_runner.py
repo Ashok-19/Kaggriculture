@@ -416,6 +416,39 @@ class AcceptedCompositionConflict(ValueError):
     """All candidates passed acceptance independently but cannot coexist atomically."""
 
 
+def _resolve_composition_conflict(
+    declarations: Sequence[SpecialistDeclaration],
+) -> list[int]:
+    """Select a maximal compatible subset when specialists have authority conflicts.
+
+    Returns indices into *declarations* of a compatible subset, or empty if
+    no subset of size >= 1 exists (should not happen for valid inputs).
+    Deterministic: sorted by (active_start, name) for stability, greedy selection
+    preferring earlier-activating specialists (those with smaller windows tend to
+    be more targeted).
+    """
+    n = len(declarations)
+    if n <= 1:
+        return list(range(n))
+    conflicts: set[frozenset[int]] = set()
+    for i in range(n):
+        for j in range(i + 1, n):
+            left, right = declarations[i], declarations[j]
+            window_overlap = max(left.active_start, right.active_start) <= min(left.active_end, right.active_end)
+            shared_auth = bool(set(left.authorities) & set(right.authorities))
+            if window_overlap and shared_auth:
+                conflicts.add(frozenset((i, j)))
+    if not conflicts:
+        return list(range(n))
+    ranked = sorted(range(n), key=lambda i: (declarations[i].active_start, declarations[i].name))
+    selected: list[int] = []
+    for i in ranked:
+        compatible = all(frozenset((i, j)) not in conflicts for j in selected)
+        if compatible:
+            selected.append(i)
+    return sorted(selected)
+
+
 def _condition_rows(document: Sequence[Sequence[Mapping[str, Any]]]) -> tuple[tuple[ConditionGene, ...], ...]:
     return tuple(tuple(
         ConditionGene(str(row["feature"]), str(row["cmp"]), int(row.get("index", 0)), int(row["value"]))
@@ -585,17 +618,43 @@ def _prepare_generation_deployment(
         )
     except ValueError as exc:
         if len(declarations) > 1 and "unresolved strategic authority conflict" in str(exc):
-            conflict = {
-                "schema_version": 1,
-                "status": "UNCOMMITTED_COMPOSITION_CONFLICT",
-                "candidate_ids": list(candidate_ids),
-                "provisional_route_ids": [row["route_id"] for row in rows],
-                "error": str(exc),
+            subset_indices = _resolve_composition_conflict(declarations)
+            if not subset_indices:
+                conflict = {
+                    "schema_version": 1,
+                    "status": "UNCOMMITTED_COMPOSITION_CONFLICT",
+                    "candidate_ids": list(candidate_ids),
+                    "provisional_route_ids": [row["route_id"] for row in rows],
+                    "error": str(exc),
+                }
+                _write_atomic(run_dir / "composition_conflict.json", conflict)
+                shutil.rmtree(generation, ignore_errors=True)
+                raise AcceptedCompositionConflict(str(exc)) from exc
+            declarations = [declarations[i] for i in subset_indices]
+            rows = [rows[i] for i in subset_indices]
+            evidence_rebinds = [evidence_rebinds[i] for i in subset_indices]
+            authoritative_audits = {
+                candidate_ids[i]: authoritative_audits[candidate_ids[i]]
+                for i in subset_indices if candidate_ids[i] in authoritative_audits
             }
-            _write_atomic(run_dir / "composition_conflict.json", conflict)
-            shutil.rmtree(generation, ignore_errors=True)
-            raise AcceptedCompositionConflict(str(exc)) from exc
-        raise
+            candidate_ids = tuple(candidate_ids[i] for i in subset_indices)
+            _write_atomic(run_dir / "composition_conflict.json", {
+                "schema_version": 1,
+                "status": "RESOLVED_COMPATIBLE_SUBSET",
+                "original_candidate_ids": list(accepted),
+                "selected_indices": list(subset_indices),
+                "selected_candidate_ids": list(candidate_ids),
+                "original_error": str(exc),
+            })
+            composed = compose_specialists(
+                parent_module,
+                tuple(declarations),
+                (),
+                strategic_authorities=(StrategicAuthority(authority_name, authority_slot),),
+                output_name=f"rlrmb_generation_{next_generation:04d}",
+            )
+        else:
+            raise
 
     _write_atomic(generation / "composed_module.json", composed.module)
     _write_atomic(generation / "specialists.json", {

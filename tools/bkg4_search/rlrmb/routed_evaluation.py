@@ -722,10 +722,9 @@ def _observation_from_gate_context(
     }
     own = obs["farms"][0]
     opp = obs["farms"][1]
-    _ITEMS = [
-        "WHEAT", "CORN", "RICE", "POTATO", "PUMPKIN", "COTTON", "SUGARCANE",
-        "CHICKEN", "COW",
-    ]
+    from .evaluator import _ITEMS, _SEEDS
+    _n_items = len(_ITEMS)
+    _n_seeds = len(_SEEDS)
     for (feature, index), value in ctx.items():
         if feature == "STEP":
             obs["step"] = value
@@ -747,13 +746,13 @@ def _observation_from_gate_context(
             own["hires_today"] = value
         elif feature == "OPP_HIRES_TODAY":
             opp["hires_today"] = value
-        elif feature == "MARKET_INVENTORY" and index < 9:
+        elif feature == "MARKET_INVENTORY" and index < _n_items:
             obs["market"]["inventory"][_ITEMS[index]] = value
-        elif feature == "MARKET_PRICE" and index < 9:
+        elif feature == "MARKET_PRICE" and index < _n_items:
             obs["market"]["prices"][_ITEMS[index]] = value
-        elif feature == "OWN_SEED" and index < 9:
-            obs["private"]["seeds"][_ITEMS[index]] = value
-        elif feature == "OWN_SHED" and index < 9:
+        elif feature == "OWN_SEED" and index < _n_seeds:
+            obs["private"]["seeds"][_SEEDS[index]] = value
+        elif feature == "OWN_SHED" and index < _n_items:
             obs["private"]["shed"][_ITEMS[index]] = value
     return obs
 
