@@ -54,13 +54,18 @@ from .diagnostics import (
     protected_effect_metrics, select_diagnostic_shortlist, write_diagnostic_artifacts,
     select_binary_routing_rows, summarize_policy_attribution,
 )
+from .dev_screen import (
+    DevScreenMetrics, DevScreenPolicy, DevScreenResult, DevScreenStatus,
+    apply_dev_screen, assert_dev_independence, classify_dev_outcome,
+    dev_block_metrics, select_dev_panel, write_dev_screen_artifact,
+)
 from .effects import EffectBlock, EffectVector, effect_signature
 from .failures import FailureClass
 from .lns import DualPanelEvaluator, run_lns
 from .schema import DatasetRole, stable_identity
 
 SCHEMA_VERSION = 1
-GAME_CATEGORIES = ("target_beam", "diagnostic_protected", "transfer", "validation", "lns_repair", "reactive_repair", "certification")
+GAME_CATEGORIES = ("target_beam", "diagnostic_protected", "internal_dev", "transfer", "validation", "lns_repair", "reactive_repair", "certification")
 
 _PROMOTION_CLASS_RANK = {
     RoutabilityClassification.ROUTABLE_CANDIDATE: 0,
@@ -131,6 +136,8 @@ class BudgetLedger:
         self.by_category = Counter()
 
     def remaining(self, family: str, category: str) -> int:
+        if category not in self.category_caps:
+            return 0
         return min(self.total_cap - self.total, self.family_caps[family] - self.by_family[family],
                    self.category_caps[category] - self.by_category[(family, category)])
 
@@ -714,6 +721,7 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
         "target_legal_capture", "target_routability",
         "transfer_validation_eval", "transfer_validation_capture",
         "full_routability", "sealed_eval_capture",
+        "internal_dev_screen",
         "cegis", "lns_repair", "materialization",
         "post_search_io", "metrics_normalization",
     )}
@@ -1354,6 +1362,97 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
         if _gate_result.candidate_semantic_id == _routed_result.candidate_semantic_id
         and _gate_result.gate is not None
     ]
+    # Phase-1.35: INTERNAL_DEV cross-regime generalization screen.
+    #
+    # Everything above this point ranks candidates on BUILD evidence alone, so a
+    # specialist that merely memorized the league failure states looks identical
+    # to one that learned a transferable correction.  The screen re-evaluates
+    # ready candidates on an independently generated internal regime and
+    # withholds downstream budget from obvious cross-regime regressions.  It has
+    # no accept authority: TRANSFER / VALIDATION / SEALED / composition below are
+    # unchanged and remain the only safety gate.
+    _dev_config = config.get("internal_dev") or {}
+    _dev_policy = DevScreenPolicy.from_config(_dev_config)
+    _dev_metrics = DevScreenMetrics()
+    _dev_results: list[DevScreenResult] = []
+    _dev_document: dict[str, Any] = {}
+    _dev_panels = tuple(_dev_config.get("panels", ()))
+    if _ready_candidates and _dev_panels and not smoke:
+        _dev_selection = select_dev_panel(_dev_panels, _memory_generation)
+        _dev_panel_path = root / _dev_selection.panel
+        _dev_independence = assert_dev_independence(
+            [root / row["target_panel"] for row in campaign_families], _dev_panel_path,
+        )
+        _t0_dev = time.monotonic()
+        for _d_routed, _d_gate in _ready_candidates[:_dev_policy.max_screened]:
+            _d_id = _d_routed.candidate_semantic_id
+            _d_rec = _records_by_id.get(_d_id)
+            if _d_rec is None:
+                continue
+            _d_motifs = _family_motifs.get(_d_rec.family)
+            _d_prog_path = output / "families" / _d_rec.family / "diagnostics" / _d_id / "program.json"
+            if not _d_motifs or not _d_prog_path.exists():
+                continue
+            _d_program = MacroProgram.from_document(_read_json(_d_prog_path))
+            if resources is not None and hasattr(resources, "get_or_create_evaluator"):
+                _d_inner = resources.get_or_create_evaluator(binary, asset).bind(_dev_panel_path)
+            else:
+                _d_inner = CudaBatchEvaluator(binary=binary, asset_dir=asset, cases_path=_dev_panel_path)
+            _d_eval = AccountedEvaluator(_d_inner, ledger, _d_rec.family, "internal_dev")
+            if _d_eval.projected_games(1) > ledger.remaining(_d_rec.family, "internal_dev"):
+                break
+            _d_batch = _d_eval((_d_program,), _d_motifs)
+            _dev_metrics.cuda_games += _d_batch.games
+            _d_block = _d_batch.programs[0].effect.blocks[0]
+            _d_stats = dev_block_metrics(_d_block)
+            _d_status = classify_dev_outcome(_d_stats, _dev_policy)
+            _d_result = DevScreenResult(
+                candidate_semantic_id=_d_id, family=_d_rec.family, lane=_d_rec.lane,
+                status=_d_status, dev_panel=_dev_selection.panel,
+                generation=_dev_selection.generation,
+                rotation_index=_dev_selection.rotation_index,
+                build_loss_to_win=_d_rec.target_loss_to_win,
+                build_protected_win_to_loss=_d_rec.protected_win_to_loss,
+                provenance={
+                    "build_panel": str(root / next(
+                        row["target_panel"] for row in campaign_families
+                        if row["id"] == _d_rec.family)),
+                    "dev_panel": str(_dev_panel_path),
+                    "evaluation_context": _eval_ctx_id or "local",
+                    "generation": _memory_generation,
+                    "checkpoint_step": _d_rec.initiation_step,
+                    "asset_dir": str(asset),
+                    "structural_id": _d_rec.structural_id,
+                },
+                **_d_stats,
+            )
+            _dev_metrics.observe(_d_result)
+            _dev_results.append(_d_result)
+        stage_timing["internal_dev_screen"] += time.monotonic() - _t0_dev
+        if _dev_results:
+            _dev_admitted, _dev_withheld = apply_dev_screen(_dev_results, _dev_policy)
+            _dev_metrics.observe_admission(_dev_admitted, _dev_withheld)
+            _dev_order = {row.candidate_semantic_id: index
+                          for index, row in enumerate(_dev_admitted)}
+            _dev_screened_ids = {row.candidate_semantic_id for row in _dev_results}
+            _ready_candidates = sorted(
+                (pair for pair in _ready_candidates
+                 if pair[0].candidate_semantic_id in _dev_order
+                 or pair[0].candidate_semantic_id not in _dev_screened_ids),
+                key=lambda pair: (
+                    _dev_order.get(pair[0].candidate_semantic_id, len(_dev_order)),
+                    pair[0].candidate_semantic_id,
+                ),
+            )
+            _dev_document = write_dev_screen_artifact(
+                output / "phase1_internal_dev", _dev_selection, _dev_policy,
+                _dev_results, _dev_admitted, _dev_metrics, _dev_independence,
+                parent_generation_context=_eval_ctx_id or "local",
+            )
+    metrics["phase1_internal_dev"] = _dev_metrics.to_document()
+    if _dev_document:
+        metrics["phase1_internal_dev"]["panel_selection"] = _dev_document["panel_selection"]
+        metrics["phase1_internal_dev"]["independence"] = _dev_document["independence"]
     if _ready_candidates and not smoke:
         from tools.bkg4_search.bonsai_synthesizer import (
             assess_sealed_holdout, assess_transfer_gate_support,
@@ -1520,6 +1619,9 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
         "binary_committed_ids": _binary_committed,
     }
     stage_timing["post_search_io"]+=time.monotonic()-_t0
+    metrics["stage_timing_seconds"] = {k: round(v, 6) for k, v in sorted(stage_timing.items())}
+    metrics["budget"] = ledger.document()
+    _write_json(output / "metrics.json", metrics)
     return 0
 
 

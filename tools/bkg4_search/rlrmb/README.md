@@ -495,6 +495,53 @@ When a composed BKG4 becomes champion, call
 The manager retains strategically useful checkpoints within its fixed capacity
 rather than accumulating every intermediate version.
 
+## INTERNAL_DEV cross-regime screen
+
+Discovery previously ranked and promoted specialists on BUILD evidence alone,
+so a candidate that had merely memorized the league failure states was
+indistinguishable from one that had learned a transferable correction. Every
+such candidate then spent full downstream TRANSFER budget before the holdout
+firewall rejected it.
+
+`dev_screen.py` adds a bounded screen between BUILD discovery and the unchanged
+Phase-1 downstream path. Three roles are now explicit:
+
+* **BUILD** — candidate discovery and search (family `target_panel`).
+* **INTERNAL_DEV** — freshly generated internal league regimes used only for
+  candidate ranking and downstream admission.
+* **TRUE_HOLDOUT** — TRANSFER / VALIDATION / SEALED, unchanged, and still the
+  only authority that can accept anything.
+
+`adversarial_league.generate_league_dev_cases` produces DEV panels that are
+structurally independent of BUILD: seeds come from a different RNG stream and
+are excluded against the BUILD seeds, seats are rotated against the BUILD seat
+order, and only a generation-dependent rotating lane subset of league
+exploiters is used as opponents. `dev_screen.assert_dev_independence` fails
+closed if a DEV panel reuses any BUILD case, and `validate_production_config`
+rejects a DEV panel that points at BUILD or holdout evidence.
+
+Configure it with an optional `internal_dev` block and a funded `internal_dev`
+CUDA category:
+
+```json
+"internal_dev": {
+  "panels": ["<dev panel gen 0>", "<dev panel gen 1>"],
+  "max_win_to_loss": 2, "max_win_to_loss_rate": 0.25,
+  "max_screened": 8, "max_downstream": 3, "allow_fallback": true
+}
+```
+
+`select_dev_panel` rotates the panel pool by generation so candidates cannot
+specialize permanently to one DEV panel, and every result records its BUILD
+panel, DEV panel, league members, checkpoints, seeds, seats and generation.
+
+A candidate that is inert on DEV is classified `DEV_NO_CROSS_REGIME_EFFECT`
+(a BUILD-only overfit), one that flips protected DEV wins beyond the bounded
+thresholds is `DEV_REGRESSION`, and neither consumes downstream budget. If the
+screen would otherwise admit nobody, one bounded `DEV_FALLBACK_ADMITTED` slot
+keeps discovery alive — but never a `DEV_REGRESSION`, which is the failure mode
+the screen exists to stop.
+
 ## Generated outputs
 
 Permanent source belongs under `tools/bkg4_search/rlrmb/`. Future generated runs

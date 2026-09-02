@@ -85,7 +85,7 @@ def validate_production_config(config_path: str | Path, output: str | Path) -> d
     allowed = {"schema_version", "cuda_binary", "capture_binary", "asset_dir", "donor_manifest",
                "parent_route", "transfer_panel", "validation_panel", "sealed_panel", "sealed_role",
                "budget", "search", "promotion", "probe", "repair", "deployment", "output", "families", "cloud",
-               "host_execution", "source_provenance", "diagnostics"}
+               "host_execution", "source_provenance", "diagnostics", "internal_dev"}
     unknown = set(config) - allowed
     if config.get("schema_version") != PIPELINE_SCHEMA_VERSION or unknown:
         raise ValueError(f"unsupported production config schema/fields: {sorted(unknown)}")
@@ -125,7 +125,7 @@ def validate_production_config(config_path: str | Path, output: str | Path) -> d
     if sum(row["cuda_games"] for row in families) > total:
         raise ValueError("frontier allocations exceed the authoritative CUDA budget")
     required_categories = {"target_beam", "transfer", "validation", "lns_repair", "reactive_repair", "certification"}
-    allowed_categories = required_categories | {"diagnostic_protected"}
+    allowed_categories = required_categories | {"diagnostic_protected", "internal_dev"}
     if (not required_categories <= set(categories) or not set(categories) <= allowed_categories
             or any(type(value) is not int or value < 0 for value in categories.values())):
         raise ValueError("all CUDA game categories require non-negative integer caps")
@@ -143,6 +143,34 @@ def validate_production_config(config_path: str | Path, output: str | Path) -> d
         raise ValueError("production output directory must be new or empty")
     if config.get("sealed_role") != "CEGIS_DOWNSTREAM_ONLY":
         raise ValueError("SEALED evidence is downstream-only")
+    dev = config.get("internal_dev")
+    if dev is not None:
+        # INTERNAL_DEV is a bounded pre-downstream screen. It must declare a
+        # real rotation of independently generated panels, and it must never be
+        # pointed at holdout evidence: that would convert the safety firewall
+        # into a search target.
+        if not isinstance(dev, Mapping):
+            raise ValueError("internal_dev must be a mapping")
+        unknown_dev = set(dev) - {"panels", "max_win_to_loss", "max_win_to_loss_rate",
+                                  "max_screened", "max_downstream", "allow_fallback"}
+        if unknown_dev:
+            raise ValueError(f"unsupported internal_dev fields: {sorted(unknown_dev)}")
+        panels = dev.get("panels", ())
+        if (not isinstance(panels, Sequence) or isinstance(panels, str) or not panels
+                or any(type(row) is not str or not row.strip() for row in panels)):
+            raise ValueError("internal_dev.panels must be a non-empty list of panel paths")
+        holdout = {config.get("transfer_panel"), config.get("validation_panel"),
+                   config.get("sealed_panel")}
+        build = {family.get("target_panel") for family in families}
+        if set(panels) & holdout:
+            raise ValueError("internal_dev panels must not reuse TRANSFER/VALIDATION/SEALED evidence")
+        if set(panels) & build:
+            raise ValueError("internal_dev panels must be independent of BUILD target panels")
+        missing_dev = [row for row in panels if not (root / row).exists()]
+        if missing_dev:
+            raise ValueError(f"missing internal_dev panels: {missing_dev}")
+        if categories.get("internal_dev", 0) <= 0:
+            raise ValueError("internal_dev requires a positive bounded CUDA category cap")
     raw = json.dumps(config, sort_keys=True).lower()
     forbidden = ("selected_route", "accepted_candidate", "final_gate", "gate_threshold",
                  "force_accept", "specialist_json", "candidate_id_to_promote")

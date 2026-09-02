@@ -245,7 +245,12 @@ def generate_league_build_cases(
     write_target_panel(selected, panel)
     summary = {
         "build_only": True,
+        "role": "BUILD",
         "holdout_sources": "EXCLUDED",
+        "seeds": sorted(set(int(value) for value in seeds)),
+        "seats": [0, 1],
+        "generation": max((row.policy.generation for row in exploiters), default=0),
+        "league_members": sorted(row.policy.name for row in exploiters),
         "fresh_cases": len(selected),
         "champion_losses": sum(row.margin < 0 for row in selected),
         "high_regret_cases": sum(row.margin < -1000 for row in selected),
@@ -253,6 +258,110 @@ def generate_league_build_cases(
         "panel": str(panel),
     }
     (output_dir / "build_manifest.json").write_text(
+        json.dumps(summary, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    return panel, summary
+
+
+# ── INTERNAL_DEV generalization distribution ────────────────────────────────
+#
+# INTERNAL_DEV is a *screening* distribution, not a promotion authority and not
+# a holdout.  It exists so a specialist must show that its BUILD gain survives
+# an independently generated internal regime before it is allowed to spend
+# TRANSFER budget.  It is produced from the same league, but never from the
+# same seeds, seats, exploiter subset or tapes as BUILD, and it rotates
+# deterministically with the generation so candidates cannot specialize to it.
+
+
+def dev_lane_rotation(generation: int, *, lanes_per_panel: int = 4) -> tuple[Lane, ...]:
+    """Deterministic per-generation lane subset for the INTERNAL_DEV panel."""
+    if lanes_per_panel < 1 or lanes_per_panel > len(ALL_LANES):
+        raise ValueError("DEV lane rotation must select between one and all lanes")
+    if generation < 0:
+        raise ValueError("generation must be non-negative")
+    offset = (generation * 3 + 1) % len(ALL_LANES)
+    return tuple(ALL_LANES[(offset + index) % len(ALL_LANES)] for index in range(lanes_per_panel))
+
+
+def dev_seat_rotation(generation: int) -> tuple[int, ...]:
+    """Seat ordering for DEV, deliberately opposite to the BUILD seat order."""
+    return (1, 0) if generation % 2 == 0 else (0, 1)
+
+
+def generate_league_dev_cases(
+    output_dir: Path, *, build_seeds: Sequence[int], exploiters: Sequence[ExploiterResult],
+    generation: int = 0, dev_seed_count: int = 3, lanes_per_panel: int = 4,
+    rng_seed: int = 0, build_panel: Path | None = None,
+) -> tuple[Path, dict[str, Any]]:
+    """Generate an INTERNAL_DEV panel that is independent of the BUILD panel.
+
+    Independence is structural, not incidental:
+      * seeds are drawn from a different RNG stream and excluded against BUILD,
+      * seats are rotated against the BUILD seat order,
+      * only a rotating generation-dependent lane subset of league exploiters
+        is used as opponents,
+      * the resulting tape set is asserted disjoint from the BUILD panel.
+    No public, historical or holdout opponent identity is used.
+    """
+    from .selfplay_generator import generate_diverse_seeds, write_target_panel
+
+    lanes = dev_lane_rotation(generation, lanes_per_panel=lanes_per_panel)
+    by_lane = {Lane(row.policy.strategic_lane): row for row in exploiters}
+    selected_policies = [by_lane[lane].policy for lane in lanes if lane in by_lane]
+    if not selected_policies:
+        raise ValueError("INTERNAL_DEV requires at least one league exploiter in the rotation")
+    seeds = generate_diverse_seeds(
+        dev_seed_count, rng_seed=rng_seed * 7919 + generation * 104729 + 13,
+        existing=tuple(build_seeds),
+    )
+    if set(seeds) & set(build_seeds):
+        raise ValueError("INTERNAL_DEV seeds must be disjoint from BUILD seeds")
+    seats = dev_seat_rotation(generation)
+    tapes = generate_selfplay_tapes(
+        output_dir / "tapes", seeds=seeds, policies=selected_policies,
+        seats=seats, rng_seed=rng_seed + 1,
+    )
+    lane_by_policy = {by_lane[lane].policy.name: lane.value for lane in lanes if lane in by_lane}
+    grouped: dict[str, list[Any]] = {lane.value: [] for lane in lanes}
+    for tape in tapes:
+        grouped[lane_by_policy[tape.opponent_policy]].append(tape)
+    quota = max(1, min((len(rows) for rows in grouped.values() if rows), default=1))
+    selected = []
+    for lane in lanes:
+        rows = sorted(grouped[lane.value], key=lambda row: (row.margin, row.seed, row.seat))
+        selected.extend(rows[:quota])
+    panel = output_dir / "dev_panel.tsv"
+    write_target_panel(selected, panel)
+    build_tapes: set[str] = set()
+    if build_panel is not None and build_panel.exists():
+        build_tapes = {
+            line.split("\t")[0] for line in build_panel.read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        }
+        overlap = build_tapes & {str(row.path) for row in selected}
+        if overlap:
+            raise ValueError(f"INTERNAL_DEV panel must not reuse BUILD cases: {sorted(overlap)[:3]}")
+    summary = {
+        "schema_version": LEAGUE_SCHEMA_VERSION,
+        "role": "INTERNAL_DEV",
+        "authority": "SCREENING_ONLY",
+        "holdout_sources": "EXCLUDED",
+        "build_sources": "EXCLUDED",
+        "generation": generation,
+        "dev_cases": len(selected),
+        "champion_losses": sum(row.margin < 0 for row in selected),
+        "seeds": sorted(seeds),
+        "build_seeds": sorted(set(build_seeds)),
+        "seats": list(seats),
+        "lane_rotation": [lane.value for lane in lanes],
+        "league_members": sorted(policy.name for policy in selected_policies),
+        "checkpoints": sorted({policy.parent_checkpoint for policy in selected_policies}),
+        "exploiter_programs": sorted(policy.exploiter_program for policy in selected_policies),
+        "build_panel": str(build_panel) if build_panel is not None else "",
+        "build_panel_disjoint": bool(build_tapes) or build_panel is None,
+        "panel": str(panel),
+    }
+    (output_dir / "dev_manifest.json").write_text(
         json.dumps(summary, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
     return panel, summary

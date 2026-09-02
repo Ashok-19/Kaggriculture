@@ -98,6 +98,11 @@ class PipelineTests(unittest.TestCase):
         ledger = BudgetLedger(265226, caps, config["budget"]["per_family_categories"])
         family = config["families"][0]["id"]
         for category in GAME_CATEGORIES:
+            # Optional categories (e.g. the INTERNAL_DEV screen) need not be
+            # funded; an unfunded category must simply have zero remaining.
+            if category not in config["budget"]["per_family_categories"]:
+                self.assertEqual(ledger.remaining(family, category), 0)
+                continue
             ledger.consume(family, category, config["budget"]["per_family_categories"][category])
         self.assertEqual(ledger.by_family[family], 66306)
         with self.assertRaises(RuntimeError):
