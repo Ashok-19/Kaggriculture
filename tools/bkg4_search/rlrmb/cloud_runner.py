@@ -65,6 +65,7 @@ def search_context_identity(runtime_config: Mapping[str, Any], state: Mapping[st
         "family_id": family["id"],
         "target_panel": family.get("target_panel"),
         "checkpoint_evidence": family.get("checkpoint_evidence"),
+        "lane_budget": family.get("lane_budget"),
         "transfer_panel": runtime_config.get("transfer_panel"),
         "validation_panel": runtime_config.get("validation_panel"),
         "donor_manifest": runtime_config.get("donor_manifest"),

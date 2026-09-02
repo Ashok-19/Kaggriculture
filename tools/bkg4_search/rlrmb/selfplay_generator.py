@@ -36,6 +36,12 @@ class SelfplayPolicy:
     crop: str = "WHEAT"
     animal: str = ""
     checkpoint_asset_dir: str = ""
+    strategic_lane: str = "GENERAL"
+    generation: int = 0
+    parent_checkpoint: str = ""
+    member_type: str = "hand_designed"
+    exploiter_program: str = ""
+    mutation_origin: str = ""
 
 
 DEFAULT_POLICIES = (
@@ -168,6 +174,29 @@ def _make_agent(policy: SelfplayPolicy, rng: random.Random):
     if policy.kind == "champion":
         return agent
 
+    if policy.kind == "option_program":
+        from .evaluator import ReferenceInterpreter, decode_program_batch
+
+        programs, motifs = decode_program_batch(Path(policy.exploiter_program).read_bytes())
+        if len(programs) != 1:
+            raise ValueError("league exploiter bundle must contain exactly one program")
+        interpreter = ReferenceInterpreter(programs[0], motifs)
+        had_action = False
+
+        def option_program(obs: Dict[str, Any], config: Any = None) -> Dict[str, Any]:
+            nonlocal had_action, interpreter
+            step = int(obs.get("step", 0) or 0)
+            if step == 0:
+                interpreter = ReferenceInterpreter(programs[0], motifs)
+                had_action = False
+            if had_action:
+                interpreter.observe(obs)
+            action = interpreter.action(obs, agent(obs, config))
+            had_action = True
+            return action
+
+        return option_program
+
     def wrapped(obs: Dict[str, Any], config: Any = None) -> Dict[str, Any]:
         return apply_selfplay_policy(policy, obs, agent(obs, config), rng)
 
@@ -270,6 +299,14 @@ def generate_selfplay_tapes(
                                 "opponent_reward": float(
                                     final[1 - record_seat].reward
                                 ),
+                                "policy_family": opponent_policy.family,
+                                "policy_kind": opponent_policy.kind,
+                                "strategic_lane": opponent_policy.strategic_lane,
+                                "league_generation": opponent_policy.generation,
+                                "parent_checkpoint": opponent_policy.parent_checkpoint,
+                                "member_type": opponent_policy.member_type,
+                                "exploiter_program": opponent_policy.exploiter_program,
+                                "mutation_origin": opponent_policy.mutation_origin,
                             },
                             "actions": actions,
                         }

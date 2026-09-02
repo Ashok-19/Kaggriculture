@@ -21,7 +21,7 @@ from typing import Any, Mapping, Sequence
 from .archive import Archive, make_cell_key
 from .beam import BatchEvaluation, BeamCandidate, BeamConfig, CudaBatchEvaluator, EvaluatedProgram, run_beam
 from .search_memory import evaluation_context_id, effect_from_json, effect_to_json
-from .checkpoints import EventEvidence, EventType, extract_trace_events, select_checkpoints
+from .checkpoints import EventEvidence, EventType, Lane, extract_trace_events, select_checkpoints
 from .ir import ActionFamily, MacroProgram
 from .motifs import Motif, motif_from_actions, motif_from_route_window
 from .canonical import load_route_actions
@@ -377,7 +377,10 @@ def validate_config(config_path: Path) -> dict[str, Any]:
     return config
 
 
-def _generic_events(donor_paths: Sequence[Path], family_ref: str) -> tuple[EventEvidence, ...]:
+def _generic_events(
+    donor_paths: Sequence[Path], family_ref: str,
+    lane_cycle: Sequence[Lane] = (),
+) -> tuple[EventEvidence, ...]:
     counts: Counter[tuple[int, EventType]] = Counter()
     for path in donor_paths:
         actions = _read_json(path)["actions"]
@@ -385,9 +388,15 @@ def _generic_events(donor_paths: Sequence[Path], family_ref: str) -> tuple[Event
         for event in extract_trace_events(records):
             for reason in event.reasons:
                 counts[(event.step, reason)] += 1
-    return tuple(EventEvidence(step, (reason,), family_ref=family_ref, recurrence_support=count,
-                               both_seat_support=0, provenance=("generic_donor_event",))
-                 for (step, reason), count in sorted(counts.items()))
+    rows = []
+    for index, ((step, reason), count) in enumerate(sorted(counts.items())):
+        hint = lane_cycle[index % len(lane_cycle)] if lane_cycle else None
+        rows.append(EventEvidence(
+            step, (reason,), family_ref=family_ref, recurrence_support=count,
+            both_seat_support=0, lane_hint=hint,
+            provenance=(("lane_balanced_league_budget" if hint else "generic_donor_event"),),
+        ))
+    return tuple(rows)
 
 
 def _motifs_at(checkpoint: int, donor_paths: Sequence[Path], length: int) -> dict[str, Motif]:
@@ -747,7 +756,8 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
         else:
             _cached_events = None
         if _cached_events is None:
-            _t0=time.monotonic(); _events=_generic_events(donor_paths,family_id); stage_timing["donor_event_extraction"]+=time.monotonic()-_t0
+            lane_budget = tuple(Lane(value) for value in family.get("lane_budget", ()))
+            _t0=time.monotonic(); _events=_generic_events(donor_paths,family_id,lane_budget); stage_timing["donor_event_extraction"]+=time.monotonic()-_t0
             if resources is not None:
                 resources.put_generic_events(family_id, donor_paths, _events)
         else:

@@ -474,6 +474,27 @@ policy: exact FUTURE_DEPENDENT basins are abandoned, repairable classifications
 are redirected to their bounded owners, and hardened CEGIS, SEALED discipline,
 materialization, composer checks, and semantic parity remain unchanged.
 
+## Internal Adversarial League
+
+`adversarial_league.py` is an upstream BUILD-distribution generator, not a
+second promotion system. It maintains a bounded registry of the current BKG4,
+useful frozen internal checkpoints, and deterministic CUDA-selected exploiters.
+Each exploiter is an ordinary RLRMB Option-Program selected on fresh champion
+mirror tapes. It is then run as an internal opponent to produce fresh champion
+losses and high-regret trajectories.
+
+League BUILD panels contain no public or historical opponent identity. The
+generator balances all eight strategic lanes and records policy/checkpoint,
+generation, parent, lane, type, and mutation/exploiter origin. Set a family's
+`lane_budget` to the eight `Lane` values to allocate checkpoint search across
+those lanes. The emitted panel feeds the existing CUDA specialist search,
+binary admission/routing, CEGIS, SEALED, and composition path unchanged.
+
+When a composed BKG4 becomes champion, call
+`LeagueManager.freeze_previous_champion` before updating the current member.
+The manager retains strategically useful checkpoints within its fixed capacity
+rather than accumulating every intermediate version.
+
 ## Generated outputs
 
 Permanent source belongs under `tools/bkg4_search/rlrmb/`. Future generated runs

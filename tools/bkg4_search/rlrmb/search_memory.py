@@ -72,6 +72,7 @@ def evaluation_context_id(config: dict[str, Any]) -> str:
         "controller": controller_hash,
         "family_id": family.get("id"),
         "target_panel": family.get("target_panel"),
+        "lane_budget": family.get("lane_budget"),
         "transfer_panel": config.get("transfer_panel"),
         "validation_panel": config.get("validation_panel"),
         "search": {k: search.get(k) for k in _EVAL_CTX_KEYS},
@@ -98,6 +99,7 @@ def historical_region_id(config: dict[str, Any]) -> str:
     region = {
         "family_id": family.get("id"),
         "lane_metadata": family.get("lane_metadata"),
+        "lane_budget": family.get("lane_budget"),
         "target_panel": family.get("target_panel"),
         "checkpoint_evidence": family.get("checkpoint_evidence"),
         "donor_manifest": config.get("donor_manifest"),

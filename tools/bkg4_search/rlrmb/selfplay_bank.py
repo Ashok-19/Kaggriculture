@@ -41,6 +41,8 @@ class BankEntry:
     policy_family: str = "baseline"
     policy_kind: str = "champion"
     regime_metadata: dict[str, Any] = field(default_factory=dict)
+    strategic_lane: str = "GENERAL"
+    discovery_source: str = "hand_designed_selfplay"
 
 
 def _run_single_game(args: tuple) -> list[dict[str, Any]]:
@@ -128,7 +130,11 @@ def _run_single_game(args: tuple) -> list[dict[str, Any]]:
                     "crop": policy.crop,
                     "animal": policy.animal,
                     "checkpoint_asset_dir": policy.checkpoint_asset_dir,
+                    "exploiter_program": policy.exploiter_program,
+                    "mutation_origin": policy.mutation_origin,
                 },
+                "strategic_lane": policy.strategic_lane,
+                "discovery_source": "adversarial_league" if policy.member_type == "cuda_exploiter" else "hand_designed_selfplay",
                 },
                 "actions": actions,
             }
@@ -156,7 +162,11 @@ def _run_single_game(args: tuple) -> list[dict[str, Any]]:
             "crop": policy.crop,
             "animal": policy.animal,
             "checkpoint_asset_dir": policy.checkpoint_asset_dir,
+            "exploiter_program": policy.exploiter_program,
+            "mutation_origin": policy.mutation_origin,
         },
+        "strategic_lane": policy.strategic_lane,
+        "discovery_source": "adversarial_league" if policy.member_type == "cuda_exploiter" else "hand_designed_selfplay",
     })
     return results
 
@@ -193,6 +203,8 @@ class SelfplayBank:
                     row["policy_kind"] = legacy_policy.kind if legacy_policy else "unknown"
                 if "regime_metadata" not in row:
                     row["regime_metadata"] = {"legacy_schema": 1}
+                row.setdefault("strategic_lane", "GENERAL")
+                row.setdefault("discovery_source", "hand_designed_selfplay")
                 entries.append(BankEntry(**row))
             self._entries = entries
         else:
@@ -218,6 +230,8 @@ class SelfplayBank:
                     "policy_family": e.policy_family,
                     "policy_kind": e.policy_kind,
                     "regime_metadata": e.regime_metadata,
+                    "strategic_lane": e.strategic_lane,
+                    "discovery_source": e.discovery_source,
                 }
                 for e in self._entries
             ],
@@ -283,6 +297,12 @@ class SelfplayBank:
                             "crop": policy.crop,
                             "animal": policy.animal,
                             "checkpoint_asset_dir": policy.checkpoint_asset_dir,
+                            "strategic_lane": policy.strategic_lane,
+                            "generation": policy.generation,
+                            "parent_checkpoint": policy.parent_checkpoint,
+                            "member_type": policy.member_type,
+                            "exploiter_program": policy.exploiter_program,
+                            "mutation_origin": policy.mutation_origin,
                         },
                         rng_state,
                     ))
@@ -308,6 +328,7 @@ class SelfplayBank:
                         generation=generation, bkg4_version=bkg4_version,
                         policy_family=r["policy_family"], policy_kind=r["policy_kind"],
                         regime_metadata=r["regime_metadata"],
+                        strategic_lane=r["strategic_lane"], discovery_source=r["discovery_source"],
                     ))
         else:
             ctx = multiprocessing.get_context("spawn")
@@ -322,6 +343,7 @@ class SelfplayBank:
                             generation=generation, bkg4_version=bkg4_version,
                             policy_family=r["policy_family"], policy_kind=r["policy_kind"],
                             regime_metadata=r["regime_metadata"],
+                            strategic_lane=r["strategic_lane"], discovery_source=r["discovery_source"],
                         ))
 
         elapsed = time.monotonic() - started
@@ -401,11 +423,15 @@ class SelfplayBank:
         gen_counts: dict[int, int] = {}
         version_counts: dict[str, int] = {}
         family_counts: dict[str, int] = {}
+        lane_counts: dict[str, int] = {}
+        source_counts: dict[str, int] = {}
         for e in self._entries:
             policy_counts[e.opponent_policy] = policy_counts.get(e.opponent_policy, 0) + 1
             gen_counts[e.generation] = gen_counts.get(e.generation, 0) + 1
             version_counts[e.bkg4_version] = version_counts.get(e.bkg4_version, 0) + 1
             family_counts[e.policy_family] = family_counts.get(e.policy_family, 0) + 1
+            lane_counts[e.strategic_lane] = lane_counts.get(e.strategic_lane, 0) + 1
+            source_counts[e.discovery_source] = source_counts.get(e.discovery_source, 0) + 1
         return {
             "size": len(self._entries),
             "unique_seeds": len(self.existing_seeds()),
@@ -413,6 +439,8 @@ class SelfplayBank:
             "generations": gen_counts,
             "bkg4_versions": version_counts,
             "policy_families": family_counts,
+            "strategic_lanes": lane_counts,
+            "discovery_sources": source_counts,
             "margin_min": round(min(margins), 1),
             "margin_max": round(max(margins), 1),
             "margin_mean": round(sum(margins) / len(margins), 1),
