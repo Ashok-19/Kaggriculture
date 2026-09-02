@@ -223,6 +223,7 @@ class ImperfectCandidateRecord:
     initiation_step: int
     checkpoint_metadata: dict[str, Any]
     gate_evidence: dict[str, Any]
+    program_document: dict[str, Any] | None = None
 
     def solves_set(self, role: str = "TARGET") -> frozenset[str]:
         return frozenset(
@@ -262,6 +263,7 @@ class ImperfectCandidateRecord:
             "initiation_step": self.initiation_step,
             "checkpoint_metadata": self.checkpoint_metadata,
             "gate_evidence": self.gate_evidence,
+            "program_document": self.program_document,
         }
 
     @classmethod
@@ -294,6 +296,7 @@ class ImperfectCandidateRecord:
             initiation_step=doc["initiation_step"],
             checkpoint_metadata=doc["checkpoint_metadata"],
             gate_evidence=doc["gate_evidence"],
+            program_document=doc.get("program_document"),
         )
 
 
@@ -479,6 +482,56 @@ def aggregate_diagnostics(
     }
 
 
+def summarize_policy_attribution(
+    records: Sequence[ImperfectCandidateRecord],
+    *,
+    downstream_ready_candidate_ids: frozenset[str] | set[str] = frozenset(),
+) -> dict[str, dict[str, int]]:
+    """Attribute useful BUILD evidence to fresh policy regimes by case, not identity.
+
+    A candidate can legitimately solve cases from more than one generated policy;
+    it is therefore counted once per policy only when it has a TARGET L->W case
+    there.  HOLDOUT cases never contribute because only TARGET effects are read.
+    """
+    rows: dict[str, dict[str, Any]] = {}
+    ready = frozenset(downstream_ready_candidate_ids)
+    for record in records:
+        policies = {
+            effect.family
+            for effect in record.per_case_effects
+            if effect.role == "TARGET" and effect.solves
+        }
+        for policy in policies:
+            row = rows.setdefault(policy, {
+                "target_loss_to_win": 0,
+                "useful_specialist_ids": set(),
+                "routable_ids": set(),
+                "future_dependent_ids": set(),
+                "downstream_ready_ids": set(),
+            })
+            row["target_loss_to_win"] += sum(
+                effect.solves and effect.role == "TARGET" and effect.family == policy
+                for effect in record.per_case_effects
+            )
+            row["useful_specialist_ids"].add(record.candidate_semantic_id)
+            if record.diagnostic_routability == DiagnosticRoutabilityClass.ROUTABLE.value:
+                row["routable_ids"].add(record.candidate_semantic_id)
+            if record.diagnostic_routability == DiagnosticRoutabilityClass.FUTURE_DEPENDENT.value:
+                row["future_dependent_ids"].add(record.candidate_semantic_id)
+            if record.candidate_semantic_id in ready:
+                row["downstream_ready_ids"].add(record.candidate_semantic_id)
+    return {
+        policy: {
+            "target_loss_to_win": int(row["target_loss_to_win"]),
+            "useful_specialists": len(row["useful_specialist_ids"]),
+            "routable": len(row["routable_ids"]),
+            "future_dependent": len(row["future_dependent_ids"]),
+            "downstream_ready": len(row["downstream_ready_ids"]),
+        }
+        for policy, row in sorted(rows.items())
+    }
+
+
 # ── feature set audit ────────────────────────────────────────────────────────
 
 def audit_feature_sets() -> dict[str, Any]:
@@ -661,6 +714,18 @@ def write_diagnostic_artifacts(
         json.dumps(agg, sort_keys=True, indent=2) + "\n", encoding="utf-8"
     )
     manifest["summary"] = agg_path.name
+
+    # This BUILD-only attribution is refreshed after Phase 1 routing adds
+    # downstream-ready outcomes.  The initial artifact is still useful when no
+    # candidate reaches routing.
+    attribution_path = output_dir / "policy_attribution.json"
+    attribution_path.write_text(
+        json.dumps(
+            summarize_policy_attribution(records), sort_keys=True, indent=2
+        ) + "\n",
+        encoding="utf-8",
+    )
+    manifest["policy_attribution"] = attribution_path.name
 
     # Feature set audit
     audit = audit_feature_sets()

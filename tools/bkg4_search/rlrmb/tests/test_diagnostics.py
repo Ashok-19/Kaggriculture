@@ -20,6 +20,7 @@ from tools.bkg4_search.rlrmb.diagnostics import (
     protected_effect_metrics,
     select_diagnostic_shortlist,
     select_binary_routing_rows,
+    summarize_policy_attribution,
     write_diagnostic_artifacts,
 )
 from tools.bkg4_search.rlrmb.pipeline import (
@@ -105,6 +106,44 @@ class TestPerCaseEffect(unittest.TestCase):
         self.assertEqual(case, restored)
 
 
+class TestPolicyAttribution(unittest.TestCase):
+    def test_counts_only_policy_cases_that_produce_target_capability(self):
+        routable = _record(
+            "routable",
+            per_case=(
+                _case("animal-win", "TARGET", -5, 10, family="animals:bkg4_animal_cow"),
+                _case("market-harm", "TARGET", 5, -10, family="market_liquidity:bkg4_market_squeeze"),
+            ),
+        )
+        future = _record(
+            "future",
+            per_case=(
+                _case("market-win", "TARGET", -5, 10, family="market_liquidity:bkg4_market_squeeze"),
+            ),
+            diag_routability="FUTURE_DEPENDENT",
+            opportunity="TRUE_FUTURE_DEPENDENT",
+        )
+
+        attribution = summarize_policy_attribution(
+            (routable, future), downstream_ready_candidate_ids={"routable"},
+        )
+
+        self.assertEqual(attribution["animals:bkg4_animal_cow"], {
+            "target_loss_to_win": 1,
+            "useful_specialists": 1,
+            "routable": 1,
+            "future_dependent": 0,
+            "downstream_ready": 1,
+        })
+        self.assertEqual(attribution["market_liquidity:bkg4_market_squeeze"], {
+            "target_loss_to_win": 1,
+            "useful_specialists": 1,
+            "routable": 0,
+            "future_dependent": 1,
+            "downstream_ready": 0,
+        })
+
+
 class TestImperfectCandidateRecord(unittest.TestCase):
     def test_solves_breaks_sets(self):
         cases = (
@@ -132,6 +171,16 @@ class TestImperfectCandidateRecord(unittest.TestCase):
         doc1 = json.dumps(r.to_document(), sort_keys=True)
         doc2 = json.dumps(r.to_document(), sort_keys=True)
         self.assertEqual(doc1, doc2)
+
+    def test_serialization_retains_program_for_later_trajectory_capture(self):
+        record = _record("x", per_case=(_case("c1", "TARGET", -10, 20),))
+        record = ImperfectCandidateRecord(
+            **{**record.__dict__, "program_document": {"schema_version": 1}}
+        )
+
+        restored = ImperfectCandidateRecord.from_document(record.to_document())
+
+        self.assertEqual(restored.program_document, {"schema_version": 1})
 
 
 class TestImperfectSpecialistDiagnostics(unittest.TestCase):
@@ -519,6 +568,7 @@ class TestWriteDiagnosticArtifacts(unittest.TestCase):
             self.assertIn("summary", manifest)
             self.assertIn("feature_audit", manifest)
             self.assertIn("complementarity", manifest)
+            self.assertIn("policy_attribution", manifest)
             # All files are valid JSON/JSONL
             for key, path in manifest.items():
                 content = (out / path).read_text()

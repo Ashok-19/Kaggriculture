@@ -6,7 +6,8 @@ from unittest.mock import patch
 from tools.bkg4_search.rlrmb.pipeline import (
     CaseMeta, ExactCaseEvidence, EXIT_ACCEPTED, EXIT_INFRASTRUCTURE, EXIT_STRATEGIC,
     LegalStateCaptureCache, TerminalVerdict, build_routability_evidence, build_cegis_input,
-    capture_candidate_legal_states, emit_candidate_route, run_production_pipeline, validate_production_config,
+    capture_candidate_legal_states, emit_candidate_route, load_case_panel,
+    run_production_pipeline, validate_production_config,
 )
 from tools.bkg4_search.rlrmb.routability import RoutabilityClassification, RoutabilityResult
 from tools.bkg4_search.rlrmb.schema import DatasetRole
@@ -37,6 +38,22 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual({x.role for x in evidence.trajectories},{DatasetRole.TARGET,DatasetRole.TRANSFER,DatasetRole.VALIDATION})
         bad=self.row("bad",DatasetRole.TARGET,2,candidate="other")
         with self.assertRaises(ValueError): build_routability_evidence(self.program,(bad,))
+
+    def test_selfplay_panel_uses_environment_policy_provenance_as_family(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            tape = root / "selfplay.json"
+            tape.write_text(json.dumps({"source": {
+                "kind": "selfplay",
+                "policy_family": "animals",
+                "opponent_policy": "bkg4_animal_cow",
+            }}))
+            panel = root / "panel.tsv"
+            panel.write_text(f"{tape}\t0\t17\t0\t0\t0\t0\n")
+
+            case, = load_case_panel(panel, "target")
+
+            self.assertEqual(case.family, "animals:bkg4_animal_cow")
 
     def test_outer_initiation_capture_is_reused_without_losing_candidate_binding(self):
         other=program(Phase(ActionSource.PARENT,(),fixed(2)),cap=2)

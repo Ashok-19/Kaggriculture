@@ -52,7 +52,7 @@ from .diagnostics import (
     ImperfectSpecialistDiagnostics, PerCaseEffect, classify_binary_opportunity,
     classify_diagnostic_routability, per_case_effects_from_evidence,
     protected_effect_metrics, select_diagnostic_shortlist, write_diagnostic_artifacts,
-    select_binary_routing_rows,
+    select_binary_routing_rows, summarize_policy_attribution,
 )
 from .effects import EffectBlock, EffectVector, effect_signature
 from .failures import FailureClass
@@ -961,6 +961,7 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
                             "legal_predicate": risk_doc.get("diagnostics", {}).get("legal_predicate"),
                             "gate_predicate": risk_doc.get("diagnostics", {}).get("gate_predicate"),
                         },
+                        program_document=program.to_document(),
                     ))
 
         elites = {entry.program_id for entry in archive.entries() if entry.target_win_to_loss == 0 and entry.target_loss_to_win > 0}
@@ -1321,6 +1322,17 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
                 _routed_manifest,
             )
     metrics["phase1_routed_evaluation"] = _routed_metrics.to_document()
+    _ready_policy_ids = {
+        result.candidate_semantic_id
+        for result in _routed_results
+        if result.status is RoutedEvaluationStatus.READY_FOR_DOWNSTREAM_INTEGRATION
+    }
+    _write_json(
+        output / "diagnostics" / "policy_attribution.json",
+        summarize_policy_attribution(
+            _diag_records, downstream_ready_candidate_ids=_ready_policy_ids,
+        ),
+    )
     # Phase-1.4+: binary downstream integration for READY_FOR_DOWNSTREAM candidates
     _binary_committed = []
     _binary_downstream_results = []

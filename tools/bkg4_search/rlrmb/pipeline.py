@@ -420,10 +420,29 @@ def load_case_panel(path: str | Path, label: str) -> tuple[CaseMeta, ...]:
         fields = line.split("\t")
         if len(fields) < 3:
             raise ValueError("case panel row requires tape, seat and seed")
-        rows.append(CaseMeta(f"{label}:{index}", fields[0], int(fields[1]), int(fields[2]), Path(fields[0]).stem))
+        tape = Path(fields[0])
+        rows.append(CaseMeta(
+            f"{label}:{index}", fields[0], int(fields[1]), int(fields[2]),
+            _case_family_from_tape(tape),
+        ))
     if not rows:
         raise ValueError("case panel is empty")
     return tuple(rows)
+
+
+def _case_family_from_tape(tape: Path) -> str:
+    """Use fresh self-play policy provenance without assigning replay identities."""
+    try:
+        source = json.loads(tape.read_text(encoding="utf-8")).get("source", {})
+    except (OSError, ValueError, TypeError):
+        return tape.stem
+    if source.get("kind") != "selfplay":
+        return tape.stem
+    family = source.get("policy_family")
+    policy = source.get("opponent_policy")
+    if isinstance(family, str) and family and isinstance(policy, str) and policy:
+        return f"{family}:{policy}"
+    return tape.stem
 
 
 def evaluate_candidate_panel(program: MacroProgram, motifs: Mapping[str, Motif], role: DatasetRole,
