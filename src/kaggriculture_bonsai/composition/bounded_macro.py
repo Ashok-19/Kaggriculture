@@ -8,7 +8,7 @@ from typing import Any, Mapping, Sequence
 
 from kaggriculture_bonsai.composition.module_codec import ConditionGene
 
-MAX_GATE_CLAUSES = 4
+MAX_GATE_CLAUSES = 6
 MAX_GATE_CONDITIONS = 4
 _FORBIDDEN_PROVENANCE_TERMS = (
     "opponent", "team", "submission", "replay", "episode", "seed", "tape",
