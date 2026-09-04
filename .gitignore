@@ -8,8 +8,6 @@ __pycache__/
 build/
 dist/
 
-# Generated search state and native binaries
-workspace/
 
 # User-supplied, untracked HOLDOUT panels
 external/

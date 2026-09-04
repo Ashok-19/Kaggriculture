@@ -1,0 +1,38 @@
+{
+  "authority": "SCREENING_ONLY",
+  "build_panel": "workspace/smoke/league/build/build_panel.tsv",
+  "build_panel_disjoint": true,
+  "build_seeds": [
+    101,
+    202
+  ],
+  "build_sources": "EXCLUDED",
+  "champion_losses": 1,
+  "checkpoints": [
+    ""
+  ],
+  "dev_cases": 4,
+  "exploiter_programs": [
+    "workspace/smoke/league/bundles/e1.rlrb"
+  ],
+  "generation": 0,
+  "holdout_sources": "EXCLUDED",
+  "lane_rotation": [
+    "WORKER_PRODUCTION",
+    "LAND_INVESTMENT"
+  ],
+  "league_members": [
+    "smoke_1"
+  ],
+  "panel": "workspace/smoke/league/dev/dev_panel.tsv",
+  "role": "INTERNAL_DEV",
+  "schema_version": 1,
+  "seats": [
+    1,
+    0
+  ],
+  "seeds": [
+    556216510,
+    624397382
+  ]
+}

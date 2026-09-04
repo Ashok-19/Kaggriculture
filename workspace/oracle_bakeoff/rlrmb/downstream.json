@@ -1,0 +1,48 @@
+{
+  "build_candidate_audit": [
+    {
+      "aggregate_margin": -463872,
+      "candidate_id": "1ff27ff55aa9c6702101414101a3e0ba711815d377066f18e1309b5e2175e0a3",
+      "cross_regime_supported": false,
+      "effect_signature": "865041446338209adf076d091a3c72b8f773599b48c7aef2d5d78e2dcebdb1a9",
+      "initiation_step": 48,
+      "lane": "CROP_TRANSITION",
+      "loss_to_win": 8,
+      "member_support": 8,
+      "seat_support": 1,
+      "seed_source": "MASKED_DONOR_PHASE",
+      "seed_support": 1,
+      "templates": [],
+      "win_to_loss": 8
+    }
+  ],
+  "build_shortlisted": 0,
+  "candidate_results": [],
+  "capture": {
+    "launches": 0,
+    "reuses": 0,
+    "seconds": 0.0
+  },
+  "cegis_successes": 0,
+  "cross_regime_supported_specialists": 0,
+  "dev_attempted": 0,
+  "dev_loss_to_win": 0,
+  "dev_passes": 0,
+  "dev_results": [],
+  "dev_weak_passes": 0,
+  "dev_win_to_loss": 0,
+  "downstream_cuda_games": 0,
+  "downstream_cuda_ms": 0.0,
+  "downstream_eligible": 0,
+  "downstream_wall_seconds": 0.0,
+  "oracle": "RLRMB",
+  "protected_win_to_loss": 0,
+  "routable": 0,
+  "safe_commits": [],
+  "safe_loss_to_win": 0,
+  "sealed_passes": 0,
+  "semantic_mismatches": 0,
+  "transfer_passes": 0,
+  "useful_build_specialists": 0,
+  "validation_passes": 0
+}

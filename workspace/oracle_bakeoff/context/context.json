@@ -1,0 +1,521 @@
+{
+  "champion": "/home/nnmax/Desktop/kaggle/kaggriculture/assets/champion",
+  "champion_identity_sha256": "3b6a9f9b4ab36b2e3884aeadea5759564c6dedfd66ed6f9f59172a584602d5e3",
+  "checkpoints": [
+    {
+      "both_seat_support": 0,
+      "event_distance": 0,
+      "fallback": false,
+      "family_refs": [],
+      "lane": "MARKET_LIQUIDITY",
+      "provenance": [],
+      "reasons": [
+        "FIRST_EFFECT_DIVERGENCE"
+      ],
+      "recoverable": true,
+      "recurrence_support": 1,
+      "regret": 0,
+      "schema_version": 1,
+      "semantic_id": "56e690866dbd052ecb8664f3c8ba2977f6860e664e609d1dcde231403d38604a",
+      "severity": 0,
+      "state_signature": null,
+      "step": 96
+    },
+    {
+      "both_seat_support": 0,
+      "event_distance": 0,
+      "fallback": false,
+      "family_refs": [],
+      "lane": "WORKER_PRODUCTION",
+      "provenance": [],
+      "reasons": [
+        "FIRST_EFFECT_DIVERGENCE"
+      ],
+      "recoverable": true,
+      "recurrence_support": 1,
+      "regret": 0,
+      "schema_version": 1,
+      "semantic_id": "05548879f33fb71ccd6401d03d95402337e62f4d910df67b07870aec76a19708",
+      "severity": 0,
+      "state_signature": null,
+      "step": 72
+    },
+    {
+      "both_seat_support": 0,
+      "event_distance": 0,
+      "fallback": false,
+      "family_refs": [],
+      "lane": "LAND_INVESTMENT",
+      "provenance": [],
+      "reasons": [
+        "FIRST_EFFECT_DIVERGENCE"
+      ],
+      "recoverable": true,
+      "recurrence_support": 1,
+      "regret": 0,
+      "schema_version": 1,
+      "semantic_id": "6c5a8709e17f8215163e274884ee7506135b789d34b15ef2726b90ef6acba473",
+      "severity": 0,
+      "state_signature": null,
+      "step": 24
+    },
+    {
+      "both_seat_support": 0,
+      "event_distance": 0,
+      "fallback": false,
+      "family_refs": [],
+      "lane": "CROP_TRANSITION",
+      "provenance": [],
+      "reasons": [
+        "FIRST_EFFECT_DIVERGENCE"
+      ],
+      "recoverable": true,
+      "recurrence_support": 1,
+      "regret": 0,
+      "schema_version": 1,
+      "semantic_id": "50c00a8e4ced79fb3767941f9ec66e06de144b5da1c8c7f26c886642e471a816",
+      "severity": 0,
+      "state_signature": null,
+      "step": 48
+    },
+    {
+      "both_seat_support": 0,
+      "event_distance": 0,
+      "fallback": false,
+      "family_refs": [],
+      "lane": "ANIMAL_TRANSITION",
+      "provenance": [],
+      "reasons": [
+        "FIRST_EFFECT_DIVERGENCE"
+      ],
+      "recoverable": true,
+      "recurrence_support": 1,
+      "regret": 0,
+      "schema_version": 1,
+      "semantic_id": "bd625dc39c9fc1711222d4af376fb207f1a6557693b543b14c3e6008da91ac06",
+      "severity": 0,
+      "state_signature": null,
+      "step": 144
+    },
+    {
+      "both_seat_support": 0,
+      "event_distance": 0,
+      "fallback": false,
+      "family_refs": [],
+      "lane": "ENDGAME_LIQUIDATION",
+      "provenance": [],
+      "reasons": [
+        "FIRST_EFFECT_DIVERGENCE"
+      ],
+      "recoverable": true,
+      "recurrence_support": 1,
+      "regret": 0,
+      "schema_version": 1,
+      "semantic_id": "ecbc4df0eb2df296db4ea8439e2dce5069ef7eb386e48e4e88c031de52c6f66d",
+      "severity": 0,
+      "state_signature": null,
+      "step": 576
+    },
+    {
+      "both_seat_support": 0,
+      "event_distance": 0,
+      "fallback": false,
+      "family_refs": [],
+      "lane": "MECHANIC_EXPLOIT",
+      "provenance": [],
+      "reasons": [
+        "FIRST_EFFECT_DIVERGENCE"
+      ],
+      "recoverable": true,
+      "recurrence_support": 1,
+      "regret": 0,
+      "schema_version": 1,
+      "semantic_id": "b3f2dc058a50c21218b19407daf877996cca46d24f2aa317f9ffa2736abbe2c7",
+      "severity": 0,
+      "state_signature": null,
+      "step": 0
+    },
+    {
+      "both_seat_support": 0,
+      "event_distance": 0,
+      "fallback": false,
+      "family_refs": [],
+      "lane": "GENERAL",
+      "provenance": [],
+      "reasons": [
+        "FIRST_EFFECT_DIVERGENCE"
+      ],
+      "recoverable": true,
+      "recurrence_support": 1,
+      "regret": 0,
+      "schema_version": 1,
+      "semantic_id": "f3c149a7d684f9212ae7c540ad483fecae27be42fe5bbcfac265fde3f35f5926",
+      "severity": 0,
+      "state_signature": null,
+      "step": 0
+    }
+  ],
+  "context_identity": "f4bdad97b48a1c42b243f6fe6e3e88238d43693c0ddf8d6e39a562a9b64825ca",
+  "league_members": [
+    {
+      "animal": "",
+      "checkpoint_asset_dir": "/home/nnmax/Desktop/kaggle/kaggriculture/assets/champion",
+      "crop": "WHEAT",
+      "exploiter_program": "workspace/oracle_bakeoff/context/league/member_00_market_liquidity.rlrb",
+      "family": "adversarial_league",
+      "generation": 0,
+      "kind": "option_program",
+      "land_target": 0,
+      "market_bias": 0.0,
+      "member_type": "cuda_exploiter",
+      "mutation_origin": "bounded_internal_donor_window",
+      "name": "bakeoff_market_liquidity",
+      "noise_rate": 0.0,
+      "parent_checkpoint": "/home/nnmax/Desktop/kaggle/kaggriculture/assets/champion",
+      "passive_until": 0,
+      "random_prefix": 0,
+      "strategic_lane": "MARKET_LIQUIDITY"
+    },
+    {
+      "animal": "",
+      "checkpoint_asset_dir": "/home/nnmax/Desktop/kaggle/kaggriculture/assets/champion",
+      "crop": "WHEAT",
+      "exploiter_program": "workspace/oracle_bakeoff/context/league/member_01_worker_production.rlrb",
+      "family": "adversarial_league",
+      "generation": 0,
+      "kind": "option_program",
+      "land_target": 0,
+      "market_bias": 0.0,
+      "member_type": "cuda_exploiter",
+      "mutation_origin": "bounded_internal_donor_window",
+      "name": "bakeoff_worker_production",
+      "noise_rate": 0.0,
+      "parent_checkpoint": "/home/nnmax/Desktop/kaggle/kaggriculture/assets/champion",
+      "passive_until": 0,
+      "random_prefix": 0,
+      "strategic_lane": "WORKER_PRODUCTION"
+    },
+    {
+      "animal": "",
+      "checkpoint_asset_dir": "/home/nnmax/Desktop/kaggle/kaggriculture/assets/champion",
+      "crop": "WHEAT",
+      "exploiter_program": "workspace/oracle_bakeoff/context/league/member_02_land_investment.rlrb",
+      "family": "adversarial_league",
+      "generation": 0,
+      "kind": "option_program",
+      "land_target": 0,
+      "market_bias": 0.0,
+      "member_type": "cuda_exploiter",
+      "mutation_origin": "bounded_internal_donor_window",
+      "name": "bakeoff_land_investment",
+      "noise_rate": 0.0,
+      "parent_checkpoint": "/home/nnmax/Desktop/kaggle/kaggriculture/assets/champion",
+      "passive_until": 0,
+      "random_prefix": 0,
+      "strategic_lane": "LAND_INVESTMENT"
+    },
+    {
+      "animal": "",
+      "checkpoint_asset_dir": "/home/nnmax/Desktop/kaggle/kaggriculture/assets/champion",
+      "crop": "WHEAT",
+      "exploiter_program": "workspace/oracle_bakeoff/context/league/member_03_crop_transition.rlrb",
+      "family": "adversarial_league",
+      "generation": 0,
+      "kind": "option_program",
+      "land_target": 0,
+      "market_bias": 0.0,
+      "member_type": "cuda_exploiter",
+      "mutation_origin": "bounded_internal_donor_window",
+      "name": "bakeoff_crop_transition",
+      "noise_rate": 0.0,
+      "parent_checkpoint": "/home/nnmax/Desktop/kaggle/kaggriculture/assets/champion",
+      "passive_until": 0,
+      "random_prefix": 0,
+      "strategic_lane": "CROP_TRANSITION"
+    },
+    {
+      "animal": "",
+      "checkpoint_asset_dir": "/home/nnmax/Desktop/kaggle/kaggriculture/assets/champion",
+      "crop": "WHEAT",
+      "exploiter_program": "workspace/oracle_bakeoff/context/league/member_04_animal_transition.rlrb",
+      "family": "adversarial_league",
+      "generation": 0,
+      "kind": "option_program",
+      "land_target": 0,
+      "market_bias": 0.0,
+      "member_type": "cuda_exploiter",
+      "mutation_origin": "bounded_internal_donor_window",
+      "name": "bakeoff_animal_transition",
+      "noise_rate": 0.0,
+      "parent_checkpoint": "/home/nnmax/Desktop/kaggle/kaggriculture/assets/champion",
+      "passive_until": 0,
+      "random_prefix": 0,
+      "strategic_lane": "ANIMAL_TRANSITION"
+    },
+    {
+      "animal": "",
+      "checkpoint_asset_dir": "/home/nnmax/Desktop/kaggle/kaggriculture/assets/champion",
+      "crop": "WHEAT",
+      "exploiter_program": "workspace/oracle_bakeoff/context/league/member_05_endgame_liquidation.rlrb",
+      "family": "adversarial_league",
+      "generation": 0,
+      "kind": "option_program",
+      "land_target": 0,
+      "market_bias": 0.0,
+      "member_type": "cuda_exploiter",
+      "mutation_origin": "bounded_internal_donor_window",
+      "name": "bakeoff_endgame_liquidation",
+      "noise_rate": 0.0,
+      "parent_checkpoint": "/home/nnmax/Desktop/kaggle/kaggriculture/assets/champion",
+      "passive_until": 0,
+      "random_prefix": 0,
+      "strategic_lane": "ENDGAME_LIQUIDATION"
+    },
+    {
+      "animal": "",
+      "checkpoint_asset_dir": "/home/nnmax/Desktop/kaggle/kaggriculture/assets/champion",
+      "crop": "WHEAT",
+      "exploiter_program": "workspace/oracle_bakeoff/context/league/member_06_mechanic_exploit.rlrb",
+      "family": "adversarial_league",
+      "generation": 0,
+      "kind": "option_program",
+      "land_target": 0,
+      "market_bias": 0.0,
+      "member_type": "cuda_exploiter",
+      "mutation_origin": "bounded_internal_donor_window",
+      "name": "bakeoff_mechanic_exploit",
+      "noise_rate": 0.0,
+      "parent_checkpoint": "/home/nnmax/Desktop/kaggle/kaggriculture/assets/champion",
+      "passive_until": 0,
+      "random_prefix": 0,
+      "strategic_lane": "MECHANIC_EXPLOIT"
+    },
+    {
+      "animal": "",
+      "checkpoint_asset_dir": "/home/nnmax/Desktop/kaggle/kaggriculture/assets/champion",
+      "crop": "WHEAT",
+      "exploiter_program": "workspace/oracle_bakeoff/context/league/member_07_general.rlrb",
+      "family": "adversarial_league",
+      "generation": 0,
+      "kind": "option_program",
+      "land_target": 0,
+      "market_bias": 0.0,
+      "member_type": "cuda_exploiter",
+      "mutation_origin": "bounded_internal_donor_window",
+      "name": "bakeoff_general",
+      "noise_rate": 0.0,
+      "parent_checkpoint": "/home/nnmax/Desktop/kaggle/kaggriculture/assets/champion",
+      "passive_until": 0,
+      "random_prefix": 0,
+      "strategic_lane": "GENERAL"
+    }
+  ],
+  "manifests": {
+    "build": {
+      "bounded_max_cases": 48,
+      "build_only": true,
+      "champion_losses": 15,
+      "fresh_cases": 48,
+      "generation": 0,
+      "high_regret_cases": 8,
+      "holdout_sources": "EXCLUDED",
+      "lane_coverage": {
+        "ANIMAL_TRANSITION": 6,
+        "CROP_TRANSITION": 6,
+        "ENDGAME_LIQUIDATION": 6,
+        "GENERAL": 6,
+        "LAND_INVESTMENT": 6,
+        "MARKET_LIQUIDITY": 6,
+        "MECHANIC_EXPLOIT": 6,
+        "WORKER_PRODUCTION": 6
+      },
+      "league_members": [
+        "bakeoff_animal_transition",
+        "bakeoff_crop_transition",
+        "bakeoff_endgame_liquidation",
+        "bakeoff_general",
+        "bakeoff_land_investment",
+        "bakeoff_market_liquidity",
+        "bakeoff_mechanic_exploit",
+        "bakeoff_worker_production"
+      ],
+      "member_coverage": {
+        "bakeoff_animal_transition": 6,
+        "bakeoff_crop_transition": 6,
+        "bakeoff_endgame_liquidation": 6,
+        "bakeoff_general": 6,
+        "bakeoff_land_investment": 6,
+        "bakeoff_market_liquidity": 6,
+        "bakeoff_mechanic_exploit": 6,
+        "bakeoff_worker_production": 6
+      },
+      "panel": "workspace/oracle_bakeoff/context/build/build_panel.tsv",
+      "regime_count": 48,
+      "role": "BUILD",
+      "seat_coverage": {
+        "0": 24,
+        "1": 24
+      },
+      "seats": [
+        0,
+        1
+      ],
+      "seed_coverage": {
+        "1103": 16,
+        "2207": 16,
+        "3301": 16
+      },
+      "seeds": [
+        1103,
+        2207,
+        3301
+      ],
+      "trajectory_coverage": 8
+    },
+    "dev": {
+      "authority": "SCREENING_ONLY",
+      "cases": 24,
+      "champion_losses": 12,
+      "generation": 0,
+      "lanes": [
+        "WORKER_PRODUCTION",
+        "LAND_INVESTMENT",
+        "CROP_TRANSITION",
+        "ANIMAL_TRANSITION"
+      ],
+      "league_members": [
+        "bakeoff_worker_production",
+        "bakeoff_land_investment",
+        "bakeoff_crop_transition",
+        "bakeoff_animal_transition"
+      ],
+      "panel": "workspace/oracle_bakeoff/context/dev/internal_dev_panel.tsv",
+      "role": "INTERNAL_DEV",
+      "seats": [
+        1,
+        0
+      ],
+      "seeds": [
+        1771485163,
+        422092778,
+        717289795
+      ]
+    },
+    "sealed": {
+      "authority": "DOWNSTREAM_ONLY",
+      "cases": 24,
+      "champion_losses": 7,
+      "generation": 3,
+      "lanes": [
+        "LAND_INVESTMENT",
+        "CROP_TRANSITION",
+        "ANIMAL_TRANSITION",
+        "ENDGAME_LIQUIDATION"
+      ],
+      "league_members": [
+        "bakeoff_land_investment",
+        "bakeoff_crop_transition",
+        "bakeoff_animal_transition",
+        "bakeoff_endgame_liquidation"
+      ],
+      "panel": "workspace/oracle_bakeoff/context/sealed/sealed_panel.tsv",
+      "role": "SEALED",
+      "seats": [
+        1,
+        0
+      ],
+      "seeds": [
+        480441779,
+        423697851,
+        1208665923
+      ]
+    },
+    "transfer": {
+      "authority": "DOWNSTREAM_ONLY",
+      "cases": 24,
+      "champion_losses": 9,
+      "generation": 1,
+      "lanes": [
+        "ANIMAL_TRANSITION",
+        "ENDGAME_LIQUIDATION",
+        "MECHANIC_EXPLOIT",
+        "GENERAL"
+      ],
+      "league_members": [
+        "bakeoff_animal_transition",
+        "bakeoff_endgame_liquidation",
+        "bakeoff_mechanic_exploit",
+        "bakeoff_general"
+      ],
+      "panel": "workspace/oracle_bakeoff/context/transfer/transfer_panel.tsv",
+      "role": "TRANSFER",
+      "seats": [
+        1,
+        0
+      ],
+      "seeds": [
+        191616273,
+        1362294356,
+        364494957
+      ]
+    },
+    "validation": {
+      "authority": "DOWNSTREAM_ONLY",
+      "cases": 24,
+      "champion_losses": 12,
+      "generation": 2,
+      "lanes": [
+        "GENERAL",
+        "MARKET_LIQUIDITY",
+        "WORKER_PRODUCTION",
+        "LAND_INVESTMENT"
+      ],
+      "league_members": [
+        "bakeoff_general",
+        "bakeoff_market_liquidity",
+        "bakeoff_worker_production",
+        "bakeoff_land_investment"
+      ],
+      "panel": "workspace/oracle_bakeoff/context/validation/validation_panel.tsv",
+      "role": "VALIDATION",
+      "seats": [
+        1,
+        0
+      ],
+      "seeds": [
+        1267367268,
+        1440573538,
+        1275978081
+      ]
+    }
+  },
+  "panels": {
+    "build": {
+      "cases": 48,
+      "path": "workspace/oracle_bakeoff/context/build/build_panel.tsv",
+      "sha256": "71330c145187901923b1466a4b391a7721e022eef6e0e639c7c547ef18ed272c"
+    },
+    "dev": {
+      "cases": 24,
+      "path": "workspace/oracle_bakeoff/context/dev/internal_dev_panel.tsv",
+      "sha256": "554c455ae849aefe1de541850fc2281aea2feafe83f713e329e93515673d051c"
+    },
+    "sealed": {
+      "cases": 24,
+      "path": "workspace/oracle_bakeoff/context/sealed/sealed_panel.tsv",
+      "sha256": "03acf9bd0640917b7abbcadc8b5b7400348694ccf1111383b4410ca90c951bdc"
+    },
+    "transfer": {
+      "cases": 24,
+      "path": "workspace/oracle_bakeoff/context/transfer/transfer_panel.tsv",
+      "sha256": "8ae9147309b4d500af60479a5cd380f3890f0c43d4fd2364c91210824d1bde9c"
+    },
+    "validation": {
+      "cases": 24,
+      "path": "workspace/oracle_bakeoff/context/validation/validation_panel.tsv",
+      "sha256": "b20017aafe57e0783028d63be9496f93167b5bb9cc5a72332a48df497a1b1cbd"
+    }
+  },
+  "schema_version": 1,
+  "seed_overlap": 0
+}

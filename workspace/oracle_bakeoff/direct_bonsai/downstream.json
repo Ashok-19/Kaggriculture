@@ -1,0 +1,590 @@
+{
+  "build_candidate_audit": [
+    {
+      "aggregate_margin": 2048,
+      "candidate_id": "0ce2a0d50afd9364db19112c08a69a9acbf2becd88570d17209525c87fd9566d",
+      "cross_regime_supported": false,
+      "effect_signature": "3982a94c88a4747868b8da41ed78d3a427b0dcb8fb3eebb5596df7662b37022b",
+      "initiation_step": 96,
+      "lane": "MARKET_LIQUIDITY",
+      "loss_to_win": 8,
+      "member_support": 8,
+      "seat_support": 1,
+      "seed_source": null,
+      "seed_support": 1,
+      "templates": [
+        "plant_wheat"
+      ],
+      "win_to_loss": 0
+    },
+    {
+      "aggregate_margin": 2048,
+      "candidate_id": "0e6c0fd547d1c604f418d83efd9f8b0d08bea4d489c601c2eb10c5f3c2c15b8e",
+      "cross_regime_supported": false,
+      "effect_signature": "3982a94c88a4747868b8da41ed78d3a427b0dcb8fb3eebb5596df7662b37022b",
+      "initiation_step": 96,
+      "lane": "MARKET_LIQUIDITY",
+      "loss_to_win": 8,
+      "member_support": 8,
+      "seat_support": 1,
+      "seed_source": null,
+      "seed_support": 1,
+      "templates": [
+        "farmer_fertilize"
+      ],
+      "win_to_loss": 0
+    },
+    {
+      "aggregate_margin": 2048,
+      "candidate_id": "171be9aee2bdc8c06a48d52d837c64df8e6f0fef1a72a53d21c435fd8b1a0640",
+      "cross_regime_supported": false,
+      "effect_signature": "3982a94c88a4747868b8da41ed78d3a427b0dcb8fb3eebb5596df7662b37022b",
+      "initiation_step": 96,
+      "lane": "MARKET_LIQUIDITY",
+      "loss_to_win": 8,
+      "member_support": 8,
+      "seat_support": 1,
+      "seed_source": null,
+      "seed_support": 1,
+      "templates": [
+        "farmer_build_pasture"
+      ],
+      "win_to_loss": 0
+    },
+    {
+      "aggregate_margin": 2048,
+      "candidate_id": "303315b2cc491e8a4fc5d86d6f7b7e1ef05ffe4b45d406810a42ded9b5f51763",
+      "cross_regime_supported": false,
+      "effect_signature": "3982a94c88a4747868b8da41ed78d3a427b0dcb8fb3eebb5596df7662b37022b",
+      "initiation_step": 96,
+      "lane": "MARKET_LIQUIDITY",
+      "loss_to_win": 8,
+      "member_support": 8,
+      "seat_support": 1,
+      "seed_source": null,
+      "seed_support": 1,
+      "templates": [
+        "farmer_dig"
+      ],
+      "win_to_loss": 0
+    },
+    {
+      "aggregate_margin": 2048,
+      "candidate_id": "4194719b441fdf1f434cc1c4507091e4469f876b8f48694dfd0144e38fe02bc3",
+      "cross_regime_supported": false,
+      "effect_signature": "3982a94c88a4747868b8da41ed78d3a427b0dcb8fb3eebb5596df7662b37022b",
+      "initiation_step": 96,
+      "lane": "MARKET_LIQUIDITY",
+      "loss_to_win": 8,
+      "member_support": 8,
+      "seat_support": 1,
+      "seed_source": null,
+      "seed_support": 1,
+      "templates": [
+        "plant_carrot"
+      ],
+      "win_to_loss": 0
+    },
+    {
+      "aggregate_margin": 2048,
+      "candidate_id": "43564063ad7e47639ded15a3aec65c4f8db30435f95184aedb9acb173d08fd1d",
+      "cross_regime_supported": false,
+      "effect_signature": "3982a94c88a4747868b8da41ed78d3a427b0dcb8fb3eebb5596df7662b37022b",
+      "initiation_step": 96,
+      "lane": "MARKET_LIQUIDITY",
+      "loss_to_win": 8,
+      "member_support": 8,
+      "seat_support": 1,
+      "seed_source": null,
+      "seed_support": 1,
+      "templates": [
+        "plant_strawberry"
+      ],
+      "win_to_loss": 0
+    },
+    {
+      "aggregate_margin": 2048,
+      "candidate_id": "9283f2d53826157ed76a29fda15f73c2869502500b794cc607d9e6166dbd7b57",
+      "cross_regime_supported": false,
+      "effect_signature": "3982a94c88a4747868b8da41ed78d3a427b0dcb8fb3eebb5596df7662b37022b",
+      "initiation_step": 96,
+      "lane": "MARKET_LIQUIDITY",
+      "loss_to_win": 8,
+      "member_support": 8,
+      "seat_support": 1,
+      "seed_source": null,
+      "seed_support": 1,
+      "templates": [
+        "farmer_care"
+      ],
+      "win_to_loss": 0
+    },
+    {
+      "aggregate_margin": 2048,
+      "candidate_id": "9fd8badaea902facb962a77f99d8dd064901a7dc63964865e1016b449712732f",
+      "cross_regime_supported": false,
+      "effect_signature": "3982a94c88a4747868b8da41ed78d3a427b0dcb8fb3eebb5596df7662b37022b",
+      "initiation_step": 96,
+      "lane": "MARKET_LIQUIDITY",
+      "loss_to_win": 8,
+      "member_support": 8,
+      "seat_support": 1,
+      "seed_source": null,
+      "seed_support": 1,
+      "templates": [
+        "farmer_harvest"
+      ],
+      "win_to_loss": 0
+    },
+    {
+      "aggregate_margin": 2048,
+      "candidate_id": "a2f4cce01f60475cd5b687acfc50cc57088665560f0c90a5c18a2d0759551aae",
+      "cross_regime_supported": false,
+      "effect_signature": "3982a94c88a4747868b8da41ed78d3a427b0dcb8fb3eebb5596df7662b37022b",
+      "initiation_step": 96,
+      "lane": "MARKET_LIQUIDITY",
+      "loss_to_win": 8,
+      "member_support": 8,
+      "seat_support": 1,
+      "seed_source": null,
+      "seed_support": 1,
+      "templates": [
+        "farmer_drop"
+      ],
+      "win_to_loss": 0
+    },
+    {
+      "aggregate_margin": 2048,
+      "candidate_id": "e0b810705b3448d52859c8453f75d3b0110a8b59566f2af644d2b7f1d7f07404",
+      "cross_regime_supported": false,
+      "effect_signature": "3982a94c88a4747868b8da41ed78d3a427b0dcb8fb3eebb5596df7662b37022b",
+      "initiation_step": 96,
+      "lane": "MARKET_LIQUIDITY",
+      "loss_to_win": 8,
+      "member_support": 8,
+      "seat_support": 1,
+      "seed_source": null,
+      "seed_support": 1,
+      "templates": [
+        "farmer_build_coop"
+      ],
+      "win_to_loss": 0
+    },
+    {
+      "aggregate_margin": 2048,
+      "candidate_id": "e98c7058fa547aef02ea4b2b9f0e451c43a7f5c5f48b5e26acb073cf1fc16758",
+      "cross_regime_supported": false,
+      "effect_signature": "3982a94c88a4747868b8da41ed78d3a427b0dcb8fb3eebb5596df7662b37022b",
+      "initiation_step": 96,
+      "lane": "MARKET_LIQUIDITY",
+      "loss_to_win": 8,
+      "member_support": 8,
+      "seat_support": 1,
+      "seed_source": null,
+      "seed_support": 1,
+      "templates": [
+        "plant_tomato"
+      ],
+      "win_to_loss": 0
+    },
+    {
+      "aggregate_margin": 2048,
+      "candidate_id": "fc99526c61ae0b762b0933877308778c48af60bb5386c8f58d51db88b806849c",
+      "cross_regime_supported": false,
+      "effect_signature": "3982a94c88a4747868b8da41ed78d3a427b0dcb8fb3eebb5596df7662b37022b",
+      "initiation_step": 96,
+      "lane": "MARKET_LIQUIDITY",
+      "loss_to_win": 8,
+      "member_support": 8,
+      "seat_support": 1,
+      "seed_source": null,
+      "seed_support": 1,
+      "templates": [
+        "plant_melon"
+      ],
+      "win_to_loss": 0
+    },
+    {
+      "aggregate_margin": 2048,
+      "candidate_id": "ff28fb7f07d1e03b0d2fc0361e712501a4120c0e1b1e2e4734f0e1f7c631a7a4",
+      "cross_regime_supported": false,
+      "effect_signature": "3982a94c88a4747868b8da41ed78d3a427b0dcb8fb3eebb5596df7662b37022b",
+      "initiation_step": 96,
+      "lane": "MARKET_LIQUIDITY",
+      "loss_to_win": 8,
+      "member_support": 8,
+      "seat_support": 1,
+      "seed_source": null,
+      "seed_support": 1,
+      "templates": [
+        "farmer_feed"
+      ],
+      "win_to_loss": 0
+    },
+    {
+      "aggregate_margin": -499928,
+      "candidate_id": "06f51164a7a50bf6d0674a5b9d7ed75e286494551a0330fec4bdb65673b3920e",
+      "cross_regime_supported": false,
+      "effect_signature": "777099c6a3facd66a641df8f264a7f943650f1d32c2a9901265488eecf23f6fd",
+      "initiation_step": 0,
+      "lane": "MECHANIC_EXPLOIT",
+      "loss_to_win": 8,
+      "member_support": 8,
+      "seat_support": 1,
+      "seed_source": null,
+      "seed_support": 1,
+      "templates": [
+        "farmer_feed"
+      ],
+      "win_to_loss": 8
+    },
+    {
+      "aggregate_margin": -499928,
+      "candidate_id": "10f809e24bb82c4e81065136ca2e464226466ccd3c19efaa8e718bf080df0b87",
+      "cross_regime_supported": false,
+      "effect_signature": "777099c6a3facd66a641df8f264a7f943650f1d32c2a9901265488eecf23f6fd",
+      "initiation_step": 0,
+      "lane": "GENERAL",
+      "loss_to_win": 8,
+      "member_support": 8,
+      "seat_support": 1,
+      "seed_source": null,
+      "seed_support": 1,
+      "templates": [
+        "farmer_care"
+      ],
+      "win_to_loss": 8
+    },
+    {
+      "aggregate_margin": -499928,
+      "candidate_id": "44cb8ddd7627ef83b63a49a3cc2b5fe7c2888e74cbe86289cde5cb6dc103e607",
+      "cross_regime_supported": false,
+      "effect_signature": "777099c6a3facd66a641df8f264a7f943650f1d32c2a9901265488eecf23f6fd",
+      "initiation_step": 0,
+      "lane": "MECHANIC_EXPLOIT",
+      "loss_to_win": 8,
+      "member_support": 8,
+      "seat_support": 1,
+      "seed_source": null,
+      "seed_support": 1,
+      "templates": [
+        "farmer_drop"
+      ],
+      "win_to_loss": 8
+    },
+    {
+      "aggregate_margin": -499928,
+      "candidate_id": "4d1d61b029fd289d5d68493671b107853b09f9d8bdbe9b86d406868bfc064f20",
+      "cross_regime_supported": false,
+      "effect_signature": "777099c6a3facd66a641df8f264a7f943650f1d32c2a9901265488eecf23f6fd",
+      "initiation_step": 0,
+      "lane": "GENERAL",
+      "loss_to_win": 8,
+      "member_support": 8,
+      "seat_support": 1,
+      "seed_source": null,
+      "seed_support": 1,
+      "templates": [
+        "farmer_drop"
+      ],
+      "win_to_loss": 8
+    },
+    {
+      "aggregate_margin": -499928,
+      "candidate_id": "53d1acabce6f84ccfed9a270eaaa1006df4a111496d85b0b9aaad329a432a1d4",
+      "cross_regime_supported": false,
+      "effect_signature": "777099c6a3facd66a641df8f264a7f943650f1d32c2a9901265488eecf23f6fd",
+      "initiation_step": 0,
+      "lane": "GENERAL",
+      "loss_to_win": 8,
+      "member_support": 8,
+      "seat_support": 1,
+      "seed_source": null,
+      "seed_support": 1,
+      "templates": [
+        "farmer_water"
+      ],
+      "win_to_loss": 8
+    },
+    {
+      "aggregate_margin": -499928,
+      "candidate_id": "59ab9c7b0719d02f5aea3f026949b1a88f2302f79f5addcdba478144f07f2d6a",
+      "cross_regime_supported": false,
+      "effect_signature": "777099c6a3facd66a641df8f264a7f943650f1d32c2a9901265488eecf23f6fd",
+      "initiation_step": 0,
+      "lane": "GENERAL",
+      "loss_to_win": 8,
+      "member_support": 8,
+      "seat_support": 1,
+      "seed_source": null,
+      "seed_support": 1,
+      "templates": [
+        "farmer_harvest"
+      ],
+      "win_to_loss": 8
+    },
+    {
+      "aggregate_margin": -499928,
+      "candidate_id": "69653dc0a7b57a86499efb8a3562278c3dc1237f82117582b1c50e92b4627932",
+      "cross_regime_supported": false,
+      "effect_signature": "777099c6a3facd66a641df8f264a7f943650f1d32c2a9901265488eecf23f6fd",
+      "initiation_step": 0,
+      "lane": "MECHANIC_EXPLOIT",
+      "loss_to_win": 8,
+      "member_support": 8,
+      "seat_support": 1,
+      "seed_source": null,
+      "seed_support": 1,
+      "templates": [
+        "farmer_collect_fertilizer"
+      ],
+      "win_to_loss": 8
+    },
+    {
+      "aggregate_margin": -499928,
+      "candidate_id": "7bcec84381c05d549c95bb42426a1312aaf67e0206e0250752692275c27bc0e3",
+      "cross_regime_supported": false,
+      "effect_signature": "777099c6a3facd66a641df8f264a7f943650f1d32c2a9901265488eecf23f6fd",
+      "initiation_step": 0,
+      "lane": "MECHANIC_EXPLOIT",
+      "loss_to_win": 8,
+      "member_support": 8,
+      "seat_support": 1,
+      "seed_source": null,
+      "seed_support": 1,
+      "templates": [
+        "plant_wheat"
+      ],
+      "win_to_loss": 8
+    },
+    {
+      "aggregate_margin": -499928,
+      "candidate_id": "87fca42b5440325e912a7db7ceea82fcd08e83444616a4476abc27f05f0f5a17",
+      "cross_regime_supported": false,
+      "effect_signature": "777099c6a3facd66a641df8f264a7f943650f1d32c2a9901265488eecf23f6fd",
+      "initiation_step": 0,
+      "lane": "MECHANIC_EXPLOIT",
+      "loss_to_win": 8,
+      "member_support": 8,
+      "seat_support": 1,
+      "seed_source": null,
+      "seed_support": 1,
+      "templates": [
+        "farmer_dig"
+      ],
+      "win_to_loss": 8
+    },
+    {
+      "aggregate_margin": -499928,
+      "candidate_id": "8c3376069dd017ec6c0227d97e8f8c6e115a0d6f6652d8f7cc964ada00ea5dda",
+      "cross_regime_supported": false,
+      "effect_signature": "777099c6a3facd66a641df8f264a7f943650f1d32c2a9901265488eecf23f6fd",
+      "initiation_step": 0,
+      "lane": "GENERAL",
+      "loss_to_win": 8,
+      "member_support": 8,
+      "seat_support": 1,
+      "seed_source": null,
+      "seed_support": 1,
+      "templates": [
+        "plant_wheat"
+      ],
+      "win_to_loss": 8
+    },
+    {
+      "aggregate_margin": -499928,
+      "candidate_id": "8fb2168ced8589a9db7180ac55281084ba4f3a9dd61ee847b0d9e322ad0db84f",
+      "cross_regime_supported": false,
+      "effect_signature": "777099c6a3facd66a641df8f264a7f943650f1d32c2a9901265488eecf23f6fd",
+      "initiation_step": 0,
+      "lane": "GENERAL",
+      "loss_to_win": 8,
+      "member_support": 8,
+      "seat_support": 1,
+      "seed_source": null,
+      "seed_support": 1,
+      "templates": [
+        "plant_carrot"
+      ],
+      "win_to_loss": 8
+    },
+    {
+      "aggregate_margin": -499928,
+      "candidate_id": "9063d489075c5f8de05d94c069a8d083f372b6032b9330d2e0663805cdc87ffc",
+      "cross_regime_supported": false,
+      "effect_signature": "777099c6a3facd66a641df8f264a7f943650f1d32c2a9901265488eecf23f6fd",
+      "initiation_step": 0,
+      "lane": "MECHANIC_EXPLOIT",
+      "loss_to_win": 8,
+      "member_support": 8,
+      "seat_support": 1,
+      "seed_source": null,
+      "seed_support": 1,
+      "templates": [
+        "farmer_water"
+      ],
+      "win_to_loss": 8
+    },
+    {
+      "aggregate_margin": -499928,
+      "candidate_id": "9e2b8e3f770df4b4c5bd325a5bcaac1c9564928f0404b40299220ef3824915aa",
+      "cross_regime_supported": false,
+      "effect_signature": "777099c6a3facd66a641df8f264a7f943650f1d32c2a9901265488eecf23f6fd",
+      "initiation_step": 0,
+      "lane": "GENERAL",
+      "loss_to_win": 8,
+      "member_support": 8,
+      "seat_support": 1,
+      "seed_source": null,
+      "seed_support": 1,
+      "templates": [
+        "farmer_collect_fertilizer"
+      ],
+      "win_to_loss": 8
+    },
+    {
+      "aggregate_margin": -499928,
+      "candidate_id": "b0c23b2a58463e4779e9ba36614021ed0adb948ce898c95b491e9512c4f639b0",
+      "cross_regime_supported": false,
+      "effect_signature": "777099c6a3facd66a641df8f264a7f943650f1d32c2a9901265488eecf23f6fd",
+      "initiation_step": 0,
+      "lane": "MECHANIC_EXPLOIT",
+      "loss_to_win": 8,
+      "member_support": 8,
+      "seat_support": 1,
+      "seed_source": null,
+      "seed_support": 1,
+      "templates": [
+        "farmer_fertilize"
+      ],
+      "win_to_loss": 8
+    },
+    {
+      "aggregate_margin": -499928,
+      "candidate_id": "ba1b15943f69ca7d3b915a6b04df8c720e519c76ec7e0980db5ff68989ca5dcd",
+      "cross_regime_supported": false,
+      "effect_signature": "777099c6a3facd66a641df8f264a7f943650f1d32c2a9901265488eecf23f6fd",
+      "initiation_step": 0,
+      "lane": "MECHANIC_EXPLOIT",
+      "loss_to_win": 8,
+      "member_support": 8,
+      "seat_support": 1,
+      "seed_source": null,
+      "seed_support": 1,
+      "templates": [
+        "farmer_harvest"
+      ],
+      "win_to_loss": 8
+    },
+    {
+      "aggregate_margin": -499928,
+      "candidate_id": "dbfdf04c574201b6092681dbfaae5183c3ac9f4be8e85f235d308f38e113f166",
+      "cross_regime_supported": false,
+      "effect_signature": "777099c6a3facd66a641df8f264a7f943650f1d32c2a9901265488eecf23f6fd",
+      "initiation_step": 0,
+      "lane": "GENERAL",
+      "loss_to_win": 8,
+      "member_support": 8,
+      "seat_support": 1,
+      "seed_source": null,
+      "seed_support": 1,
+      "templates": [
+        "farmer_fertilize"
+      ],
+      "win_to_loss": 8
+    },
+    {
+      "aggregate_margin": -499928,
+      "candidate_id": "ddf35c7ba2184f9babffe851f126a5b928e141974483d98e92df436f40de9687",
+      "cross_regime_supported": false,
+      "effect_signature": "777099c6a3facd66a641df8f264a7f943650f1d32c2a9901265488eecf23f6fd",
+      "initiation_step": 0,
+      "lane": "GENERAL",
+      "loss_to_win": 8,
+      "member_support": 8,
+      "seat_support": 1,
+      "seed_source": null,
+      "seed_support": 1,
+      "templates": [
+        "farmer_dig"
+      ],
+      "win_to_loss": 8
+    },
+    {
+      "aggregate_margin": -499928,
+      "candidate_id": "e486c62f8c1039a472996dafe3bdc1ba4e7bddb224cbd9413fa019ff30ac5df6",
+      "cross_regime_supported": false,
+      "effect_signature": "777099c6a3facd66a641df8f264a7f943650f1d32c2a9901265488eecf23f6fd",
+      "initiation_step": 0,
+      "lane": "GENERAL",
+      "loss_to_win": 8,
+      "member_support": 8,
+      "seat_support": 1,
+      "seed_source": null,
+      "seed_support": 1,
+      "templates": [
+        "farmer_feed"
+      ],
+      "win_to_loss": 8
+    },
+    {
+      "aggregate_margin": -499928,
+      "candidate_id": "fcf149bc3589dd36104f07775be310eddf5164a346fe3600d4edb8b036e00463",
+      "cross_regime_supported": false,
+      "effect_signature": "777099c6a3facd66a641df8f264a7f943650f1d32c2a9901265488eecf23f6fd",
+      "initiation_step": 0,
+      "lane": "MECHANIC_EXPLOIT",
+      "loss_to_win": 8,
+      "member_support": 8,
+      "seat_support": 1,
+      "seed_source": null,
+      "seed_support": 1,
+      "templates": [
+        "farmer_care"
+      ],
+      "win_to_loss": 8
+    }
+  ],
+  "build_shortlisted": 1,
+  "candidate_results": [],
+  "capture": {
+    "launches": 0,
+    "reuses": 0,
+    "seconds": 0.0
+  },
+  "cegis_successes": 0,
+  "cross_regime_supported_specialists": 0,
+  "dev_attempted": 1,
+  "dev_loss_to_win": 0,
+  "dev_passes": 0,
+  "dev_results": [
+    {
+      "candidate_id": "0ce2a0d50afd9364db19112c08a69a9acbf2becd88570d17209525c87fd9566d",
+      "dev_activated": 24,
+      "dev_aggregate_margin": -91932,
+      "dev_cases": 24,
+      "dev_harmful": 24,
+      "dev_loss_to_win": 0,
+      "dev_positive": 0,
+      "dev_win_to_loss": 8,
+      "dev_worst_delta": -6903,
+      "status": "DEV_REGRESSION"
+    }
+  ],
+  "dev_weak_passes": 0,
+  "dev_win_to_loss": 8,
+  "downstream_cuda_games": 48,
+  "downstream_cuda_ms": 328.082,
+  "downstream_eligible": 0,
+  "downstream_wall_seconds": 0.61,
+  "oracle": "DIRECT_BONSAI",
+  "protected_win_to_loss": 0,
+  "routable": 0,
+  "safe_commits": [],
+  "safe_loss_to_win": 0,
+  "sealed_passes": 0,
+  "semantic_mismatches": 0,
+  "transfer_passes": 0,
+  "useful_build_specialists": 13,
+  "validation_passes": 0
+}

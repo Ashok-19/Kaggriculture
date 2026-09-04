@@ -1,0 +1,29 @@
+{
+  "authority": "DOWNSTREAM_ONLY",
+  "cases": 24,
+  "champion_losses": 12,
+  "generation": 2,
+  "lanes": [
+    "GENERAL",
+    "MARKET_LIQUIDITY",
+    "WORKER_PRODUCTION",
+    "LAND_INVESTMENT"
+  ],
+  "league_members": [
+    "bakeoff_general",
+    "bakeoff_market_liquidity",
+    "bakeoff_worker_production",
+    "bakeoff_land_investment"
+  ],
+  "panel": "workspace/oracle_bakeoff/context/validation/validation_panel.tsv",
+  "role": "VALIDATION",
+  "seats": [
+    1,
+    0
+  ],
+  "seeds": [
+    1267367268,
+    1440573538,
+    1275978081
+  ]
+}
