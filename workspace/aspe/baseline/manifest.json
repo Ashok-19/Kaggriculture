@@ -153,7 +153,7 @@
     "config_identity": "51b3fed55500a97f5cae9719e5d83bbc44fcc54393699d430daab5e509309e1f",
     "generator": "ASPE_PHASE_0_EQUAL_CONTEXT_V1",
     "implementation": "src/kaggriculture_bonsai/league/aspe_baseline.py",
-    "implementation_sha256": "063af225a45cc0881d6f450c2a1febcd001acb351e310f232e83c162b19dde4a",
+    "implementation_sha256": "bfb1b82c8c5963df206fa8ee9584cd6ac2c05efeb3df853612d6e1312bc67bc1",
     "kaggle_environments_version": "1.32.7",
     "selfplay_schema_version": 2
   },

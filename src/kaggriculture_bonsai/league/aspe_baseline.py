@@ -130,6 +130,18 @@ def _normalize_panel_paths(panel: Path) -> None:
     panel.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
+def _prune_unreferenced_tapes(panel: Path) -> None:
+    """Discard companion opponent tapes that are not evaluation cases."""
+    referenced = {
+        (PROJECT_ROOT / line.split("\t", 1)[0]).resolve()
+        for line in panel.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    }
+    for tape in (panel.parent / "tapes").glob("*.json"):
+        if tape.resolve() not in referenced:
+            tape.unlink()
+
+
 def planned_panel_contract() -> dict[str, dict[str, Any]]:
     """Resolve the fixed seed/member rotation without running self-play."""
     result: dict[str, dict[str, Any]] = {}
@@ -212,6 +224,7 @@ def _generate_independent_panel(
         tapes, panel, protected_flag=int(name in {"validation", "sealed"}), role=role_id,
     )
     _normalize_panel_paths(panel)
+    _prune_unreferenced_tapes(panel)
     summary = {
         "role": config["role"],
         "authority": "SCREENING_ONLY" if name == "internal_dev" else "DOWNSTREAM_ONLY",
@@ -487,6 +500,7 @@ def freeze_aspe_baseline(
         max_cases=build_config["max_cases"],
     )
     _normalize_panel_paths(build_panel)
+    _prune_unreferenced_tapes(build_panel)
     build_summary["panel"] = _relative(build_panel)
     _write_json(context_dir / build_config["directory"] / "build_manifest.json", build_summary)
 
