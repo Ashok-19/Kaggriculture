@@ -33,7 +33,8 @@ _MOTIF_RECORD = struct.Struct("<IHBB")
 _UNIT_RECORD = struct.Struct("<BBh")
 _ORDER_RECORD = struct.Struct("<BBi")
 _RESULT_HEADER = struct.Struct("<8sIII")
-_RESULT_RECORD = struct.Struct("<iiHHBBBB32s")
+_RESULT_RECORD_V1 = struct.Struct("<iiHHBBBB32s")
+_RESULT_RECORD_V2 = struct.Struct("<iiHHBBBBHHHHHHHHQBBBBhhhhhhhhhh32s")
 
 _UNIT_OPS = ("PASS", "NORTH", "SOUTH", "EAST", "WEST", "PICKUP", "DROP", "PLACE", "PLANT", "WATER", "HARVEST", "FERTILIZE", "DIG", "BUILD_COOP", "BUILD_PASTURE", "FEED", "COLLECT_FERTILIZER", "CARE")
 _MARKET_OPS = (None, "HIRE", "BUY_LAND", "BUY_SEED", "BUY_PRODUCT", "BUY_ANIMAL", "SELL")
@@ -67,6 +68,15 @@ class TerminationReason(IntEnum):
     PARENT_COMPATIBLE = 6
     MAX_STEPS = 7
     PROGRAM_CAP = 8
+
+
+class CompletionReason(IntEnum):
+    NONE = 0
+    FINISHED = 1
+    ABORT = 2
+    RECOVERY = 3
+    PROGRAM_CAP = 4
+    FAULT = 5
 
 
 def merge_action_families(
@@ -161,10 +171,20 @@ def _pack_action(action: Mapping[str, Any]) -> bytes:
     return bytes(result)
 
 
-def encode_device_batch(programs: Sequence[MacroProgram], motifs: Mapping[str, Motif]) -> bytes:
+def encode_device_batch(
+    programs: Sequence[MacroProgram],
+    motifs: Mapping[str, Motif],
+    *,
+    initiation_clauses: Sequence[Sequence[Sequence[PublicCondition]]] | None = None,
+    semantic_ids: Sequence[str] | None = None,
+) -> bytes:
     """Flatten programs and shared motifs into the exact packed CUDA ABI."""
     if not programs:
         raise ValueError("program batch must not be empty")
+    if initiation_clauses is not None and len(initiation_clauses) != len(programs):
+        raise ValueError("specialist gate/program count mismatch")
+    if semantic_ids is not None and len(semantic_ids) != len(programs):
+        raise ValueError("semantic ID/program count mismatch")
     motif_ids = sorted({
         phase.motif_id
         for item in programs
@@ -215,12 +235,27 @@ def encode_device_batch(programs: Sequence[MacroProgram], motifs: Mapping[str, M
             phase.termination.target_count or 0, int(parameters.get("quantity", 0)),
         )
 
-    for item in programs:
+    for program_index, item in enumerate(programs):
         phase_first = len(phase_records)
         for phase in item.phases:
             phase_records.append(pack_phase(phase))
         if item.recovery_phase is not None:
             phase_records.append(pack_phase(item.recovery_phase))
+        clauses = None if initiation_clauses is None else initiation_clauses[program_index]
+        gate_count = 0
+        if clauses is not None:
+            if not 1 <= len(clauses) <= 6:
+                raise ValueError("specialist gate requires 1..6 clauses")
+            for clause_index, clause in enumerate(clauses):
+                if not 1 <= len(clause) <= 4:
+                    raise ValueError("specialist gate clauses require 1..4 conditions")
+                for condition in clause:
+                    phase_records.append(_PHASE_RECORD.pack(
+                        0, 0, 0, 0, 0, 0, _FEATURES.index(condition.feature),
+                        {"EQ": 0, "NE": 1, "LE": 2, "GE": 3}[condition.comparator],
+                        condition.index, condition.value, 0, 0, 0, clause_index, 0, 0,
+                    ))
+                    gate_count += 1
         decision_first = len(decision_records)
         for decision in item.decisions:
             def target(continuation):
@@ -235,13 +270,19 @@ def encode_device_batch(programs: Sequence[MacroProgram], motifs: Mapping[str, M
             ))
         if decision_first > 255:
             raise ValueError("device batch decision table exceeds v2 record capacity")
+        initiation_word = item.initiation.step
+        max_steps_word = item.max_total_steps
+        if clauses is not None:
+            initiation_word |= len(clauses) << 10
+            max_steps_word |= gate_count << 10
+        semantic_id = item.semantic_id if semantic_ids is None else semantic_ids[program_index]
         program_records.append(_PROGRAM_RECORD.pack(
-            item.initiation.step, item.max_total_steps, phase_first, len(item.phases),
+            initiation_word, max_steps_word, phase_first, len(item.phases),
             list(type(item.lane)).index(item.lane) | (0x80 if item.recovery_phase is not None else 0),
             decision_first, len(item.decisions),
-            bytes.fromhex(item.semantic_id),
+            bytes.fromhex(semantic_id),
         ))
-    version = 2 if any(item.schema_version == 2 for item in programs) else 1
+    version = 3 if initiation_clauses is not None else (2 if any(item.schema_version == 2 for item in programs) else 1)
     return b"".join((
         _DEVICE_HEADER.pack(0x524C5234, version, len(programs), len(phase_records), len(motif_records), len(actions)),
         *program_records, *phase_records, *decision_records, *motif_records, *actions,
@@ -259,21 +300,54 @@ class DeviceResult:
     end_reason: TerminationReason
     complete: bool
     semantic_id: str
+    first_activation_step: int = -1
+    last_activation_step: int = -1
+    activation_count: int = 0
+    specialist_duration: int = 0
+    phase_path: int = 0
+    phase_usage: int = 0
+    branch_path: int = 0
+    completion_reason: CompletionReason = CompletionReason.NONE
+    family_farmer_changes: int = 0
+    family_hands_changes: int = 0
+    family_market_changes: int = 0
+    action_trace_hash: int = 0
+    state_deltas: tuple[int, ...] = (0,) * 10
 
 
 def decode_device_results(data: bytes) -> tuple[int, int, tuple[DeviceResult, ...]]:
     if len(data) < _RESULT_HEADER.size:
         raise ValueError("short RLRMB result")
     magic, version, candidates, cases = _RESULT_HEADER.unpack_from(data)
-    if magic != b"RLRMBR1\0" or version != 1:
+    if magic != b"RLRMBR1\0" or version not in (1, 2):
         raise ValueError("unsupported RLRMB result")
-    expected = _RESULT_HEADER.size + candidates * cases * _RESULT_RECORD.size
+    record = _RESULT_RECORD_V1 if version == 1 else _RESULT_RECORD_V2
+    expected = _RESULT_HEADER.size + candidates * cases * record.size
     if len(data) != expected:
         raise ValueError("RLRMB result length mismatch")
     rows = []
-    for offset in range(_RESULT_HEADER.size, len(data), _RESULT_RECORD.size):
-        own, opp, changes, fault, active, phase, reason, complete, semantic_id = _RESULT_RECORD.unpack_from(data, offset)
-        rows.append(DeviceResult(own, opp, changes, FaultCode(fault), bool(active), phase, TerminationReason(reason), bool(complete), semantic_id.hex()))
+    for offset in range(_RESULT_HEADER.size, len(data), record.size):
+        values = record.unpack_from(data, offset)
+        own, opp, changes, fault, active, phase, reason, complete = values[:8]
+        if version == 1:
+            rows.append(DeviceResult(own, opp, changes, FaultCode(fault), bool(active), phase, TerminationReason(reason), bool(complete), values[8].hex()))
+            continue
+        first, last, activations, duration, phase_path, farmer, hands, market = values[8:16]
+        action_trace_hash = values[16]
+        phase_usage, branch_path, completion, _reserved = values[17:21]
+        deltas = tuple(values[21:31])
+        rows.append(DeviceResult(
+            own_money=own, opp_money=opp, action_changes=changes, fault=FaultCode(fault),
+            activated=bool(active), final_phase=phase, end_reason=TerminationReason(reason),
+            complete=bool(complete), semantic_id=values[31].hex(),
+            first_activation_step=-1 if first == 0xFFFF else first,
+            last_activation_step=-1 if last == 0xFFFF else last,
+            activation_count=activations, specialist_duration=duration,
+            phase_path=phase_path, phase_usage=phase_usage, branch_path=branch_path,
+            completion_reason=CompletionReason(completion), family_farmer_changes=farmer,
+            family_hands_changes=hands, family_market_changes=market,
+            action_trace_hash=action_trace_hash, state_deltas=deltas,
+        ))
     return candidates, cases, tuple(rows)
 
 
@@ -373,6 +447,7 @@ class ReferenceInterpreter:
 
     program: MacroProgram
     motifs: Mapping[str, Motif]
+    initiation_clauses: Sequence[Sequence[PublicCondition]] | None = None
 
     def __post_init__(self) -> None:
         self.active = False
@@ -389,6 +464,18 @@ class ReferenceInterpreter:
         self._pending_compatible = False
         self._had_action = False
         self._in_recovery = False
+        self.first_activation_step = -1
+        self.last_activation_step = -1
+        self.activation_count = 0
+        self.phase_path = 0
+        self.phase_usage = 0
+        self.branch_path = 0
+        self.completion_reason = CompletionReason.NONE
+        self.family_farmer_changes = 0
+        self.family_hands_changes = 0
+        self.family_market_changes = 0
+        self.action_trace_hash = 0
+        self.activation_observation: Mapping[str, Any] | None = None
 
     @property
     def phase(self) -> Phase:
@@ -405,6 +492,16 @@ class ReferenceInterpreter:
         self._entry_shops = _shops(observation)
         term = self.phase.termination
         self._entry_purchase = _purchase_metric(term.objective, observation) if term.objective else 0
+        step = int(observation["step"])
+        if self.first_activation_step < 0:
+            self.first_activation_step = step
+            self.activation_observation = observation
+            self.action_trace_hash = 1469598103934665603
+        self.last_activation_step = step
+        self.activation_count += 1
+        phase_code = len(self.program.phases) if self._in_recovery else self.phase_index
+        self.phase_usage |= 1 << phase_code
+        self.phase_path = (self.phase_path << 3) | (phase_code + 1)
 
     def _source_action(self) -> dict[str, Any]:
         phase = self.phase
@@ -438,6 +535,14 @@ class ReferenceInterpreter:
         if self.fault is not FaultCode.NONE or self.complete or step < self.program.initiation.step:
             return parent
         if not self.active:
+            if not self._had_action and self.initiation_clauses is not None:
+                matched = any(
+                    all(_condition_matches(condition, observation) for condition in clause)
+                    for clause in self.initiation_clauses
+                )
+                if not matched:
+                    self.complete = True
+                    return parent
             if step != self.program.initiation.step and not self._had_action:
                 self.fault = FaultCode.HORIZON_VIOLATION
                 return parent
@@ -446,8 +551,16 @@ class ReferenceInterpreter:
         if self.fault is not FaultCode.NONE:
             return parent
         candidate = merge_action_families(parent, source, self.phase.action_families)
+        self.action_trace_hash = _trace_action(self.action_trace_hash, candidate)
+        if candidate["farmer"] != parent["farmer"]:
+            self.family_farmer_changes += 1
+        if candidate["hands"] != parent["hands"]:
+            self.family_hands_changes += 1
+        if candidate["market"] != parent["market"]:
+            self.family_market_changes += 1
         self._pending_compatible = candidate == parent
         self._had_action = True
+        self.last_activation_step = step
         if candidate != parent:
             self.action_changes += 1
         return candidate
@@ -485,6 +598,7 @@ class ReferenceInterpreter:
         if self._in_recovery or self.program_steps >= self.program.max_total_steps:
             self.active = False
             self.complete = True
+            self.completion_reason = CompletionReason.RECOVERY if self._in_recovery else CompletionReason.PROGRAM_CAP
             return
         decision = next((item for item in self.program.decisions if item.after_phase == self.phase_index), None)
         if decision is not None:
@@ -494,9 +608,11 @@ class ReferenceInterpreter:
                 self.fault = FaultCode.INVALID_FEATURE
                 return
             continuation = decision.when_true if matched else decision.when_false
+            self.branch_path = (self.branch_path << 2) | (1 if matched else 2)
             if continuation.kind is ContinuationKind.ABORT_TO_PARENT:
                 self.active = False
                 self.complete = True
+                self.completion_reason = CompletionReason.ABORT
                 return
             if continuation.kind is ContinuationKind.RECOVERY:
                 if self.program.recovery_phase is None:
@@ -519,6 +635,7 @@ class ReferenceInterpreter:
         if self.phase_index + 1 == len(self.program.phases):
             self.active = False
             self.complete = True
+            self.completion_reason = CompletionReason.FINISHED
             return
         self.phase_index += 1
         self.active = False
@@ -538,6 +655,53 @@ class ReferenceResult:
     final_phase: int
     end_reason: TerminationReason
     complete: bool
+    first_activation_step: int = -1
+    last_activation_step: int = -1
+    activation_count: int = 0
+    specialist_duration: int = 0
+    phase_path: int = 0
+    phase_usage: int = 0
+    branch_path: int = 0
+    completion_reason: CompletionReason = CompletionReason.NONE
+    family_farmer_changes: int = 0
+    family_hands_changes: int = 0
+    family_market_changes: int = 0
+    action_trace_hash: int = 0
+    state_deltas: tuple[int, ...] = (0,) * 10
+
+
+def _strategic_snapshot(observation: Mapping[str, Any]) -> tuple[int, ...]:
+    own, opp = _own_farm(observation), _opp_farm(observation)
+    private = observation.get("private", {})
+    return (
+        int(own["money"]), int(opp["money"]), 1 + len(own.get("hands", ())),
+        1 + len(opp.get("hands", ())), len(own.get("unlocked_quadrants", ())),
+        len(opp.get("unlocked_quadrants", ())), int(own.get("hires_today", 0)),
+        int(opp.get("hires_today", 0)), sum(map(int, private.get("shed", {}).values())),
+        sum(map(int, private.get("seeds", {}).values())),
+    )
+
+
+def _trace_action(value: int, action: Mapping[str, Any]) -> int:
+    canonical = canonical_action(action)
+
+    def word(number: int) -> None:
+        nonlocal value
+        for byte in int(number).to_bytes(4, "little", signed=True):
+            value = ((value ^ byte) * 1099511628211) & ((1 << 64) - 1)
+
+    units = [canonical["farmer"], *canonical["hands"]]
+    word(len(units))
+    for unit in units:
+        word(_UNIT_OPS.index(unit[0]))
+        word(_ITEMS.index(unit[1]) if len(unit) > 1 and unit[1] in _ITEMS else 0)
+        word(int(unit[2]) if len(unit) > 2 else 1)
+    word(len(canonical["market"]))
+    for order in canonical["market"]:
+        word(_MARKET_OPS.index(order[0]))
+        word(_ITEMS.index(order[1]) if len(order) > 1 and order[1] in _ITEMS else 0)
+        word(int(order[2]) if len(order) > 2 else 1)
+    return value
 
 
 def evaluate_reference_case(
@@ -548,6 +712,7 @@ def evaluate_reference_case(
     seed: int,
     seat: int,
     asset_dir: str,
+    initiation_clauses: Sequence[Sequence[PublicCondition]] | None = None,
 ) -> ReferenceResult:
     """Run the interpreter over parity-validated C++ physics and CPU BKG4.
 
@@ -558,7 +723,7 @@ def evaluate_reference_case(
     from kaggriculture_bonsai.runtime import champion as champion_runtime
 
     parent = champion_runtime.BKG4ChampionAgent(asset_dir)
-    interpreter = ReferenceInterpreter(program, motifs)
+    interpreter = ReferenceInterpreter(program, motifs, initiation_clauses)
     had_action = False
 
     def candidate(observation: Mapping[str, Any], configuration: Any) -> dict[str, Any]:
@@ -593,8 +758,19 @@ def evaluate_reference_case(
     rewards, _, final = run_vs_tape(candidate, opponent_tape, int(seed), int(seat))
     if had_action:
         interpreter.observe(final[seat].observation)
+    state_deltas = (0,) * 10
+    if interpreter.activation_observation is not None:
+        before = _strategic_snapshot(interpreter.activation_observation)
+        after = _strategic_snapshot(final[seat].observation)
+        state_deltas = tuple(max(-32768, min(32767, x - y)) for x, y in zip(after, before))
     return ReferenceResult(
         int(rewards[seat]), int(rewards[1-seat]), interpreter.action_changes,
         interpreter.fault, interpreter._had_action, interpreter.phase_index,
         interpreter.last_termination, interpreter.complete,
+        interpreter.first_activation_step, interpreter.last_activation_step,
+        interpreter.activation_count, interpreter.program_steps, interpreter.phase_path,
+        interpreter.phase_usage, interpreter.branch_path,
+        CompletionReason.FAULT if interpreter.fault else interpreter.completion_reason,
+        interpreter.family_farmer_changes, interpreter.family_hands_changes,
+        interpreter.family_market_changes, interpreter.action_trace_hash, state_deltas,
     )

@@ -7,8 +7,10 @@ namespace rlrmb {
 constexpr uint32_t IR_MAGIC = 0x524c5234u;  // "RLR4"
 constexpr uint32_t IR_VERSION_V1 = 1;
 constexpr uint32_t IR_VERSION_V2 = 2;
+constexpr uint32_t IR_VERSION_V3 = 3;
 constexpr int MAX_PHASES = 4;
 constexpr int MAX_DECISIONS = 2;
+constexpr uint16_t MAX_PUBLIC_FEATURE = 38;
 
 enum Source : uint8_t { SRC_PARENT=0, SRC_DONOR_BLOCK=1, SRC_SEMANTIC_SPLICE=2, SRC_PRIMITIVE=3 };
 enum FamilyMask : uint8_t { MASK_FARMER=1, MASK_HANDS=2, MASK_MARKET=4 };
@@ -18,6 +20,7 @@ enum Purchase : uint8_t { BUY_NONE=0, BUY_LAND=1, HIRE=2, BUY_ANIMAL=3, BUY_SEED
 enum Continuation : uint8_t { CONT_PHASE=0, CONT_ABORT=1, CONT_RECOVERY=2 };
 enum Fault : uint16_t { FAULT_NONE=0, FAULT_VERSION=1, FAULT_PHASE_COUNT=2, FAULT_SOURCE=3, FAULT_MOTIF=4, FAULT_PRIMITIVE=5, FAULT_TERMINATION=6, FAULT_MOTIF_EXHAUSTED=7, FAULT_FEATURE=8, FAULT_HORIZON=9, FAULT_INTERNAL=10, FAULT_DECISION=11, FAULT_CONTINUATION=12, FAULT_RECOVERY=13 };
 enum EndReason : uint8_t { END_NONE=0, END_FIXED_CAP=1, END_EOD=2, END_SHOP=3, END_PURCHASE=4, END_PUBLIC_STATE=5, END_PARENT_COMPATIBLE=6, END_MAX_STEPS=7, END_PROGRAM_CAP=8 };
+enum CompletionReason : uint8_t { COMPLETE_NONE=0, COMPLETE_FINISHED=1, COMPLETE_ABORT=2, COMPLETE_RECOVERY=3, COMPLETE_PROGRAM_CAP=4, COMPLETE_FAULT=5 };
 
 #pragma pack(push,1)
 struct FileHeader {
@@ -53,6 +56,13 @@ struct ResultRecord {
     int32_t own_money, opp_money;
     uint16_t action_changes, fault;
     uint8_t activated, final_phase, end_reason, complete;
+    uint16_t first_activation_step, last_activation_step, activation_count, specialist_duration;
+    uint16_t phase_path, family_farmer_changes, family_hands_changes, family_market_changes;
+    uint64_t action_trace_hash;
+    uint8_t phase_usage, branch_path, completion_reason, reserved;
+    int16_t own_money_delta, opp_money_delta, own_units_delta, opp_units_delta;
+    int16_t own_land_delta, opp_land_delta, own_hires_delta, opp_hires_delta;
+    int16_t own_shed_delta, own_seed_delta;
     uint8_t semantic_id[32];
 };
 #pragma pack(pop)
@@ -64,7 +74,7 @@ static_assert(sizeof(MotifRecord)==8, "motif ABI");
 static_assert(sizeof(UnitRecord)==4, "unit ABI");
 static_assert(sizeof(OrderRecord)==6, "order ABI");
 static_assert(sizeof(ActionRecord)==222, "action ABI");
-static_assert(sizeof(ResultRecord)==48, "result ABI");
+static_assert(sizeof(ResultRecord)==96, "result ABI");
 
 struct RuntimeState {
     uint16_t program_steps=0, phase_steps=0;

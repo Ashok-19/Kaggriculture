@@ -1,0 +1,172 @@
+{
+  "authority": "SCREENING_ONLY",
+  "case_count": 16,
+  "cases": [
+    {
+      "identity": "8b9bc7221340ca96d471056f30267b855bf17fc14827f648a618d9a8dbdcc03d",
+      "lane": "ANIMAL_TRANSITION",
+      "member": "bakeoff_animal_transition",
+      "seat": 0,
+      "seed": 1103,
+      "tape": "workspace/aspe/baseline/context/build_panel/tapes/selfplay_25160c3364df7e01.json"
+    },
+    {
+      "identity": "43ea9497f7de31e2383054f3c2ea414a4dc5d81ffdb2a5a8a5642cac044aff82",
+      "lane": "ANIMAL_TRANSITION",
+      "member": "bakeoff_animal_transition",
+      "seat": 1,
+      "seed": 2207,
+      "tape": "workspace/aspe/baseline/context/build_panel/tapes/selfplay_d920cc09208c00ef.json"
+    },
+    {
+      "identity": "3ad47407e463106673077570f2a9878295e557bb3f3cb16b58deabc6c3863b29",
+      "lane": "CROP_TRANSITION",
+      "member": "bakeoff_crop_transition",
+      "seat": 0,
+      "seed": 2207,
+      "tape": "workspace/aspe/baseline/context/build_panel/tapes/selfplay_54fe7620c1efc562.json"
+    },
+    {
+      "identity": "07268fce90120e3fcea788540b0317d78c666adcb36179340dde3e110199f50c",
+      "lane": "CROP_TRANSITION",
+      "member": "bakeoff_crop_transition",
+      "seat": 1,
+      "seed": 3301,
+      "tape": "workspace/aspe/baseline/context/build_panel/tapes/selfplay_f239ecd0b401c118.json"
+    },
+    {
+      "identity": "e11a49e3e83479ef21b13b27e5b03da8e7a475508b57eb27f7d504e83c063f97",
+      "lane": "ENDGAME_LIQUIDATION",
+      "member": "bakeoff_endgame_liquidation",
+      "seat": 0,
+      "seed": 3301,
+      "tape": "workspace/aspe/baseline/context/build_panel/tapes/selfplay_dbdb12e462881544.json"
+    },
+    {
+      "identity": "eb04e97bdabc0e8ee32c2abb0dfc85a5c0bc7c44254de86d03af3b2165bd7827",
+      "lane": "ENDGAME_LIQUIDATION",
+      "member": "bakeoff_endgame_liquidation",
+      "seat": 1,
+      "seed": 1103,
+      "tape": "workspace/aspe/baseline/context/build_panel/tapes/selfplay_89c86a596ca4570e.json"
+    },
+    {
+      "identity": "d896060f55cb0d1a766067d5f7b0415e2bb22b0db3873c0cceef727a12129daf",
+      "lane": "GENERAL",
+      "member": "bakeoff_general",
+      "seat": 0,
+      "seed": 1103,
+      "tape": "workspace/aspe/baseline/context/build_panel/tapes/selfplay_d2c25af89030092a.json"
+    },
+    {
+      "identity": "8766f104c52986ccf08d6cc99a927f9419e1924770cd27fca2ecf703e9d551a1",
+      "lane": "GENERAL",
+      "member": "bakeoff_general",
+      "seat": 1,
+      "seed": 2207,
+      "tape": "workspace/aspe/baseline/context/build_panel/tapes/selfplay_b80ea9a1635294e7.json"
+    },
+    {
+      "identity": "a1d461d331af748ca6d39aa76ed1933d234c190db17af2fcec68c31b0e488974",
+      "lane": "LAND_INVESTMENT",
+      "member": "bakeoff_land_investment",
+      "seat": 0,
+      "seed": 2207,
+      "tape": "workspace/aspe/baseline/context/build_panel/tapes/selfplay_49084d00b573a854.json"
+    },
+    {
+      "identity": "fb4ea1093b91f3bd751e1989b7ad9920e0dc58c008ce1a8e1a14ec113096d244",
+      "lane": "LAND_INVESTMENT",
+      "member": "bakeoff_land_investment",
+      "seat": 1,
+      "seed": 3301,
+      "tape": "workspace/aspe/baseline/context/build_panel/tapes/selfplay_9b7bf0fe482bdd6e.json"
+    },
+    {
+      "identity": "45fefeb6b4f783348a860b68d37074e8e595b73315cb31e9b7152eeb1a805a95",
+      "lane": "MARKET_LIQUIDITY",
+      "member": "bakeoff_market_liquidity",
+      "seat": 0,
+      "seed": 3301,
+      "tape": "workspace/aspe/baseline/context/build_panel/tapes/selfplay_8c14271f399125fa.json"
+    },
+    {
+      "identity": "96d55aaec0bec4b2b1acfde872a7ff206da85b75ee0120f1171a8d9fc6e8dbad",
+      "lane": "MARKET_LIQUIDITY",
+      "member": "bakeoff_market_liquidity",
+      "seat": 1,
+      "seed": 1103,
+      "tape": "workspace/aspe/baseline/context/build_panel/tapes/selfplay_cffa854eaf7ba171.json"
+    },
+    {
+      "identity": "27c312224d820227cfa82b32f2c113c4873889877fc79480ad3ad5d0d89b10ee",
+      "lane": "MECHANIC_EXPLOIT",
+      "member": "bakeoff_mechanic_exploit",
+      "seat": 0,
+      "seed": 1103,
+      "tape": "workspace/aspe/baseline/context/build_panel/tapes/selfplay_1851f4cbe76743bb.json"
+    },
+    {
+      "identity": "0694da70f54d77b06bcbd9edff5be6245c6fb90029ca436890cb196b27595759",
+      "lane": "MECHANIC_EXPLOIT",
+      "member": "bakeoff_mechanic_exploit",
+      "seat": 1,
+      "seed": 2207,
+      "tape": "workspace/aspe/baseline/context/build_panel/tapes/selfplay_71d9b0a68912b299.json"
+    },
+    {
+      "identity": "4289db4258f50b0285a657bdb5bec1e89bc159e468576c412ab64ad539c1af5c",
+      "lane": "WORKER_PRODUCTION",
+      "member": "bakeoff_worker_production",
+      "seat": 0,
+      "seed": 2207,
+      "tape": "workspace/aspe/baseline/context/build_panel/tapes/selfplay_533abcdff2047743.json"
+    },
+    {
+      "identity": "ed9147a5220fb45f5134c667abb49cd3001c18010900b9cd0603d838e9c83aa2",
+      "lane": "WORKER_PRODUCTION",
+      "member": "bakeoff_worker_production",
+      "seat": 1,
+      "seed": 3301,
+      "tape": "workspace/aspe/baseline/context/build_panel/tapes/selfplay_7b2dee404dc8d70a.json"
+    }
+  ],
+  "coverage": {
+    "lanes": [
+      "ANIMAL_TRANSITION",
+      "CROP_TRANSITION",
+      "ENDGAME_LIQUIDATION",
+      "GENERAL",
+      "LAND_INVESTMENT",
+      "MARKET_LIQUIDITY",
+      "MECHANIC_EXPLOIT",
+      "WORKER_PRODUCTION"
+    ],
+    "members": [
+      "bakeoff_animal_transition",
+      "bakeoff_crop_transition",
+      "bakeoff_endgame_liquidation",
+      "bakeoff_general",
+      "bakeoff_land_investment",
+      "bakeoff_market_liquidity",
+      "bakeoff_mechanic_exploit",
+      "bakeoff_worker_production"
+    ],
+    "seats": [
+      0,
+      1
+    ],
+    "seeds": [
+      1103,
+      2207,
+      3301
+    ]
+  },
+  "identity": "aab5fac507011fb2929e4b1b3837a58a8e386e936a553257739bf16f86c2d4bb",
+  "panel": "workspace/aspe/sentinel/sentinel_panel.tsv",
+  "schema": "kaggriculture.aspe.build-sentinel",
+  "schema_version": 1,
+  "selection": "MEMBER_X_SEAT_ROTATING_SEED_V1",
+  "source_panel_identity": "41a0900f7ade23a4393b113bbab2abfc8de3a9e6f1d3518283777d2b09e78871",
+  "source_role": "BUILD"
+}
