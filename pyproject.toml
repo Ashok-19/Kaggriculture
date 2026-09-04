@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kaggriculture-bonsai"
+version = "0.1.0"
+description = "ReCurSiON self-play Bonsai/BKG4 search stack"
+requires-python = ">=3.11"
+dependencies = ["kaggle-environments==1.32.7"]
+
+[project.optional-dependencies]
+dev = ["pybind11>=2.13", "pytest>=8"]
+
+[project.scripts]
+kaggriculture-bonsai = "kaggriculture_bonsai.cli:main"
+kaggriculture-campaign = "kaggriculture_bonsai.campaign:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"

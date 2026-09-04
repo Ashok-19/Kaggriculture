@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "cuda_binary": "assets/baseline/route_64.json",
+  "capture_binary": "assets/baseline/route_64.json",
+  "asset_dir": "assets/champion",
+  "donor_manifest": "configs/donors.txt",
+  "parent_route": "assets/baseline/route_64.json",
+  "transfer_panel": "configs/donors.txt",
+  "validation_panel": "configs/donors.txt",
+  "sealed_panel": "configs/donors.txt",
+  "sealed_role": "CEGIS_DOWNSTREAM_ONLY",
+  "budget": {
+    "total_cuda_games": 265226,
+    "per_family_categories": {
+      "target_beam": 49320,
+      "diagnostic_protected": 680,
+      "transfer": 6000,
+      "validation": 500,
+      "lns_repair": 7000,
+      "reactive_repair": 806,
+      "certification": 2000
+    }
+  },
+  "search": {"checkpoint_limit": 24},
+  "promotion": {"risk_pool_size": 32, "full_risk_pool_size": 9, "max_refined_candidates": 8},
+  "probe": {"family_ids": ["general"], "checkpoint_limit": 16, "target_games_per_checkpoint": 256, "risk_pool_size": 16, "full_risk_pool_size": 9},
+  "families": [
+    {"id": "general", "target_panel": "configs/donors.txt", "checkpoint_evidence": "configs/donors.txt", "cuda_games": 66306},
+    {"id": "market", "target_panel": "configs/donors.txt", "checkpoint_evidence": "configs/donors.txt", "cuda_games": 66306},
+    {"id": "workers", "target_panel": "configs/donors.txt", "checkpoint_evidence": "configs/donors.txt", "cuda_games": 66306},
+    {"id": "animals", "target_panel": "configs/donors.txt", "checkpoint_evidence": "configs/donors.txt", "cuda_games": 66306}
+  ]
+}

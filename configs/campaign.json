@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "cuda_binary": "workspace/build/cuda/rlrmb_eval",
+  "capture_binary": "workspace/build/cuda/bkg4_information_state_capture",
+  "asset_dir": "assets/champion",
+  "donor_manifest": "configs/donors.txt",
+  "parent_route": "assets/baseline/route_64.json",
+  "transfer_panel": "external/holdout/transfer.tsv",
+  "validation_panel": "external/holdout/validation.tsv",
+  "sealed_panel": "external/holdout/sealed.tsv",
+  "sealed_role": "CEGIS_DOWNSTREAM_ONLY",
+  "budget": {
+    "total_cuda_games": 400,
+    "per_family_categories": {"target_beam": 60, "internal_dev": 10, "transfer": 10, "validation": 5, "lns_repair": 5, "reactive_repair": 5, "certification": 5}
+  },
+  "build_objective": {"require_cross_regime_support": true, "max_win_to_loss": 2},
+  "internal_dev": {
+    "panels": ["workspace/panels/dev_0.tsv", "workspace/panels/dev_1.tsv"],
+    "max_win_to_loss": 0,
+    "max_win_to_loss_rate": 0.0,
+    "max_screened": 8,
+    "max_downstream": 4,
+    "allow_fallback": false
+  },
+  "search": {
+    "checkpoint_limit": 24,
+    "donor_limit": 2,
+    "motif_steps": 48,
+    "beam_depth": 3,
+    "max_candidates_per_expansion": 384,
+    "stagnation_rounds": 2,
+    "max_phases": 4,
+    "archive_elites_per_cell": 1
+  },
+  "probe": {
+    "family_ids": ["general"],
+    "checkpoint_limit": 4,
+    "target_games_per_checkpoint": 4,
+    "risk_pool_size": 8,
+    "full_risk_pool_size": 4,
+    "max_refined_candidates": 2,
+    "minimum_target_loss_to_win": 1,
+    "minimum_transfer_independent": 1,
+    "minimum_transfer_positive": 1,
+    "max_cegis_iterations": 4,
+    "threshold_radius": 1,
+    "protected_win_to_loss": 0
+  },
+  "promotion": {
+    "risk_pool_size": 32,
+    "full_risk_pool_size": 9,
+    "max_refined_candidates": 8,
+    "minimum_target_loss_to_win": 1,
+    "minimum_transfer_independent": 2,
+    "minimum_transfer_positive": 2,
+    "max_cegis_iterations": 24,
+    "threshold_radius": 2,
+    "protected_win_to_loss": 0
+  },
+  "repair": {
+    "lns_max_candidates": 16,
+    "reactive_max_candidates": 8
+  },
+  "diagnostics": {},
+  "deployment": {
+    "route_id_base": 700,
+    "require_composer_success": true,
+    "require_semantic_mismatches": 0
+  },
+  "families": [
+    {"id": "general", "target_panel": "workspace/panels/build_general.tsv", "checkpoint_evidence": "configs/donors.txt", "cuda_games": 100},
+    {"id": "market", "target_panel": "workspace/panels/build_market.tsv", "checkpoint_evidence": "configs/donors.txt", "cuda_games": 100},
+    {"id": "workers", "target_panel": "workspace/panels/build_workers.tsv", "checkpoint_evidence": "configs/donors.txt", "cuda_games": 100},
+    {"id": "animals", "target_panel": "workspace/panels/build_animals.tsv", "checkpoint_evidence": "configs/donors.txt", "cuda_games": 100}
+  ],
+  "cloud": {
+    "route_id_base": 700,
+    "authority_name": "strategic_route_override",
+    "authority_slot": "day2_capital_specialist_v1_route_override",
+    "host_execution": {"producer_workers": 1, "queue_depth": 2, "candidate_workers": 1, "candidate_queue_depth": 4, "start_method": "spawn"},
+    "modes": {
+      "pilot": {
+        "max_generations": 1,
+        "cuda_games_per_generation": 100,
+        "checkpoint_batch_size": 4,
+        "wall_time_limit_seconds": 3600,
+        "per_generation_categories": {"target_beam": 60, "internal_dev": 10, "transfer": 10, "validation": 5, "lns_repair": 5, "reactive_repair": 5, "certification": 5}
+      }
+    }
+  }
+}

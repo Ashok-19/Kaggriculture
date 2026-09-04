@@ -1,41 +1,18 @@
-.research/
-data/research/*.sqlite3
-data/research/*.sqlite3-*
-data/research/*.sqlite3.*
-data/research/cache/
-data/research/inbox/
-data/research/replays/
+# Python environments and caches
+.venv/
 __pycache__/
 *.py[cod]
-scratch/
-agent_system/build/
-agent_system/.cache/
-submission/build/
-submission/*.so
-submission/*.tar.gz
-.chatgpt/operations/
-.chatgpt/handoffs/*.local.md
-research/
-continue_prompt.md
-public-notebooks/
-.chatgpt/
-our-own-older-agents/*.tar.gz
-kaggle-environments-master/
-rl/puffer_kaggriculture/artifacts/
-rl/puffer_kaggriculture/checkpoints/
-rl/puffer_kaggriculture/logs/
-/bonsai_editformer*_results*/
-/bonsai_editformer*_results*.zip
-/bonsai_editformer*_v1_*.tar.gz
-/.dual-graph/
-/actor_comparison*_results.zip
-/run/
-/bonsai_actorcritic5m_v1_results.tar.gz
-/bonsai_gcac_v2_results.tar.gz
+*.egg-info/
+.pytest_cache/
+.coverage
+build/
+dist/
 
-# Local downloaded BonsaiEditFormer edit corpus; validated data, not source.
-/data/edit_corpus/kaggriculture_bonsai_edit_corpus/
+# Generated search state and native binaries
+workspace/
 
+# User-supplied, untracked HOLDOUT panels
+external/
 
-b4im-elite-corpus-dual-t4.log  
-submission-gold.tar.gz
+# Personal tool settings
+.claude/settings.local.json
