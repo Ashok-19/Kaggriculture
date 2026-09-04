@@ -1,0 +1,61 @@
+{
+  "bounded_max_cases": 48,
+  "build_only": true,
+  "champion_losses": 15,
+  "fresh_cases": 48,
+  "generation": 0,
+  "high_regret_cases": 8,
+  "holdout_sources": "EXCLUDED",
+  "lane_coverage": {
+    "ANIMAL_TRANSITION": 6,
+    "CROP_TRANSITION": 6,
+    "ENDGAME_LIQUIDATION": 6,
+    "GENERAL": 6,
+    "LAND_INVESTMENT": 6,
+    "MARKET_LIQUIDITY": 6,
+    "MECHANIC_EXPLOIT": 6,
+    "WORKER_PRODUCTION": 6
+  },
+  "league_members": [
+    "bakeoff_animal_transition",
+    "bakeoff_crop_transition",
+    "bakeoff_endgame_liquidation",
+    "bakeoff_general",
+    "bakeoff_land_investment",
+    "bakeoff_market_liquidity",
+    "bakeoff_mechanic_exploit",
+    "bakeoff_worker_production"
+  ],
+  "member_coverage": {
+    "bakeoff_animal_transition": 6,
+    "bakeoff_crop_transition": 6,
+    "bakeoff_endgame_liquidation": 6,
+    "bakeoff_general": 6,
+    "bakeoff_land_investment": 6,
+    "bakeoff_market_liquidity": 6,
+    "bakeoff_mechanic_exploit": 6,
+    "bakeoff_worker_production": 6
+  },
+  "panel": "workspace/aspe/baseline/context/build_panel/build_panel.tsv",
+  "regime_count": 48,
+  "role": "BUILD",
+  "seat_coverage": {
+    "0": 24,
+    "1": 24
+  },
+  "seats": [
+    0,
+    1
+  ],
+  "seed_coverage": {
+    "1103": 16,
+    "2207": 16,
+    "3301": 16
+  },
+  "seeds": [
+    1103,
+    2207,
+    3301
+  ],
+  "trajectory_coverage": 8
+}

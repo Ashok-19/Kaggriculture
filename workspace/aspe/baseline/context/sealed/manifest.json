@@ -1,0 +1,29 @@
+{
+  "authority": "DOWNSTREAM_ONLY",
+  "cases": 24,
+  "champion_losses": 7,
+  "generation": 3,
+  "lanes": [
+    "LAND_INVESTMENT",
+    "CROP_TRANSITION",
+    "ANIMAL_TRANSITION",
+    "ENDGAME_LIQUIDATION"
+  ],
+  "league_members": [
+    "bakeoff_land_investment",
+    "bakeoff_crop_transition",
+    "bakeoff_animal_transition",
+    "bakeoff_endgame_liquidation"
+  ],
+  "panel": "workspace/aspe/baseline/context/sealed/sealed_panel.tsv",
+  "role": "SEALED",
+  "seats": [
+    1,
+    0
+  ],
+  "seeds": [
+    480441779,
+    423697851,
+    1208665923
+  ]
+}

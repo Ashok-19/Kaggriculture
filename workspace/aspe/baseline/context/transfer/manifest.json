@@ -1,0 +1,29 @@
+{
+  "authority": "DOWNSTREAM_ONLY",
+  "cases": 24,
+  "champion_losses": 9,
+  "generation": 1,
+  "lanes": [
+    "ANIMAL_TRANSITION",
+    "ENDGAME_LIQUIDATION",
+    "MECHANIC_EXPLOIT",
+    "GENERAL"
+  ],
+  "league_members": [
+    "bakeoff_animal_transition",
+    "bakeoff_endgame_liquidation",
+    "bakeoff_mechanic_exploit",
+    "bakeoff_general"
+  ],
+  "panel": "workspace/aspe/baseline/context/transfer/transfer_panel.tsv",
+  "role": "TRANSFER",
+  "seats": [
+    1,
+    0
+  ],
+  "seeds": [
+    191616273,
+    1362294356,
+    364494957
+  ]
+}

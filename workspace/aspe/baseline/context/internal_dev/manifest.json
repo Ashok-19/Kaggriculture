@@ -1,0 +1,29 @@
+{
+  "authority": "SCREENING_ONLY",
+  "cases": 24,
+  "champion_losses": 12,
+  "generation": 0,
+  "lanes": [
+    "WORKER_PRODUCTION",
+    "LAND_INVESTMENT",
+    "CROP_TRANSITION",
+    "ANIMAL_TRANSITION"
+  ],
+  "league_members": [
+    "bakeoff_worker_production",
+    "bakeoff_land_investment",
+    "bakeoff_crop_transition",
+    "bakeoff_animal_transition"
+  ],
+  "panel": "workspace/aspe/baseline/context/internal_dev/internal_dev_panel.tsv",
+  "role": "INTERNAL_DEV",
+  "seats": [
+    1,
+    0
+  ],
+  "seeds": [
+    1771485163,
+    422092778,
+    717289795
+  ]
+}

@@ -32,6 +32,13 @@ hash. The bakeoff writes evidence under `workspace/` and never updates the
 champion. New specialist-search work must follow the phased gates in
 `docs/ASPE_MASTER_PLAN.md`; do not jump directly to the learned proposer.
 
+The Phase-0 ASPE comparison context is frozen at `workspace/aspe/baseline/`.
+Verify its complete file hashes and deterministic manifest regeneration with:
+
+```bash
+.venv/bin/python scripts/freeze_aspe_baseline.py --verify
+```
+
 ## Champion update
 
 Only a candidate that completes routing, independent TRANSFER/VALIDATION,

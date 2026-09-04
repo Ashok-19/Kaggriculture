@@ -1,0 +1,2408 @@
+{
+  "champion": {
+    "assets": {
+      "controller.bkgc": "36e5e83e5240d2371f19f0006107990e0be44e5f6de9d31ec8f9c2c59d41a5b2",
+      "controller.json": "fbefdd5845772018075b5bb95c5d85b0a271023b48201f5a6ad82c9af77f776f",
+      "controller.manifest.json": "d11134e6cf5bafdd49fd912737b878f0a4aa60db1f8127ee2f7b213fbe84e126",
+      "identity.hpp": "65ead1b1e6ecf277ae37dac278ebfe7c52b9a146a8251bc4557b3815ce8162c2",
+      "identity.json": "3b6a9f9b4ab36b2e3884aeadea5759564c6dedfd66ed6f9f59172a584602d5e3",
+      "legacy_routes.bkv6": "f17c393ba5bf8d7f977a1d073995e29f012eb459c209c7832b027ccc539da0cc",
+      "routes.bkv6": "068dca3988994778dc2c3d96b36a30b078b85f6ac329b91dc1a6fbf9d2a323e9"
+    },
+    "combined_agent_identity": "357dbb9489b26a8fb424de592da92e45e2c0ac28d8a450a5e6e1b5791ade9d29",
+    "controller_semantic_hash": "4e611d80f0bbb38bd696aa3dbb8a5e9e903be556e4ceafa233b5cb5685597be6",
+    "identity_json_sha256": "3b6a9f9b4ab36b2e3884aeadea5759564c6dedfd66ed6f9f59172a584602d5e3",
+    "path": "assets/champion"
+  },
+  "context_identity": "f24636a2ea94ee066488b0c40b17362852b5786b4b66f4b7d96406e8ba862563",
+  "cross_panel_overlap": {
+    "all_case_identity_disjoint": true,
+    "all_seed_disjoint": true,
+    "pairs": {
+      "build__internal_dev": {
+        "case_identity_count": 0,
+        "seed_count": 0,
+        "seeds": []
+      },
+      "build__sealed": {
+        "case_identity_count": 0,
+        "seed_count": 0,
+        "seeds": []
+      },
+      "build__transfer": {
+        "case_identity_count": 0,
+        "seed_count": 0,
+        "seeds": []
+      },
+      "build__validation": {
+        "case_identity_count": 0,
+        "seed_count": 0,
+        "seeds": []
+      },
+      "internal_dev__sealed": {
+        "case_identity_count": 0,
+        "seed_count": 0,
+        "seeds": []
+      },
+      "internal_dev__transfer": {
+        "case_identity_count": 0,
+        "seed_count": 0,
+        "seeds": []
+      },
+      "internal_dev__validation": {
+        "case_identity_count": 0,
+        "seed_count": 0,
+        "seeds": []
+      },
+      "transfer__sealed": {
+        "case_identity_count": 0,
+        "seed_count": 0,
+        "seeds": []
+      },
+      "transfer__validation": {
+        "case_identity_count": 0,
+        "seed_count": 0,
+        "seeds": []
+      },
+      "validation__sealed": {
+        "case_identity_count": 0,
+        "seed_count": 0,
+        "seeds": []
+      }
+    }
+  },
+  "generation": {
+    "config": {
+      "league": {
+        "donor_routes": [
+          "assets/baseline/route_64.json",
+          "assets/baseline/route_410.json"
+        ],
+        "duration": 12,
+        "generation": 0,
+        "mutation_origin": "bounded_internal_donor_window",
+        "routes_per_lane": 2,
+        "selected_per_lane": 1
+      },
+      "panels": {
+        "build": {
+          "directory": "build_panel",
+          "max_cases": 48,
+          "rng_seed": 4409,
+          "role": "BUILD",
+          "seats": [
+            0,
+            1
+          ],
+          "seeds": [
+            1103,
+            2207,
+            3301
+          ]
+        },
+        "internal_dev": {
+          "directory": "internal_dev",
+          "generation": 0,
+          "lanes_per_panel": 4,
+          "rng_seed": 5519,
+          "role": "INTERNAL_DEV",
+          "seats": [
+            1,
+            0
+          ],
+          "seed_count": 3
+        },
+        "sealed": {
+          "directory": "sealed",
+          "generation": 3,
+          "lanes_per_panel": 4,
+          "rng_seed": 8867,
+          "role": "SEALED",
+          "seats": [
+            1,
+            0
+          ],
+          "seed_count": 3
+        },
+        "transfer": {
+          "directory": "transfer",
+          "generation": 1,
+          "lanes_per_panel": 4,
+          "rng_seed": 6637,
+          "role": "TRANSFER",
+          "seats": [
+            1,
+            0
+          ],
+          "seed_count": 3
+        },
+        "validation": {
+          "directory": "validation",
+          "generation": 2,
+          "lanes_per_panel": 4,
+          "rng_seed": 7753,
+          "role": "VALIDATION",
+          "seats": [
+            1,
+            0
+          ],
+          "seed_count": 3
+        }
+      }
+    },
+    "config_identity": "51b3fed55500a97f5cae9719e5d83bbc44fcc54393699d430daab5e509309e1f",
+    "generator": "ASPE_PHASE_0_EQUAL_CONTEXT_V1",
+    "implementation": "src/kaggriculture_bonsai/league/aspe_baseline.py",
+    "implementation_sha256": "063af225a45cc0881d6f450c2a1febcd001acb351e310f232e83c162b19dde4a",
+    "kaggle_environments_version": "1.32.7",
+    "selfplay_schema_version": 2
+  },
+  "league": {
+    "members": [
+      {
+        "generation": 0,
+        "identity": "d07f1e4d4b0de957a651ef3977f5104da9503a43a8ed1afaa5a9684f1c4228b0",
+        "lane": "MARKET_LIQUIDITY",
+        "member_type": "cuda_exploiter",
+        "mutation_origin": "bounded_internal_donor_window",
+        "name": "bakeoff_market_liquidity",
+        "program": "workspace/aspe/baseline/context/league/member_00_market_liquidity.rlrb",
+        "program_sha256": "61751227f19a152b96577196baa61027be7ce09a088bc5b9a805d858f19dcde1"
+      },
+      {
+        "generation": 0,
+        "identity": "1781b4c5d735c89fb2096147fbd63ff2e0ba667883b7a7f605299bb2dd98a0d4",
+        "lane": "WORKER_PRODUCTION",
+        "member_type": "cuda_exploiter",
+        "mutation_origin": "bounded_internal_donor_window",
+        "name": "bakeoff_worker_production",
+        "program": "workspace/aspe/baseline/context/league/member_01_worker_production.rlrb",
+        "program_sha256": "f21c4ff1f2761fc3445ff96b2e9e106f115ec42ba6dbd98d63f6ef16febf51e0"
+      },
+      {
+        "generation": 0,
+        "identity": "04e45e79deaa7bdb359c50a54e6ae06d6fdf2666224d1d82ade7c15bf099fdb8",
+        "lane": "LAND_INVESTMENT",
+        "member_type": "cuda_exploiter",
+        "mutation_origin": "bounded_internal_donor_window",
+        "name": "bakeoff_land_investment",
+        "program": "workspace/aspe/baseline/context/league/member_02_land_investment.rlrb",
+        "program_sha256": "73770f88a088dbcb127a53fc7d4cafb113a0fd6ceef563311afeef2b41fbdc7e"
+      },
+      {
+        "generation": 0,
+        "identity": "45bdfd38275e71110b61dfbe6fde64ad0906166c2b87fe77b0d4d3fb4b89a947",
+        "lane": "CROP_TRANSITION",
+        "member_type": "cuda_exploiter",
+        "mutation_origin": "bounded_internal_donor_window",
+        "name": "bakeoff_crop_transition",
+        "program": "workspace/aspe/baseline/context/league/member_03_crop_transition.rlrb",
+        "program_sha256": "b46fcca5bdef0405e330ec40303980008c54c6676d2b4f3716e5d0ee21c39d1a"
+      },
+      {
+        "generation": 0,
+        "identity": "a45c1d75cf022af4f5214402a1917289402fe794a5b877eea6df2962b817949d",
+        "lane": "ANIMAL_TRANSITION",
+        "member_type": "cuda_exploiter",
+        "mutation_origin": "bounded_internal_donor_window",
+        "name": "bakeoff_animal_transition",
+        "program": "workspace/aspe/baseline/context/league/member_04_animal_transition.rlrb",
+        "program_sha256": "515d1e87e21bd87a578407b5f729fcc02d83fb3bb25e4fd9c4cbab7843ca8655"
+      },
+      {
+        "generation": 0,
+        "identity": "489c2f8b6d27ee80f90d085d2e905cd249ec9ba546063dd81631cda58053d66d",
+        "lane": "ENDGAME_LIQUIDATION",
+        "member_type": "cuda_exploiter",
+        "mutation_origin": "bounded_internal_donor_window",
+        "name": "bakeoff_endgame_liquidation",
+        "program": "workspace/aspe/baseline/context/league/member_05_endgame_liquidation.rlrb",
+        "program_sha256": "4335dd534719f2f658414f0543e2767c362ce1ebb7a22d867cac88e9b55d15cb"
+      },
+      {
+        "generation": 0,
+        "identity": "d8378e15fed1de176d4d6286410f517f50064b9d9ba6c342e039b9738d4393fd",
+        "lane": "MECHANIC_EXPLOIT",
+        "member_type": "cuda_exploiter",
+        "mutation_origin": "bounded_internal_donor_window",
+        "name": "bakeoff_mechanic_exploit",
+        "program": "workspace/aspe/baseline/context/league/member_06_mechanic_exploit.rlrb",
+        "program_sha256": "a7daec98ea3ce0fe47b30810919249b27f061971d6032f2e10fe62aa25e8a6e5"
+      },
+      {
+        "generation": 0,
+        "identity": "9ba4e18940ec1cecf820839f899dc5c27519ab2c0c9daeba822832b35f6c90ef",
+        "lane": "GENERAL",
+        "member_type": "cuda_exploiter",
+        "mutation_origin": "bounded_internal_donor_window",
+        "name": "bakeoff_general",
+        "program": "workspace/aspe/baseline/context/league/member_07_general.rlrb",
+        "program_sha256": "d1cf6fe074555282f17e780386da00383585556fa9015af90f4e6a8c9f275a79"
+      }
+    ],
+    "size": 8
+  },
+  "panels": {
+    "build": {
+      "case_count": 48,
+      "cases": [
+        {
+          "family_id": 0,
+          "identity": "ffd1ec09bf06228588d3a63f69cabe6b9451434fea9dd75d251a86196a01500a",
+          "lane": "MARKET_LIQUIDITY",
+          "member": "bakeoff_market_liquidity",
+          "own_history": false,
+          "protected": false,
+          "role_id": 0,
+          "seat": 0,
+          "seed": 1103,
+          "tape": "workspace/aspe/baseline/context/build_panel/tapes/selfplay_048727ef0618baf0.json",
+          "tape_sha256": "7159ec9e47f9b73d4c644040a27bdcb98a795d48d44e402080e5644ede3a0ff9"
+        },
+        {
+          "family_id": 0,
+          "identity": "aae6a279ad018afb0ae40b962970494d6d23a9b965664d4124b58a345129e473",
+          "lane": "WORKER_PRODUCTION",
+          "member": "bakeoff_worker_production",
+          "own_history": false,
+          "protected": false,
+          "role_id": 0,
+          "seat": 0,
+          "seed": 1103,
+          "tape": "workspace/aspe/baseline/context/build_panel/tapes/selfplay_b103871392f6e406.json",
+          "tape_sha256": "9b54afedbc235130848d707d051c0b141085cf2384a618429511912f14eaae6c"
+        },
+        {
+          "family_id": 0,
+          "identity": "f9c8b17a5b986140ab0283be0f7a1b62511b0267cb8b4ee8ec55ebc05be79926",
+          "lane": "LAND_INVESTMENT",
+          "member": "bakeoff_land_investment",
+          "own_history": false,
+          "protected": false,
+          "role_id": 0,
+          "seat": 0,
+          "seed": 1103,
+          "tape": "workspace/aspe/baseline/context/build_panel/tapes/selfplay_3d0bb17c4c3219b3.json",
+          "tape_sha256": "25bce0c55000ee2c5df3161f39f94f5675d104a682ebcd489e321bd5a1fd1756"
+        },
+        {
+          "family_id": 0,
+          "identity": "8b8861698a72b23755ba0073ba521790378a0d1681916d3021a7a509756042a7",
+          "lane": "CROP_TRANSITION",
+          "member": "bakeoff_crop_transition",
+          "own_history": false,
+          "protected": false,
+          "role_id": 0,
+          "seat": 0,
+          "seed": 1103,
+          "tape": "workspace/aspe/baseline/context/build_panel/tapes/selfplay_e0c70b96bafdabf9.json",
+          "tape_sha256": "6d1150dbd7e0a3c1f0ee9872fa9f32b010d0bd6d92d826039f7d86487fe65e3e"
+        },
+        {
+          "family_id": 0,
+          "identity": "8b9bc7221340ca96d471056f30267b855bf17fc14827f648a618d9a8dbdcc03d",
+          "lane": "ANIMAL_TRANSITION",
+          "member": "bakeoff_animal_transition",
+          "own_history": false,
+          "protected": false,
+          "role_id": 0,
+          "seat": 0,
+          "seed": 1103,
+          "tape": "workspace/aspe/baseline/context/build_panel/tapes/selfplay_25160c3364df7e01.json",
+          "tape_sha256": "2dcad15aadaf01c9d7d7c36d03f6fa5a38c502379c35334282bc7c9a83c6bb47"
+        },
+        {
+          "family_id": 0,
+          "identity": "59015896082c22120abfcf4f280182fb5e0e4c48f92d1046fd9d0cb0972bcc8b",
+          "lane": "ENDGAME_LIQUIDATION",
+          "member": "bakeoff_endgame_liquidation",
+          "own_history": false,
+          "protected": false,
+          "role_id": 0,
+          "seat": 0,
+          "seed": 1103,
+          "tape": "workspace/aspe/baseline/context/build_panel/tapes/selfplay_9c0813f58a2141a9.json",
+          "tape_sha256": "f6626dac941ad0adf23a1ec1357fb12c7c0510a553f9608664437333e104d2d6"
+        },
+        {
+          "family_id": 0,
+          "identity": "27c312224d820227cfa82b32f2c113c4873889877fc79480ad3ad5d0d89b10ee",
+          "lane": "MECHANIC_EXPLOIT",
+          "member": "bakeoff_mechanic_exploit",
+          "own_history": false,
+          "protected": false,
+          "role_id": 0,
+          "seat": 0,
+          "seed": 1103,
+          "tape": "workspace/aspe/baseline/context/build_panel/tapes/selfplay_1851f4cbe76743bb.json",
+          "tape_sha256": "67a0af0d4232f21f9ecb9080c9bc2bfb670109420273b05a137a9587712fead5"
+        },
+        {
+          "family_id": 0,
+          "identity": "d896060f55cb0d1a766067d5f7b0415e2bb22b0db3873c0cceef727a12129daf",
+          "lane": "GENERAL",
+          "member": "bakeoff_general",
+          "own_history": false,
+          "protected": false,
+          "role_id": 0,
+          "seat": 0,
+          "seed": 1103,
+          "tape": "workspace/aspe/baseline/context/build_panel/tapes/selfplay_d2c25af89030092a.json",
+          "tape_sha256": "0a0fbe726cc47662ce2e672b63dfb885b1e0f1fab10564f575dc516129cedef8"
+        },
+        {
+          "family_id": 0,
+          "identity": "96d55aaec0bec4b2b1acfde872a7ff206da85b75ee0120f1171a8d9fc6e8dbad",
+          "lane": "MARKET_LIQUIDITY",
+          "member": "bakeoff_market_liquidity",
+          "own_history": false,
+          "protected": false,
+          "role_id": 0,
+          "seat": 1,
+          "seed": 1103,
+          "tape": "workspace/aspe/baseline/context/build_panel/tapes/selfplay_cffa854eaf7ba171.json",
+          "tape_sha256": "263498a7f2dd31faa6319c6bdbd1c36f9525eb5248127915dcbf544d145fcc3b"
+        },
+        {
+          "family_id": 0,
+          "identity": "89aaa6d167c1f02c0d94d36fb2994ebbe6bdc4bf6abfee41b1eb2fb7d3999382",
+          "lane": "WORKER_PRODUCTION",
+          "member": "bakeoff_worker_production",
+          "own_history": false,
+          "protected": false,
+          "role_id": 0,
+          "seat": 1,
+          "seed": 1103,
+          "tape": "workspace/aspe/baseline/context/build_panel/tapes/selfplay_98e32df5203e3596.json",
+          "tape_sha256": "580492e437f35db69dbd915c51d6e14a7f5dc62ca487cae265243890efa3a45f"
+        },
+        {
+          "family_id": 0,
+          "identity": "c486e444e82f9d9a9b3d4a4749c98f6438c81ab1e50284a47c257211a43d1dcd",
+          "lane": "LAND_INVESTMENT",
+          "member": "bakeoff_land_investment",
+          "own_history": false,
+          "protected": false,
+          "role_id": 0,
+          "seat": 1,
+          "seed": 1103,
+          "tape": "workspace/aspe/baseline/context/build_panel/tapes/selfplay_f4fdcc52267ecd2e.json",
+          "tape_sha256": "67cbb2c560a1bc642337dc10358a314f6588d1328f03601a15c392f874e4faef"
+        },
+        {
+          "family_id": 0,
+          "identity": "c6d4af5e6a3be1519c3048376921ff277ca08ff625422b22143463ccac9b8973",
+          "lane": "CROP_TRANSITION",
+          "member": "bakeoff_crop_transition",
+          "own_history": false,
+          "protected": false,
+          "role_id": 0,
+          "seat": 1,
+          "seed": 1103,
+          "tape": "workspace/aspe/baseline/context/build_panel/tapes/selfplay_5f3910625acc0152.json",
+          "tape_sha256": "01876e36697d42a965566ccb194c97a68c5fda6c67bc11e050a785ee820041c5"
+        },
+        {
+          "family_id": 0,
+          "identity": "55d47fb29bf1f42005d4bc31aebe944999d272e60f7af4c2f3964022eadea5e2",
+          "lane": "ANIMAL_TRANSITION",
+          "member": "bakeoff_animal_transition",
+          "own_history": false,
+          "protected": false,
+          "role_id": 0,
+          "seat": 1,
+          "seed": 1103,
+          "tape": "workspace/aspe/baseline/context/build_panel/tapes/selfplay_45563c24caccc07d.json",
+          "tape_sha256": "d780cb6c38aa2c582fa07baff99b597ccdca5e03989877861252f02af458706f"
+        },
+        {
+          "family_id": 0,
+          "identity": "eb04e97bdabc0e8ee32c2abb0dfc85a5c0bc7c44254de86d03af3b2165bd7827",
+          "lane": "ENDGAME_LIQUIDATION",
+          "member": "bakeoff_endgame_liquidation",
+          "own_history": false,
+          "protected": false,
+          "role_id": 0,
+          "seat": 1,
+          "seed": 1103,
+          "tape": "workspace/aspe/baseline/context/build_panel/tapes/selfplay_89c86a596ca4570e.json",
+          "tape_sha256": "c4a3d287528108a80cfe43268c727021e483ae4ce514dcabb90048f9dbc477e9"
+        },
+        {
+          "family_id": 0,
+          "identity": "2b9a199fac2276bbb9c046e8a538c8826a05c97624c05b9113658aad4d65e8e9",
+          "lane": "MECHANIC_EXPLOIT",
+          "member": "bakeoff_mechanic_exploit",
+          "own_history": false,
+          "protected": false,
+          "role_id": 0,
+          "seat": 1,
+          "seed": 1103,
+          "tape": "workspace/aspe/baseline/context/build_panel/tapes/selfplay_8dd567383b169309.json",
+          "tape_sha256": "c049d645fd36a54724a602113e7dfb39cdafe3954d72e4ecb25b84ff677744f2"
+        },
+        {
+          "family_id": 0,
+          "identity": "7febd20308eb3f80810468957991f225abfd49d33d489382fd0f79950d101a9f",
+          "lane": "GENERAL",
+          "member": "bakeoff_general",
+          "own_history": false,
+          "protected": false,
+          "role_id": 0,
+          "seat": 1,
+          "seed": 1103,
+          "tape": "workspace/aspe/baseline/context/build_panel/tapes/selfplay_797629ce5bc71a12.json",
+          "tape_sha256": "96f0c353f8fa8045301bcb16ada38d1c90d2929ddb0fc31c81bc120771f6c167"
+        },
+        {
+          "family_id": 0,
+          "identity": "8b7a3cffb30233b95530e7bc8a1534ca19cb20b385327f2ca16dbbd2dbd374c6",
+          "lane": "MARKET_LIQUIDITY",
+          "member": "bakeoff_market_liquidity",
+          "own_history": false,
+          "protected": false,
+          "role_id": 0,
+          "seat": 0,
+          "seed": 2207,
+          "tape": "workspace/aspe/baseline/context/build_panel/tapes/selfplay_118b6eadb3fa1b51.json",
+          "tape_sha256": "50bada9822bb288204422b6feb4b51a5fe6438a4807fe3fcf32a9a23335c2f4e"
+        },
+        {
+          "family_id": 0,
+          "identity": "4289db4258f50b0285a657bdb5bec1e89bc159e468576c412ab64ad539c1af5c",
+          "lane": "WORKER_PRODUCTION",
+          "member": "bakeoff_worker_production",
+          "own_history": false,
+          "protected": false,
+          "role_id": 0,
+          "seat": 0,
+          "seed": 2207,
+          "tape": "workspace/aspe/baseline/context/build_panel/tapes/selfplay_533abcdff2047743.json",
+          "tape_sha256": "16d088921d4a6b37157a1561cebaab1fb6a5d3526f4885cb44e71197f6142787"
+        },
+        {
+          "family_id": 0,
+          "identity": "a1d461d331af748ca6d39aa76ed1933d234c190db17af2fcec68c31b0e488974",
+          "lane": "LAND_INVESTMENT",
+          "member": "bakeoff_land_investment",
+          "own_history": false,
+          "protected": false,
+          "role_id": 0,
+          "seat": 0,
+          "seed": 2207,
+          "tape": "workspace/aspe/baseline/context/build_panel/tapes/selfplay_49084d00b573a854.json",
+          "tape_sha256": "8dc9a7316d60003647314120f5b1f6a931a34511f72f9a854f6dc98b4d89a728"
+        },
+        {
+          "family_id": 0,
+          "identity": "3ad47407e463106673077570f2a9878295e557bb3f3cb16b58deabc6c3863b29",
+          "lane": "CROP_TRANSITION",
+          "member": "bakeoff_crop_transition",
+          "own_history": false,
+          "protected": false,
+          "role_id": 0,
+          "seat": 0,
+          "seed": 2207,
+          "tape": "workspace/aspe/baseline/context/build_panel/tapes/selfplay_54fe7620c1efc562.json",
+          "tape_sha256": "0f6fc6f73cb324f1e113659c3036d499b3476cc65dcdbed1b06e79383e201d23"
+        },
+        {
+          "family_id": 0,
+          "identity": "3547bbf055eee0333500dfd9a3b3354b6a67c6efe154493d671a0b501d84b49a",
+          "lane": "ANIMAL_TRANSITION",
+          "member": "bakeoff_animal_transition",
+          "own_history": false,
+          "protected": false,
+          "role_id": 0,
+          "seat": 0,
+          "seed": 2207,
+          "tape": "workspace/aspe/baseline/context/build_panel/tapes/selfplay_b0c20027e2db2840.json",
+          "tape_sha256": "c810ef91cc035caa11375e1d6a6be4f6b382787901dc5aa376f2da77763688bd"
+        },
+        {
+          "family_id": 0,
+          "identity": "9d8e1b7eb7e31a99f1d670f7eadd8441ba3ff3a16692627537b304bf64cd0882",
+          "lane": "ENDGAME_LIQUIDATION",
+          "member": "bakeoff_endgame_liquidation",
+          "own_history": false,
+          "protected": false,
+          "role_id": 0,
+          "seat": 0,
+          "seed": 2207,
+          "tape": "workspace/aspe/baseline/context/build_panel/tapes/selfplay_35c08a3762d3a6dd.json",
+          "tape_sha256": "f6421b4be2908deb798ac4425552d191a9519196ab547ad9ae45d532c93c6686"
+        },
+        {
+          "family_id": 0,
+          "identity": "5cd93526f83519737415f0b7f6b87ddd511fcefe3c6d63b227da7bc65b22f550",
+          "lane": "MECHANIC_EXPLOIT",
+          "member": "bakeoff_mechanic_exploit",
+          "own_history": false,
+          "protected": false,
+          "role_id": 0,
+          "seat": 0,
+          "seed": 2207,
+          "tape": "workspace/aspe/baseline/context/build_panel/tapes/selfplay_45d0dd4dc0bc0852.json",
+          "tape_sha256": "5b790a1445954e3dbcec6d3fd35125aa356ad1120140ef3f03829e2e0131bae0"
+        },
+        {
+          "family_id": 0,
+          "identity": "7eb772a14385582b43e8799c35880566cb7e2716d8a10ae8c6c6d7537b9fbc46",
+          "lane": "GENERAL",
+          "member": "bakeoff_general",
+          "own_history": false,
+          "protected": false,
+          "role_id": 0,
+          "seat": 0,
+          "seed": 2207,
+          "tape": "workspace/aspe/baseline/context/build_panel/tapes/selfplay_be225173d0cdd93f.json",
+          "tape_sha256": "ea7b2d7f896815dd9739aec3f027cbdd253eed21e4c2af9d66cc583294277b68"
+        },
+        {
+          "family_id": 0,
+          "identity": "9d24f158932954e332864870e41d503bd805358af8d7e1dd3b66ae766702c6ad",
+          "lane": "MARKET_LIQUIDITY",
+          "member": "bakeoff_market_liquidity",
+          "own_history": false,
+          "protected": false,
+          "role_id": 0,
+          "seat": 1,
+          "seed": 2207,
+          "tape": "workspace/aspe/baseline/context/build_panel/tapes/selfplay_1e849b707e053642.json",
+          "tape_sha256": "e65fddefb3aaf2dd7c7c94956ea0c6f6ea967bcb7ae0bdc3d0f18d94c2abfe41"
+        },
+        {
+          "family_id": 0,
+          "identity": "5766fd3acefedfbdb26e0463ba4d517f7239f9bbcc6d31d1c23ba7b5e35ad726",
+          "lane": "WORKER_PRODUCTION",
+          "member": "bakeoff_worker_production",
+          "own_history": false,
+          "protected": false,
+          "role_id": 0,
+          "seat": 1,
+          "seed": 2207,
+          "tape": "workspace/aspe/baseline/context/build_panel/tapes/selfplay_e28e113102436e44.json",
+          "tape_sha256": "fe54740b131661047f19d5f1ab2d4bec3354728677e5301de39c34e1f5f78e68"
+        },
+        {
+          "family_id": 0,
+          "identity": "898800ac7249081ff9354c87d09cdf4fa80b8f105428f7c97c6da66734fd9f94",
+          "lane": "LAND_INVESTMENT",
+          "member": "bakeoff_land_investment",
+          "own_history": false,
+          "protected": false,
+          "role_id": 0,
+          "seat": 1,
+          "seed": 2207,
+          "tape": "workspace/aspe/baseline/context/build_panel/tapes/selfplay_9b95cafcc9b1c4ee.json",
+          "tape_sha256": "72a5544b621c4f6052a035b07b6e0493760617d35fb04c220174386701f24abe"
+        },
+        {
+          "family_id": 0,
+          "identity": "33f7d7b29c2f7475b7d54409c57b12e056d48abad7d6489ea14f4a43201a04cf",
+          "lane": "CROP_TRANSITION",
+          "member": "bakeoff_crop_transition",
+          "own_history": false,
+          "protected": false,
+          "role_id": 0,
+          "seat": 1,
+          "seed": 2207,
+          "tape": "workspace/aspe/baseline/context/build_panel/tapes/selfplay_41cba6f345b199b2.json",
+          "tape_sha256": "385fa140730e99d9588796c3e66003f2b3cff400efb8460f3a0aa34a817e679e"
+        },
+        {
+          "family_id": 0,
+          "identity": "43ea9497f7de31e2383054f3c2ea414a4dc5d81ffdb2a5a8a5642cac044aff82",
+          "lane": "ANIMAL_TRANSITION",
+          "member": "bakeoff_animal_transition",
+          "own_history": false,
+          "protected": false,
+          "role_id": 0,
+          "seat": 1,
+          "seed": 2207,
+          "tape": "workspace/aspe/baseline/context/build_panel/tapes/selfplay_d920cc09208c00ef.json",
+          "tape_sha256": "5bb2f9b158332896c8b119476949759fabc729c66fb6affe222632e554efb992"
+        },
+        {
+          "family_id": 0,
+          "identity": "58fb3f342db722eaccbf0e87d7cf752eb679e30ab3a8a75c3539532156cc5e84",
+          "lane": "ENDGAME_LIQUIDATION",
+          "member": "bakeoff_endgame_liquidation",
+          "own_history": false,
+          "protected": false,
+          "role_id": 0,
+          "seat": 1,
+          "seed": 2207,
+          "tape": "workspace/aspe/baseline/context/build_panel/tapes/selfplay_e30ce67ffd7f4927.json",
+          "tape_sha256": "c0974b7ed92b19a91ca6bdace599c32612f4f55a984dac108c67ecf1ad8769fa"
+        },
+        {
+          "family_id": 0,
+          "identity": "0694da70f54d77b06bcbd9edff5be6245c6fb90029ca436890cb196b27595759",
+          "lane": "MECHANIC_EXPLOIT",
+          "member": "bakeoff_mechanic_exploit",
+          "own_history": false,
+          "protected": false,
+          "role_id": 0,
+          "seat": 1,
+          "seed": 2207,
+          "tape": "workspace/aspe/baseline/context/build_panel/tapes/selfplay_71d9b0a68912b299.json",
+          "tape_sha256": "80a2a575a3f1a4391efb5c5954fc28a42c84410c80f49113d087565046362a77"
+        },
+        {
+          "family_id": 0,
+          "identity": "8766f104c52986ccf08d6cc99a927f9419e1924770cd27fca2ecf703e9d551a1",
+          "lane": "GENERAL",
+          "member": "bakeoff_general",
+          "own_history": false,
+          "protected": false,
+          "role_id": 0,
+          "seat": 1,
+          "seed": 2207,
+          "tape": "workspace/aspe/baseline/context/build_panel/tapes/selfplay_b80ea9a1635294e7.json",
+          "tape_sha256": "512161d74de9298ae7c7ccdefba790b500895fb04d34019debbe0b18f316526b"
+        },
+        {
+          "family_id": 0,
+          "identity": "45fefeb6b4f783348a860b68d37074e8e595b73315cb31e9b7152eeb1a805a95",
+          "lane": "MARKET_LIQUIDITY",
+          "member": "bakeoff_market_liquidity",
+          "own_history": false,
+          "protected": false,
+          "role_id": 0,
+          "seat": 0,
+          "seed": 3301,
+          "tape": "workspace/aspe/baseline/context/build_panel/tapes/selfplay_8c14271f399125fa.json",
+          "tape_sha256": "dd21dafd71f3e841ed5dd4939a4315bf17b2b203a745cc969dd7982f82dbad3a"
+        },
+        {
+          "family_id": 0,
+          "identity": "2510389350a56919953df95b48d8d4f4ee9435b80ef363dc321c03c73ac7a599",
+          "lane": "WORKER_PRODUCTION",
+          "member": "bakeoff_worker_production",
+          "own_history": false,
+          "protected": false,
+          "role_id": 0,
+          "seat": 0,
+          "seed": 3301,
+          "tape": "workspace/aspe/baseline/context/build_panel/tapes/selfplay_64915499d63f15a4.json",
+          "tape_sha256": "5f52d65756493ad3babf99ba2a11f8784a23e4edfb1c59b9ba235a92f8ceea5e"
+        },
+        {
+          "family_id": 0,
+          "identity": "1d7e137f33dd9e446357bcb3a7487f95bc2ecc50eed7cbfa28e89113b7a9b7cc",
+          "lane": "LAND_INVESTMENT",
+          "member": "bakeoff_land_investment",
+          "own_history": false,
+          "protected": false,
+          "role_id": 0,
+          "seat": 0,
+          "seed": 3301,
+          "tape": "workspace/aspe/baseline/context/build_panel/tapes/selfplay_5afed9a26655b3cf.json",
+          "tape_sha256": "fc097846ef30d27a94d2ccff10ce7a586a27f66bc41797df9e4abe69d1d4638a"
+        },
+        {
+          "family_id": 0,
+          "identity": "497ab071c8f4c564c56907ca3dd4e9585014360f68bdbb969fd9f6a6a0a2a1ef",
+          "lane": "CROP_TRANSITION",
+          "member": "bakeoff_crop_transition",
+          "own_history": false,
+          "protected": false,
+          "role_id": 0,
+          "seat": 0,
+          "seed": 3301,
+          "tape": "workspace/aspe/baseline/context/build_panel/tapes/selfplay_32b796d98a3ab148.json",
+          "tape_sha256": "dad56347aa34feea4f130e7cac27a3c6f39f8fe460236535b858153d11ced99e"
+        },
+        {
+          "family_id": 0,
+          "identity": "11d96a467385289790f336b566b7a68bbe4873570bba382b4283298213f8d525",
+          "lane": "ANIMAL_TRANSITION",
+          "member": "bakeoff_animal_transition",
+          "own_history": false,
+          "protected": false,
+          "role_id": 0,
+          "seat": 0,
+          "seed": 3301,
+          "tape": "workspace/aspe/baseline/context/build_panel/tapes/selfplay_970f8dc434952541.json",
+          "tape_sha256": "d3cc3f0f04636b7483afbaf87b4d8be5a0ec66520e015bce984f631c7f8a03b7"
+        },
+        {
+          "family_id": 0,
+          "identity": "e11a49e3e83479ef21b13b27e5b03da8e7a475508b57eb27f7d504e83c063f97",
+          "lane": "ENDGAME_LIQUIDATION",
+          "member": "bakeoff_endgame_liquidation",
+          "own_history": false,
+          "protected": false,
+          "role_id": 0,
+          "seat": 0,
+          "seed": 3301,
+          "tape": "workspace/aspe/baseline/context/build_panel/tapes/selfplay_dbdb12e462881544.json",
+          "tape_sha256": "78d16b84301aa470069c0f4e20bd3b3148078e97161be6efd04bbd93967a6970"
+        },
+        {
+          "family_id": 0,
+          "identity": "e653f310d75aefac5937dbb5737927fa2f9a6c1ba9ef1700e3c58bf9655dd47a",
+          "lane": "MECHANIC_EXPLOIT",
+          "member": "bakeoff_mechanic_exploit",
+          "own_history": false,
+          "protected": false,
+          "role_id": 0,
+          "seat": 0,
+          "seed": 3301,
+          "tape": "workspace/aspe/baseline/context/build_panel/tapes/selfplay_513a07d97f381d21.json",
+          "tape_sha256": "8451f49a668242d22099f0044a2b332f26decf580fd3d6d2008cfff8290a3e89"
+        },
+        {
+          "family_id": 0,
+          "identity": "1735a7c2b6698d4b0adb9248520ffcd2bc28c7dbef9bd2b91f2c8166f5ac1fcd",
+          "lane": "GENERAL",
+          "member": "bakeoff_general",
+          "own_history": false,
+          "protected": false,
+          "role_id": 0,
+          "seat": 0,
+          "seed": 3301,
+          "tape": "workspace/aspe/baseline/context/build_panel/tapes/selfplay_37d4a00d7a663ed3.json",
+          "tape_sha256": "372d09af439071d938e441fecc587b31803210c910d0806a2f456f2924ac9b8c"
+        },
+        {
+          "family_id": 0,
+          "identity": "00f86212579ad6455379cc5f35cb8391ddf45b0d225124fe1948e717ecd2325f",
+          "lane": "MARKET_LIQUIDITY",
+          "member": "bakeoff_market_liquidity",
+          "own_history": false,
+          "protected": false,
+          "role_id": 0,
+          "seat": 1,
+          "seed": 3301,
+          "tape": "workspace/aspe/baseline/context/build_panel/tapes/selfplay_5b21c4484dad117a.json",
+          "tape_sha256": "ce33898ea4cc37f77b0e3be949fcf8636e37e1622ca7773ab7a4e79a8d4739ac"
+        },
+        {
+          "family_id": 0,
+          "identity": "ed9147a5220fb45f5134c667abb49cd3001c18010900b9cd0603d838e9c83aa2",
+          "lane": "WORKER_PRODUCTION",
+          "member": "bakeoff_worker_production",
+          "own_history": false,
+          "protected": false,
+          "role_id": 0,
+          "seat": 1,
+          "seed": 3301,
+          "tape": "workspace/aspe/baseline/context/build_panel/tapes/selfplay_7b2dee404dc8d70a.json",
+          "tape_sha256": "716f8b740b63f33465393f6f086eb17555981ed4f85f26897546f367bdac7813"
+        },
+        {
+          "family_id": 0,
+          "identity": "fb4ea1093b91f3bd751e1989b7ad9920e0dc58c008ce1a8e1a14ec113096d244",
+          "lane": "LAND_INVESTMENT",
+          "member": "bakeoff_land_investment",
+          "own_history": false,
+          "protected": false,
+          "role_id": 0,
+          "seat": 1,
+          "seed": 3301,
+          "tape": "workspace/aspe/baseline/context/build_panel/tapes/selfplay_9b7bf0fe482bdd6e.json",
+          "tape_sha256": "3eb7c69cea2c9140b95ca8859adaea54899319b85835a6bd694389e9a4a94055"
+        },
+        {
+          "family_id": 0,
+          "identity": "07268fce90120e3fcea788540b0317d78c666adcb36179340dde3e110199f50c",
+          "lane": "CROP_TRANSITION",
+          "member": "bakeoff_crop_transition",
+          "own_history": false,
+          "protected": false,
+          "role_id": 0,
+          "seat": 1,
+          "seed": 3301,
+          "tape": "workspace/aspe/baseline/context/build_panel/tapes/selfplay_f239ecd0b401c118.json",
+          "tape_sha256": "6fd1c619bc6fc1146e8331a7e54e8493aa87665a21f632270058bdfb9bf6a85e"
+        },
+        {
+          "family_id": 0,
+          "identity": "4c1d74ac7c70aa9898b7627f89d9baeb549576888c18c5de2f1c1b0df8a94713",
+          "lane": "ANIMAL_TRANSITION",
+          "member": "bakeoff_animal_transition",
+          "own_history": false,
+          "protected": false,
+          "role_id": 0,
+          "seat": 1,
+          "seed": 3301,
+          "tape": "workspace/aspe/baseline/context/build_panel/tapes/selfplay_1582483ca25014d7.json",
+          "tape_sha256": "672ead820913b96a7c7775fd7be39807210ea1acd5fcd67d7b07af9c28c88923"
+        },
+        {
+          "family_id": 0,
+          "identity": "1a416166679c7a9f77c1296bf6a7f1eb35049c827ada62db8328ce32b1625dc0",
+          "lane": "ENDGAME_LIQUIDATION",
+          "member": "bakeoff_endgame_liquidation",
+          "own_history": false,
+          "protected": false,
+          "role_id": 0,
+          "seat": 1,
+          "seed": 3301,
+          "tape": "workspace/aspe/baseline/context/build_panel/tapes/selfplay_1863455fe336c47e.json",
+          "tape_sha256": "c9b6a526ec8eca5e69cd60a0195c1ca8b299cebc11eb2a09cc27ff89c5667a33"
+        },
+        {
+          "family_id": 0,
+          "identity": "0d2841c52d5364158b29d5f24113c82b72e059ec4c2b375d7263f76a4163d900",
+          "lane": "MECHANIC_EXPLOIT",
+          "member": "bakeoff_mechanic_exploit",
+          "own_history": false,
+          "protected": false,
+          "role_id": 0,
+          "seat": 1,
+          "seed": 3301,
+          "tape": "workspace/aspe/baseline/context/build_panel/tapes/selfplay_bce400fbdd47e0ea.json",
+          "tape_sha256": "7b2e069399e4c162f2012f86c46ae53622791e0e98c7b5da48d04f71833307ca"
+        },
+        {
+          "family_id": 0,
+          "identity": "95dfbc8e99ae38f61dc840fec78274e0b09c8e19ef91153c3b67a0dba350a92d",
+          "lane": "GENERAL",
+          "member": "bakeoff_general",
+          "own_history": false,
+          "protected": false,
+          "role_id": 0,
+          "seat": 1,
+          "seed": 3301,
+          "tape": "workspace/aspe/baseline/context/build_panel/tapes/selfplay_25d7d64724f900fb.json",
+          "tape_sha256": "2b9472db43037cdefc05914766e1606c4bd12542fc0827f4dcdec8ea38d47197"
+        }
+      ],
+      "coverage": {
+        "lanes": {
+          "ANIMAL_TRANSITION": 6,
+          "CROP_TRANSITION": 6,
+          "ENDGAME_LIQUIDATION": 6,
+          "GENERAL": 6,
+          "LAND_INVESTMENT": 6,
+          "MARKET_LIQUIDITY": 6,
+          "MECHANIC_EXPLOIT": 6,
+          "WORKER_PRODUCTION": 6
+        },
+        "members": {
+          "bakeoff_animal_transition": 6,
+          "bakeoff_crop_transition": 6,
+          "bakeoff_endgame_liquidation": 6,
+          "bakeoff_general": 6,
+          "bakeoff_land_investment": 6,
+          "bakeoff_market_liquidity": 6,
+          "bakeoff_mechanic_exploit": 6,
+          "bakeoff_worker_production": 6
+        },
+        "regime_count": 48,
+        "seats": {
+          "0": 24,
+          "1": 24
+        },
+        "seeds": {
+          "1103": 16,
+          "2207": 16,
+          "3301": 16
+        }
+      },
+      "identity": "41a0900f7ade23a4393b113bbab2abfc8de3a9e6f1d3518283777d2b09e78871",
+      "lanes": [
+        "ANIMAL_TRANSITION",
+        "CROP_TRANSITION",
+        "ENDGAME_LIQUIDATION",
+        "GENERAL",
+        "LAND_INVESTMENT",
+        "MARKET_LIQUIDITY",
+        "MECHANIC_EXPLOIT",
+        "WORKER_PRODUCTION"
+      ],
+      "members": [
+        "bakeoff_animal_transition",
+        "bakeoff_crop_transition",
+        "bakeoff_endgame_liquidation",
+        "bakeoff_general",
+        "bakeoff_land_investment",
+        "bakeoff_market_liquidity",
+        "bakeoff_mechanic_exploit",
+        "bakeoff_worker_production"
+      ],
+      "path": "workspace/aspe/baseline/context/build_panel/build_panel.tsv",
+      "role": "BUILD",
+      "seats": [
+        0,
+        1
+      ],
+      "seeds": [
+        1103,
+        2207,
+        3301
+      ],
+      "sha256": "5389ebe682f045d10d9f5ae83d9f4307eabcb6d71f29f70ef4ad87781356c9ac"
+    },
+    "internal_dev": {
+      "case_count": 24,
+      "cases": [
+        {
+          "family_id": 0,
+          "identity": "149e9f53ae528f0e3331354faf865ca78e02c57783c124779353074a2bc6cc2d",
+          "lane": "WORKER_PRODUCTION",
+          "member": "bakeoff_worker_production",
+          "own_history": false,
+          "protected": false,
+          "role_id": 1,
+          "seat": 1,
+          "seed": 1771485163,
+          "tape": "workspace/aspe/baseline/context/internal_dev/tapes/selfplay_43537064044fd833.json",
+          "tape_sha256": "a816486199a8e404d12ddf87acb632a99e6b7dfecf69bad01ac05c25084bd914"
+        },
+        {
+          "family_id": 0,
+          "identity": "a110325b59b05c7772888f11d9fe3e1135526d66cfe29f9dc870cd031b279055",
+          "lane": "LAND_INVESTMENT",
+          "member": "bakeoff_land_investment",
+          "own_history": false,
+          "protected": false,
+          "role_id": 1,
+          "seat": 1,
+          "seed": 1771485163,
+          "tape": "workspace/aspe/baseline/context/internal_dev/tapes/selfplay_91c215bf9be02ede.json",
+          "tape_sha256": "def31a8b206c41efabd790fbac773365867e1f7ca6d39d8847333c7407cc350b"
+        },
+        {
+          "family_id": 0,
+          "identity": "05fedff6e55c826b72c2145c8bcd4b1ad74171547e6ef122ff923a721eadcbc3",
+          "lane": "CROP_TRANSITION",
+          "member": "bakeoff_crop_transition",
+          "own_history": false,
+          "protected": false,
+          "role_id": 1,
+          "seat": 1,
+          "seed": 1771485163,
+          "tape": "workspace/aspe/baseline/context/internal_dev/tapes/selfplay_b98ec51bb761423d.json",
+          "tape_sha256": "bc8da1c8cde2d839e0bbe2d320b9153d07ad3ec8378e912dc489b3e015e352a0"
+        },
+        {
+          "family_id": 0,
+          "identity": "6c820de588cd8e9758c9aa173f9638b02126b9b55191946d0d9b999e9c6e0ed4",
+          "lane": "ANIMAL_TRANSITION",
+          "member": "bakeoff_animal_transition",
+          "own_history": false,
+          "protected": false,
+          "role_id": 1,
+          "seat": 1,
+          "seed": 1771485163,
+          "tape": "workspace/aspe/baseline/context/internal_dev/tapes/selfplay_77dc9c085e2d7422.json",
+          "tape_sha256": "874ad4ec630e89dbce3600a142e645f8449345b2269d3e3b05a5b9da4d25b1e2"
+        },
+        {
+          "family_id": 0,
+          "identity": "548a7dcdc44e930931c67a2f3e09693adcb084aac3b5cbe376a568a4edcecf39",
+          "lane": "WORKER_PRODUCTION",
+          "member": "bakeoff_worker_production",
+          "own_history": false,
+          "protected": false,
+          "role_id": 1,
+          "seat": 0,
+          "seed": 1771485163,
+          "tape": "workspace/aspe/baseline/context/internal_dev/tapes/selfplay_59160553c7dd13ef.json",
+          "tape_sha256": "8ead1e852b98051fad5d7f0256984f0302a631f64ec33aefc6baefa56429a715"
+        },
+        {
+          "family_id": 0,
+          "identity": "9f89bbcab49e9e2a5a51b80e529a9b2cb19e539dc9a992afe93ccd5b745342a4",
+          "lane": "LAND_INVESTMENT",
+          "member": "bakeoff_land_investment",
+          "own_history": false,
+          "protected": false,
+          "role_id": 1,
+          "seat": 0,
+          "seed": 1771485163,
+          "tape": "workspace/aspe/baseline/context/internal_dev/tapes/selfplay_d5bb3a57f162e550.json",
+          "tape_sha256": "c8edabf6fcdbedb7d7644a7887fadd0e7348ea2fdbd6d8fb9a26882273016760"
+        },
+        {
+          "family_id": 0,
+          "identity": "0ad00a4a5914d8fd0ae11d794b2600440e8276d77777df2432923e1ca6d44881",
+          "lane": "CROP_TRANSITION",
+          "member": "bakeoff_crop_transition",
+          "own_history": false,
+          "protected": false,
+          "role_id": 1,
+          "seat": 0,
+          "seed": 1771485163,
+          "tape": "workspace/aspe/baseline/context/internal_dev/tapes/selfplay_cb18d4c1df1ab51f.json",
+          "tape_sha256": "95c6615250a2b13012cf6af9ca9b7d2e14a6e0bba24de2d4a2f8de2c86c6be48"
+        },
+        {
+          "family_id": 0,
+          "identity": "8fa7e39cdba77dde5f3a1306ae7ef434c1851417b856ff431136e7596e7899b6",
+          "lane": "ANIMAL_TRANSITION",
+          "member": "bakeoff_animal_transition",
+          "own_history": false,
+          "protected": false,
+          "role_id": 1,
+          "seat": 0,
+          "seed": 1771485163,
+          "tape": "workspace/aspe/baseline/context/internal_dev/tapes/selfplay_79980620734df07f.json",
+          "tape_sha256": "5c155d85fb0de6bac8b6d8a33d60b67fc09a47a709b8a52c54e7f8deb9bd0f2c"
+        },
+        {
+          "family_id": 0,
+          "identity": "761c124bc8c61decaf85937e03b07a3c26fc9b7267d1d3b803ac2b73e678b014",
+          "lane": "WORKER_PRODUCTION",
+          "member": "bakeoff_worker_production",
+          "own_history": false,
+          "protected": false,
+          "role_id": 1,
+          "seat": 1,
+          "seed": 422092778,
+          "tape": "workspace/aspe/baseline/context/internal_dev/tapes/selfplay_7194440ae0a833a7.json",
+          "tape_sha256": "8f5e17cb31b0eeae6799a5a80af1ae65a0576577cbabdb41de58b6bcdfc73c77"
+        },
+        {
+          "family_id": 0,
+          "identity": "dd8b73ec12654c3a49a1c548838b0bbc6e5cbb64df591444b7f692ee8fdf6a4a",
+          "lane": "LAND_INVESTMENT",
+          "member": "bakeoff_land_investment",
+          "own_history": false,
+          "protected": false,
+          "role_id": 1,
+          "seat": 1,
+          "seed": 422092778,
+          "tape": "workspace/aspe/baseline/context/internal_dev/tapes/selfplay_db3e83bbf4a9c9bf.json",
+          "tape_sha256": "2e714154140a2221290989c04b84d9ff285681386ba3b53e49e6f61df62734f2"
+        },
+        {
+          "family_id": 0,
+          "identity": "a3c02a76b807a6ea8255fa3b98679f4137f2658500702a939ceba5153c8ff825",
+          "lane": "CROP_TRANSITION",
+          "member": "bakeoff_crop_transition",
+          "own_history": false,
+          "protected": false,
+          "role_id": 1,
+          "seat": 1,
+          "seed": 422092778,
+          "tape": "workspace/aspe/baseline/context/internal_dev/tapes/selfplay_93efae21beb6fc39.json",
+          "tape_sha256": "04283f17bc7bf753a178280e370c228ed25789159606a1e151acdf83e61f666b"
+        },
+        {
+          "family_id": 0,
+          "identity": "fb6231fca33c14a61f6a0c9581e5f57b7f62d8a980d1f419e754f402b7fead5c",
+          "lane": "ANIMAL_TRANSITION",
+          "member": "bakeoff_animal_transition",
+          "own_history": false,
+          "protected": false,
+          "role_id": 1,
+          "seat": 1,
+          "seed": 422092778,
+          "tape": "workspace/aspe/baseline/context/internal_dev/tapes/selfplay_0030c20310198120.json",
+          "tape_sha256": "2b3d1067182ecff1407e30debf64000398704ce062c26ec6e675eb895fefe633"
+        },
+        {
+          "family_id": 0,
+          "identity": "12e7d6a15ad834e5d494affde0f3b7636c1213c37847848ff23f360a37827e38",
+          "lane": "WORKER_PRODUCTION",
+          "member": "bakeoff_worker_production",
+          "own_history": false,
+          "protected": false,
+          "role_id": 1,
+          "seat": 0,
+          "seed": 422092778,
+          "tape": "workspace/aspe/baseline/context/internal_dev/tapes/selfplay_0a531a13c68442aa.json",
+          "tape_sha256": "3328f7c2d8e79416218e8d10284fc875c4860042b9fe6ef999384ac9397baea5"
+        },
+        {
+          "family_id": 0,
+          "identity": "0b015063afa06229fbc9a7a38b19c791445f0421f586a6803bb9d8781bd724fa",
+          "lane": "LAND_INVESTMENT",
+          "member": "bakeoff_land_investment",
+          "own_history": false,
+          "protected": false,
+          "role_id": 1,
+          "seat": 0,
+          "seed": 422092778,
+          "tape": "workspace/aspe/baseline/context/internal_dev/tapes/selfplay_5bf733bf95937989.json",
+          "tape_sha256": "a8f5ec0f235c6b1c86086615fba7b4f2436d50c7a93c5b1f422d393d7d6461da"
+        },
+        {
+          "family_id": 0,
+          "identity": "a2f34e38d82bb51fc3a02756607c1871b8984db173d501c4b8c317a42b812ffb",
+          "lane": "CROP_TRANSITION",
+          "member": "bakeoff_crop_transition",
+          "own_history": false,
+          "protected": false,
+          "role_id": 1,
+          "seat": 0,
+          "seed": 422092778,
+          "tape": "workspace/aspe/baseline/context/internal_dev/tapes/selfplay_b8cacf9f30bb6610.json",
+          "tape_sha256": "65717863594b38246af292178154eeecc77656d431d603c351b0d3c69c744bf8"
+        },
+        {
+          "family_id": 0,
+          "identity": "9aae1a3a043c6cc6425b90283360234ecfbb484f13faf712337db0ef0fe665bb",
+          "lane": "ANIMAL_TRANSITION",
+          "member": "bakeoff_animal_transition",
+          "own_history": false,
+          "protected": false,
+          "role_id": 1,
+          "seat": 0,
+          "seed": 422092778,
+          "tape": "workspace/aspe/baseline/context/internal_dev/tapes/selfplay_ec3d90c658e89e4d.json",
+          "tape_sha256": "a27c45da749d9b0ff7e04185be6afc1c7458ef8570600d58f145ec8f4cbc49bf"
+        },
+        {
+          "family_id": 0,
+          "identity": "cfff039e966a5f2a89d0087269cf7913d49b44d9005090eb1286e2540b9d1534",
+          "lane": "WORKER_PRODUCTION",
+          "member": "bakeoff_worker_production",
+          "own_history": false,
+          "protected": false,
+          "role_id": 1,
+          "seat": 1,
+          "seed": 717289795,
+          "tape": "workspace/aspe/baseline/context/internal_dev/tapes/selfplay_88e50b598ed07be4.json",
+          "tape_sha256": "98a0e9511cd60595b071115a98b87b9eca97d9f00e220b840accdadce9118f43"
+        },
+        {
+          "family_id": 0,
+          "identity": "4bcff36dd3be502f1b4366343642ecfb88be7a46ecd98f20176781f815e136f1",
+          "lane": "LAND_INVESTMENT",
+          "member": "bakeoff_land_investment",
+          "own_history": false,
+          "protected": false,
+          "role_id": 1,
+          "seat": 1,
+          "seed": 717289795,
+          "tape": "workspace/aspe/baseline/context/internal_dev/tapes/selfplay_7c031371c86ccb7d.json",
+          "tape_sha256": "d728f002bd3eef7d9a8bdfd3853c3e06734ac6a8400374d0ccea984dbe21e26c"
+        },
+        {
+          "family_id": 0,
+          "identity": "7cd4174170de429879c6a932014ff7209f9aabf21103fd3a5925dfbcfed4ff82",
+          "lane": "CROP_TRANSITION",
+          "member": "bakeoff_crop_transition",
+          "own_history": false,
+          "protected": false,
+          "role_id": 1,
+          "seat": 1,
+          "seed": 717289795,
+          "tape": "workspace/aspe/baseline/context/internal_dev/tapes/selfplay_a9aa887e567101f8.json",
+          "tape_sha256": "323d1b33037e0177399dd71892db0b3a483e6d62deb5e932bdbbb60ebf7f36d9"
+        },
+        {
+          "family_id": 0,
+          "identity": "60db8833dd32b57b6a91ca536edbca1064ad349f5d03bda53e11c61163cdf3e7",
+          "lane": "ANIMAL_TRANSITION",
+          "member": "bakeoff_animal_transition",
+          "own_history": false,
+          "protected": false,
+          "role_id": 1,
+          "seat": 1,
+          "seed": 717289795,
+          "tape": "workspace/aspe/baseline/context/internal_dev/tapes/selfplay_035a905fad920107.json",
+          "tape_sha256": "4a0460227e4f0abadd075fe008285bfdbf045cbdb7b3e1ae63266f1eab72526d"
+        },
+        {
+          "family_id": 0,
+          "identity": "6d106742faaebd40c5b8a38056d1a188c97a8123184454021fa7aff3697182d2",
+          "lane": "WORKER_PRODUCTION",
+          "member": "bakeoff_worker_production",
+          "own_history": false,
+          "protected": false,
+          "role_id": 1,
+          "seat": 0,
+          "seed": 717289795,
+          "tape": "workspace/aspe/baseline/context/internal_dev/tapes/selfplay_7b1f3e1595e20bb5.json",
+          "tape_sha256": "2879f282f25a7738cddcf60edc3d75d21c264471e893f8f178b48dcff777cdce"
+        },
+        {
+          "family_id": 0,
+          "identity": "910309dc289cb0651e03a5e71255d4847f53c8278e7b0064333009b3c244c679",
+          "lane": "LAND_INVESTMENT",
+          "member": "bakeoff_land_investment",
+          "own_history": false,
+          "protected": false,
+          "role_id": 1,
+          "seat": 0,
+          "seed": 717289795,
+          "tape": "workspace/aspe/baseline/context/internal_dev/tapes/selfplay_f6f089edb229f2a2.json",
+          "tape_sha256": "ddb496c11a2432febace995f896bda16e2b556f5d0e5d96ecbc6e4b9d23d8321"
+        },
+        {
+          "family_id": 0,
+          "identity": "502a16c723af1b72317d314c11428eda965240c749d5c588196f303e359a16f8",
+          "lane": "CROP_TRANSITION",
+          "member": "bakeoff_crop_transition",
+          "own_history": false,
+          "protected": false,
+          "role_id": 1,
+          "seat": 0,
+          "seed": 717289795,
+          "tape": "workspace/aspe/baseline/context/internal_dev/tapes/selfplay_c47b2436f4562fa4.json",
+          "tape_sha256": "be30e90f8cb5b6130550a32ec52c0067f5cef2902fdda5ddccce13c29b8d90d0"
+        },
+        {
+          "family_id": 0,
+          "identity": "632159b80430751d32889849c86d911e0b0b406a5190821992d6d17142da7ed9",
+          "lane": "ANIMAL_TRANSITION",
+          "member": "bakeoff_animal_transition",
+          "own_history": false,
+          "protected": false,
+          "role_id": 1,
+          "seat": 0,
+          "seed": 717289795,
+          "tape": "workspace/aspe/baseline/context/internal_dev/tapes/selfplay_f1e9b40c0049de08.json",
+          "tape_sha256": "53e807229b4edbfb7dae6204c4083d2d5cee37bf687045466a0a1869fd6d3420"
+        }
+      ],
+      "coverage": {
+        "lanes": {
+          "ANIMAL_TRANSITION": 6,
+          "CROP_TRANSITION": 6,
+          "LAND_INVESTMENT": 6,
+          "WORKER_PRODUCTION": 6
+        },
+        "members": {
+          "bakeoff_animal_transition": 6,
+          "bakeoff_crop_transition": 6,
+          "bakeoff_land_investment": 6,
+          "bakeoff_worker_production": 6
+        },
+        "regime_count": 24,
+        "seats": {
+          "0": 12,
+          "1": 12
+        },
+        "seeds": {
+          "1771485163": 8,
+          "422092778": 8,
+          "717289795": 8
+        }
+      },
+      "identity": "6c1ca3785edd0bfa8a0db98c822cd293f7bd1c5d08d7c43938de44c570138a27",
+      "lanes": [
+        "ANIMAL_TRANSITION",
+        "CROP_TRANSITION",
+        "LAND_INVESTMENT",
+        "WORKER_PRODUCTION"
+      ],
+      "members": [
+        "bakeoff_animal_transition",
+        "bakeoff_crop_transition",
+        "bakeoff_land_investment",
+        "bakeoff_worker_production"
+      ],
+      "path": "workspace/aspe/baseline/context/internal_dev/internal_dev_panel.tsv",
+      "role": "INTERNAL_DEV",
+      "seats": [
+        0,
+        1
+      ],
+      "seeds": [
+        422092778,
+        717289795,
+        1771485163
+      ],
+      "sha256": "e77c08b5c53fff757df35faa1be5b86606b8048ac1f22d43b09cd214c93bc3dc"
+    },
+    "sealed": {
+      "case_count": 24,
+      "cases": [
+        {
+          "family_id": 0,
+          "identity": "e59117a1ffdb941ab3a6aaf8a528d3bea1bc92ea271367ff19938dc23d63abe4",
+          "lane": "LAND_INVESTMENT",
+          "member": "bakeoff_land_investment",
+          "own_history": false,
+          "protected": true,
+          "role_id": 4,
+          "seat": 1,
+          "seed": 480441779,
+          "tape": "workspace/aspe/baseline/context/sealed/tapes/selfplay_ec85acbb8a0d215e.json",
+          "tape_sha256": "3d43157eb2617f951eb55e46f62ca057535124a7fb5af37391f2ea52d7c9717e"
+        },
+        {
+          "family_id": 0,
+          "identity": "cfb2f12f0ae1f877050eef234747ce5de993ff50051c546bd2db415064e01b24",
+          "lane": "CROP_TRANSITION",
+          "member": "bakeoff_crop_transition",
+          "own_history": false,
+          "protected": true,
+          "role_id": 4,
+          "seat": 1,
+          "seed": 480441779,
+          "tape": "workspace/aspe/baseline/context/sealed/tapes/selfplay_39e43c31c1374672.json",
+          "tape_sha256": "895ba0df94c9cc7f458c990881f58c94255de0706d4471e122b2b456850eebd3"
+        },
+        {
+          "family_id": 0,
+          "identity": "94dbb3028abc1d2c8697fd479dd8d4b82dcdda8087f94e19ca202d47f4892376",
+          "lane": "ANIMAL_TRANSITION",
+          "member": "bakeoff_animal_transition",
+          "own_history": false,
+          "protected": true,
+          "role_id": 4,
+          "seat": 1,
+          "seed": 480441779,
+          "tape": "workspace/aspe/baseline/context/sealed/tapes/selfplay_3364e8a435faa7ab.json",
+          "tape_sha256": "21a4ce527f54a4214ddab6f4e8642805afd909b4ae45cb19c88f883950f6b3de"
+        },
+        {
+          "family_id": 0,
+          "identity": "49edec2d8918c36875ee500646958c398e533aba9931e71d35c8e61318e105ce",
+          "lane": "ENDGAME_LIQUIDATION",
+          "member": "bakeoff_endgame_liquidation",
+          "own_history": false,
+          "protected": true,
+          "role_id": 4,
+          "seat": 1,
+          "seed": 480441779,
+          "tape": "workspace/aspe/baseline/context/sealed/tapes/selfplay_7757b5e050a71f6c.json",
+          "tape_sha256": "18878f9479028a939996c07a21c9fcf27e2e3eb688bb1f01d3150f097287dec5"
+        },
+        {
+          "family_id": 0,
+          "identity": "176b249e70e4f8a30829043f5a98437afe902ab8dd8455370e03a9ad91ce0155",
+          "lane": "LAND_INVESTMENT",
+          "member": "bakeoff_land_investment",
+          "own_history": false,
+          "protected": true,
+          "role_id": 4,
+          "seat": 0,
+          "seed": 480441779,
+          "tape": "workspace/aspe/baseline/context/sealed/tapes/selfplay_f3eefbf7759c0f89.json",
+          "tape_sha256": "f712fdb5327443680ba6d6733379f62c6074c8f30beed2920fb817aa851c893e"
+        },
+        {
+          "family_id": 0,
+          "identity": "b2f47c81de50c156d931be43ff387b0f560875663a407ccd4e895c211e04d8fc",
+          "lane": "CROP_TRANSITION",
+          "member": "bakeoff_crop_transition",
+          "own_history": false,
+          "protected": true,
+          "role_id": 4,
+          "seat": 0,
+          "seed": 480441779,
+          "tape": "workspace/aspe/baseline/context/sealed/tapes/selfplay_48c2565cdb0bd2e2.json",
+          "tape_sha256": "f8b3395b565f28c86a8764f26b244f1e2b238b5c2155036a6af3c69617ba833a"
+        },
+        {
+          "family_id": 0,
+          "identity": "7317ff742b77cf4f1d37ae3766949248d0ad38290d2ae7b5bb405449cd12c6e3",
+          "lane": "ANIMAL_TRANSITION",
+          "member": "bakeoff_animal_transition",
+          "own_history": false,
+          "protected": true,
+          "role_id": 4,
+          "seat": 0,
+          "seed": 480441779,
+          "tape": "workspace/aspe/baseline/context/sealed/tapes/selfplay_08cbf739100a0f2c.json",
+          "tape_sha256": "19818eaffd38b7df27994bbec1a881617d1bf0d19724bad367a6e861a26c5fe5"
+        },
+        {
+          "family_id": 0,
+          "identity": "99cf64310fdd69a4bee9e51dd90d50c5e4460c86106e54197f0580b54dcdf1e1",
+          "lane": "ENDGAME_LIQUIDATION",
+          "member": "bakeoff_endgame_liquidation",
+          "own_history": false,
+          "protected": true,
+          "role_id": 4,
+          "seat": 0,
+          "seed": 480441779,
+          "tape": "workspace/aspe/baseline/context/sealed/tapes/selfplay_055f1ed7142f99c2.json",
+          "tape_sha256": "bd20c263e41383cb53d7c1f0ede35e1050c275d4d9c1b4fcaad12ff4f1452e48"
+        },
+        {
+          "family_id": 0,
+          "identity": "c9b74d14fd0ba3fb156c602255cb70a9f430995a5a1bae1946013ca62213bf4b",
+          "lane": "LAND_INVESTMENT",
+          "member": "bakeoff_land_investment",
+          "own_history": false,
+          "protected": true,
+          "role_id": 4,
+          "seat": 1,
+          "seed": 423697851,
+          "tape": "workspace/aspe/baseline/context/sealed/tapes/selfplay_b161315afd5a0f84.json",
+          "tape_sha256": "8c73e9a58e8d7233ab796faef56f06f8b26c93f809b696c8e3cdfcb2e8850ab5"
+        },
+        {
+          "family_id": 0,
+          "identity": "fe1a3ece9abf334ca77d31928a5a72da941d3d89750cfe6c97d1065bbdac2f93",
+          "lane": "CROP_TRANSITION",
+          "member": "bakeoff_crop_transition",
+          "own_history": false,
+          "protected": true,
+          "role_id": 4,
+          "seat": 1,
+          "seed": 423697851,
+          "tape": "workspace/aspe/baseline/context/sealed/tapes/selfplay_bf70516c76eef4af.json",
+          "tape_sha256": "8dd350e21b035f3bbf9677404f281594e471bc69c956c13f621f3c0a19487fb3"
+        },
+        {
+          "family_id": 0,
+          "identity": "be9793b56bf22a480c68c4c04e96dfef02cf808fa77b96d487b6f1fe2f6ffd6a",
+          "lane": "ANIMAL_TRANSITION",
+          "member": "bakeoff_animal_transition",
+          "own_history": false,
+          "protected": true,
+          "role_id": 4,
+          "seat": 1,
+          "seed": 423697851,
+          "tape": "workspace/aspe/baseline/context/sealed/tapes/selfplay_8fac6f5cc6d04e15.json",
+          "tape_sha256": "f06358a6320bde8d446259d3a339a0036d07a5ba6764cc261a0d8612bcd5a354"
+        },
+        {
+          "family_id": 0,
+          "identity": "d38a911d83527e4d4348ac126ed4a3c3ece1f848f0037ef3362cf9ad736dc86e",
+          "lane": "ENDGAME_LIQUIDATION",
+          "member": "bakeoff_endgame_liquidation",
+          "own_history": false,
+          "protected": true,
+          "role_id": 4,
+          "seat": 1,
+          "seed": 423697851,
+          "tape": "workspace/aspe/baseline/context/sealed/tapes/selfplay_94e6990e102f79a4.json",
+          "tape_sha256": "b4fed1f4b69fa5d33a4a68974a6fd53b331e344361f6fea81b534d1ba6fc2561"
+        },
+        {
+          "family_id": 0,
+          "identity": "4b198af7eba587d300dc48825014b22a7a07209ab6f1b8db1947b04c742eade1",
+          "lane": "LAND_INVESTMENT",
+          "member": "bakeoff_land_investment",
+          "own_history": false,
+          "protected": true,
+          "role_id": 4,
+          "seat": 0,
+          "seed": 423697851,
+          "tape": "workspace/aspe/baseline/context/sealed/tapes/selfplay_f4af81e0da87bca3.json",
+          "tape_sha256": "3a194812804ef102cdf4897ca8a83f84b42b42afa4b3890a01fbb5804972fafb"
+        },
+        {
+          "family_id": 0,
+          "identity": "6ef184e81ad8c628484044ec1244969d60f46a47d7a93a49d3b3e2fba8fd9704",
+          "lane": "CROP_TRANSITION",
+          "member": "bakeoff_crop_transition",
+          "own_history": false,
+          "protected": true,
+          "role_id": 4,
+          "seat": 0,
+          "seed": 423697851,
+          "tape": "workspace/aspe/baseline/context/sealed/tapes/selfplay_8ee8d072b20c11d8.json",
+          "tape_sha256": "79cb970fb7f7ce5300f41520bd252900caeb0fb7dde7207672e31736b0a510f2"
+        },
+        {
+          "family_id": 0,
+          "identity": "ba4083d177128299c3c202652e48d987947d835b88e19bbc6fbc4b71fa96cad7",
+          "lane": "ANIMAL_TRANSITION",
+          "member": "bakeoff_animal_transition",
+          "own_history": false,
+          "protected": true,
+          "role_id": 4,
+          "seat": 0,
+          "seed": 423697851,
+          "tape": "workspace/aspe/baseline/context/sealed/tapes/selfplay_a08caa8344ec2f58.json",
+          "tape_sha256": "2134eecff8b5c8c96df4d95848a6f0106d58b625764a6c75695338b8f538e751"
+        },
+        {
+          "family_id": 0,
+          "identity": "22a7ad47c7a25c0e33cc22a89e2ad678b0d5b72c46077c62f299015941ca5964",
+          "lane": "ENDGAME_LIQUIDATION",
+          "member": "bakeoff_endgame_liquidation",
+          "own_history": false,
+          "protected": true,
+          "role_id": 4,
+          "seat": 0,
+          "seed": 423697851,
+          "tape": "workspace/aspe/baseline/context/sealed/tapes/selfplay_40e9d721c9b9c5ea.json",
+          "tape_sha256": "8f9c432e13233b57dc80179000019ce7943a6b083e91337beaa407ca3e5bd280"
+        },
+        {
+          "family_id": 0,
+          "identity": "74b33dcdd3cddd19ad4ac63c02284bf6f96267f41c3f19560b5ef3a902cbd1b4",
+          "lane": "LAND_INVESTMENT",
+          "member": "bakeoff_land_investment",
+          "own_history": false,
+          "protected": true,
+          "role_id": 4,
+          "seat": 1,
+          "seed": 1208665923,
+          "tape": "workspace/aspe/baseline/context/sealed/tapes/selfplay_84065c6768e9c33a.json",
+          "tape_sha256": "26edf3af267d9e4c13473a010f03814c725aefae2500bb06802054179f7a2ab1"
+        },
+        {
+          "family_id": 0,
+          "identity": "3bec88e90fe1abf412c3d385e4aca53327a3ead01b8a0a8c43c68d5d299d379c",
+          "lane": "CROP_TRANSITION",
+          "member": "bakeoff_crop_transition",
+          "own_history": false,
+          "protected": true,
+          "role_id": 4,
+          "seat": 1,
+          "seed": 1208665923,
+          "tape": "workspace/aspe/baseline/context/sealed/tapes/selfplay_92108c93966ef9a1.json",
+          "tape_sha256": "0ac5490671fab6bfb9d288445ea83ae7dda2f6e6a6e16becf443c8a72ec96152"
+        },
+        {
+          "family_id": 0,
+          "identity": "11affd641214d801451183e59340765b1e2f62590987badd476597401848f085",
+          "lane": "ANIMAL_TRANSITION",
+          "member": "bakeoff_animal_transition",
+          "own_history": false,
+          "protected": true,
+          "role_id": 4,
+          "seat": 1,
+          "seed": 1208665923,
+          "tape": "workspace/aspe/baseline/context/sealed/tapes/selfplay_39973bb6db431472.json",
+          "tape_sha256": "d87f1f2eb78f32b1873011390e8f484661d542ee83e6e86ad4b8c5b26c3951b6"
+        },
+        {
+          "family_id": 0,
+          "identity": "17ea423310f055814491323addbf1d8dd0a77532483df5724a68de11fa45d688",
+          "lane": "ENDGAME_LIQUIDATION",
+          "member": "bakeoff_endgame_liquidation",
+          "own_history": false,
+          "protected": true,
+          "role_id": 4,
+          "seat": 1,
+          "seed": 1208665923,
+          "tape": "workspace/aspe/baseline/context/sealed/tapes/selfplay_87906eb2dc2728b9.json",
+          "tape_sha256": "72060bc962165790b442c5e443ac04a3d4da431034c21f1404910e5e862dcb58"
+        },
+        {
+          "family_id": 0,
+          "identity": "1c86dece9b59f65fb3d57e60db01bd2a53c455b3b15dd82ef909ed9c06428b17",
+          "lane": "LAND_INVESTMENT",
+          "member": "bakeoff_land_investment",
+          "own_history": false,
+          "protected": true,
+          "role_id": 4,
+          "seat": 0,
+          "seed": 1208665923,
+          "tape": "workspace/aspe/baseline/context/sealed/tapes/selfplay_b66d922222f52078.json",
+          "tape_sha256": "6e86852fec1ec52e41122305bbb44cdec16ad783e7ed61d27438701d0e862358"
+        },
+        {
+          "family_id": 0,
+          "identity": "039424236627f2a43ae216e4e5565f12e6cc7a58a775a4715300c6e1571d92af",
+          "lane": "CROP_TRANSITION",
+          "member": "bakeoff_crop_transition",
+          "own_history": false,
+          "protected": true,
+          "role_id": 4,
+          "seat": 0,
+          "seed": 1208665923,
+          "tape": "workspace/aspe/baseline/context/sealed/tapes/selfplay_1b179ae2fc8c522f.json",
+          "tape_sha256": "7e9d10bc5e6a072d3c416bcc64466915ffdb49d589013b0d959c77cefaa3feea"
+        },
+        {
+          "family_id": 0,
+          "identity": "cb196378b526bf06dfbe8fa29a517e2d33035edce0c945d288095b693e18c526",
+          "lane": "ANIMAL_TRANSITION",
+          "member": "bakeoff_animal_transition",
+          "own_history": false,
+          "protected": true,
+          "role_id": 4,
+          "seat": 0,
+          "seed": 1208665923,
+          "tape": "workspace/aspe/baseline/context/sealed/tapes/selfplay_14870b2ebd5753b3.json",
+          "tape_sha256": "8a1826f5349f887bf415100616bea859ea213981d45e03d23d9dfcf61665c4a4"
+        },
+        {
+          "family_id": 0,
+          "identity": "7e37f36952ec47c1ffb799c0c601b61e0e48b9e447e66e49185df123a3d58397",
+          "lane": "ENDGAME_LIQUIDATION",
+          "member": "bakeoff_endgame_liquidation",
+          "own_history": false,
+          "protected": true,
+          "role_id": 4,
+          "seat": 0,
+          "seed": 1208665923,
+          "tape": "workspace/aspe/baseline/context/sealed/tapes/selfplay_589bf44e6a990f73.json",
+          "tape_sha256": "efed2c839f977b44298c3fced23a10eb3e33794bb664215cd5c17e19cacdcb7e"
+        }
+      ],
+      "coverage": {
+        "lanes": {
+          "ANIMAL_TRANSITION": 6,
+          "CROP_TRANSITION": 6,
+          "ENDGAME_LIQUIDATION": 6,
+          "LAND_INVESTMENT": 6
+        },
+        "members": {
+          "bakeoff_animal_transition": 6,
+          "bakeoff_crop_transition": 6,
+          "bakeoff_endgame_liquidation": 6,
+          "bakeoff_land_investment": 6
+        },
+        "regime_count": 24,
+        "seats": {
+          "0": 12,
+          "1": 12
+        },
+        "seeds": {
+          "1208665923": 8,
+          "423697851": 8,
+          "480441779": 8
+        }
+      },
+      "identity": "80ec85537540e1867474dbe510924d8de4e03ecbbb250b9e92eee16ce2c0e61b",
+      "lanes": [
+        "ANIMAL_TRANSITION",
+        "CROP_TRANSITION",
+        "ENDGAME_LIQUIDATION",
+        "LAND_INVESTMENT"
+      ],
+      "members": [
+        "bakeoff_animal_transition",
+        "bakeoff_crop_transition",
+        "bakeoff_endgame_liquidation",
+        "bakeoff_land_investment"
+      ],
+      "path": "workspace/aspe/baseline/context/sealed/sealed_panel.tsv",
+      "role": "SEALED",
+      "seats": [
+        0,
+        1
+      ],
+      "seeds": [
+        423697851,
+        480441779,
+        1208665923
+      ],
+      "sha256": "212149cf7b78dc8356852e1a6a0b8ccb0942698cf8e4641dbefec07824685dbb"
+    },
+    "transfer": {
+      "case_count": 24,
+      "cases": [
+        {
+          "family_id": 0,
+          "identity": "17d4a7147c09e3106d6ea84255344a81dfcf0429a642a7a45dc582c0bfb65599",
+          "lane": "ANIMAL_TRANSITION",
+          "member": "bakeoff_animal_transition",
+          "own_history": false,
+          "protected": false,
+          "role_id": 2,
+          "seat": 1,
+          "seed": 191616273,
+          "tape": "workspace/aspe/baseline/context/transfer/tapes/selfplay_42affb67fcd6cd35.json",
+          "tape_sha256": "1c06e29b4192b9298439950c27e11a63bed5e65918e80e2b0eefe28061745da1"
+        },
+        {
+          "family_id": 0,
+          "identity": "9aebb0d7baf9e72bbe7d8de2c1607746de0e5eec87cd5563488695f96c2dbf3c",
+          "lane": "ENDGAME_LIQUIDATION",
+          "member": "bakeoff_endgame_liquidation",
+          "own_history": false,
+          "protected": false,
+          "role_id": 2,
+          "seat": 1,
+          "seed": 191616273,
+          "tape": "workspace/aspe/baseline/context/transfer/tapes/selfplay_f50c13bd1b6cff25.json",
+          "tape_sha256": "68a110e37d5775e6f67faea1d752156e91a57b44e1c84e0d1d94f3a4b87afc0d"
+        },
+        {
+          "family_id": 0,
+          "identity": "894c633b60f7433c31ffa1d1d0a406432df78e9a627815ae334543a6751e7489",
+          "lane": "MECHANIC_EXPLOIT",
+          "member": "bakeoff_mechanic_exploit",
+          "own_history": false,
+          "protected": false,
+          "role_id": 2,
+          "seat": 1,
+          "seed": 191616273,
+          "tape": "workspace/aspe/baseline/context/transfer/tapes/selfplay_2c9a5f85751be0d2.json",
+          "tape_sha256": "2ed455e8d0840517828edeac19762fac06ab78b29f83dd862a02b4a18653c599"
+        },
+        {
+          "family_id": 0,
+          "identity": "c6fed1b6ba502dfae1cf237ad2322a97db3d0f3939fe4505f0176aedc6177bcc",
+          "lane": "GENERAL",
+          "member": "bakeoff_general",
+          "own_history": false,
+          "protected": false,
+          "role_id": 2,
+          "seat": 1,
+          "seed": 191616273,
+          "tape": "workspace/aspe/baseline/context/transfer/tapes/selfplay_08e612980b26ee4e.json",
+          "tape_sha256": "ae271b05b62dfa143fe987ea9d1f797e617ecb553dba98e11620dc8f7d633349"
+        },
+        {
+          "family_id": 0,
+          "identity": "353f4a87790000cf7467e7120236de2dd0a583786aaab1c46b77acc4e6a16e5a",
+          "lane": "ANIMAL_TRANSITION",
+          "member": "bakeoff_animal_transition",
+          "own_history": false,
+          "protected": false,
+          "role_id": 2,
+          "seat": 0,
+          "seed": 191616273,
+          "tape": "workspace/aspe/baseline/context/transfer/tapes/selfplay_8ef19c83b3e5e12c.json",
+          "tape_sha256": "0a22c3d464949f2a8feef7d2e0fd5e93ae0ce5cb67e8f8a4635ef5e9977d8cb0"
+        },
+        {
+          "family_id": 0,
+          "identity": "c0437bfbf969ebcd6eda7417e87c3beda4b14f9da57a288c91403ac596399935",
+          "lane": "ENDGAME_LIQUIDATION",
+          "member": "bakeoff_endgame_liquidation",
+          "own_history": false,
+          "protected": false,
+          "role_id": 2,
+          "seat": 0,
+          "seed": 191616273,
+          "tape": "workspace/aspe/baseline/context/transfer/tapes/selfplay_65dc2b9612a1863a.json",
+          "tape_sha256": "e116c28aba6c45e3e4cf7c825b500c2a5be283f8b72e57491d255ddb94319f46"
+        },
+        {
+          "family_id": 0,
+          "identity": "27a689097f952b9e5222bfd04780e1a3562d5e39749e21c5381e4fc3ed756da4",
+          "lane": "MECHANIC_EXPLOIT",
+          "member": "bakeoff_mechanic_exploit",
+          "own_history": false,
+          "protected": false,
+          "role_id": 2,
+          "seat": 0,
+          "seed": 191616273,
+          "tape": "workspace/aspe/baseline/context/transfer/tapes/selfplay_115e01274868ec1f.json",
+          "tape_sha256": "be707a5a74ef0f21e739548b4a290a8cbb7cc15cf4ad9b41df130e963fabf9b0"
+        },
+        {
+          "family_id": 0,
+          "identity": "ff26824ee7e6fe4d0f863fe110f775639fda695a90cef7dbc5b8e8a14157b688",
+          "lane": "GENERAL",
+          "member": "bakeoff_general",
+          "own_history": false,
+          "protected": false,
+          "role_id": 2,
+          "seat": 0,
+          "seed": 191616273,
+          "tape": "workspace/aspe/baseline/context/transfer/tapes/selfplay_3b9eee0f88dfd564.json",
+          "tape_sha256": "1c52993d874eef8983ea5d407f39dc296b316fdddb6a7e853fa4f113f73cc373"
+        },
+        {
+          "family_id": 0,
+          "identity": "3cf55d380f95696fc9a826d6809507b21ec618aa68cc73a80042cc4165e3860d",
+          "lane": "ANIMAL_TRANSITION",
+          "member": "bakeoff_animal_transition",
+          "own_history": false,
+          "protected": false,
+          "role_id": 2,
+          "seat": 1,
+          "seed": 1362294356,
+          "tape": "workspace/aspe/baseline/context/transfer/tapes/selfplay_ffb1d5af1ab6bc52.json",
+          "tape_sha256": "92c33390f9f928363cb5490ccb61472b3654b2e8656ea23ac4ca88481712f154"
+        },
+        {
+          "family_id": 0,
+          "identity": "0d1ffda70bd8da84d2a291b5b4166ca5fcb3c877178546e8dd49545510498b7e",
+          "lane": "ENDGAME_LIQUIDATION",
+          "member": "bakeoff_endgame_liquidation",
+          "own_history": false,
+          "protected": false,
+          "role_id": 2,
+          "seat": 1,
+          "seed": 1362294356,
+          "tape": "workspace/aspe/baseline/context/transfer/tapes/selfplay_56d4f0682e0db0dd.json",
+          "tape_sha256": "182d99c098e6e2022f8a0f795f207d84d9583b056074e60769d87af5607f8eb3"
+        },
+        {
+          "family_id": 0,
+          "identity": "a83dae73f96385ad780c9e99b22f005351a5e1777155d9db4042f0b143dfcaa0",
+          "lane": "MECHANIC_EXPLOIT",
+          "member": "bakeoff_mechanic_exploit",
+          "own_history": false,
+          "protected": false,
+          "role_id": 2,
+          "seat": 1,
+          "seed": 1362294356,
+          "tape": "workspace/aspe/baseline/context/transfer/tapes/selfplay_bf98d7d84aaaaf12.json",
+          "tape_sha256": "0ada855877eb9d2865a41aa09f38e8250720c1f2e7cfed55f5fd3d5da16a38fc"
+        },
+        {
+          "family_id": 0,
+          "identity": "25486f75594907d54cea75dc593de1131156364efb48d5f94cad1235bdf56b0e",
+          "lane": "GENERAL",
+          "member": "bakeoff_general",
+          "own_history": false,
+          "protected": false,
+          "role_id": 2,
+          "seat": 1,
+          "seed": 1362294356,
+          "tape": "workspace/aspe/baseline/context/transfer/tapes/selfplay_6189a2d2ef126c2e.json",
+          "tape_sha256": "de00a5b67e0208b25657ac5b77cbf1b09eff42de16f59a2d74e19deb1ff345e4"
+        },
+        {
+          "family_id": 0,
+          "identity": "2ff0ba9326e1185e4e905878a641b8666ce9fe508f6ebea600391b3eee9692fd",
+          "lane": "ANIMAL_TRANSITION",
+          "member": "bakeoff_animal_transition",
+          "own_history": false,
+          "protected": false,
+          "role_id": 2,
+          "seat": 0,
+          "seed": 1362294356,
+          "tape": "workspace/aspe/baseline/context/transfer/tapes/selfplay_14d1bc47dbc243e9.json",
+          "tape_sha256": "5ddcda5e6fe84f06579e8f4586c249f277e1f29d978359af02bab09889795bc5"
+        },
+        {
+          "family_id": 0,
+          "identity": "117bed38b424fe25edb358f365906c80e90fb2850da307d3c1a483f32e378b1c",
+          "lane": "ENDGAME_LIQUIDATION",
+          "member": "bakeoff_endgame_liquidation",
+          "own_history": false,
+          "protected": false,
+          "role_id": 2,
+          "seat": 0,
+          "seed": 1362294356,
+          "tape": "workspace/aspe/baseline/context/transfer/tapes/selfplay_6180b0bca4d98c49.json",
+          "tape_sha256": "0fd363ab1cd01f31ff8fa5bc1c49af15cc997b41649f9859defb818ac60c7559"
+        },
+        {
+          "family_id": 0,
+          "identity": "bed7b0777214960a8902e8ab2ca926dd398805401046367c18657a9dc221e8f5",
+          "lane": "MECHANIC_EXPLOIT",
+          "member": "bakeoff_mechanic_exploit",
+          "own_history": false,
+          "protected": false,
+          "role_id": 2,
+          "seat": 0,
+          "seed": 1362294356,
+          "tape": "workspace/aspe/baseline/context/transfer/tapes/selfplay_43d47824e75df8b2.json",
+          "tape_sha256": "32f10169253bdd324b92a7f9c6a54af4a23887f0a71f701338a25aa7ab1b7702"
+        },
+        {
+          "family_id": 0,
+          "identity": "6e7e6e909c2f20e8c3dc74c3440fc6493eb524e16a9bab9182dc4b78f1401c20",
+          "lane": "GENERAL",
+          "member": "bakeoff_general",
+          "own_history": false,
+          "protected": false,
+          "role_id": 2,
+          "seat": 0,
+          "seed": 1362294356,
+          "tape": "workspace/aspe/baseline/context/transfer/tapes/selfplay_901596acf98a0448.json",
+          "tape_sha256": "ba0607a1fc27ae2b0aa9732af80d379f0a43a3ae33b4e78a257a46f3d0e63bc0"
+        },
+        {
+          "family_id": 0,
+          "identity": "95e9890c144328a8f1e84078ada83611e0f9148f4f3b38e015831a3acbc4137f",
+          "lane": "ANIMAL_TRANSITION",
+          "member": "bakeoff_animal_transition",
+          "own_history": false,
+          "protected": false,
+          "role_id": 2,
+          "seat": 1,
+          "seed": 364494957,
+          "tape": "workspace/aspe/baseline/context/transfer/tapes/selfplay_077161334df45147.json",
+          "tape_sha256": "40e4f7c44db4905f3b716e4886b45ff422d5708d113b0eb6262e1dc0873f025c"
+        },
+        {
+          "family_id": 0,
+          "identity": "d34313d5a7c1525d0ced70fb33f7092d4074d32b8414c38f3afaf078f3882e77",
+          "lane": "ENDGAME_LIQUIDATION",
+          "member": "bakeoff_endgame_liquidation",
+          "own_history": false,
+          "protected": false,
+          "role_id": 2,
+          "seat": 1,
+          "seed": 364494957,
+          "tape": "workspace/aspe/baseline/context/transfer/tapes/selfplay_7d85e92806ad4e1a.json",
+          "tape_sha256": "e1e2232dcf2d6b4f76979cfbca3ad2b4c3b3fd1f18c53489c6a59263abfc8ec1"
+        },
+        {
+          "family_id": 0,
+          "identity": "b3ed7b730406df5a601cba41065e99a3e2a2db0316a94edcc655d63749a960b4",
+          "lane": "MECHANIC_EXPLOIT",
+          "member": "bakeoff_mechanic_exploit",
+          "own_history": false,
+          "protected": false,
+          "role_id": 2,
+          "seat": 1,
+          "seed": 364494957,
+          "tape": "workspace/aspe/baseline/context/transfer/tapes/selfplay_a1667b9b90806326.json",
+          "tape_sha256": "5014e7f5762b08be6e190679cc4f39e32ec84a6896e0d5969186b815b4e57507"
+        },
+        {
+          "family_id": 0,
+          "identity": "a770233b2ffb3f7959e480a0a136fd1a8b11a06bc53320d6b968e58c9da8b4c2",
+          "lane": "GENERAL",
+          "member": "bakeoff_general",
+          "own_history": false,
+          "protected": false,
+          "role_id": 2,
+          "seat": 1,
+          "seed": 364494957,
+          "tape": "workspace/aspe/baseline/context/transfer/tapes/selfplay_af3544228a2efa87.json",
+          "tape_sha256": "b4f654e844d7eef5b6e5106fb882fe771d539a6e842100b4558aef3bf3f66df7"
+        },
+        {
+          "family_id": 0,
+          "identity": "e19fe089dfbc642262d98af096d64b4c912d604a89a12185cdcb2da5a146a42b",
+          "lane": "ANIMAL_TRANSITION",
+          "member": "bakeoff_animal_transition",
+          "own_history": false,
+          "protected": false,
+          "role_id": 2,
+          "seat": 0,
+          "seed": 364494957,
+          "tape": "workspace/aspe/baseline/context/transfer/tapes/selfplay_72bc7ec280a4da51.json",
+          "tape_sha256": "4d65c2fc2c3fdd06f58681d7a909ef73d3e0346e996d8d9c61efcdc72aa2c787"
+        },
+        {
+          "family_id": 0,
+          "identity": "edda3fce75d303f1fd2404e6a4efca9097fceb19dfd9893979086240682af4a9",
+          "lane": "ENDGAME_LIQUIDATION",
+          "member": "bakeoff_endgame_liquidation",
+          "own_history": false,
+          "protected": false,
+          "role_id": 2,
+          "seat": 0,
+          "seed": 364494957,
+          "tape": "workspace/aspe/baseline/context/transfer/tapes/selfplay_2556ad38c24e7cf4.json",
+          "tape_sha256": "ab3103c02cfacc3fc4d78111bd5a0831f544a644f3c0094a00e7ac8cebf2c766"
+        },
+        {
+          "family_id": 0,
+          "identity": "41d39a00da0673c6f86334ccd68cae65b2c395cad7e2ec84da5afdffad28139c",
+          "lane": "MECHANIC_EXPLOIT",
+          "member": "bakeoff_mechanic_exploit",
+          "own_history": false,
+          "protected": false,
+          "role_id": 2,
+          "seat": 0,
+          "seed": 364494957,
+          "tape": "workspace/aspe/baseline/context/transfer/tapes/selfplay_4a4a96b520fd33eb.json",
+          "tape_sha256": "130fe177ed36e88080de48750175880c5b50cfc1e1c3a31ad92f00f9242813d4"
+        },
+        {
+          "family_id": 0,
+          "identity": "2be976526fac5d4f7570ed57bb12022dad8e86930878bfd4d064a7f87b42d8be",
+          "lane": "GENERAL",
+          "member": "bakeoff_general",
+          "own_history": false,
+          "protected": false,
+          "role_id": 2,
+          "seat": 0,
+          "seed": 364494957,
+          "tape": "workspace/aspe/baseline/context/transfer/tapes/selfplay_7ff33f137a08123f.json",
+          "tape_sha256": "8622eee2fd1cfa7984b9043b6c8832f738484cb35677cfdaefa9af9cbd57ae15"
+        }
+      ],
+      "coverage": {
+        "lanes": {
+          "ANIMAL_TRANSITION": 6,
+          "ENDGAME_LIQUIDATION": 6,
+          "GENERAL": 6,
+          "MECHANIC_EXPLOIT": 6
+        },
+        "members": {
+          "bakeoff_animal_transition": 6,
+          "bakeoff_endgame_liquidation": 6,
+          "bakeoff_general": 6,
+          "bakeoff_mechanic_exploit": 6
+        },
+        "regime_count": 24,
+        "seats": {
+          "0": 12,
+          "1": 12
+        },
+        "seeds": {
+          "1362294356": 8,
+          "191616273": 8,
+          "364494957": 8
+        }
+      },
+      "identity": "9a27e72d5d750107effc04a5c6cd651ddfe075047a5aa53f786a9c5b7e1df85c",
+      "lanes": [
+        "ANIMAL_TRANSITION",
+        "ENDGAME_LIQUIDATION",
+        "GENERAL",
+        "MECHANIC_EXPLOIT"
+      ],
+      "members": [
+        "bakeoff_animal_transition",
+        "bakeoff_endgame_liquidation",
+        "bakeoff_general",
+        "bakeoff_mechanic_exploit"
+      ],
+      "path": "workspace/aspe/baseline/context/transfer/transfer_panel.tsv",
+      "role": "TRANSFER",
+      "seats": [
+        0,
+        1
+      ],
+      "seeds": [
+        191616273,
+        364494957,
+        1362294356
+      ],
+      "sha256": "27bbff26316aae24b08ce0e73d5b787e3dc6aff13215df52139ff570f695f80f"
+    },
+    "validation": {
+      "case_count": 24,
+      "cases": [
+        {
+          "family_id": 0,
+          "identity": "f7b2aac50ccaa702eb0c17432e0c1abf4891b4db712c66b8f24d3d19b62bb6ef",
+          "lane": "GENERAL",
+          "member": "bakeoff_general",
+          "own_history": false,
+          "protected": true,
+          "role_id": 3,
+          "seat": 1,
+          "seed": 1267367268,
+          "tape": "workspace/aspe/baseline/context/validation/tapes/selfplay_6287e121d4e24c1b.json",
+          "tape_sha256": "9139a5749f27509994b2149732d6104a444d6800ac8192b52697f1cea64cb601"
+        },
+        {
+          "family_id": 0,
+          "identity": "567b2729fa4b63be539a0732a36f23f97ee23889f026b2a4b3a05d12e9762a12",
+          "lane": "MARKET_LIQUIDITY",
+          "member": "bakeoff_market_liquidity",
+          "own_history": false,
+          "protected": true,
+          "role_id": 3,
+          "seat": 1,
+          "seed": 1267367268,
+          "tape": "workspace/aspe/baseline/context/validation/tapes/selfplay_34e1ae384940b6bf.json",
+          "tape_sha256": "b5b14d8f4343119f2b238c51521775fe23ce15cf5976c62902b8846ef62d1a0d"
+        },
+        {
+          "family_id": 0,
+          "identity": "4fded1ceaeefc542ee1d529eeae0938109298cc52b432a835d93e6c8521a50f1",
+          "lane": "WORKER_PRODUCTION",
+          "member": "bakeoff_worker_production",
+          "own_history": false,
+          "protected": true,
+          "role_id": 3,
+          "seat": 1,
+          "seed": 1267367268,
+          "tape": "workspace/aspe/baseline/context/validation/tapes/selfplay_e07badf36065a502.json",
+          "tape_sha256": "5fe6de61851b6ff7d6b866202982c320a44a2b30a06fb977dafb443c285e8f10"
+        },
+        {
+          "family_id": 0,
+          "identity": "4ba4383cdb66314043c3c6993f103ed7c17553c9b749d77da0f2a081873cd20a",
+          "lane": "LAND_INVESTMENT",
+          "member": "bakeoff_land_investment",
+          "own_history": false,
+          "protected": true,
+          "role_id": 3,
+          "seat": 1,
+          "seed": 1267367268,
+          "tape": "workspace/aspe/baseline/context/validation/tapes/selfplay_c189dde3211a9e1e.json",
+          "tape_sha256": "27bd70b3de5da9cab8fa499f08af9a977656a92a6c8db26f0cc8f93ec0b6f413"
+        },
+        {
+          "family_id": 0,
+          "identity": "a33179d4cb54f8b2bdbb7767ba11184a1b92596283591ccbe2ac166133683938",
+          "lane": "GENERAL",
+          "member": "bakeoff_general",
+          "own_history": false,
+          "protected": true,
+          "role_id": 3,
+          "seat": 0,
+          "seed": 1267367268,
+          "tape": "workspace/aspe/baseline/context/validation/tapes/selfplay_a6077ef40746c10b.json",
+          "tape_sha256": "63d843d4254778ca6f6331f3a18b22672ce4557809a18026499d02f149d09809"
+        },
+        {
+          "family_id": 0,
+          "identity": "72013e35bb9304f3e117cf8ae66e88d370ec87be24ef64526297914c28dde6ed",
+          "lane": "MARKET_LIQUIDITY",
+          "member": "bakeoff_market_liquidity",
+          "own_history": false,
+          "protected": true,
+          "role_id": 3,
+          "seat": 0,
+          "seed": 1267367268,
+          "tape": "workspace/aspe/baseline/context/validation/tapes/selfplay_5084957d4ee9b068.json",
+          "tape_sha256": "48d8d1b74a7f00a4815bcd9714fd2db2f103dc99dc576a151a131b0c056fe042"
+        },
+        {
+          "family_id": 0,
+          "identity": "81fa260bcc707801feafffd64860d9b02683561575eecadf0073ca8b03f0b5f8",
+          "lane": "WORKER_PRODUCTION",
+          "member": "bakeoff_worker_production",
+          "own_history": false,
+          "protected": true,
+          "role_id": 3,
+          "seat": 0,
+          "seed": 1267367268,
+          "tape": "workspace/aspe/baseline/context/validation/tapes/selfplay_940472c07ef5f0f3.json",
+          "tape_sha256": "07e19c0851e7912998ddc761b2f25a6ae879929c2d445a2c69aea797fd8eb095"
+        },
+        {
+          "family_id": 0,
+          "identity": "ae8b77ba5fd60452b30d7db5c6b07d3c99afb4cd74b9d8652bdd3a0b09e2073c",
+          "lane": "LAND_INVESTMENT",
+          "member": "bakeoff_land_investment",
+          "own_history": false,
+          "protected": true,
+          "role_id": 3,
+          "seat": 0,
+          "seed": 1267367268,
+          "tape": "workspace/aspe/baseline/context/validation/tapes/selfplay_80cf06c325cff038.json",
+          "tape_sha256": "794014a6be720be07f49dab0780463c4093f0873d523f54f129d2e30e6e9fbef"
+        },
+        {
+          "family_id": 0,
+          "identity": "9f6d92d4247afecd00b9d0a6922eba22d42d7a429fb3691492bb8aa5bbc64f4f",
+          "lane": "GENERAL",
+          "member": "bakeoff_general",
+          "own_history": false,
+          "protected": true,
+          "role_id": 3,
+          "seat": 1,
+          "seed": 1440573538,
+          "tape": "workspace/aspe/baseline/context/validation/tapes/selfplay_06ecf81ce7e10138.json",
+          "tape_sha256": "e5cfdad636fc077bc2b868c8adb5648dbe45c35a9bf03556665c41c6cb9f265a"
+        },
+        {
+          "family_id": 0,
+          "identity": "965aac450cca9685c053759e85c6892e29b614f13a1f51851e4748c904d1caa4",
+          "lane": "MARKET_LIQUIDITY",
+          "member": "bakeoff_market_liquidity",
+          "own_history": false,
+          "protected": true,
+          "role_id": 3,
+          "seat": 1,
+          "seed": 1440573538,
+          "tape": "workspace/aspe/baseline/context/validation/tapes/selfplay_71152ddd111e0cd2.json",
+          "tape_sha256": "00c6b8b6b9de618b501231062d2b40dce7a6efadf28bd7f1228e62af558d8a57"
+        },
+        {
+          "family_id": 0,
+          "identity": "585eec62ebfcdb1c38e714d3e67450a029f5a647dd6ea6292faa9c477028448c",
+          "lane": "WORKER_PRODUCTION",
+          "member": "bakeoff_worker_production",
+          "own_history": false,
+          "protected": true,
+          "role_id": 3,
+          "seat": 1,
+          "seed": 1440573538,
+          "tape": "workspace/aspe/baseline/context/validation/tapes/selfplay_db55e93904a760e3.json",
+          "tape_sha256": "112c332afabbe9fdfa4d1baffef1ea9291237e965e6007dac19f83b1fa03c6c0"
+        },
+        {
+          "family_id": 0,
+          "identity": "e84f358f4e64a5674441ef90000ef31a3861e8cd5380ca84d16e6a93fd9646d5",
+          "lane": "LAND_INVESTMENT",
+          "member": "bakeoff_land_investment",
+          "own_history": false,
+          "protected": true,
+          "role_id": 3,
+          "seat": 1,
+          "seed": 1440573538,
+          "tape": "workspace/aspe/baseline/context/validation/tapes/selfplay_873ba0439c613ad2.json",
+          "tape_sha256": "25a7c5e929d4fa37aa1f3f2ca51e33977a7cf0ab2b519cc8fc4b816483821a97"
+        },
+        {
+          "family_id": 0,
+          "identity": "a89d7a9d4267cd91404b4a4a15063c369561992bd46207dc5946e5c824f92726",
+          "lane": "GENERAL",
+          "member": "bakeoff_general",
+          "own_history": false,
+          "protected": true,
+          "role_id": 3,
+          "seat": 0,
+          "seed": 1440573538,
+          "tape": "workspace/aspe/baseline/context/validation/tapes/selfplay_7d0850e21ebf337d.json",
+          "tape_sha256": "5864f24fb49931f31af6ce4f928f2db9258def270c7014ae26f11f1f98e937d2"
+        },
+        {
+          "family_id": 0,
+          "identity": "5d0e85d181bda6dcf63c77c2b2762200b78bdcbfa660fab0310f24014f99dd70",
+          "lane": "MARKET_LIQUIDITY",
+          "member": "bakeoff_market_liquidity",
+          "own_history": false,
+          "protected": true,
+          "role_id": 3,
+          "seat": 0,
+          "seed": 1440573538,
+          "tape": "workspace/aspe/baseline/context/validation/tapes/selfplay_5ca27e6bba157d2f.json",
+          "tape_sha256": "5d514095908d457970a1d632c69acbeaa285602f2010428f450d9f17b5c82ecc"
+        },
+        {
+          "family_id": 0,
+          "identity": "cdb715288c8568acb01372071751d6bfd4b14de33901a10f3b207792acdff448",
+          "lane": "WORKER_PRODUCTION",
+          "member": "bakeoff_worker_production",
+          "own_history": false,
+          "protected": true,
+          "role_id": 3,
+          "seat": 0,
+          "seed": 1440573538,
+          "tape": "workspace/aspe/baseline/context/validation/tapes/selfplay_94a1900141d83cee.json",
+          "tape_sha256": "74c0dadf23687214dd2183595cfd4cb617a3555ac7396e419c743f3464b9eac0"
+        },
+        {
+          "family_id": 0,
+          "identity": "550bfdbf68ae00c0b0c75aa2949f885b5a51b0dcb88efd16db7d8c70f4776e65",
+          "lane": "LAND_INVESTMENT",
+          "member": "bakeoff_land_investment",
+          "own_history": false,
+          "protected": true,
+          "role_id": 3,
+          "seat": 0,
+          "seed": 1440573538,
+          "tape": "workspace/aspe/baseline/context/validation/tapes/selfplay_2c6bd7f99018a4c3.json",
+          "tape_sha256": "fea36fd3df35ac7ed70a750db5b945b32f8d6ac83ae340c8ebe4f4dfc97c847f"
+        },
+        {
+          "family_id": 0,
+          "identity": "694452bd4732179da0f3775c18e705ad5ff3441b16b5428dad2e224b8a318ffd",
+          "lane": "GENERAL",
+          "member": "bakeoff_general",
+          "own_history": false,
+          "protected": true,
+          "role_id": 3,
+          "seat": 1,
+          "seed": 1275978081,
+          "tape": "workspace/aspe/baseline/context/validation/tapes/selfplay_8d2a432c66e2ca8e.json",
+          "tape_sha256": "db66a338fb04f96f50747f9fffe32ea0372c99082a08ed084db77d5eeb9b7a3d"
+        },
+        {
+          "family_id": 0,
+          "identity": "4350858844593efcc3f463eb7af2d0b7aa7f90f573abf66b3f358c388ed79f2b",
+          "lane": "MARKET_LIQUIDITY",
+          "member": "bakeoff_market_liquidity",
+          "own_history": false,
+          "protected": true,
+          "role_id": 3,
+          "seat": 1,
+          "seed": 1275978081,
+          "tape": "workspace/aspe/baseline/context/validation/tapes/selfplay_76aa8db2902078ee.json",
+          "tape_sha256": "e8910cef2b9354e07a83bcc3a90a26e4b5b0cd1932c449d8d658b4c8fc81d64b"
+        },
+        {
+          "family_id": 0,
+          "identity": "8a290ffb74ec3ee15d21815fe907bcecba7bb8c6aaa31e14b5c4815ad830ad50",
+          "lane": "WORKER_PRODUCTION",
+          "member": "bakeoff_worker_production",
+          "own_history": false,
+          "protected": true,
+          "role_id": 3,
+          "seat": 1,
+          "seed": 1275978081,
+          "tape": "workspace/aspe/baseline/context/validation/tapes/selfplay_148cf01689eb0e27.json",
+          "tape_sha256": "708794d52982aa2c4a0048455f1fca88de4e623639af534b35cea2969024ddbb"
+        },
+        {
+          "family_id": 0,
+          "identity": "6fc01d160c327c8f423b0ffaae26a2e9e253742957e7de2dfe9f369850d58f9b",
+          "lane": "LAND_INVESTMENT",
+          "member": "bakeoff_land_investment",
+          "own_history": false,
+          "protected": true,
+          "role_id": 3,
+          "seat": 1,
+          "seed": 1275978081,
+          "tape": "workspace/aspe/baseline/context/validation/tapes/selfplay_ec502b7815293ccf.json",
+          "tape_sha256": "eb7fac9922df8d6836d05e77f533f1307c5f439464c85ed00d232b53f29972f3"
+        },
+        {
+          "family_id": 0,
+          "identity": "87d003025bf5e2568909490a4eff374724a3d4dd191dcb171be11f1bb65168de",
+          "lane": "GENERAL",
+          "member": "bakeoff_general",
+          "own_history": false,
+          "protected": true,
+          "role_id": 3,
+          "seat": 0,
+          "seed": 1275978081,
+          "tape": "workspace/aspe/baseline/context/validation/tapes/selfplay_d3c29b95aca2989b.json",
+          "tape_sha256": "1314678e97838a5a840af85b81f32d4884bceadcda33673c7f11c9547e7c4163"
+        },
+        {
+          "family_id": 0,
+          "identity": "8fe69c55a30638d847b85593e8df73844f6e205516c3f726e9556faa899c1b94",
+          "lane": "MARKET_LIQUIDITY",
+          "member": "bakeoff_market_liquidity",
+          "own_history": false,
+          "protected": true,
+          "role_id": 3,
+          "seat": 0,
+          "seed": 1275978081,
+          "tape": "workspace/aspe/baseline/context/validation/tapes/selfplay_3f157a02c6e608a6.json",
+          "tape_sha256": "24d2522f1a445b075dce29e965cdf5a24d907b5e11d6ee28158bcc79b990080c"
+        },
+        {
+          "family_id": 0,
+          "identity": "4e1faf4baf7b81abc55481d610298160eee7026428c3205d94de24d85aff5c07",
+          "lane": "WORKER_PRODUCTION",
+          "member": "bakeoff_worker_production",
+          "own_history": false,
+          "protected": true,
+          "role_id": 3,
+          "seat": 0,
+          "seed": 1275978081,
+          "tape": "workspace/aspe/baseline/context/validation/tapes/selfplay_83b82cfd524ea1f7.json",
+          "tape_sha256": "eb1ce773e2e83b7eb2f004d605659d1d0cbd51cd41576b62f8358abc89b6e3e3"
+        },
+        {
+          "family_id": 0,
+          "identity": "9f95a30cfb0967176c84d0f859a84af27930db8219b522243b042db119f6201d",
+          "lane": "LAND_INVESTMENT",
+          "member": "bakeoff_land_investment",
+          "own_history": false,
+          "protected": true,
+          "role_id": 3,
+          "seat": 0,
+          "seed": 1275978081,
+          "tape": "workspace/aspe/baseline/context/validation/tapes/selfplay_757d5800502e475f.json",
+          "tape_sha256": "12b105b0112df2836ef06c30f6bf2206c390b80826a1755ce1afd8f8164020b0"
+        }
+      ],
+      "coverage": {
+        "lanes": {
+          "GENERAL": 6,
+          "LAND_INVESTMENT": 6,
+          "MARKET_LIQUIDITY": 6,
+          "WORKER_PRODUCTION": 6
+        },
+        "members": {
+          "bakeoff_general": 6,
+          "bakeoff_land_investment": 6,
+          "bakeoff_market_liquidity": 6,
+          "bakeoff_worker_production": 6
+        },
+        "regime_count": 24,
+        "seats": {
+          "0": 12,
+          "1": 12
+        },
+        "seeds": {
+          "1267367268": 8,
+          "1275978081": 8,
+          "1440573538": 8
+        }
+      },
+      "identity": "e7fed01c6f655a4986aa8ddfbecbcb5642e33b45d02196a067e0a6500c71ee86",
+      "lanes": [
+        "GENERAL",
+        "LAND_INVESTMENT",
+        "MARKET_LIQUIDITY",
+        "WORKER_PRODUCTION"
+      ],
+      "members": [
+        "bakeoff_general",
+        "bakeoff_land_investment",
+        "bakeoff_market_liquidity",
+        "bakeoff_worker_production"
+      ],
+      "path": "workspace/aspe/baseline/context/validation/validation_panel.tsv",
+      "role": "VALIDATION",
+      "seats": [
+        0,
+        1
+      ],
+      "seeds": [
+        1267367268,
+        1275978081,
+        1440573538
+      ],
+      "sha256": "109cb2c294f36f7eb8c033e81f0e5d62578c847dc79ee17954e2b49a3744ea8e"
+    }
+  },
+  "schema": "kaggriculture.aspe.baseline",
+  "schema_version": 1,
+  "source_head": "241df892cd8484498f407b72cf0514c66c55c873"
+}

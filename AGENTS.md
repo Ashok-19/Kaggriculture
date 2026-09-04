@@ -27,3 +27,4 @@
 - Keep the root and dependency set small. Commit only source, current configs,
   compact assets, tests, and current documentation. Never commit caches or
   campaign output.
+- For gpu related commands, run it without rtk to avoid errors.
