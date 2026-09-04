@@ -6,8 +6,10 @@
 - BUILD comes only from fresh self-play and the internal adversarial league.
   Never use public or historical opponent identity to construct policy.
 - External opponents are independent HOLDOUT/generalization evidence only.
-- Preserve the flow: multi-regime BUILD -> INTERNAL_DEV -> RLRMB search ->
-  binary routing -> TRANSFER/VALIDATION/CEGIS/SEALED -> composition.
+- Preserve the safety flow: multi-regime BUILD -> discovery oracle -> INTERNAL_DEV ->
+  binary routing -> TRANSFER/VALIDATION/CEGIS/SEALED -> composition. RLRMB and
+  Direct-Bonsai are current baselines; ASPE is the planned replacement and must
+  advance only through the gates in `docs/ASPE_MASTER_PLAN.md`.
 - INTERNAL_DEV and all downstream panels stay disjoint from BUILD. SEALED is a
   write-only safety firewall until its designated stage.
 - Use CUDA for large evaluation and the C++ oracle for reference checks. CPU
@@ -15,9 +17,11 @@
   protected win-to-loss must both remain zero.
 - Binary routing already exists. Do not casually add routing complexity or
   weaken safety thresholds.
-- `assets/champion/` is the only authoritative champion. Generated tapes,
-  binaries, checkpoints, and results go under ignored `workspace/`. Optional
-  HOLDOUT inputs go under ignored `external/`.
+- `assets/champion/` is the only authoritative champion. `workspace/` is tracked
+  experiment evidence; keep only compact reproducible artifacts there and commit
+  or delete every non-ignored file before finishing. Disposable build/cache paths
+  may use the existing `.gitignore`; optional HOLDOUT inputs remain under ignored
+  `external/`. Never create `scratch/`.
 - Import live Python through `kaggriculture_bonsai`; do not add `sys.path`
   manipulation or depend on deleted repository history.
 - Keep the root and dependency set small. Commit only source, current configs,

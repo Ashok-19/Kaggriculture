@@ -18,5 +18,7 @@
 - `configs/`: current campaign template and donor manifest.
 - `scripts/`: native and champion-asset build entrypoints.
 - `tests/unit`, `tests/integration`, `tests/parity`: active behavioral signal.
-- `workspace/`: ignored generated data, builds, banks, and runs.
+- `workspace/`: tracked compact experiment evidence and reproducible run context.
+  Disposable build/cache subpaths are allowed only where matched by the current
+  `.gitignore`; every other workspace artifact must be committed or deleted.
 - `external/`: ignored, user-provided HOLDOUT panels.

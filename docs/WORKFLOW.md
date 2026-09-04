@@ -11,9 +11,12 @@ synthetic current fixtures.
 
 Build with `scripts/build_cuda.py`. Generate fresh self-play into `workspace/`,
 assemble a multi-seed, both-seat, multi-member BUILD panel, and generate a
-disjoint INTERNAL_DEV rotation. Validate the campaign configuration before
-running. Keep experiments bounded and record CUDA games, protected W->L, and
-semantic mismatches.
+disjoint INTERNAL_DEV rotation. `workspace/` is tracked: keep compact reproducible
+evidence, and commit or delete every non-ignored artifact before finishing. Never
+create `scratch/`, and do not place evidence that must be tracked inside a path
+component named `build/`. Validate the campaign configuration before running.
+Keep experiments bounded and record CUDA games, protected W->L, and semantic
+mismatches.
 
 For an equal-context comparison of donor-window RLRMB and synthesized local
 Bonsai rules, build the native binaries and run:
@@ -26,7 +29,8 @@ Bonsai rules, build the native binaries and run:
 This freezes one fresh-self-play context and gives both methods the same
 discovery budget. `--reuse-context` repeats search while verifying every panel
 hash. The bakeoff writes evidence under `workspace/` and never updates the
-champion.
+champion. New specialist-search work must follow the phased gates in
+`docs/ASPE_MASTER_PLAN.md`; do not jump directly to the learned proposer.
 
 ## Champion update
 

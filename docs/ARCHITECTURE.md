@@ -10,11 +10,14 @@ specialist cannot dominate discovery.
 
 ## Screening and search
 
-INTERNAL_DEV is generated independently and screens BUILD candidates before
-expensive downstream evaluation. RLRMB then searches bounded, deterministic
-macro programs using checkpoint evidence, semantic motifs, beam/QD archives,
-and bounded repair. CUDA evaluates batches; the C++ engine is the reference
-physics oracle.
+INTERNAL_DEV is generated independently and screens discovery candidates before
+expensive downstream evaluation. RLRMB and Direct-Bonsai remain the current
+search baselines, but research at `500268a` found both unable to produce
+cross-regime specialists under the equal-budget bakeoff. The planned replacement
+is Adaptive Semantic Program Evolution (ASPE), staged in
+`docs/ASPE_MASTER_PLAN.md`. Until its Phase-A falsification passes, it is not the
+production oracle. CUDA evaluates exact batches; the C++ engine remains the
+reference physics oracle.
 
 ## Routing and safety
 

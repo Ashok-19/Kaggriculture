@@ -5,10 +5,12 @@ team ReCurSiON. Fresh self-play and an internal adversarial league discover
 bounded specialists; independent screening and safety stages decide whether a
 specialist may be composed into the current BKG4 controller.
 
-The authoritative champion is `assets/champion/`. Generated tapes, binaries,
-search state, and results belong in ignored `workspace/`. External opponent
-panels are optional HOLDOUT inputs under ignored `external/`; they never define
-BUILD policy.
+The authoritative champion is `assets/champion/`. Compact reproducible experiment
+evidence belongs in tracked `workspace/`; every non-ignored artifact must be
+committed or deleted before an agent finishes. Disposable build/cache outputs may
+use existing ignored paths such as `workspace/build/`. Never create `scratch/`.
+External opponent panels are optional HOLDOUT inputs under ignored `external/`;
+they never define BUILD policy.
 
 ## Setup
 
@@ -52,4 +54,5 @@ kaggriculture-bonsai --config configs/campaign.json --output workspace/runs/demo
 ```
 
 Build native binaries before parity tests. See [architecture](docs/ARCHITECTURE.md),
-[layout](docs/REPO_LAYOUT.md), and [workflow](docs/WORKFLOW.md).
+[ASPE master plan](docs/ASPE_MASTER_PLAN.md), [layout](docs/REPO_LAYOUT.md), and
+[workflow](docs/WORKFLOW.md).
