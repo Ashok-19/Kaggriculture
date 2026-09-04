@@ -15,6 +15,19 @@ disjoint INTERNAL_DEV rotation. Validate the campaign configuration before
 running. Keep experiments bounded and record CUDA games, protected W->L, and
 semantic mismatches.
 
+For an equal-context comparison of donor-window RLRMB and synthesized local
+Bonsai rules, build the native binaries and run:
+
+```bash
+.venv/bin/python scripts/run_oracle_bakeoff.py \
+  --output workspace/oracle_bakeoff --discovery-games 9600
+```
+
+This freezes one fresh-self-play context and gives both methods the same
+discovery budget. `--reuse-context` repeats search while verifying every panel
+hash. The bakeoff writes evidence under `workspace/` and never updates the
+champion.
+
 ## Champion update
 
 Only a candidate that completes routing, independent TRANSFER/VALIDATION,
