@@ -137,6 +137,18 @@ def assert_dev_independence(build_panels: Sequence[Path], dev_panel: Path) -> di
             for line in path.read_text(encoding="utf-8").splitlines() if line.strip()
         }
 
+    def _seeds(path: Path) -> set[int]:
+        if not path.exists():
+            return set()
+        seeds = set()
+        for line in path.read_text(encoding="utf-8").splitlines():
+            if not line.strip() or line.startswith("#"):
+                continue
+            fields = line.split("\t")
+            if len(fields) >= 3:
+                seeds.add(int(fields[2]))
+        return seeds
+
     dev_cases = _cases(Path(dev_panel))
     if not dev_cases:
         raise ValueError("INTERNAL_DEV panel is empty")
@@ -146,10 +158,16 @@ def assert_dev_independence(build_panels: Sequence[Path], dev_panel: Path) -> di
     overlap = sorted(build_cases & dev_cases)
     if overlap:
         raise ValueError(f"INTERNAL_DEV panel reuses BUILD cases: {overlap[:3]}")
+    build_seeds = set().union(*(_seeds(Path(path)) for path in build_panels))
+    dev_seeds = _seeds(Path(dev_panel))
+    seed_overlap = sorted(build_seeds & dev_seeds)
+    if seed_overlap:
+        raise ValueError(f"INTERNAL_DEV panel reuses BUILD seeds: {seed_overlap[:3]}")
     return {
         "dev_cases": len(dev_cases),
         "build_cases": len(build_cases),
         "overlap": 0,
+        "seed_overlap": 0,
         "independent": True,
     }
 

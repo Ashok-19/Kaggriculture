@@ -126,6 +126,19 @@ class PipelineTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 validate_production_config(config, root / "other")
 
+    def test_multi_regime_build_objective_is_bounded_and_structurally_checked(self):
+        source = json.loads(Path("scratch/cross_regime_dev_run_20260902/completed_attempts/attempt_0000/config.json").read_text())
+        source["build_objective"] = {
+            "require_cross_regime_support": True,
+            "max_win_to_loss": 2,
+        }
+        source["families"][0]["target_panel"] = "scratch/adversarial_league_proof_20260902/build/build_panel.tsv"
+        with tempfile.TemporaryDirectory() as directory:
+            config = Path(directory) / "config.json"
+            config.write_text(json.dumps(source))
+            with self.assertRaisesRegex(ValueError, "multiple seeds"):
+                validate_production_config(config, Path(directory) / "output")
+
     def test_phase13_validate_only_writes_complete_empty_run_contract(self):
         config_path = Path("tools/bkg4_search/rlrmb/configs/p0_7_equal_budget_v1.json")
         with tempfile.TemporaryDirectory() as directory:

@@ -10,12 +10,18 @@ from tools.bkg4_search.rlrmb.adversarial_league import (
     LeagueManager,
     LeagueMember,
     make_bounded_exploiter_candidates,
+    generate_league_build_cases,
 )
 from tools.bkg4_search.rlrmb.p13_equal_budget import _generic_events
 from tools.bkg4_search.rlrmb.checkpoints import Lane
 
 
 class AdversarialLeagueTests(unittest.TestCase):
+    def test_build_rejects_single_seed_before_generation(self):
+        with tempfile.TemporaryDirectory() as directory, self.assertRaisesRegex(
+            ValueError, "at least two independent seeds"
+        ):
+            generate_league_build_cases(Path(directory), seeds=(17,), exploiters=())
     def test_manager_persists_complete_provenance(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "league.json"

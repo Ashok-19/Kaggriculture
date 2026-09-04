@@ -85,7 +85,8 @@ def validate_production_config(config_path: str | Path, output: str | Path) -> d
     allowed = {"schema_version", "cuda_binary", "capture_binary", "asset_dir", "donor_manifest",
                "parent_route", "transfer_panel", "validation_panel", "sealed_panel", "sealed_role",
                "budget", "search", "promotion", "probe", "repair", "deployment", "output", "families", "cloud",
-               "host_execution", "source_provenance", "diagnostics", "internal_dev"}
+               "host_execution", "source_provenance", "diagnostics", "internal_dev",
+               "build_objective"}
     unknown = set(config) - allowed
     if config.get("schema_version") != PIPELINE_SCHEMA_VERSION or unknown:
         raise ValueError(f"unsupported production config schema/fields: {sorted(unknown)}")
@@ -131,6 +132,20 @@ def validate_production_config(config_path: str | Path, output: str | Path) -> d
         raise ValueError("all CUDA game categories require non-negative integer caps")
     if any(sum(categories.values()) > row["cuda_games"] for row in families):
         raise ValueError("per-family category caps exceed a family allocation")
+    build_objective = config.get("build_objective")
+    if build_objective is not None:
+        if not isinstance(build_objective, Mapping):
+            raise ValueError("build_objective must be a mapping")
+        unknown_build = set(build_objective) - {
+            "require_cross_regime_support", "max_win_to_loss"
+        }
+        if unknown_build:
+            raise ValueError(f"unsupported build_objective fields: {sorted(unknown_build)}")
+        if type(build_objective.get("require_cross_regime_support")) is not bool:
+            raise ValueError("build_objective.require_cross_regime_support must be bool")
+        max_w2l = build_objective.get("max_win_to_loss")
+        if type(max_w2l) is not int or max_w2l < 0:
+            raise ValueError("build_objective.max_win_to_loss must be non-negative")
     root = Path.cwd()
     paths = [config.get(name) for name in ("cuda_binary", "capture_binary", "asset_dir", "donor_manifest",
                                            "parent_route", "transfer_panel", "validation_panel", "sealed_panel")]
@@ -138,6 +153,16 @@ def validate_production_config(config_path: str | Path, output: str | Path) -> d
     missing = [path for path in paths if not path or not (root / path).exists()]
     if missing:
         raise ValueError(f"missing production inputs: {missing}")
+    if build_objective and build_objective["require_cross_regime_support"]:
+        from .build_regimes import load_build_regimes
+        for family in families:
+            regimes = load_build_regimes(root / family["target_panel"])
+            if (len({row.seed for row in regimes}) < 2
+                    or {row.seat for row in regimes} != {0, 1}
+                    or len({row.member for row in regimes}) < 2):
+                raise ValueError(
+                    "cross-regime BUILD requires multiple seeds, both seats and multiple members"
+                )
     output_path = Path(output)
     if output_path.exists() and any(output_path.iterdir()):
         raise ValueError("production output directory must be new or empty")

@@ -366,13 +366,24 @@ def select_diagnostic_shortlist(
         if item.target_loss_to_win <= 0:
             continue
         current = unique.get(item.candidate_semantic_id)
-        quality = (-item.target_loss_to_win, item.target_harm_count,
+        breadth = (
+            -int(getattr(item, "cross_regime_supported", False)),
+            -int(getattr(item, "seed_support", 0)),
+            -int(getattr(item, "seat_support", 0)),
+            -int(getattr(item, "member_support", 0)),
+        )
+        quality = (*breadth, -item.target_loss_to_win, item.target_harm_count,
                    -item.target_worst_delta, -item.target_aggregate_margin,
                    item.candidate_semantic_id)
         if current is None:
             unique[item.candidate_semantic_id] = item
         else:
-            old = (-current.target_loss_to_win, current.target_harm_count,
+            old = (
+                -int(getattr(current, "cross_regime_supported", False)),
+                -int(getattr(current, "seed_support", 0)),
+                -int(getattr(current, "seat_support", 0)),
+                -int(getattr(current, "member_support", 0)),
+                -current.target_loss_to_win, current.target_harm_count,
                    -current.target_worst_delta, -current.target_aggregate_margin,
                    current.candidate_semantic_id)
             if quality < old:
@@ -388,7 +399,11 @@ def select_diagnostic_shortlist(
             novelty = ((item.effect_signature not in seen_effects) +
                        (item.structural_id not in seen_structures) +
                        (epoch not in seen_epochs))
-            return (-item.target_loss_to_win, item.target_harm_count,
+            return (-int(getattr(item, "cross_regime_supported", False)),
+                    -int(getattr(item, "seed_support", 0)),
+                    -int(getattr(item, "seat_support", 0)),
+                    -int(getattr(item, "member_support", 0)),
+                    -item.target_loss_to_win, item.target_harm_count,
                     -item.target_worst_delta, -item.target_aggregate_margin,
                     -novelty, item.lane, item.initiation_step,
                     item.candidate_semantic_id)

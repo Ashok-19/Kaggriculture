@@ -128,6 +128,11 @@ def test_independence_check_fails_closed_on_build_reuse(tmp_path: Path):
     with pytest.raises(ValueError, match="reuses BUILD cases"):
         assert_dev_independence([build], dirty)
 
+    same_seed = tmp_path / "same_seed.tsv"
+    same_seed.write_text("tape_c.json\t1\t1\t0\t0\t0\t0\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="reuses BUILD seeds"):
+        assert_dev_independence([build], same_seed)
+
 
 def test_artifact_records_provenance_and_declares_no_authority(tmp_path: Path):
     selection = select_dev_panel(("dev_a.tsv", "dev_b.tsv"), 1)

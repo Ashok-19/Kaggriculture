@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping, Sequence
 
 from .archive import Archive, ArchiveEntry, InsertResult, make_cell_key
+from .build_regimes import BuildRegime, BuildSupport, build_support
 from .checkpoints import Checkpoint
 from .effects import EffectBlock, EffectVector, effect_signature
 from .evaluator import FaultCode, decode_device_results, encode_device_batch
@@ -132,6 +133,7 @@ class BeamCandidate:
     fault: str | None = None
     failure_class: FailureClass | None = None
     family_ref: str | None = None
+    build_support: BuildSupport | None = None
 
     @classmethod
     def seed(cls, program: MacroProgram, source: SeedSource) -> "BeamCandidate":
@@ -299,10 +301,14 @@ def deduplicate_candidates(candidates: Iterable[BeamCandidate]) -> tuple[tuple[B
     return tuple(unique.values()), len(values) - len(unique)
 
 
-def _entry(program: MacroProgram, effect: EffectVector, candidate_id: str | None = None) -> ArchiveEntry:
+def _entry(
+    program: MacroProgram, effect: EffectVector, candidate_id: str | None = None,
+    case_regimes: Sequence[BuildRegime] = (),
+) -> ArchiveEntry:
     target = next((block for block in effect.blocks if block.role is DatasetRole.TARGET), None)
     if target is None:
         raise ValueError("beam effects require a TARGET block")
+    support = build_support(target, case_regimes) if case_regimes else None
     return ArchiveEntry(
         candidate_id=candidate_id or program.semantic_id, program_id=program.semantic_id,
         effect_signature=effect_signature(effect), cell_key=make_cell_key(program.initiation, effect),
@@ -310,9 +316,17 @@ def _entry(program: MacroProgram, effect: EffectVector, candidate_id: str | None
         target_harm_count=sum(value < 0 for value in target.margin_deltas),
         target_loss_to_win=sum(target.loss_to_win),
         required_target_positive_support=sum(value > 0 for value in target.candidate_margins),
-        independent_positive_support=0, both_seat_support=0, worst_delta=min(target.margin_deltas),
+        independent_positive_support=0 if support is None else support.member_support,
+        both_seat_support=0 if support is None else support.both_seat_member_support,
+        worst_delta=min(target.margin_deltas),
         routability=None, program_simplicity=len(program.phases) + sum(len(phase.parameters) for phase in program.phases),
         aggregate_margin=sum(target.margin_deltas), loss_to_win_pattern=target.loss_to_win,
+        cross_regime_supported=False if support is None else support.cross_regime_supported,
+        seed_support=0 if support is None else support.seed_support,
+        seat_support=0 if support is None else support.seat_support,
+        member_support=0 if support is None else support.member_support,
+        lane_support=0 if support is None else support.lane_support,
+        trajectory_support=0 if support is None else support.trajectory_support,
     )
 
 
@@ -328,10 +342,11 @@ class BeamResult:
         return _entry(program, effect, candidate_id or f"{program.semantic_id}-{label}")
 
 
-def _quality(archive: Archive) -> tuple[int, int, int]:
-    safe = [entry for entry in archive.entries() if entry.target_win_to_loss == 0]
-    return max(((entry.target_loss_to_win, entry.required_target_positive_support, entry.worst_delta)
-                for entry in safe), default=(0, 0, -(1 << 31)))
+def _quality(archive: Archive, max_win_to_loss: int = 0) -> tuple[int, ...]:
+    safe = [entry for entry in archive.entries() if entry.target_win_to_loss <= max_win_to_loss]
+    return max(((int(entry.cross_regime_supported), entry.seed_support, entry.seat_support,
+                 entry.member_support, entry.target_loss_to_win, entry.worst_delta)
+                for entry in safe), default=(0, 0, 0, 0, 0, -(1 << 31)))
 
 
 def _lineage_parameters(parent: MacroProgram, result: MacroProgram) -> tuple[tuple[str, Any], ...]:
@@ -449,9 +464,13 @@ def run_beam(
     config: BeamConfig, archive: Archive | None = None,
     checkpoint_motifs: Mapping[int, Mapping[str, Motif]] | None = None,
     candidate_pool: Any | None = None,
+    case_regimes: Sequence[BuildRegime] = (),
+    quality_max_win_to_loss: int = 0,
 ) -> BeamResult:
     if type(family_ref) is not str or not family_ref:
         raise ValueError("family_ref must be non-empty offline bookkeeping")
+    if type(quality_max_win_to_loss) is not int or quality_max_win_to_loss < 0:
+        raise ValueError("quality_max_win_to_loss must be a non-negative integer")
     archive = archive or Archive()
     _cp_pool_tasks = 0; _cp_pool_busy = 0.0; _cp_pool_wall = 0.0
     _ex_pool_tasks = 0; _ex_pool_busy = 0.0; _ex_pool_wall = 0.0
@@ -579,7 +598,7 @@ def run_beam(
             break
         before_cells = archive.metrics()["occupied_cells"]
         before_effects = len(unique_effects)
-        before_quality = _quality(archive)
+        before_quality = _quality(archive, quality_max_win_to_loss)
         batch = evaluator(tuple(item.program for item in pending), motif_library)
         profile = getattr(evaluator, "last_profile", {})
         serialization_seconds += float(profile.get("serialization_seconds", 0.0))
@@ -599,10 +618,12 @@ def run_beam(
                 state = replace(source, fault=evaluated.fault, failure_class=FailureClass.CUDA_FAULT,
                                 cuda_games=case_count)
             else:
-                entry = _entry(source.program, evaluated.effect)
+                entry = _entry(source.program, evaluated.effect, case_regimes=case_regimes)
                 insertion = archive.insert(entry)
                 unique_effects.add(entry.effect_signature)
-                state = replace(source, effect=evaluated.effect, archive_result=insertion, cuda_games=case_count)
+                support = build_support(evaluated.effect.blocks[0], case_regimes) if case_regimes else None
+                state = replace(source, effect=evaluated.effect, archive_result=insertion,
+                                cuda_games=case_count, build_support=support)
             all_candidates.append(state)
         archive_update_seconds += time.perf_counter() - archive_started
         elite_ids = {entry.program_id for entry in archive.entries()}
@@ -610,7 +631,7 @@ def run_beam(
                           if item.effect is not None and item.program.semantic_id in elite_ids}
         depth_reached = depth
         novelty = (archive.metrics()["occupied_cells"] - before_cells) + (len(unique_effects) - before_effects)
-        quality = _quality(archive)
+        quality = _quality(archive, quality_max_win_to_loss)
         quality_improvement = int(quality > before_quality)
         if novelty < config.minimum_novelty_improvement and quality_improvement < config.minimum_target_quality_improvement:
             stagnant += 1
@@ -643,6 +664,10 @@ def run_beam(
         "target_win_to_loss": min((sum(block.win_to_loss) for block in target_blocks), default=0),
         "best_worst_delta": max((min(block.margin_deltas) for block in target_blocks), default=0),
         "distinct_loss_to_win_patterns": archive_metrics["distinct_retained_l_to_w_patterns"],
+        "cross_regime_supported_candidates": sum(
+            bool(item.build_support and item.build_support.cross_regime_supported)
+            for item in all_candidates
+        ),
         "evaluator_launches": launches, "host_seconds": host_seconds, "cuda_ms": cuda_ms,
         "host_preparation_seconds": host_preparation_seconds,
         "structural_dedup_seconds": structural_dedup_seconds,

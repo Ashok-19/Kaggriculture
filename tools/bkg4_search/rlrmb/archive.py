@@ -235,6 +235,12 @@ class ArchiveEntry:
     loss_to_win_pattern: tuple[bool, ...] = ()
     provenance: tuple[str, ...] = ()
     evidence_ids: tuple[str, ...] = ()
+    cross_regime_supported: bool = False
+    seed_support: int = 0
+    seat_support: int = 0
+    member_support: int = 0
+    lane_support: int = 0
+    trajectory_support: int = 0
 
     def __post_init__(self) -> None:
         for field in ("candidate_id", "effect_signature"):
@@ -249,10 +255,13 @@ class ArchiveEntry:
         for field in (
             "target_win_to_loss", "target_harm_count", "target_loss_to_win", "required_target_positive_support",
             "independent_positive_support", "both_seat_support", "program_simplicity",
+            "seed_support", "seat_support", "member_support", "lane_support", "trajectory_support",
         ):
             value = getattr(self, field)
             if type(value) is not int or value < 0:
                 raise ValueError(f"{field} must be a non-negative integer")
+        if type(self.cross_regime_supported) is not bool:
+            raise TypeError("cross_regime_supported must be bool")
         if type(self.worst_delta) is not int or type(self.aggregate_margin) is not int:
             raise TypeError("delta and aggregate values must be exact integers")
         if self.routability is not None and type(self.routability) is not bool:
@@ -273,8 +282,14 @@ class ArchiveEntry:
         routability_rank = 0 if self.routability is True else 1 if self.routability is None else 2
         return (
             -int(self.semantic_valid),
+            -int(self.cross_regime_supported),
             self.target_win_to_loss,
             self.target_harm_count,
+            -self.seed_support,
+            -self.seat_support,
+            -self.member_support,
+            -self.lane_support,
+            -self.trajectory_support,
             -self.target_loss_to_win,
             -self.required_target_positive_support,
             -self.independent_positive_support,
@@ -310,6 +325,12 @@ class ArchiveEntry:
             "program_simplicity": self.program_simplicity,
             "aggregate_margin": self.aggregate_margin,
             "loss_to_win_pattern": list(self.loss_to_win_pattern),
+            "cross_regime_supported": self.cross_regime_supported,
+            "seed_support": self.seed_support,
+            "seat_support": self.seat_support,
+            "member_support": self.member_support,
+            "lane_support": self.lane_support,
+            "trajectory_support": self.trajectory_support,
             "provenance": list(self.provenance),
             "evidence_ids": list(self.evidence_ids),
         }
@@ -335,13 +356,21 @@ class ArchiveEntry:
                 loss_to_win_pattern=tuple(document.get("loss_to_win_pattern", ())),
                 provenance=tuple(document.get("provenance", ())),
                 evidence_ids=tuple(document.get("evidence_ids", ())),
+                cross_regime_supported=document.get("cross_regime_supported", False),
+                seed_support=document.get("seed_support", 0),
+                seat_support=document.get("seat_support", 0),
+                member_support=document.get("member_support", 0),
+                lane_support=document.get("lane_support", 0),
+                trajectory_support=document.get("trajectory_support", 0),
             )
         except KeyError as exc:
             raise ValueError(f"archive entry missing field: {exc.args[0]}") from exc
 
 
 _RANK_REASONS = (
-    "SEMANTIC_VALIDITY", "W_TO_L_SAFETY", "TARGET_HARM", "TARGET_L_TO_W", "TARGET_SUPPORT",
+    "SEMANTIC_VALIDITY", "CROSS_REGIME_SUPPORT", "W_TO_L_SAFETY", "TARGET_HARM",
+    "SEED_SUPPORT", "SEAT_SUPPORT", "MEMBER_SUPPORT", "LANE_SUPPORT", "TRAJECTORY_SUPPORT",
+    "TARGET_L_TO_W", "TARGET_SUPPORT",
     "INDEPENDENT_SUPPORT", "BOTH_SEAT_SUPPORT", "WORST_DELTA", "ROUTABILITY",
     "SIMPLICITY", "AGGREGATE_MARGIN", "SEMANTIC_ID",
 )

@@ -20,6 +20,7 @@ from typing import Any, Mapping, Sequence
 
 from .archive import Archive, make_cell_key
 from .beam import BatchEvaluation, BeamCandidate, BeamConfig, CudaBatchEvaluator, EvaluatedProgram, run_beam
+from .build_regimes import load_build_regimes
 from .search_memory import evaluation_context_id, effect_from_json, effect_to_json
 from .checkpoints import EventEvidence, EventType, Lane, extract_trace_events, select_checkpoints
 from .ir import ActionFamily, MacroProgram
@@ -513,8 +514,14 @@ def _target_block(candidate: BeamCandidate):
 
 def _target_quality(candidate: BeamCandidate) -> tuple[Any, ...]:
     block = _target_block(candidate)
+    support = candidate.build_support
     return (
+        -int(bool(support and support.cross_regime_supported)),
         sum(block.win_to_loss),
+        -(support.seed_support if support else 0),
+        -(support.seat_support if support else 0),
+        -(support.member_support if support else 0),
+        -(support.trajectory_support if support else 0),
         -sum(block.loss_to_win),
         -sum(delta > 0 for delta in block.margin_deltas),
         -min(block.margin_deltas),
@@ -624,6 +631,10 @@ class _DiagnosticCandidateView:
     target_aggregate_margin: int
     effect_signature: str
     candidate: BeamCandidate
+    cross_regime_supported: bool = False
+    seed_support: int = 0
+    seat_support: int = 0
+    member_support: int = 0
 
 
 def select_pre_promotion_diagnostic_candidates(
@@ -646,6 +657,10 @@ def select_pre_promotion_diagnostic_candidates(
             sum(block.margin_deltas),
             effect_signature(candidate.effect),
             candidate,
+            bool(candidate.build_support and candidate.build_support.cross_regime_supported),
+            candidate.build_support.seed_support if candidate.build_support else 0,
+            candidate.build_support.seat_support if candidate.build_support else 0,
+            candidate.build_support.member_support if candidate.build_support else 0,
         ))
     return tuple(view.candidate for view in select_diagnostic_shortlist(views, limit=limit))
 
@@ -781,6 +796,13 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
                 resources.put_checkpoints(family_id, donor_paths, checkpoint_limit, checkpoints)
         else:
             checkpoints = _cached_checkpoints
+        build_objective = dict(config.get("build_objective") or {})
+        build_regimes = (
+            load_build_regimes(root / family["target_panel"])
+            if build_objective else ()
+        )
+        max_build_w2l = int(build_objective.get("max_win_to_loss", 2))
+        require_cross_regime = bool(build_objective.get("require_cross_regime_support", False))
         archive = Archive(); candidates = []; motifs_all: dict[str, Motif] = {}; family_beam = Counter(); family_operators = Counter()
         family_host = Counter(); producer_pids: set[int] = set()
         producer_max_inflight = producer_max_queue = producer_reorder_high_water = 0
@@ -849,13 +871,29 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
                     local_budget = min(requested_budget, ledger.remaining(family_id, "target_beam"))
                     if local_budget < evaluator.projected_games(1):
                         break
+                    configured_candidates = (
+                        8 if smoke else
+                        config["search"]["max_candidates_per_expansion"] * len(checkpoint_batch)
+                    )
+                    if require_cross_regime and not smoke:
+                        # A wider panel makes each depth expensive. Reserve an
+                        # equal candidate slice for composition depths instead
+                        # of exhausting the whole BUILD budget on atomic seeds.
+                        depth_count = config["search"]["beam_depth"] + 1
+                        per_depth_games = local_budget // depth_count
+                        configured_candidates = min(
+                            configured_candidates,
+                            max(1, per_depth_games // len(build_regimes) - 1),
+                        )
                     _t0=time.monotonic()
                     result = run_beam(family_id, checkpoint_batch, motifs, evaluator,
                                       BeamConfig(max_depth=1 if smoke else config["search"]["beam_depth"], cuda_game_budget=local_budget,
-                                                 max_candidates_per_expansion=8 if smoke else config["search"]["max_candidates_per_expansion"] * len(checkpoint_batch),
+                                                 max_candidates_per_expansion=configured_candidates,
                                                  stagnation_rounds=config["search"]["stagnation_rounds"]), archive,
                                       checkpoint_motifs=checkpoint_motifs,
-                                      candidate_pool=candidate_pool)
+                                      candidate_pool=candidate_pool,
+                                      case_regimes=build_regimes,
+                                      quality_max_win_to_loss=(max_build_w2l if build_objective else 0))
                     stage_timing["beam_search_total"]+=time.monotonic()-_t0
                     archive = result.archive; candidates.extend(result.candidates)
                     for key, value in result.metrics.items():
@@ -869,6 +907,12 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
             select_pre_promotion_diagnostic_candidates(
                 candidates, limit=diagnostic_config["shortlist_size"]
             ))
+        if require_cross_regime:
+            diagnostic_shortlist = tuple(
+                candidate for candidate in diagnostic_shortlist
+                if candidate.build_support and candidate.build_support.cross_regime_supported
+                and candidate.build_support.win_to_loss <= max_build_w2l
+            )
         if diagnostic_shortlist:
             if resources is not None and hasattr(resources, "get_or_create_evaluator"):
                 _diag_base = resources.get_or_create_evaluator(binary, asset).bind(root / config["validation_panel"])
@@ -982,7 +1026,12 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
                         program_document=program.to_document(),
                     ))
 
-        elites = {entry.program_id for entry in archive.entries() if entry.target_win_to_loss == 0 and entry.target_loss_to_win > 0}
+        elites = {
+            entry.program_id for entry in archive.entries()
+            if entry.target_win_to_loss <= max_build_w2l
+            and entry.target_loss_to_win > 0
+            and (entry.cross_regime_supported or not require_cross_regime)
+        }
         promotion_config=config["probe"] if probe else config["promotion"]
         _t0=time.monotonic(); promotion_pool=select_promotion_pool(candidates,elites,promotion_config["risk_pool_size"]); stage_timing["promotion_pool_selection"]+=time.monotonic()-_t0
         if smoke: promotion_pool=()
@@ -1137,6 +1186,17 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
             "candidate_pool_worker_busy_seconds": float(family_beam["candidate_pool_worker_busy_seconds"]),
             "candidate_pool_wall_seconds": float(family_beam["candidate_pool_wall_seconds"]),
         }
+        unique_candidates = {row.program.semantic_id: row for row in candidates if row.effect is not None}
+        build_support_rows = [
+            {"candidate_id": row.program.semantic_id, **row.build_support.to_document()}
+            for row in unique_candidates.values() if row.build_support and row.build_support.loss_to_win > 0
+        ]
+        build_support_rows.sort(key=lambda row: (
+            -int(row["cross_regime_supported"]), -row["seed_support"],
+            -row["seat_support"], -row["member_support"], row["win_to_loss"],
+            -row["loss_to_win"], row["candidate_id"],
+        ))
+        _write_json(family_dir / "build_support.json", build_support_rows)
         all_metrics[family_id]={"checkpoints":len(checkpoints),"checkpoint_batches":len(checkpoint_batches),
                                 "beam":{**dict(family_beam),"expansions_by_operator":dict(sorted(family_operators.items()))},
                                 "promotion_pool":len(promotion_pool),"full_risk_screened":len(risk_shortlist),
@@ -1147,6 +1207,18 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
                                     for candidate_id,risk in risks.items()
                                     if risk.classification is RoutabilityClassification.FUTURE_DEPENDENT}),
                                 "refined":len(refined),"archive":archive.metrics(),
+                                "build_regimes": {
+                                    "cases": len(build_regimes),
+                                    "seeds": len({row.seed for row in build_regimes}),
+                                    "seats": len({row.seat for row in build_regimes}),
+                                    "members": len({row.member for row in build_regimes}),
+                                    "lanes": len({row.lane for row in build_regimes}),
+                                    "trajectories": len({row.trajectory for row in build_regimes}),
+                                },
+                                "useful_build_specialists": len(build_support_rows),
+                                "cross_regime_supported_specialists": sum(
+                                    bool(row["cross_regime_supported"]) for row in build_support_rows
+                                ),
                                 "host_pipeline":host_pipeline_metrics,
                                 "prepromotion_results":prepromotion_results,"results":family_results}
         _t0=time.monotonic()
@@ -1618,6 +1690,7 @@ def run_campaign(config_path: Path, output: Path, *, validate_only: bool = False
         "binary_certified": len(_binary_committed),
         "binary_committed_ids": _binary_committed,
     }
+    metrics["total_cuda_games"] = ledger.total
     stage_timing["post_search_io"]+=time.monotonic()-_t0
     metrics["stage_timing_seconds"] = {k: round(v, 6) for k, v in sorted(stage_timing.items())}
     metrics["budget"] = ledger.document()

@@ -483,12 +483,31 @@ Each exploiter is an ordinary RLRMB Option-Program selected on fresh champion
 mirror tapes. It is then run as an internal opponent to produce fresh champion
 losses and high-regret trajectories.
 
-League BUILD panels contain no public or historical opponent identity. The
-generator balances all eight strategic lanes and records policy/checkpoint,
-generation, parent, lane, type, and mutation/exploiter origin. Set a family's
-`lane_budget` to the eight `Lane` values to allocate checkpoint search across
-those lanes. The emitted panel feeds the existing CUDA specialist search,
-binary admission/routing, CEGIS, SEALED, and composition path unchanged.
+League BUILD panels contain no public or historical opponent identity.
+`generate_league_build_cases` requires at least two fresh seeds, evaluates both
+seats, balances all eight strategic lanes, and caps the selected panel. Its
+manifest records coverage by seed, seat, league member, lane, and exploiter
+trajectory. Set a family's `lane_budget` to the eight `Lane` values to allocate
+checkpoint search across those lanes.
+
+With a production `build_objective`, BUILD ranks exact cross-regime support
+before aggregate flips and permits a bounded number of BUILD W->L outcomes:
+
+```json
+"build_objective": {
+  "require_cross_regime_support": true,
+  "max_win_to_loss": 2
+}
+```
+
+Cross-regime support requires L->W evidence from multiple seeds, both seats,
+and multiple league members. Seed, seat, member, lane, and trajectory support
+are persisted per useful candidate. Wider panels also divide the existing beam
+allowance across composition depths so atomic, single-trajectory seeds cannot
+consume the entire discovery budget. Candidates without required BUILD breadth
+do not enter binary routing or INTERNAL_DEV. The emitted panel otherwise feeds
+the existing CUDA specialist search, binary admission/routing, CEGIS, SEALED,
+and composition path unchanged.
 
 When a composed BKG4 becomes champion, call
 `LeagueManager.freeze_previous_champion` before updating the current member.
@@ -517,7 +536,7 @@ structurally independent of BUILD: seeds come from a different RNG stream and
 are excluded against the BUILD seeds, seats are rotated against the BUILD seat
 order, and only a generation-dependent rotating lane subset of league
 exploiters is used as opponents. `dev_screen.assert_dev_independence` fails
-closed if a DEV panel reuses any BUILD case, and `validate_production_config`
+closed if a DEV panel reuses any BUILD case or seed, and `validate_production_config`
 rejects a DEV panel that points at BUILD or holdout evidence.
 
 Configure it with an optional `internal_dev` block and a funded `internal_dev`

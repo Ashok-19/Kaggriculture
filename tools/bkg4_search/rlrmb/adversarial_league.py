@@ -224,22 +224,44 @@ def bootstrap_internal_league(
 
 def generate_league_build_cases(
     output_dir: Path, *, seeds: Sequence[int], exploiters: Sequence[ExploiterResult],
-    rng_seed: int = 0,
+    rng_seed: int = 0, max_cases: int = 64,
 ) -> tuple[Path, dict[str, Any]]:
-    """Generate fresh champion failures, keeping BUILD provenance internal-only."""
+    """Generate a bounded, multi-regime internal-only BUILD panel."""
+    unique_seeds = tuple(dict.fromkeys(int(value) for value in seeds))
+    if len(unique_seeds) < 2:
+        raise ValueError("multi-regime BUILD requires at least two independent seeds")
+    if not exploiters:
+        raise ValueError("multi-regime BUILD requires league members")
+    if max_cases < 4:
+        raise ValueError("multi-regime BUILD max_cases must be at least four")
     tapes = generate_selfplay_tapes(
-        output_dir / "tapes", seeds=seeds,
+        output_dir / "tapes", seeds=unique_seeds,
         policies=[row.policy for row in exploiters], seats=(0, 1), rng_seed=rng_seed,
     )
     by_lane: dict[str, list[Any]] = {lane.value: [] for lane in ALL_LANES}
     lane_by_policy = {row.policy.name: row.program.lane.value for row in exploiters}
     for tape in tapes:
         by_lane[lane_by_policy[tape.opponent_policy]].append(tape)
-    selected = []
-    quota = max(1, min((len(rows) for rows in by_lane.values() if rows), default=1))
+    # Round-robin complete regime coordinates. This prevents a worst-margin sort
+    # from spending the whole panel on one lucky seed or one seat.
+    ordered_groups: dict[str, list[Any]] = {}
     for lane in ALL_LANES:
-        rows = sorted(by_lane[lane.value], key=lambda row: (row.margin, row.seed, row.seat))
-        selected.extend(rows[:quota])
+        rows = by_lane[lane.value]
+        ordered_groups[lane.value] = sorted(
+            rows, key=lambda row: (row.seed, row.seat, row.opponent_policy, row.margin)
+        )
+    selected = []
+    while len(selected) < max_cases and any(ordered_groups.values()):
+        for lane in ALL_LANES:
+            rows = ordered_groups[lane.value]
+            if rows and len(selected) < max_cases:
+                selected.append(rows.pop(0))
+    if (len({row.seed for row in selected}) < 2
+            or {row.seat for row in selected} != {0, 1}
+            or len({row.opponent_policy for row in selected}) < 2):
+        raise ValueError(
+            "bounded BUILD selection must retain multiple seeds, both seats and multiple members"
+        )
     panel = output_dir / "build_panel.tsv"
     from .selfplay_generator import write_target_panel
     write_target_panel(selected, panel)
@@ -247,14 +269,26 @@ def generate_league_build_cases(
         "build_only": True,
         "role": "BUILD",
         "holdout_sources": "EXCLUDED",
-        "seeds": sorted(set(int(value) for value in seeds)),
+        "seeds": sorted(unique_seeds),
         "seats": [0, 1],
         "generation": max((row.policy.generation for row in exploiters), default=0),
         "league_members": sorted(row.policy.name for row in exploiters),
         "fresh_cases": len(selected),
         "champion_losses": sum(row.margin < 0 for row in selected),
         "high_regret_cases": sum(row.margin < -1000 for row in selected),
-        "lane_coverage": {lane: len(rows[:quota]) for lane, rows in by_lane.items()},
+        "lane_coverage": {
+            lane.value: sum(lane_by_policy[row.opponent_policy] == lane.value for row in selected)
+            for lane in ALL_LANES
+        },
+        "seed_coverage": {str(seed): sum(row.seed == seed for row in selected) for seed in unique_seeds},
+        "seat_coverage": {str(seat): sum(row.seat == seat for row in selected) for seat in (0, 1)},
+        "member_coverage": {
+            member: sum(row.opponent_policy == member for row in selected)
+            for member in sorted({row.opponent_policy for row in selected})
+        },
+        "trajectory_coverage": len({row.policy.exploiter_program for row in exploiters}),
+        "regime_count": len({(row.seed, row.seat, row.opponent_policy) for row in selected}),
+        "bounded_max_cases": max_cases,
         "panel": str(panel),
     }
     (output_dir / "build_manifest.json").write_text(

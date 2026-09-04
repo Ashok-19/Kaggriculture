@@ -62,6 +62,10 @@ def entry(
     complexity: int = 2,
     aggregate: int = 0,
     provenance: tuple[str, ...] = (),
+    cross_regime: bool = False,
+    seed_support: int = 0,
+    seat_support: int = 0,
+    member_support: int = 0,
 ) -> ArchiveEntry:
     cell = make_cell_key(checkpoint(lane), effect)
     return ArchiveEntry(
@@ -82,6 +86,10 @@ def entry(
         aggregate_margin=aggregate,
         loss_to_win_pattern=effect.blocks[0].loss_to_win,
         provenance=provenance,
+        cross_regime_supported=cross_regime,
+        seed_support=seed_support,
+        seat_support=seat_support,
+        member_support=member_support,
     )
 
 
@@ -128,6 +136,15 @@ class ArchiveTests(unittest.TestCase):
             else:
                 baseline = entry("baseline", effect, aggregate=1000)
             self.assertEqual(Archive((baseline, preferred)).entries()[0], preferred)
+
+    def test_cross_regime_breadth_outranks_single_regime_flip_count(self) -> None:
+        effect = vector((20, 20))
+        narrow = entry("narrow", effect, ltw=20, aggregate=1_000_000)
+        broad = entry(
+            "broad", effect, ltw=2, wtl=1, cross_regime=True,
+            seed_support=2, seat_support=2, member_support=2,
+        )
+        self.assertEqual(Archive((narrow, broad)).entries()[0], broad)
 
     def test_worst_simplicity_then_aggregate_are_late_tiebreakers(self) -> None:
         effect = vector((10,))
