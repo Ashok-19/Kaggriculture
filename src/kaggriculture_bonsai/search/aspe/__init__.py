@@ -25,6 +25,18 @@ from .phenotype import (
     select_build_sentinel,
     write_sentinel_evidence,
 )
+from .memory import (
+    ASPE_ARCHIVE_SCHEMA_VERSION,
+    ASPE_EVALUATION_SCHEMA_VERSION,
+    CaseOutcome,
+    EvaluationRecord,
+    FailureReason,
+    PanelEvidence,
+    ProposalMetadata,
+    SemanticArchive,
+    phenotype_distance,
+    record_sentinel_batch,
+)
 
 __all__ = (
     "ASPE_PUBLIC_FEATURES",
@@ -46,4 +58,14 @@ __all__ = (
     "run_cuda_sentinel",
     "select_build_sentinel",
     "write_sentinel_evidence",
+    "ASPE_ARCHIVE_SCHEMA_VERSION",
+    "ASPE_EVALUATION_SCHEMA_VERSION",
+    "CaseOutcome",
+    "EvaluationRecord",
+    "FailureReason",
+    "PanelEvidence",
+    "ProposalMetadata",
+    "SemanticArchive",
+    "phenotype_distance",
+    "record_sentinel_batch",
 )

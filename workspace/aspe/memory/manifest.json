@@ -1,0 +1,13 @@
+{
+  "archive": "workspace/aspe/memory/archive.json",
+  "archive_authority": "SEARCH_MEMORY_ONLY",
+  "archive_schema": "kaggriculture.aspe.semantic-archive",
+  "archive_schema_version": 1,
+  "atomic_update": "FSYNC_TEMP_REPLACE_FSYNC_DIRECTORY",
+  "bounded_default_evaluations": 100000,
+  "execution_phenotype_schema_version": 1,
+  "phase": "ASPE_PHASE_3",
+  "sentinel_identity": "aab5fac507011fb2929e4b1b3837a58a8e386e936a553257739bf16f86c2d4bb",
+  "source_head": "99f8bf14c0c4018b3b21c820e17d5db7b92680eb",
+  "strategic_effect_schema_version": 1
+}
