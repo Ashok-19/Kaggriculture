@@ -1,5 +1,7 @@
 # ReCurSiON Kaggriculture — First-Place Deterministic Pipeline Context
 
+Roadmap update: [FIRST_PLACE_MASTER_PLAN.md](FIRST_PLACE_MASTER_PLAN.md) now defines the proposed deterministic execution gates. This file remains the factual pre-research repository snapshot.
+
 ## Purpose of this file
 
 This is the **single primary context document** for a new high-cost planner/researcher reviewing the Kaggriculture project.

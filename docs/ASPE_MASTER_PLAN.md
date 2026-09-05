@@ -6,7 +6,8 @@
 - Architecture target: **deterministic Bonsai/BKG4 runtime, self-play discovery**
 - Research baseline: `500268a` equal-budget RLRMB vs Direct-Bonsai bakeoff
 - Planning baseline: `434027f`
-- This document is the authoritative phased plan for replacing the current weak specialist-discovery oracle.
+- Historical implementation record: completed Phases 0-3 remain reusable infrastructure.
+- Unimplemented Phases 4 onward are superseded by [FIRST_PLACE_MASTER_PLAN.md](FIRST_PLACE_MASTER_PLAN.md); learned/neural proposer phases are out of scope.
 - This is an implementation plan, not evidence that ASPE already works.
 
 ## Strategic objective
