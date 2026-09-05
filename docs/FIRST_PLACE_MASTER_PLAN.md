@@ -6,11 +6,11 @@
 - Audience: ReCurSiON research leads and future implementation agents.
 - Verified repository: /home/nnmax/Desktop/kaggle/kaggriculture, branch main.
 - Verified starting HEAD: b16d2a793e8ebbcf3d00cf23f9088599dcf2f08b; worktree initially clean.
-- Status: proposed authoritative execution roadmap, with experimental decision gates. This document does not establish that its search architecture works.
-- This roadmap supersedes unimplemented ASPE Phases 4 onward. Completed ASPE Phases 0-3 remain reusable infrastructure. The historical ASPE document remains the record of those phases, not an alternative execution schedule.
+- Status: research architecture report and evidence base. The authoritative repo-specific implementation roadmap is [FIRST_PLACE_EXECUTION_PLAN.md](FIRST_PLACE_EXECUTION_PLAN.md). This research does not establish that its search architecture works.
+- The selected architecture supersedes the unimplemented evolution-first ASPE sequence. Completed ASPE Phases 0-3 remain reusable infrastructure and are summarized in the execution plan and Git history.
 - Deterministic Bonsai/BKG4 remains the runtime. No neural policy, value function, proposer, behavioral cloning, PPO, RL-over-edits, or LLM in the automated search loop.
 - No implementation was changed or search campaign run for this research.
-- Primary repository evidence: [FIRST_PLACE_PIPELINE_CONTEXT.md](FIRST_PLACE_PIPELINE_CONTEXT.md). Source-tree reconstruction was deliberately avoided.
+- Primary implementation authority: [FIRST_PLACE_EXECUTION_PLAN.md](FIRST_PLACE_EXECUTION_PLAN.md), which was written after a narrow verification of the current repository. The pre-research context document is retained in Git history rather than as a competing live plan.
 
 ## 1. First-Place Verdict
 
@@ -869,7 +869,7 @@ Sources were accessed on 2026-09-05. Publication dates below refer to the actual
 
 | Claim family | Primary evidence / date | Confidence and limitation |
 | --- | --- | --- |
-| Current repository architecture/results | [Pipeline context](FIRST_PLACE_PIPELINE_CONTEXT.md), verified HEAD b16d2a7 | High as repository-provided evidence; no campaign rerun |
+| Current repository architecture/results | [Execution plan](FIRST_PLACE_EXECUTION_PLAN.md), frozen workspace evidence, and historical commits through `57fe3e1` | High as repository-provided evidence; no campaign rerun |
 | Exact current file-level engine mechanisms | [Official engine at 28b6d8a](https://raw.githubusercontent.com/Kaggle/kaggle-environments/28b6d8af3ce73926b3d0fda1410c1ddd8384ab8c/kaggle_environments/envs/kaggriculture/kaggriculture.py), 2026-08-15 file commit | High for inspected source; live deployment alignment unverified |
 | Recent economic regime change | [Kaggle change #1399](https://github.com/Kaggle/kaggle-environments/commit/28b6d8af3ce73926b3d0fda1410c1ddd8384ab8c), 2026-08-15 | High for change; no current winning strategy inferred |
 | Game-level observation/scoring description | [Kaggle README](https://raw.githubusercontent.com/Kaggle/kaggle-environments/master/kaggle_environments/envs/kaggriculture/README.md), current retrieval | High for documentation; exact order adjudicated by pinned source |

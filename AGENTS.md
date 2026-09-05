@@ -8,8 +8,8 @@
 - External opponents are independent HOLDOUT/generalization evidence only.
 - Preserve the safety flow: multi-regime BUILD -> discovery oracle -> INTERNAL_DEV ->
   binary routing -> TRANSFER/VALIDATION/CEGIS/SEALED -> composition. RLRMB and
-  Direct-Bonsai are current baselines; future discovery work must advance only
-  through the deterministic gates in `docs/FIRST_PLACE_MASTER_PLAN.md`.
+  Direct-Bonsai are frozen diagnostic baselines; future discovery work must advance
+  only through the deterministic gates in `docs/FIRST_PLACE_EXECUTION_PLAN.md`.
 - INTERNAL_DEV and all downstream panels stay disjoint from BUILD. SEALED is a
   write-only safety firewall until its designated stage.
 - Use CUDA for large evaluation and the C++ oracle for reference checks. CPU

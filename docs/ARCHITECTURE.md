@@ -11,13 +11,17 @@ specialist cannot dominate discovery.
 ## Screening and search
 
 INTERNAL_DEV is generated independently and screens discovery candidates before
-expensive downstream evaluation. RLRMB and Direct-Bonsai remain the current
-search baselines, but research at `500268a` found both unable to produce
-cross-regime specialists under the equal-budget bakeoff. The planned replacement
-is Adaptive Semantic Program Evolution (ASPE), staged in
-`docs/ASPE_MASTER_PLAN.md`. Until its Phase-A falsification passes, it is not the
-production oracle. CUDA evaluates exact batches; the C++ engine remains the
-reference physics oracle.
+expensive downstream evaluation. RLRMB and Direct-Bonsai are frozen diagnostic
+baselines: the equal-budget bakeoff produced no cross-regime/DEV survivor from
+either. Completed ASPE Phases 0-3 remain infrastructure only: SpecialistProgram
+v1, CUDA phenotype telemetry/sentinel screening, and persistent semantic memory.
+
+The selected future discovery architecture is deterministic Counterexample-Guided
+Continuation Program Repair (CCPR), but it is not yet proven. The authoritative
+phase gates are in `docs/FIRST_PLACE_EXECUTION_PLAN.md`. The immediate gate is a
+bounded exact controller-state fork/value experiment; CCPR is implemented only if
+that premise passes. CUDA evaluates large exact batches; the C++ engine remains
+the reference physics oracle.
 
 ## Routing and safety
 

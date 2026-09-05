@@ -53,6 +53,8 @@ kaggriculture-bonsai --config configs/campaign.json --output workspace/runs/demo
 .venv/bin/pytest -q tests/parity
 ```
 
-Build native binaries before parity tests. See [architecture](docs/ARCHITECTURE.md),
-[ASPE master plan](docs/ASPE_MASTER_PLAN.md), [layout](docs/REPO_LAYOUT.md), and
+Build native binaries before parity tests. The authoritative implementation roadmap is
+[First-Place Execution Plan](docs/FIRST_PLACE_EXECUTION_PLAN.md); the supporting
+research rationale is [First-Place Master Plan](docs/FIRST_PLACE_MASTER_PLAN.md).
+See also [architecture](docs/ARCHITECTURE.md), [layout](docs/REPO_LAYOUT.md), and
 [workflow](docs/WORKFLOW.md).

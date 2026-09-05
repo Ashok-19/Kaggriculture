@@ -29,10 +29,15 @@ Bonsai rules, build the native binaries and run:
 This freezes one fresh-self-play context and gives both methods the same
 discovery budget. `--reuse-context` repeats search while verifying every panel
 hash. The bakeoff writes evidence under `workspace/` and never updates the
-champion. New specialist-search work must follow the phased gates in
-`docs/ASPE_MASTER_PLAN.md`; do not jump directly to the learned proposer.
+champion. RLRMB and Direct-Bonsai are now frozen diagnostic baselines, not the
+primary discovery path.
 
-The Phase-0 ASPE comparison context is frozen at `workspace/aspe/baseline/`.
+All new discovery work must follow `docs/FIRST_PLACE_EXECUTION_PLAN.md`. The
+immediate authorized task is Phase 1: exact controller-state continuation/fork
+fidelity plus the bounded fork-and-repair value experiment. Do not implement CCPR,
+DSQD, later challenge-frontier machinery, or large campaigns before their gates.
+
+The frozen historical comparison context is at `workspace/aspe/baseline/`.
 Verify its complete file hashes and deterministic manifest regeneration with:
 
 ```bash

@@ -22,3 +22,9 @@
   Disposable build/cache subpaths are allowed only where matched by the current
   `.gitignore`; every other workspace artifact must be committed or deleted.
 - `external/`: ignored, user-provided HOLDOUT panels.
+
+
+## Current planning authority
+
+- `docs/FIRST_PLACE_EXECUTION_PLAN.md`: authoritative phase-by-phase implementation roadmap and gates.
+- `docs/FIRST_PLACE_MASTER_PLAN.md`: supporting research rationale, architecture comparison, and source ledger.
