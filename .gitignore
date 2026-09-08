@@ -7,7 +7,7 @@ __pycache__/
 .coverage
 build/
 dist/
-
+public-notebooks/
 
 # User-supplied, untracked HOLDOUT panels
 external/
