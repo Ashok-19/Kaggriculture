@@ -1,0 +1,68 @@
+{
+  "candidate": "BKG4_GOLD_V25",
+  "status": "EXACT_BASELINE_READY_NOT_PROMOTED",
+  "source_notebook": "public-notebooks/current-gold-sept-8.ipynb",
+  "source_notebook_sha256": "330085c464e992b4e1cfd4c0cbb7c4d5f97a67fd5c6f754c56bec5a6eed12820",
+  "source_agent_sha256": "bb3109331d4087d5e5890515f9b1d1e0d4f9ea6015ee3d1b172a93b8b1d8dbb4",
+  "official_engine_version": "1.32.7",
+  "cpu_abi_version": 4,
+  "cuda_abi_version": 4,
+  "controller_sha256": "842e04c8ada511806be0321f7b52408b8ce4a4a9fd33d753c9dcf5173b715f3c",
+  "controller_semantic_hash": "28ce2d8b331debf75ce951ee03238a982fbbf27a92efd39ccc2b59dbcdc64afb",
+  "arity_sha256": "1096167123e8e0365eccc43fe52c7e9318c7289262bf62d7b232ede64a2eca5c",
+  "controller_nodes": 23,
+  "controller_state_slots": 0,
+  "controller_blackboard_slots": 3,
+  "route_pack": {
+    "pack_sha256": "27aa7e818348b9d8c7ce6bf45c8f83736fd5933e407a8a09956071864b8b1f22",
+    "route_ids": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "format": "BKV6RP1",
+    "version": 1
+  },
+  "routes": [
+    {
+      "id": 0,
+      "donor": "yhay81/shop-router-0908",
+      "actions": 719,
+      "canonical_json_sha256": "2c413946a556e6fb93d939d31db64ec39fddba53b45ac3873ad687451889beb5",
+      "packed_actions_sha256": "6c6a8fca2498bc85c684c448b0992eaefdd09bdea81e2d7cc396bfe64767a01f"
+    },
+    {
+      "id": 1,
+      "donor": "yhay81/shop-router-0908",
+      "actions": 719,
+      "canonical_json_sha256": "291af96e4f62a5dee66bab2d74b6f2fbeebc918faf77cc36ec7bf9e59e42b919",
+      "packed_actions_sha256": "56d1f1e571be6691a171b84b1aefff5ffcab36f69f39f902ef206d657bd531cb"
+    },
+    {
+      "id": 2,
+      "donor": "yhay81/shop-router-0908",
+      "actions": 719,
+      "canonical_json_sha256": "d44a2b71bda9a3852c7cc03a56e07c9c52f3d3845ce497b49582d35b088392d9",
+      "packed_actions_sha256": "17ba08dfd810c2e61d68f08076163133f36d7043d20f6910c7886f713e6ab50f"
+    },
+    {
+      "id": 3,
+      "donor": "yhay81/shop-router-0908",
+      "actions": 719,
+      "canonical_json_sha256": "ae5266ed3a5f7bebca746636c1fd7976a21d414bcfe0cde0d88a46082d8b48ad",
+      "packed_actions_sha256": "f44c391d06c2b7642fe9479b0cbe3d529e6fc01a09af01af5e8b70b3dfdd81d7"
+    }
+  ],
+  "validation_manifest": "validation.json",
+  "validation_manifest_sha256": "b1d44fd51c5a0846017c7ac091c48c22f68b50e5fd778c34b2f634f2d224dbed",
+  "validation_panel_identity": "a4a4c09fb1d5e52b2f222572e0ae3fd6f4627a9f1e6081fd3c1b0583ab1082cf",
+  "differential_mismatch_count": 0,
+  "cpu_cuda_mismatch_count": 0,
+  "official_canary": {
+    "matched_cases": 64,
+    "engine_runs": 128,
+    "result": "EXACT",
+    "faults": 0
+  }
+}

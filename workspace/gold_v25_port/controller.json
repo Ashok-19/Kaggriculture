@@ -1,0 +1,144 @@
+{
+  "schema_version": 4,
+  "name": "BKG4_GOLD_V25",
+  "blackboard": [
+    {
+      "name": "route",
+      "type": "I32",
+      "initial": 0
+    },
+    {
+      "name": "day6",
+      "type": "I32",
+      "initial": 0
+    },
+    {
+      "name": "day27",
+      "type": "I32",
+      "initial": 0
+    }
+  ],
+  "tree": {
+    "type": "Sequence",
+    "children": [
+      {
+        "type": "If",
+        "condition": {
+          "type": "Sequence",
+          "children": [
+            {
+              "type": "Condition",
+              "lhs": {
+                "feature": "STEP"
+              },
+              "op": "GE",
+              "rhs": 144
+            },
+            {
+              "type": "Condition",
+              "lhs": {
+                "blackboard": "day6"
+              },
+              "op": "EQ",
+              "rhs": 0
+            }
+          ]
+        },
+        "then": {
+          "type": "Sequence",
+          "children": [
+            {
+              "type": "If",
+              "condition": {
+                "type": "Condition",
+                "lhs": {
+                  "feature": "SHOP_SEEN",
+                  "arg": 7
+                },
+                "op": "EQ",
+                "rhs": 1
+              },
+              "then": {
+                "type": "SetBlackboard",
+                "slot": "route",
+                "value": 1
+              },
+              "else": {
+                "type": "SetBlackboard",
+                "slot": "route",
+                "value": 0
+              }
+            },
+            {
+              "type": "SetBlackboard",
+              "slot": "day6",
+              "value": 1
+            }
+          ]
+        },
+        "else": {
+          "type": "Success"
+        }
+      },
+      {
+        "type": "If",
+        "condition": {
+          "type": "Sequence",
+          "children": [
+            {
+              "type": "Condition",
+              "lhs": {
+                "feature": "STEP"
+              },
+              "op": "GE",
+              "rhs": 648
+            },
+            {
+              "type": "Condition",
+              "lhs": {
+                "blackboard": "day27"
+              },
+              "op": "EQ",
+              "rhs": 0
+            }
+          ]
+        },
+        "then": {
+          "type": "Sequence",
+          "children": [
+            {
+              "type": "If",
+              "condition": {
+                "type": "Condition",
+                "lhs": {
+                  "feature": "MARKET_INVENTORY",
+                  "arg": "EGG"
+                },
+                "op": "LE",
+                "rhs": 9888
+              },
+              "then": {
+                "type": "SetBlackboard",
+                "slot": "route",
+                "value": 2
+              },
+              "else": {
+                "type": "SetBlackboard",
+                "slot": "route",
+                "value": 3
+              }
+            },
+            {
+              "type": "SetBlackboard",
+              "slot": "day27",
+              "value": 1
+            }
+          ]
+        },
+        "else": {
+          "type": "Success"
+        }
+      }
+    ]
+  }
+}

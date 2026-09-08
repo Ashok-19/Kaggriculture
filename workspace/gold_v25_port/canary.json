@@ -1,0 +1,910 @@
+{
+  "panel": "gold_v25_official_canary_v1",
+  "engine": "1.32.7",
+  "matched_cases": 64,
+  "engine_runs": 128,
+  "acting_steps_compared": 46016,
+  "action_mismatches": 0,
+  "state_mismatches": 0,
+  "observation_mismatches": 0,
+  "terminal_mismatches": 0,
+  "faults": 0,
+  "cases": [
+    {
+      "opponent": "reference",
+      "seed": 8000,
+      "seat": 0,
+      "rewards": [
+        90108.0,
+        90108.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "8f62a910132fa465bb5f7124275d462236c9dece302544396318b3d7473502aa"
+    },
+    {
+      "opponent": "reference",
+      "seed": 8000,
+      "seat": 1,
+      "rewards": [
+        90108.0,
+        90108.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "8f62a910132fa465bb5f7124275d462236c9dece302544396318b3d7473502aa"
+    },
+    {
+      "opponent": "reference",
+      "seed": 8001,
+      "seat": 0,
+      "rewards": [
+        95723.0,
+        95723.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "67d11aa2695b7aac21e8b1420f6434b007d79c3d88c2a973a5a6760999ffbbbe"
+    },
+    {
+      "opponent": "reference",
+      "seed": 8001,
+      "seat": 1,
+      "rewards": [
+        95723.0,
+        95723.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "67d11aa2695b7aac21e8b1420f6434b007d79c3d88c2a973a5a6760999ffbbbe"
+    },
+    {
+      "opponent": "reference",
+      "seed": 8002,
+      "seat": 0,
+      "rewards": [
+        102211.0,
+        102211.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "e9f9f19bc820dc053ae4fdb690e29d0e27a088177950886bb51364104299bfc4"
+    },
+    {
+      "opponent": "reference",
+      "seed": 8002,
+      "seat": 1,
+      "rewards": [
+        102211.0,
+        102211.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "e9f9f19bc820dc053ae4fdb690e29d0e27a088177950886bb51364104299bfc4"
+    },
+    {
+      "opponent": "reference",
+      "seed": 8003,
+      "seat": 0,
+      "rewards": [
+        124695.0,
+        124613.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "0bcb8e36e357a344ccad64a25277c5cbd73afb4aa961a25f5d7d8af126347cc4"
+    },
+    {
+      "opponent": "reference",
+      "seed": 8003,
+      "seat": 1,
+      "rewards": [
+        124695.0,
+        124613.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "0846c00c7ccbcf347bab3afd298570b2a4e15b3387b8f7ac6ca3fb5552824262"
+    },
+    {
+      "opponent": "reference",
+      "seed": 8004,
+      "seat": 0,
+      "rewards": [
+        63443.0,
+        63443.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "cca1925ba885aa905b15fef6dd9cd768bb0a96e6691234ba413e5b5caf23df88"
+    },
+    {
+      "opponent": "reference",
+      "seed": 8004,
+      "seat": 1,
+      "rewards": [
+        63443.0,
+        63443.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "cca1925ba885aa905b15fef6dd9cd768bb0a96e6691234ba413e5b5caf23df88"
+    },
+    {
+      "opponent": "reference",
+      "seed": 8005,
+      "seat": 0,
+      "rewards": [
+        68974.0,
+        68974.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "f1940bdd57f06837f46923b467bb7a7d2fb824e09abf24e008c436ff25cb5dff"
+    },
+    {
+      "opponent": "reference",
+      "seed": 8005,
+      "seat": 1,
+      "rewards": [
+        68974.0,
+        68974.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "f1940bdd57f06837f46923b467bb7a7d2fb824e09abf24e008c436ff25cb5dff"
+    },
+    {
+      "opponent": "reference",
+      "seed": 8006,
+      "seat": 0,
+      "rewards": [
+        81741.0,
+        81741.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "9fd955b15695e45b9474d512ca932fcdb1b761e0ac3de6f30d46ebb481be1afb"
+    },
+    {
+      "opponent": "reference",
+      "seed": 8006,
+      "seat": 1,
+      "rewards": [
+        81741.0,
+        81741.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "9fd955b15695e45b9474d512ca932fcdb1b761e0ac3de6f30d46ebb481be1afb"
+    },
+    {
+      "opponent": "reference",
+      "seed": 8007,
+      "seat": 0,
+      "rewards": [
+        84777.0,
+        84777.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "b3450d7d4707234cf903706fd7d8366679278084605234a9100a5ce4e87c64c9"
+    },
+    {
+      "opponent": "reference",
+      "seed": 8007,
+      "seat": 1,
+      "rewards": [
+        84777.0,
+        84777.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "b3450d7d4707234cf903706fd7d8366679278084605234a9100a5ce4e87c64c9"
+    },
+    {
+      "opponent": "champion",
+      "seed": 8016,
+      "seat": 0,
+      "rewards": [
+        103129.0,
+        79616.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "3601b7f74df36c9f38dec4f4f7c63b7137c399ff083357d5af073b16385e8608"
+    },
+    {
+      "opponent": "champion",
+      "seed": 8016,
+      "seat": 1,
+      "rewards": [
+        79616.0,
+        103129.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "3601b7f74df36c9f38dec4f4f7c63b7137c399ff083357d5af073b16385e8608"
+    },
+    {
+      "opponent": "champion",
+      "seed": 8017,
+      "seat": 0,
+      "rewards": [
+        67896.0,
+        38344.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "64207bbdede03354934a86f981c8aea35cb50bd878ab4edd80608523bd14a835"
+    },
+    {
+      "opponent": "champion",
+      "seed": 8017,
+      "seat": 1,
+      "rewards": [
+        38344.0,
+        67896.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "64207bbdede03354934a86f981c8aea35cb50bd878ab4edd80608523bd14a835"
+    },
+    {
+      "opponent": "champion",
+      "seed": 8018,
+      "seat": 0,
+      "rewards": [
+        106083.0,
+        77509.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "be9fce1cb8c525dcc5659c942be63c1ca26875cef79e585d465d6d62d7349402"
+    },
+    {
+      "opponent": "champion",
+      "seed": 8018,
+      "seat": 1,
+      "rewards": [
+        77509.0,
+        106083.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "be9fce1cb8c525dcc5659c942be63c1ca26875cef79e585d465d6d62d7349402"
+    },
+    {
+      "opponent": "champion",
+      "seed": 8019,
+      "seat": 0,
+      "rewards": [
+        104480.0,
+        93749.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "3f9f093c6a2f70e22238c8cca6338173f893059052ccef865f99aabb57785b2a"
+    },
+    {
+      "opponent": "champion",
+      "seed": 8019,
+      "seat": 1,
+      "rewards": [
+        93749.0,
+        104480.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "3f9f093c6a2f70e22238c8cca6338173f893059052ccef865f99aabb57785b2a"
+    },
+    {
+      "opponent": "champion",
+      "seed": 8020,
+      "seat": 0,
+      "rewards": [
+        115029.0,
+        95676.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "b0495c23691787dbc9a4999efdaa2e0bf1dd8f69c49856fb232fc9044e56cc0c"
+    },
+    {
+      "opponent": "champion",
+      "seed": 8020,
+      "seat": 1,
+      "rewards": [
+        95676.0,
+        115029.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "b0495c23691787dbc9a4999efdaa2e0bf1dd8f69c49856fb232fc9044e56cc0c"
+    },
+    {
+      "opponent": "champion",
+      "seed": 8021,
+      "seat": 0,
+      "rewards": [
+        71698.0,
+        34688.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "1c942d59159f5c088da2099ea0d62d691ab9b8cffde44ce497e3ff006334f6dd"
+    },
+    {
+      "opponent": "champion",
+      "seed": 8021,
+      "seat": 1,
+      "rewards": [
+        34688.0,
+        71698.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "1c942d59159f5c088da2099ea0d62d691ab9b8cffde44ce497e3ff006334f6dd"
+    },
+    {
+      "opponent": "champion",
+      "seed": 8022,
+      "seat": 0,
+      "rewards": [
+        156607.0,
+        142930.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "2dd1208aab8b161c1b44bd17df3018e30a480d05d66a95514703b0d05d253ce3"
+    },
+    {
+      "opponent": "champion",
+      "seed": 8022,
+      "seat": 1,
+      "rewards": [
+        142930.0,
+        156607.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "2dd1208aab8b161c1b44bd17df3018e30a480d05d66a95514703b0d05d253ce3"
+    },
+    {
+      "opponent": "champion",
+      "seed": 8023,
+      "seat": 0,
+      "rewards": [
+        145132.0,
+        124750.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "352e72e427b35fc43de5c28dcdcea856a75d5e80bf6de50f18a71019a8631aff"
+    },
+    {
+      "opponent": "champion",
+      "seed": 8023,
+      "seat": 1,
+      "rewards": [
+        124750.0,
+        145132.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "352e72e427b35fc43de5c28dcdcea856a75d5e80bf6de50f18a71019a8631aff"
+    },
+    {
+      "opponent": "starter",
+      "seed": 8032,
+      "seat": 0,
+      "rewards": [
+        193995.0,
+        3464.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "352e72e427b35fc43de5c28dcdcea856a75d5e80bf6de50f18a71019a8631aff"
+    },
+    {
+      "opponent": "starter",
+      "seed": 8032,
+      "seat": 1,
+      "rewards": [
+        3464.0,
+        193995.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "352e72e427b35fc43de5c28dcdcea856a75d5e80bf6de50f18a71019a8631aff"
+    },
+    {
+      "opponent": "starter",
+      "seed": 8033,
+      "seat": 0,
+      "rewards": [
+        158845.0,
+        3494.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "ea5c2244f83e40adc866a1a21c21c22983d212b4f80a3d470961798839dd1d9e"
+    },
+    {
+      "opponent": "starter",
+      "seed": 8033,
+      "seat": 1,
+      "rewards": [
+        3443.0,
+        169508.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "3ba503057283f7da68dc38dc568c3e3f7bb1716ed332ca1f3ef6809ac5c25421"
+    },
+    {
+      "opponent": "starter",
+      "seed": 8034,
+      "seat": 0,
+      "rewards": [
+        171385.0,
+        3530.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "0bcb8e36e357a344ccad64a25277c5cbd73afb4aa961a25f5d7d8af126347cc4"
+    },
+    {
+      "opponent": "starter",
+      "seed": 8034,
+      "seat": 1,
+      "rewards": [
+        3530.0,
+        171385.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "0bcb8e36e357a344ccad64a25277c5cbd73afb4aa961a25f5d7d8af126347cc4"
+    },
+    {
+      "opponent": "starter",
+      "seed": 8035,
+      "seat": 0,
+      "rewards": [
+        171609.0,
+        3421.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "1f5b866fb04dd863a90e7c6b80b89f73cbe0d627aed52483c50488ffb4fa50ce"
+    },
+    {
+      "opponent": "starter",
+      "seed": 8035,
+      "seat": 1,
+      "rewards": [
+        3421.0,
+        171609.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "1f5b866fb04dd863a90e7c6b80b89f73cbe0d627aed52483c50488ffb4fa50ce"
+    },
+    {
+      "opponent": "starter",
+      "seed": 8036,
+      "seat": 0,
+      "rewards": [
+        107901.0,
+        3859.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "6e4c8e7292c5c08684dbeaf1f71ff7b19a1f24ff87dc267def32abc895a57e35"
+    },
+    {
+      "opponent": "starter",
+      "seed": 8036,
+      "seat": 1,
+      "rewards": [
+        3859.0,
+        107901.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "6e4c8e7292c5c08684dbeaf1f71ff7b19a1f24ff87dc267def32abc895a57e35"
+    },
+    {
+      "opponent": "starter",
+      "seed": 8037,
+      "seat": 0,
+      "rewards": [
+        142138.0,
+        3639.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "aa82188cc956877543df5414b1d096719d4ed80aa43e0748e99c8d7ec36296d5"
+    },
+    {
+      "opponent": "starter",
+      "seed": 8037,
+      "seat": 1,
+      "rewards": [
+        3639.0,
+        142138.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "aa82188cc956877543df5414b1d096719d4ed80aa43e0748e99c8d7ec36296d5"
+    },
+    {
+      "opponent": "starter",
+      "seed": 8038,
+      "seat": 0,
+      "rewards": [
+        173701.0,
+        3691.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "add30ae89f4194f0d0879ee8f9fafc4ff299077c1484c3e834afd4eef4e3145a"
+    },
+    {
+      "opponent": "starter",
+      "seed": 8038,
+      "seat": 1,
+      "rewards": [
+        3691.0,
+        173701.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "add30ae89f4194f0d0879ee8f9fafc4ff299077c1484c3e834afd4eef4e3145a"
+    },
+    {
+      "opponent": "starter",
+      "seed": 8039,
+      "seat": 0,
+      "rewards": [
+        148609.0,
+        3421.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "3601b7f74df36c9f38dec4f4f7c63b7137c399ff083357d5af073b16385e8608"
+    },
+    {
+      "opponent": "starter",
+      "seed": 8039,
+      "seat": 1,
+      "rewards": [
+        3421.0,
+        148609.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "3601b7f74df36c9f38dec4f4f7c63b7137c399ff083357d5af073b16385e8608"
+    },
+    {
+      "opponent": "reference",
+      "seed": 8048,
+      "seat": 0,
+      "rewards": [
+        109118.0,
+        109118.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "9feb004f47248ee2dfe8e493f16e6321a37c1c6e488b1a45c606a02ec22e16ca"
+    },
+    {
+      "opponent": "reference",
+      "seed": 8048,
+      "seat": 1,
+      "rewards": [
+        109118.0,
+        109118.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "9feb004f47248ee2dfe8e493f16e6321a37c1c6e488b1a45c606a02ec22e16ca"
+    },
+    {
+      "opponent": "reference",
+      "seed": 8049,
+      "seat": 0,
+      "rewards": [
+        99225.0,
+        99225.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "9feb004f47248ee2dfe8e493f16e6321a37c1c6e488b1a45c606a02ec22e16ca"
+    },
+    {
+      "opponent": "reference",
+      "seed": 8049,
+      "seat": 1,
+      "rewards": [
+        99225.0,
+        99225.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "9feb004f47248ee2dfe8e493f16e6321a37c1c6e488b1a45c606a02ec22e16ca"
+    },
+    {
+      "opponent": "reference",
+      "seed": 8050,
+      "seat": 0,
+      "rewards": [
+        62041.0,
+        62041.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "e9b17c81331817fa51ccd99456c0e771ce0d55cad29a61fbbfd0a61dc78263b7"
+    },
+    {
+      "opponent": "reference",
+      "seed": 8050,
+      "seat": 1,
+      "rewards": [
+        62041.0,
+        62041.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "4c463b846ac6f0ac5b5c64609e2b7de85cb3bfff0c4cdae422b67d7b6838c8b9"
+    },
+    {
+      "opponent": "reference",
+      "seed": 8051,
+      "seat": 0,
+      "rewards": [
+        117444.0,
+        117444.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "ea905853d86b5733958e5693cdda94a5ca84817a648b1e86f7bb31f9cde7ca5b"
+    },
+    {
+      "opponent": "reference",
+      "seed": 8051,
+      "seat": 1,
+      "rewards": [
+        117444.0,
+        117444.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "ea905853d86b5733958e5693cdda94a5ca84817a648b1e86f7bb31f9cde7ca5b"
+    },
+    {
+      "opponent": "reference",
+      "seed": 8052,
+      "seat": 0,
+      "rewards": [
+        83583.0,
+        83222.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "a643717a4bcf0b15615c539af7664025da289a83db0c46de912a1fea70ae9075"
+    },
+    {
+      "opponent": "reference",
+      "seed": 8052,
+      "seat": 1,
+      "rewards": [
+        83583.0,
+        83222.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "8e18e957218e412f1c47d073320e0a1539ab27feb5bf71973aaae8f979bcd744"
+    },
+    {
+      "opponent": "reference",
+      "seed": 8053,
+      "seat": 0,
+      "rewards": [
+        96733.0,
+        96733.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "82af0e135ebca5123fc45078ef1c6f4ede0244231d179beeb7ab2b036aa02ad3"
+    },
+    {
+      "opponent": "reference",
+      "seed": 8053,
+      "seat": 1,
+      "rewards": [
+        96733.0,
+        96733.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "82af0e135ebca5123fc45078ef1c6f4ede0244231d179beeb7ab2b036aa02ad3"
+    },
+    {
+      "opponent": "reference",
+      "seed": 8054,
+      "seat": 0,
+      "rewards": [
+        107720.0,
+        107720.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "6c7bdbf46cfe88a1e73dffdde35354c19d713216047b010d67df60e507e03488"
+    },
+    {
+      "opponent": "reference",
+      "seed": 8054,
+      "seat": 1,
+      "rewards": [
+        107720.0,
+        107720.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "6c7bdbf46cfe88a1e73dffdde35354c19d713216047b010d67df60e507e03488"
+    },
+    {
+      "opponent": "reference",
+      "seed": 8055,
+      "seat": 0,
+      "rewards": [
+        103851.0,
+        103851.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "20a181e66d6ed52ad7db60319953771c0c89db75c0fc41748367823466a900ff"
+    },
+    {
+      "opponent": "reference",
+      "seed": 8055,
+      "seat": 1,
+      "rewards": [
+        103851.0,
+        103851.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "20a181e66d6ed52ad7db60319953771c0c89db75c0fc41748367823466a900ff"
+    }
+  ]
+}

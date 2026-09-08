@@ -1,0 +1,90 @@
+{
+  "candidate": "BKG4_GOLD_V25",
+  "status": "EXACT_BASELINE_READY_NOT_PROMOTED",
+  "starting_head": "f2df0832e3a7c3f4411549aa19a59c7d0e4ca1d7",
+  "source_files": {
+    "src/kaggriculture_bonsai/agents/gold_v25/PROVENANCE.md": "49b3ac295adac06cd6e8488e4277cea5e30a60d75a754e8df8bc0144b966002a",
+    "src/kaggriculture_bonsai/agents/gold_v25/__init__.py": "90213728e14f709b7be58e8e4c64483b2667b80d0eed846fb7cd4d11a5d3b449",
+    "src/kaggriculture_bonsai/agents/gold_v25/agent.py": "249815f0e4b83eab6f3916b2998e74e0f34fee9dfd57f746eecceabf6d049c5a",
+    "src/kaggriculture_bonsai/agents/gold_v25/bridge.cu": "8f19bd38d88b283b79ffa91bdb42c58ab8a2e3811958b027e8085bfc724db5c7",
+    "src/kaggriculture_bonsai/agents/gold_v25/extract.py": "e2e2073b0291ca80c94dba00c047ad4dcf124400b392f1ca01bbd6c2880922df",
+    "src/kaggriculture_bonsai/agents/gold_v25/finalize.py": "5090047e8dceee3317d5352c0b4f0cec49d347740e0c22135be0283f9151e84f",
+    "src/kaggriculture_bonsai/agents/gold_v25/native.hpp": "a44fb4be06f82febfdfc0472ffa1b291032f5e5d048bc6b58b65e927bb4cbce1",
+    "src/kaggriculture_bonsai/agents/gold_v25/native.py": "64592e79f544a819c77f6189c4d94d74f226bb5e620316564578b5a56725ee31",
+    "src/kaggriculture_bonsai/agents/gold_v25/overlay.py": "12e7280129fe04e8cf26468151c06b03d4547edc5fba75e55dce3580d012cb77",
+    "src/kaggriculture_bonsai/agents/gold_v25/pack.py": "cc9a5c259d9a64ed37e9b2fbc5ee8889104b1fc7b24ef0c06b3e205bea4013c0",
+    "src/kaggriculture_bonsai/agents/gold_v25/test_gold_v25.py": "a38a3965dd0b0edfcf03b349aaeb1430b0c8cff8329b14039b1771f3666638f5",
+    "src/kaggriculture_bonsai/agents/gold_v25/validate.py": "377f16619f3a000d2dcfae4c6079eeb95861ba105fc464e00fe84c2ff9fda2b5"
+  },
+  "official_engine": {
+    "version": "1.32.7",
+    "source_sha256": "bc8a54879ef02c7ea64b8b333d6a976f0ea65c4949149d01f463f23bccee653e"
+  },
+  "differential_panel_identity": "a4a4c09fb1d5e52b2f222572e0ae3fd6f4627a9f1e6081fd3c1b0583ab1082cf",
+  "canary_panel_identity": "f605f25329bc47880b4578f79ee9e51018002a1669e7a861b55c67b9b8205ca2",
+  "differential_games": 16,
+  "differential_acting_steps": 11504,
+  "differential_action_mismatches": 0,
+  "differential_state_mismatches": 0,
+  "cpu_cuda_mismatches": 0,
+  "official_canary_matched_cases": 64,
+  "official_canary_engine_runs": 128,
+  "official_canary_acting_steps": 46016,
+  "official_canary_action_mismatches": 0,
+  "official_canary_terminal_mismatches": 0,
+  "crashes_faults": 0,
+  "tests": [
+    {
+      "command": [
+        "-m",
+        "unittest",
+        "kaggriculture_bonsai.agents.gold_v25.test_gold_v25"
+      ],
+      "returncode": 0,
+      "summary": "...\n----------------------------------------------------------------------\nRan 3 tests in 1.877s\n\nOK"
+    },
+    {
+      "command": [
+        "-m",
+        "pytest",
+        "-q",
+        "tests/unit/test_v4_semantics.py",
+        "tests/parity/test_evaluator_parity.py"
+      ],
+      "returncode": 0,
+      "summary": "...........................................                     [100%]\n43 passed, 9 subtests passed in 7.23s"
+    }
+  ],
+  "binaries": {
+    "cpu": {
+      "sha256": "83f24416c4de2788856aa1c7fb23d15442f01064ac4662436eb571c3851a54fc",
+      "state_bytes_per_player": 690480
+    },
+    "cuda": {
+      "sha256": "f3b91c1f4baf2d6652905b49da48f5c1a77d310abbc5ce2314a015b8c3a03ae6",
+      "state_bytes_per_player": 690480
+    }
+  },
+  "evidence_sha256": {
+    "differential.json": "96cb580b909970de99a5707320ae1fad561c92ac648c88321b19fb6ed208b8f8",
+    "canary.json": "1bf95163ed41dbdced723a8e8ab861f624ebc412b1dd3d8f088a538012aa63f0"
+  },
+  "protected_assets_unchanged": true,
+  "protected_assets": {
+    "assets/baseline/route_410.json": "89d57391ef9261dd9bef21d6e2d7e533f6be3478f03ec9bae4578ad7571e7b9e",
+    "assets/baseline/route_64.json": "1f39cea08a4887d52b184bc49ea1db501ba11aa84adaa5f7c114b3fc7863f7dd",
+    "assets/champion/controller.bkgc": "36e5e83e5240d2371f19f0006107990e0be44e5f6de9d31ec8f9c2c59d41a5b2",
+    "assets/champion/controller.json": "fbefdd5845772018075b5bb95c5d85b0a271023b48201f5a6ad82c9af77f776f",
+    "assets/champion/controller.manifest.json": "d11134e6cf5bafdd49fd912737b878f0a4aa60db1f8127ee2f7b213fbe84e126",
+    "assets/champion/identity.hpp": "65ead1b1e6ecf277ae37dac278ebfe7c52b9a146a8251bc4557b3815ce8162c2",
+    "assets/champion/identity.json": "3b6a9f9b4ab36b2e3884aeadea5759564c6dedfd66ed6f9f59172a584602d5e3",
+    "assets/champion/legacy_routes.bkv6": "f17c393ba5bf8d7f977a1d073995e29f012eb459c209c7832b027ccc539da0cc",
+    "assets/champion/routes.bkv6": "068dca3988994778dc2c3d96b36a30b078b85f6ac329b91dc1a6fbf9d2a323e9"
+  },
+  "generic_runtime_changes": [],
+  "strategy_improvements": [],
+  "representation_corrections": [
+    "Restore omitted PICKUP/PLACE quantity arity from isolated sidecar",
+    "Preserve empty market order slots as []"
+  ]
+}
