@@ -9,6 +9,9 @@ build/
 dist/
 public-notebooks/
 
+# Rebuilt staging directory for the standalone gold-v25 archive
+workspace/gold_v25_submission/package/
+
 # User-supplied, untracked HOLDOUT panels
 external/
 
