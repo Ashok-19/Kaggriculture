@@ -1,0 +1,232 @@
+{
+  "subject": "candidate:{\"endgame\":{\"start\":704,\"end\":717,\"mode\":4}}",
+  "games": 360,
+  "summary": {
+    "new_notebook": {
+      "W": 117,
+      "T": 0,
+      "L": 3
+    },
+    "gold_v25_plus": {
+      "W": 116,
+      "T": 0,
+      "L": 4
+    },
+    "gold_v25": {
+      "W": 119,
+      "T": 0,
+      "L": 1
+    }
+  },
+  "failures": [
+    {
+      "target": "new_notebook",
+      "seed": 2011,
+      "seat": 0,
+      "result": "L",
+      "pair": [
+        "YARN_STORE",
+        "FARMERS_MARKET"
+      ],
+      "subject": 110783.0,
+      "opponent": 114608.0
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2019,
+      "seat": 0,
+      "result": "L",
+      "pair": [
+        "ICE_CREAM_SHOP",
+        "PIZZA_SHOP"
+      ],
+      "subject": 84595.0,
+      "opponent": 85206.0
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2030,
+      "seat": 1,
+      "result": "L",
+      "pair": [
+        "BRUNCH_SPOT",
+        "YARN_STORE"
+      ],
+      "subject": 116952.0,
+      "opponent": 117345.0
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2011,
+      "seat": 0,
+      "result": "L",
+      "pair": [
+        "YARN_STORE",
+        "FARMERS_MARKET"
+      ],
+      "subject": 108129.0,
+      "opponent": 113670.0
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2011,
+      "seat": 1,
+      "result": "L",
+      "pair": [
+        "YARN_STORE",
+        "FARMERS_MARKET"
+      ],
+      "subject": 108680.0,
+      "opponent": 110500.0
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2057,
+      "seat": 0,
+      "result": "L",
+      "pair": [
+        "YARN_STORE",
+        "FARMERS_MARKET"
+      ],
+      "subject": 133071.0,
+      "opponent": 134066.0
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2057,
+      "seat": 1,
+      "result": "L",
+      "pair": [
+        "YARN_STORE",
+        "FARMERS_MARKET"
+      ],
+      "subject": 133071.0,
+      "opponent": 134066.0
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2011,
+      "seat": 0,
+      "result": "L",
+      "pair": [
+        "YARN_STORE",
+        "FARMERS_MARKET"
+      ],
+      "subject": 111885.0,
+      "opponent": 113335.0
+    }
+  ],
+  "panel": "build",
+  "seeds": [
+    2000,
+    2059
+  ],
+  "summary_by_target": {
+    "new_notebook": {
+      "W": 117,
+      "T": 0,
+      "L": 3
+    },
+    "gold_v25_plus": {
+      "W": 116,
+      "T": 0,
+      "L": 4
+    },
+    "gold_v25": {
+      "W": 119,
+      "T": 0,
+      "L": 1
+    }
+  },
+  "losses": [
+    [
+      "new_notebook",
+      2011,
+      0,
+      [
+        "YARN_STORE",
+        "FARMERS_MARKET"
+      ],
+      110783,
+      114608
+    ],
+    [
+      "new_notebook",
+      2019,
+      0,
+      [
+        "ICE_CREAM_SHOP",
+        "PIZZA_SHOP"
+      ],
+      84595,
+      85206
+    ],
+    [
+      "new_notebook",
+      2030,
+      1,
+      [
+        "BRUNCH_SPOT",
+        "YARN_STORE"
+      ],
+      116952,
+      117345
+    ],
+    [
+      "gold_v25_plus",
+      2011,
+      0,
+      [
+        "YARN_STORE",
+        "FARMERS_MARKET"
+      ],
+      108129,
+      113670
+    ],
+    [
+      "gold_v25_plus",
+      2011,
+      1,
+      [
+        "YARN_STORE",
+        "FARMERS_MARKET"
+      ],
+      108680,
+      110500
+    ],
+    [
+      "gold_v25_plus",
+      2057,
+      0,
+      [
+        "YARN_STORE",
+        "FARMERS_MARKET"
+      ],
+      133071,
+      134066
+    ],
+    [
+      "gold_v25_plus",
+      2057,
+      1,
+      [
+        "YARN_STORE",
+        "FARMERS_MARKET"
+      ],
+      133071,
+      134066
+    ],
+    [
+      "gold_v25",
+      2011,
+      0,
+      [
+        "YARN_STORE",
+        "FARMERS_MARKET"
+      ],
+      111885,
+      113335
+    ]
+  ],
+  "note": "Per-game rows dropped; aggregates and every non-win retained."
+}

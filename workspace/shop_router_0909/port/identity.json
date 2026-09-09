@@ -1,0 +1,130 @@
+{
+  "candidate": "BKG4_SHOP_ROUTER_0909",
+  "status": "EXACT_PORT_FROZEN_PARENT",
+  "source_notebook": "public-notebooks/current-gold-spet-9.ipynb",
+  "source_notebook_sha256": "1d7f6a17bad05dafe27002fb20a0a650603f571c2a3d0408431d1a7d0ab2701b",
+  "source_agent_sha256": "d6d74997dc5b483db63d8e39cafa1afeec0f366824e75107e109123f111e866b",
+  "source_tapes_sha256": "17d503f2fd20d59f9c0f14024d1e74a8add8bb9b5561d4d908b45deecb5495ef",
+  "official_engine_version": "1.32.7",
+  "cpu_abi_version": 4,
+  "cuda_abi_version": 4,
+  "controller_sha256": "b2d784244cf6c3b15979540da1be6f918dc48e1dbc38ba76314a4db0fdd22c97",
+  "controller_semantic_hash": "20a38c39ab956caf3558e236522d3280245be3a0a760562ae9388e2751d205f6",
+  "controller_nodes": 61,
+  "controller_state_slots": 0,
+  "controller_blackboard_slots": 1,
+  "arity_sha256": "5e8305647ac58067267515699c0dc15371e7d738d299512bfd26615ebfb882af",
+  "route_pack": {
+    "pack_sha256": "f711680c0c4514be70c97e64491f969ad31d79edd6a639b42cf950b98eebe696",
+    "route_ids": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12
+    ],
+    "format": "BKV6RP1",
+    "version": 1
+  },
+  "routes": [
+    {
+      "id": 0,
+      "donor": "yhay81/shop-router-0909",
+      "actions": 719,
+      "canonical_json_sha256": "d529e0ef2ce561ad3d776d3da551c58df0451bcc66e0f3053fb13c213ae78e55",
+      "packed_actions_sha256": "e7d5c5d6e4a9a5b518e04fb079bc7bb826742c587ca0629fe1d1324e8ae33410"
+    },
+    {
+      "id": 1,
+      "donor": "yhay81/shop-router-0909",
+      "actions": 719,
+      "canonical_json_sha256": "291af96e4f62a5dee66bab2d74b6f2fbeebc918faf77cc36ec7bf9e59e42b919",
+      "packed_actions_sha256": "56d1f1e571be6691a171b84b1aefff5ffcab36f69f39f902ef206d657bd531cb"
+    },
+    {
+      "id": 2,
+      "donor": "yhay81/shop-router-0909",
+      "actions": 719,
+      "canonical_json_sha256": "bb4cb7b61a4f51b98f72564106babe543f908a72b10443c28f8a1f23eb78d063",
+      "packed_actions_sha256": "9becea03d93e4db4f352628caf953e0278614d7a1dd9109f9f78c320f7c71731"
+    },
+    {
+      "id": 3,
+      "donor": "yhay81/shop-router-0909",
+      "actions": 719,
+      "canonical_json_sha256": "65c4c525118a2a5336f3e99e12db6c0d0654abf29f101b215ab36dbbd6ad1c57",
+      "packed_actions_sha256": "07a9bb07180fbc5ecc3053085ca32994f510fb1cd1e36ee26284a3484f0a78a3"
+    },
+    {
+      "id": 4,
+      "donor": "yhay81/shop-router-0909",
+      "actions": 719,
+      "canonical_json_sha256": "2c4391c9a5a63369cb9825ef527c992c9d270894ed0538f01e1ebf0ee996a278",
+      "packed_actions_sha256": "cb5cf4ab8111f494c2641cbecc90930a4da6712f1ecb8c6f90b6d2fc1baafe58"
+    },
+    {
+      "id": 5,
+      "donor": "yhay81/shop-router-0909",
+      "actions": 719,
+      "canonical_json_sha256": "9417a741510ef0d4c2c0a806e335a8d09dd56f8fe134ea627cc73125e593104a",
+      "packed_actions_sha256": "5e8ff24c46d5de682fd9c22c85c5277354e9ed5ce87722b5ae42848a36af5aae"
+    },
+    {
+      "id": 6,
+      "donor": "yhay81/shop-router-0909",
+      "actions": 719,
+      "canonical_json_sha256": "b3847705aef078484b1fc1b0c6ad1d1b428141f58d8979405d92e8fc3f3e1b67",
+      "packed_actions_sha256": "ad9f844b836d23df6294f6720a8e59ae77f1fca4e3ad3cf51b207905fdc5188d"
+    },
+    {
+      "id": 7,
+      "donor": "yhay81/shop-router-0909",
+      "actions": 719,
+      "canonical_json_sha256": "93816db80bf25ba33cbdd58b78983b6c4ff35ed347938c366fb65eb86e67bbb1",
+      "packed_actions_sha256": "f7a39a83d54a824fde7afb75b994df0979e9308ef4849093493086fa0ce35658"
+    },
+    {
+      "id": 8,
+      "donor": "yhay81/shop-router-0909",
+      "actions": 719,
+      "canonical_json_sha256": "426efecc46a06e01a9f9a04456f145429fd65aabc881672e7fffa14d8a50392c",
+      "packed_actions_sha256": "3464955a1415461da48492dd0413a5ea67db0ee6b37f9d1407f91f8b294f9a13"
+    },
+    {
+      "id": 9,
+      "donor": "yhay81/shop-router-0909",
+      "actions": 719,
+      "canonical_json_sha256": "03a5329f3158b9e7a322a475a757f39bdbe4d286f0f891bec9c38821f16e8f31",
+      "packed_actions_sha256": "381cf221446f7544d99b8e9e2453239a44a27a89327b52591bafe738750efa73"
+    },
+    {
+      "id": 10,
+      "donor": "yhay81/shop-router-0909",
+      "actions": 719,
+      "canonical_json_sha256": "9dc1ecc26dc50bc3b958cfa5589536b8d155d39e1556b90362d7d7c2862eb5b6",
+      "packed_actions_sha256": "074241baefd0106d778914ff3007c2c9e4983ee6b66726237731ecff97969bb8"
+    },
+    {
+      "id": 11,
+      "donor": "yhay81/shop-router-0909",
+      "actions": 719,
+      "canonical_json_sha256": "cbb4b64fb7e76eb27102b77c6208706f8316bf7bcdc05a2cd81407a21ff829cc",
+      "packed_actions_sha256": "865c57be70ce152b63cb1fb850518928f5e3a028d208abb78912ba87762cfa92"
+    },
+    {
+      "id": 12,
+      "donor": "yhay81/shop-router-0909",
+      "actions": 719,
+      "canonical_json_sha256": "985c89d5f1eda67c729991424409bc9c522b44304b385abf6aef365db6a1f9e1",
+      "packed_actions_sha256": "f72052b3240cfd955af8ccc962925b729d75393dbe19ae3b27ecdac53d44e23e"
+    }
+  ]
+}

@@ -1,0 +1,4374 @@
+{
+  "subject": "candidate:{\"endgame\":{\"start\":704,\"end\":717,\"mode\":4},\"routes\":{\"YARN_STORE|FARMERS_MARKET\":9}}",
+  "games": 360,
+  "summary": {
+    "new_notebook": {
+      "W": 118,
+      "T": 0,
+      "L": 2
+    },
+    "gold_v25_plus": {
+      "W": 120,
+      "T": 0,
+      "L": 0
+    },
+    "gold_v25": {
+      "W": 120,
+      "T": 0,
+      "L": 0
+    }
+  },
+  "failures": [
+    {
+      "target": "new_notebook",
+      "seed": 2019,
+      "seat": 0,
+      "result": "L",
+      "pair": [
+        "ICE_CREAM_SHOP",
+        "PIZZA_SHOP"
+      ],
+      "subject": 84595.0,
+      "opponent": 85206.0
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2030,
+      "seat": 1,
+      "result": "L",
+      "pair": [
+        "BRUNCH_SPOT",
+        "YARN_STORE"
+      ],
+      "subject": 116952.0,
+      "opponent": 117345.0
+    }
+  ],
+  "rows": [
+    {
+      "target": "new_notebook",
+      "seed": 2000,
+      "seat": 0,
+      "subject": 97626.0,
+      "opponent": 97270.0,
+      "pair": [
+        "SMOOTHIE_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2000,
+      "seat": 1,
+      "subject": 97626.0,
+      "opponent": 97270.0,
+      "pair": [
+        "SMOOTHIE_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2001,
+      "seat": 0,
+      "subject": 133499.0,
+      "opponent": 133283.0,
+      "pair": [
+        "YARN_STORE",
+        "SMOOTHIE_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2001,
+      "seat": 1,
+      "subject": 133499.0,
+      "opponent": 133283.0,
+      "pair": [
+        "YARN_STORE",
+        "SMOOTHIE_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2002,
+      "seat": 0,
+      "subject": 101291.0,
+      "opponent": 101048.0,
+      "pair": [
+        "ICE_CREAM_SHOP",
+        "BAKERY"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2002,
+      "seat": 1,
+      "subject": 101291.0,
+      "opponent": 101048.0,
+      "pair": [
+        "ICE_CREAM_SHOP",
+        "BAKERY"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2003,
+      "seat": 0,
+      "subject": 101816.0,
+      "opponent": 101532.0,
+      "pair": [
+        "BAKERY",
+        "ICE_CREAM_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2003,
+      "seat": 1,
+      "subject": 101816.0,
+      "opponent": 101532.0,
+      "pair": [
+        "BAKERY",
+        "ICE_CREAM_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2004,
+      "seat": 0,
+      "subject": 86624.0,
+      "opponent": 86253.0,
+      "pair": [
+        "BAKERY",
+        "SMOOTHIE_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2004,
+      "seat": 1,
+      "subject": 86624.0,
+      "opponent": 86253.0,
+      "pair": [
+        "BAKERY",
+        "SMOOTHIE_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2005,
+      "seat": 0,
+      "subject": 72373.0,
+      "opponent": 71923.0,
+      "pair": [
+        "BAKERY",
+        "YARN_STORE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2005,
+      "seat": 1,
+      "subject": 72373.0,
+      "opponent": 71923.0,
+      "pair": [
+        "BAKERY",
+        "YARN_STORE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2006,
+      "seat": 0,
+      "subject": 86425.0,
+      "opponent": 86066.0,
+      "pair": [
+        "PET_CAFE",
+        "YARN_STORE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2006,
+      "seat": 1,
+      "subject": 86425.0,
+      "opponent": 86066.0,
+      "pair": [
+        "PET_CAFE",
+        "YARN_STORE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2007,
+      "seat": 0,
+      "subject": 40886.0,
+      "opponent": 40724.0,
+      "pair": [
+        "BAKERY",
+        "BAKERY"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2007,
+      "seat": 1,
+      "subject": 40886.0,
+      "opponent": 40724.0,
+      "pair": [
+        "BAKERY",
+        "BAKERY"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2008,
+      "seat": 0,
+      "subject": 90196.0,
+      "opponent": 89912.0,
+      "pair": [
+        "PIZZA_SHOP",
+        "FARMERS_MARKET"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2008,
+      "seat": 1,
+      "subject": 90196.0,
+      "opponent": 89912.0,
+      "pair": [
+        "PIZZA_SHOP",
+        "FARMERS_MARKET"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2009,
+      "seat": 0,
+      "subject": 151619.0,
+      "opponent": 151554.0,
+      "pair": [
+        "SMOOTHIE_SHOP",
+        "SMOOTHIE_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2009,
+      "seat": 1,
+      "subject": 151619.0,
+      "opponent": 151554.0,
+      "pair": [
+        "SMOOTHIE_SHOP",
+        "SMOOTHIE_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2010,
+      "seat": 0,
+      "subject": 108337.0,
+      "opponent": 108270.0,
+      "pair": [
+        "ICE_CREAM_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2010,
+      "seat": 1,
+      "subject": 108337.0,
+      "opponent": 108270.0,
+      "pair": [
+        "ICE_CREAM_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2011,
+      "seat": 0,
+      "subject": 107111.0,
+      "opponent": 104556.0,
+      "pair": [
+        "YARN_STORE",
+        "FARMERS_MARKET"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2011,
+      "seat": 1,
+      "subject": 110803.0,
+      "opponent": 104346.0,
+      "pair": [
+        "YARN_STORE",
+        "FARMERS_MARKET"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2012,
+      "seat": 0,
+      "subject": 108087.0,
+      "opponent": 107794.0,
+      "pair": [
+        "PIZZA_SHOP",
+        "PIZZA_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2012,
+      "seat": 1,
+      "subject": 108087.0,
+      "opponent": 107794.0,
+      "pair": [
+        "PIZZA_SHOP",
+        "PIZZA_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2013,
+      "seat": 0,
+      "subject": 87877.0,
+      "opponent": 87796.0,
+      "pair": [
+        "BAKERY",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2013,
+      "seat": 1,
+      "subject": 87877.0,
+      "opponent": 87796.0,
+      "pair": [
+        "BAKERY",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2014,
+      "seat": 0,
+      "subject": 56460.0,
+      "opponent": 56040.0,
+      "pair": [
+        "BAKERY",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2014,
+      "seat": 1,
+      "subject": 56460.0,
+      "opponent": 56040.0,
+      "pair": [
+        "BAKERY",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2015,
+      "seat": 0,
+      "subject": 92461.0,
+      "opponent": 92394.0,
+      "pair": [
+        "BRUNCH_SPOT",
+        "PET_CAFE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2015,
+      "seat": 1,
+      "subject": 92461.0,
+      "opponent": 92394.0,
+      "pair": [
+        "BRUNCH_SPOT",
+        "PET_CAFE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2016,
+      "seat": 0,
+      "subject": 126681.0,
+      "opponent": 126678.0,
+      "pair": [
+        "FARMERS_MARKET",
+        "SMOOTHIE_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2016,
+      "seat": 1,
+      "subject": 126681.0,
+      "opponent": 126678.0,
+      "pair": [
+        "FARMERS_MARKET",
+        "SMOOTHIE_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2017,
+      "seat": 0,
+      "subject": 94282.0,
+      "opponent": 93975.0,
+      "pair": [
+        "PIZZA_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2017,
+      "seat": 1,
+      "subject": 94282.0,
+      "opponent": 93975.0,
+      "pair": [
+        "PIZZA_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2018,
+      "seat": 0,
+      "subject": 73884.0,
+      "opponent": 73574.0,
+      "pair": [
+        "BRUNCH_SPOT",
+        "FARMERS_MARKET"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2018,
+      "seat": 1,
+      "subject": 73884.0,
+      "opponent": 73574.0,
+      "pair": [
+        "BRUNCH_SPOT",
+        "FARMERS_MARKET"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2019,
+      "seat": 0,
+      "subject": 84595.0,
+      "opponent": 85206.0,
+      "pair": [
+        "ICE_CREAM_SHOP",
+        "PIZZA_SHOP"
+      ],
+      "result": "L"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2019,
+      "seat": 1,
+      "subject": 85563.0,
+      "opponent": 84238.0,
+      "pair": [
+        "ICE_CREAM_SHOP",
+        "PIZZA_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2020,
+      "seat": 0,
+      "subject": 89102.0,
+      "opponent": 88617.0,
+      "pair": [
+        "YARN_STORE",
+        "SMOOTHIE_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2020,
+      "seat": 1,
+      "subject": 89102.0,
+      "opponent": 88617.0,
+      "pair": [
+        "YARN_STORE",
+        "SMOOTHIE_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2021,
+      "seat": 0,
+      "subject": 122751.0,
+      "opponent": 122694.0,
+      "pair": [
+        "SMOOTHIE_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2021,
+      "seat": 1,
+      "subject": 122751.0,
+      "opponent": 122694.0,
+      "pair": [
+        "SMOOTHIE_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2022,
+      "seat": 0,
+      "subject": 77831.0,
+      "opponent": 77362.0,
+      "pair": [
+        "BRUNCH_SPOT",
+        "PET_CAFE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2022,
+      "seat": 1,
+      "subject": 77671.0,
+      "opponent": 77522.0,
+      "pair": [
+        "BRUNCH_SPOT",
+        "PET_CAFE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2023,
+      "seat": 0,
+      "subject": 69864.0,
+      "opponent": 69444.0,
+      "pair": [
+        "PIZZA_SHOP",
+        "BAKERY"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2023,
+      "seat": 1,
+      "subject": 69864.0,
+      "opponent": 69444.0,
+      "pair": [
+        "PIZZA_SHOP",
+        "BAKERY"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2024,
+      "seat": 0,
+      "subject": 111384.0,
+      "opponent": 111028.0,
+      "pair": [
+        "FARMERS_MARKET",
+        "YARN_STORE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2024,
+      "seat": 1,
+      "subject": 111384.0,
+      "opponent": 111028.0,
+      "pair": [
+        "FARMERS_MARKET",
+        "YARN_STORE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2025,
+      "seat": 0,
+      "subject": 104073.0,
+      "opponent": 103762.0,
+      "pair": [
+        "BAKERY",
+        "YARN_STORE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2025,
+      "seat": 1,
+      "subject": 104073.0,
+      "opponent": 103762.0,
+      "pair": [
+        "BAKERY",
+        "YARN_STORE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2026,
+      "seat": 0,
+      "subject": 58875.0,
+      "opponent": 58515.0,
+      "pair": [
+        "BAKERY",
+        "FARMERS_MARKET"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2026,
+      "seat": 1,
+      "subject": 58875.0,
+      "opponent": 58515.0,
+      "pair": [
+        "BAKERY",
+        "FARMERS_MARKET"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2027,
+      "seat": 0,
+      "subject": 82976.0,
+      "opponent": 82701.0,
+      "pair": [
+        "FARMERS_MARKET",
+        "BAKERY"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2027,
+      "seat": 1,
+      "subject": 82976.0,
+      "opponent": 82701.0,
+      "pair": [
+        "FARMERS_MARKET",
+        "BAKERY"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2028,
+      "seat": 0,
+      "subject": 111483.0,
+      "opponent": 111132.0,
+      "pair": [
+        "PIZZA_SHOP",
+        "SMOOTHIE_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2028,
+      "seat": 1,
+      "subject": 111483.0,
+      "opponent": 111132.0,
+      "pair": [
+        "PIZZA_SHOP",
+        "SMOOTHIE_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2029,
+      "seat": 0,
+      "subject": 111607.0,
+      "opponent": 111463.0,
+      "pair": [
+        "BRUNCH_SPOT",
+        "SMOOTHIE_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2029,
+      "seat": 1,
+      "subject": 111607.0,
+      "opponent": 111463.0,
+      "pair": [
+        "BRUNCH_SPOT",
+        "SMOOTHIE_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2030,
+      "seat": 0,
+      "subject": 117749.0,
+      "opponent": 116548.0,
+      "pair": [
+        "BRUNCH_SPOT",
+        "YARN_STORE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2030,
+      "seat": 1,
+      "subject": 116952.0,
+      "opponent": 117345.0,
+      "pair": [
+        "BRUNCH_SPOT",
+        "YARN_STORE"
+      ],
+      "result": "L"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2031,
+      "seat": 0,
+      "subject": 142828.0,
+      "opponent": 142813.0,
+      "pair": [
+        "ICE_CREAM_SHOP",
+        "ICE_CREAM_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2031,
+      "seat": 1,
+      "subject": 142828.0,
+      "opponent": 142813.0,
+      "pair": [
+        "ICE_CREAM_SHOP",
+        "ICE_CREAM_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2032,
+      "seat": 0,
+      "subject": 77806.0,
+      "opponent": 77479.0,
+      "pair": [
+        "BRUNCH_SPOT",
+        "PIZZA_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2032,
+      "seat": 1,
+      "subject": 77806.0,
+      "opponent": 77479.0,
+      "pair": [
+        "BRUNCH_SPOT",
+        "PIZZA_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2033,
+      "seat": 0,
+      "subject": 105773.0,
+      "opponent": 105643.0,
+      "pair": [
+        "ICE_CREAM_SHOP",
+        "ICE_CREAM_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2033,
+      "seat": 1,
+      "subject": 105773.0,
+      "opponent": 105643.0,
+      "pair": [
+        "ICE_CREAM_SHOP",
+        "ICE_CREAM_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2034,
+      "seat": 0,
+      "subject": 132427.0,
+      "opponent": 132406.0,
+      "pair": [
+        "ICE_CREAM_SHOP",
+        "PIZZA_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2034,
+      "seat": 1,
+      "subject": 132427.0,
+      "opponent": 132406.0,
+      "pair": [
+        "ICE_CREAM_SHOP",
+        "PIZZA_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2035,
+      "seat": 0,
+      "subject": 78053.0,
+      "opponent": 77822.0,
+      "pair": [
+        "YARN_STORE",
+        "ICE_CREAM_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2035,
+      "seat": 1,
+      "subject": 78053.0,
+      "opponent": 77822.0,
+      "pair": [
+        "YARN_STORE",
+        "ICE_CREAM_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2036,
+      "seat": 0,
+      "subject": 91998.0,
+      "opponent": 91638.0,
+      "pair": [
+        "FARMERS_MARKET",
+        "PIZZA_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2036,
+      "seat": 1,
+      "subject": 91998.0,
+      "opponent": 91638.0,
+      "pair": [
+        "FARMERS_MARKET",
+        "PIZZA_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2037,
+      "seat": 0,
+      "subject": 84978.0,
+      "opponent": 84607.0,
+      "pair": [
+        "PIZZA_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2037,
+      "seat": 1,
+      "subject": 84978.0,
+      "opponent": 84607.0,
+      "pair": [
+        "PIZZA_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2038,
+      "seat": 0,
+      "subject": 103032.0,
+      "opponent": 102517.0,
+      "pair": [
+        "YARN_STORE",
+        "PIZZA_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2038,
+      "seat": 1,
+      "subject": 103032.0,
+      "opponent": 102517.0,
+      "pair": [
+        "YARN_STORE",
+        "PIZZA_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2039,
+      "seat": 0,
+      "subject": 101055.0,
+      "opponent": 100737.0,
+      "pair": [
+        "YARN_STORE",
+        "YARN_STORE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2039,
+      "seat": 1,
+      "subject": 101055.0,
+      "opponent": 100737.0,
+      "pair": [
+        "YARN_STORE",
+        "YARN_STORE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2040,
+      "seat": 0,
+      "subject": 76929.0,
+      "opponent": 76572.0,
+      "pair": [
+        "BAKERY",
+        "ICE_CREAM_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2040,
+      "seat": 1,
+      "subject": 76929.0,
+      "opponent": 76572.0,
+      "pair": [
+        "BAKERY",
+        "ICE_CREAM_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2041,
+      "seat": 0,
+      "subject": 141558.0,
+      "opponent": 141511.0,
+      "pair": [
+        "SMOOTHIE_SHOP",
+        "ICE_CREAM_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2041,
+      "seat": 1,
+      "subject": 141558.0,
+      "opponent": 141511.0,
+      "pair": [
+        "SMOOTHIE_SHOP",
+        "ICE_CREAM_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2042,
+      "seat": 0,
+      "subject": 101327.0,
+      "opponent": 100970.0,
+      "pair": [
+        "PIZZA_SHOP",
+        "PIZZA_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2042,
+      "seat": 1,
+      "subject": 101327.0,
+      "opponent": 100970.0,
+      "pair": [
+        "PIZZA_SHOP",
+        "PIZZA_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2043,
+      "seat": 0,
+      "subject": 85557.0,
+      "opponent": 85201.0,
+      "pair": [
+        "BRUNCH_SPOT",
+        "PET_CAFE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2043,
+      "seat": 1,
+      "subject": 85557.0,
+      "opponent": 85201.0,
+      "pair": [
+        "BRUNCH_SPOT",
+        "PET_CAFE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2044,
+      "seat": 0,
+      "subject": 42244.0,
+      "opponent": 41884.0,
+      "pair": [
+        "BAKERY",
+        "PET_CAFE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2044,
+      "seat": 1,
+      "subject": 42244.0,
+      "opponent": 41884.0,
+      "pair": [
+        "BAKERY",
+        "PET_CAFE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2045,
+      "seat": 0,
+      "subject": 102560.0,
+      "opponent": 102189.0,
+      "pair": [
+        "FARMERS_MARKET",
+        "YARN_STORE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2045,
+      "seat": 1,
+      "subject": 102560.0,
+      "opponent": 102189.0,
+      "pair": [
+        "FARMERS_MARKET",
+        "YARN_STORE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2046,
+      "seat": 0,
+      "subject": 135314.0,
+      "opponent": 135299.0,
+      "pair": [
+        "ICE_CREAM_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2046,
+      "seat": 1,
+      "subject": 135314.0,
+      "opponent": 135299.0,
+      "pair": [
+        "ICE_CREAM_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2047,
+      "seat": 0,
+      "subject": 70051.0,
+      "opponent": 69728.0,
+      "pair": [
+        "BAKERY",
+        "PIZZA_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2047,
+      "seat": 1,
+      "subject": 70051.0,
+      "opponent": 69728.0,
+      "pair": [
+        "BAKERY",
+        "PIZZA_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2048,
+      "seat": 0,
+      "subject": 124945.0,
+      "opponent": 124893.0,
+      "pair": [
+        "SMOOTHIE_SHOP",
+        "PET_CAFE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2048,
+      "seat": 1,
+      "subject": 124945.0,
+      "opponent": 124893.0,
+      "pair": [
+        "SMOOTHIE_SHOP",
+        "PET_CAFE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2049,
+      "seat": 0,
+      "subject": 91273.0,
+      "opponent": 91225.0,
+      "pair": [
+        "PET_CAFE",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2049,
+      "seat": 1,
+      "subject": 91273.0,
+      "opponent": 91225.0,
+      "pair": [
+        "PET_CAFE",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2050,
+      "seat": 0,
+      "subject": 61610.0,
+      "opponent": 61318.0,
+      "pair": [
+        "BAKERY",
+        "BAKERY"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2050,
+      "seat": 1,
+      "subject": 61610.0,
+      "opponent": 61318.0,
+      "pair": [
+        "BAKERY",
+        "BAKERY"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2051,
+      "seat": 0,
+      "subject": 109223.0,
+      "opponent": 109131.0,
+      "pair": [
+        "FARMERS_MARKET",
+        "ICE_CREAM_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2051,
+      "seat": 1,
+      "subject": 109223.0,
+      "opponent": 109131.0,
+      "pair": [
+        "FARMERS_MARKET",
+        "ICE_CREAM_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2052,
+      "seat": 0,
+      "subject": 89004.0,
+      "opponent": 88647.0,
+      "pair": [
+        "PIZZA_SHOP",
+        "PIZZA_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2052,
+      "seat": 1,
+      "subject": 89004.0,
+      "opponent": 88647.0,
+      "pair": [
+        "PIZZA_SHOP",
+        "PIZZA_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2053,
+      "seat": 0,
+      "subject": 92798.0,
+      "opponent": 92506.0,
+      "pair": [
+        "PIZZA_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2053,
+      "seat": 1,
+      "subject": 92798.0,
+      "opponent": 92506.0,
+      "pair": [
+        "PIZZA_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2054,
+      "seat": 0,
+      "subject": 74940.0,
+      "opponent": 74659.0,
+      "pair": [
+        "BAKERY",
+        "ICE_CREAM_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2054,
+      "seat": 1,
+      "subject": 74940.0,
+      "opponent": 74659.0,
+      "pair": [
+        "BAKERY",
+        "ICE_CREAM_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2055,
+      "seat": 0,
+      "subject": 86474.0,
+      "opponent": 86115.0,
+      "pair": [
+        "BRUNCH_SPOT",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2055,
+      "seat": 1,
+      "subject": 86474.0,
+      "opponent": 86115.0,
+      "pair": [
+        "BRUNCH_SPOT",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2056,
+      "seat": 0,
+      "subject": 65808.0,
+      "opponent": 65516.0,
+      "pair": [
+        "FARMERS_MARKET",
+        "BAKERY"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2056,
+      "seat": 1,
+      "subject": 65808.0,
+      "opponent": 65516.0,
+      "pair": [
+        "FARMERS_MARKET",
+        "BAKERY"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2057,
+      "seat": 0,
+      "subject": 135600.0,
+      "opponent": 131627.0,
+      "pair": [
+        "YARN_STORE",
+        "FARMERS_MARKET"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2057,
+      "seat": 1,
+      "subject": 135600.0,
+      "opponent": 131627.0,
+      "pair": [
+        "YARN_STORE",
+        "FARMERS_MARKET"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2058,
+      "seat": 0,
+      "subject": 103292.0,
+      "opponent": 102636.0,
+      "pair": [
+        "BAKERY",
+        "YARN_STORE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2058,
+      "seat": 1,
+      "subject": 103292.0,
+      "opponent": 102636.0,
+      "pair": [
+        "BAKERY",
+        "YARN_STORE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2059,
+      "seat": 0,
+      "subject": 118885.0,
+      "opponent": 118459.0,
+      "pair": [
+        "SMOOTHIE_SHOP",
+        "YARN_STORE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2059,
+      "seat": 1,
+      "subject": 118885.0,
+      "opponent": 118459.0,
+      "pair": [
+        "SMOOTHIE_SHOP",
+        "YARN_STORE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2000,
+      "seat": 0,
+      "subject": 99510.0,
+      "opponent": 95572.0,
+      "pair": [
+        "SMOOTHIE_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2000,
+      "seat": 1,
+      "subject": 99510.0,
+      "opponent": 95572.0,
+      "pair": [
+        "SMOOTHIE_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2001,
+      "seat": 0,
+      "subject": 135546.0,
+      "opponent": 132798.0,
+      "pair": [
+        "YARN_STORE",
+        "SMOOTHIE_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2001,
+      "seat": 1,
+      "subject": 135546.0,
+      "opponent": 132798.0,
+      "pair": [
+        "YARN_STORE",
+        "SMOOTHIE_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2002,
+      "seat": 0,
+      "subject": 103136.0,
+      "opponent": 99770.0,
+      "pair": [
+        "ICE_CREAM_SHOP",
+        "BAKERY"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2002,
+      "seat": 1,
+      "subject": 103136.0,
+      "opponent": 99770.0,
+      "pair": [
+        "ICE_CREAM_SHOP",
+        "BAKERY"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2003,
+      "seat": 0,
+      "subject": 103447.0,
+      "opponent": 99090.0,
+      "pair": [
+        "BAKERY",
+        "ICE_CREAM_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2003,
+      "seat": 1,
+      "subject": 103447.0,
+      "opponent": 99090.0,
+      "pair": [
+        "BAKERY",
+        "ICE_CREAM_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2004,
+      "seat": 0,
+      "subject": 88045.0,
+      "opponent": 84987.0,
+      "pair": [
+        "BAKERY",
+        "SMOOTHIE_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2004,
+      "seat": 1,
+      "subject": 88045.0,
+      "opponent": 84987.0,
+      "pair": [
+        "BAKERY",
+        "SMOOTHIE_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2005,
+      "seat": 0,
+      "subject": 73760.0,
+      "opponent": 72432.0,
+      "pair": [
+        "BAKERY",
+        "YARN_STORE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2005,
+      "seat": 1,
+      "subject": 73760.0,
+      "opponent": 72432.0,
+      "pair": [
+        "BAKERY",
+        "YARN_STORE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2006,
+      "seat": 0,
+      "subject": 86624.0,
+      "opponent": 85597.0,
+      "pair": [
+        "PET_CAFE",
+        "YARN_STORE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2006,
+      "seat": 1,
+      "subject": 86624.0,
+      "opponent": 85597.0,
+      "pair": [
+        "PET_CAFE",
+        "YARN_STORE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2007,
+      "seat": 0,
+      "subject": 41577.0,
+      "opponent": 39616.0,
+      "pair": [
+        "BAKERY",
+        "BAKERY"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2007,
+      "seat": 1,
+      "subject": 41577.0,
+      "opponent": 39616.0,
+      "pair": [
+        "BAKERY",
+        "BAKERY"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2008,
+      "seat": 0,
+      "subject": 91627.0,
+      "opponent": 88243.0,
+      "pair": [
+        "PIZZA_SHOP",
+        "FARMERS_MARKET"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2008,
+      "seat": 1,
+      "subject": 91627.0,
+      "opponent": 88243.0,
+      "pair": [
+        "PIZZA_SHOP",
+        "FARMERS_MARKET"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2009,
+      "seat": 0,
+      "subject": 152964.0,
+      "opponent": 150285.0,
+      "pair": [
+        "SMOOTHIE_SHOP",
+        "SMOOTHIE_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2009,
+      "seat": 1,
+      "subject": 152964.0,
+      "opponent": 150285.0,
+      "pair": [
+        "SMOOTHIE_SHOP",
+        "SMOOTHIE_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2010,
+      "seat": 0,
+      "subject": 109649.0,
+      "opponent": 105681.0,
+      "pair": [
+        "ICE_CREAM_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2010,
+      "seat": 1,
+      "subject": 109649.0,
+      "opponent": 105681.0,
+      "pair": [
+        "ICE_CREAM_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2011,
+      "seat": 0,
+      "subject": 104581.0,
+      "opponent": 102956.0,
+      "pair": [
+        "YARN_STORE",
+        "FARMERS_MARKET"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2011,
+      "seat": 1,
+      "subject": 104592.0,
+      "opponent": 102899.0,
+      "pair": [
+        "YARN_STORE",
+        "FARMERS_MARKET"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2012,
+      "seat": 0,
+      "subject": 109210.0,
+      "opponent": 106205.0,
+      "pair": [
+        "PIZZA_SHOP",
+        "PIZZA_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2012,
+      "seat": 1,
+      "subject": 109210.0,
+      "opponent": 106205.0,
+      "pair": [
+        "PIZZA_SHOP",
+        "PIZZA_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2013,
+      "seat": 0,
+      "subject": 88159.0,
+      "opponent": 85746.0,
+      "pair": [
+        "BAKERY",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2013,
+      "seat": 1,
+      "subject": 88159.0,
+      "opponent": 85746.0,
+      "pair": [
+        "BAKERY",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2014,
+      "seat": 0,
+      "subject": 57288.0,
+      "opponent": 54719.0,
+      "pair": [
+        "BAKERY",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2014,
+      "seat": 1,
+      "subject": 57288.0,
+      "opponent": 54719.0,
+      "pair": [
+        "BAKERY",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2015,
+      "seat": 0,
+      "subject": 93635.0,
+      "opponent": 91043.0,
+      "pair": [
+        "BRUNCH_SPOT",
+        "PET_CAFE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2015,
+      "seat": 1,
+      "subject": 93635.0,
+      "opponent": 91043.0,
+      "pair": [
+        "BRUNCH_SPOT",
+        "PET_CAFE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2016,
+      "seat": 0,
+      "subject": 128601.0,
+      "opponent": 124978.0,
+      "pair": [
+        "FARMERS_MARKET",
+        "SMOOTHIE_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2016,
+      "seat": 1,
+      "subject": 128601.0,
+      "opponent": 124978.0,
+      "pair": [
+        "FARMERS_MARKET",
+        "SMOOTHIE_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2017,
+      "seat": 0,
+      "subject": 95806.0,
+      "opponent": 92399.0,
+      "pair": [
+        "PIZZA_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2017,
+      "seat": 1,
+      "subject": 95806.0,
+      "opponent": 92399.0,
+      "pair": [
+        "PIZZA_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2018,
+      "seat": 0,
+      "subject": 74905.0,
+      "opponent": 72515.0,
+      "pair": [
+        "BRUNCH_SPOT",
+        "FARMERS_MARKET"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2018,
+      "seat": 1,
+      "subject": 74905.0,
+      "opponent": 72515.0,
+      "pair": [
+        "BRUNCH_SPOT",
+        "FARMERS_MARKET"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2019,
+      "seat": 0,
+      "subject": 85856.0,
+      "opponent": 83526.0,
+      "pair": [
+        "ICE_CREAM_SHOP",
+        "PIZZA_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2019,
+      "seat": 1,
+      "subject": 86165.0,
+      "opponent": 82866.0,
+      "pair": [
+        "ICE_CREAM_SHOP",
+        "PIZZA_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2020,
+      "seat": 0,
+      "subject": 91177.0,
+      "opponent": 88419.0,
+      "pair": [
+        "YARN_STORE",
+        "SMOOTHIE_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2020,
+      "seat": 1,
+      "subject": 91177.0,
+      "opponent": 88419.0,
+      "pair": [
+        "YARN_STORE",
+        "SMOOTHIE_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2021,
+      "seat": 0,
+      "subject": 124081.0,
+      "opponent": 120257.0,
+      "pair": [
+        "SMOOTHIE_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2021,
+      "seat": 1,
+      "subject": 125363.0,
+      "opponent": 121079.0,
+      "pair": [
+        "SMOOTHIE_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2022,
+      "seat": 0,
+      "subject": 83390.0,
+      "opponent": 78734.0,
+      "pair": [
+        "BRUNCH_SPOT",
+        "PET_CAFE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2022,
+      "seat": 1,
+      "subject": 78804.0,
+      "opponent": 75852.0,
+      "pair": [
+        "BRUNCH_SPOT",
+        "PET_CAFE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2023,
+      "seat": 0,
+      "subject": 71889.0,
+      "opponent": 67267.0,
+      "pair": [
+        "PIZZA_SHOP",
+        "BAKERY"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2023,
+      "seat": 1,
+      "subject": 71889.0,
+      "opponent": 67267.0,
+      "pair": [
+        "PIZZA_SHOP",
+        "BAKERY"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2024,
+      "seat": 0,
+      "subject": 111414.0,
+      "opponent": 110748.0,
+      "pair": [
+        "FARMERS_MARKET",
+        "YARN_STORE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2024,
+      "seat": 1,
+      "subject": 111414.0,
+      "opponent": 110748.0,
+      "pair": [
+        "FARMERS_MARKET",
+        "YARN_STORE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2025,
+      "seat": 0,
+      "subject": 104401.0,
+      "opponent": 98944.0,
+      "pair": [
+        "BAKERY",
+        "YARN_STORE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2025,
+      "seat": 1,
+      "subject": 104401.0,
+      "opponent": 98944.0,
+      "pair": [
+        "BAKERY",
+        "YARN_STORE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2026,
+      "seat": 0,
+      "subject": 59612.0,
+      "opponent": 57373.0,
+      "pair": [
+        "BAKERY",
+        "FARMERS_MARKET"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2026,
+      "seat": 1,
+      "subject": 59612.0,
+      "opponent": 57373.0,
+      "pair": [
+        "BAKERY",
+        "FARMERS_MARKET"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2027,
+      "seat": 0,
+      "subject": 84715.0,
+      "opponent": 81229.0,
+      "pair": [
+        "FARMERS_MARKET",
+        "BAKERY"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2027,
+      "seat": 1,
+      "subject": 84715.0,
+      "opponent": 81229.0,
+      "pair": [
+        "FARMERS_MARKET",
+        "BAKERY"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2028,
+      "seat": 0,
+      "subject": 112302.0,
+      "opponent": 108582.0,
+      "pair": [
+        "PIZZA_SHOP",
+        "SMOOTHIE_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2028,
+      "seat": 1,
+      "subject": 112302.0,
+      "opponent": 108582.0,
+      "pair": [
+        "PIZZA_SHOP",
+        "SMOOTHIE_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2029,
+      "seat": 0,
+      "subject": 113286.0,
+      "opponent": 109988.0,
+      "pair": [
+        "BRUNCH_SPOT",
+        "SMOOTHIE_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2029,
+      "seat": 1,
+      "subject": 113286.0,
+      "opponent": 109988.0,
+      "pair": [
+        "BRUNCH_SPOT",
+        "SMOOTHIE_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2030,
+      "seat": 0,
+      "subject": 137901.0,
+      "opponent": 137292.0,
+      "pair": [
+        "BRUNCH_SPOT",
+        "YARN_STORE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2030,
+      "seat": 1,
+      "subject": 116684.0,
+      "opponent": 116653.0,
+      "pair": [
+        "BRUNCH_SPOT",
+        "YARN_STORE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2031,
+      "seat": 0,
+      "subject": 143854.0,
+      "opponent": 141084.0,
+      "pair": [
+        "ICE_CREAM_SHOP",
+        "ICE_CREAM_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2031,
+      "seat": 1,
+      "subject": 143854.0,
+      "opponent": 141084.0,
+      "pair": [
+        "ICE_CREAM_SHOP",
+        "ICE_CREAM_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2032,
+      "seat": 0,
+      "subject": 79519.0,
+      "opponent": 74720.0,
+      "pair": [
+        "BRUNCH_SPOT",
+        "PIZZA_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2032,
+      "seat": 1,
+      "subject": 79519.0,
+      "opponent": 74720.0,
+      "pair": [
+        "BRUNCH_SPOT",
+        "PIZZA_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2033,
+      "seat": 0,
+      "subject": 106987.0,
+      "opponent": 103645.0,
+      "pair": [
+        "ICE_CREAM_SHOP",
+        "ICE_CREAM_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2033,
+      "seat": 1,
+      "subject": 106987.0,
+      "opponent": 103645.0,
+      "pair": [
+        "ICE_CREAM_SHOP",
+        "ICE_CREAM_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2034,
+      "seat": 0,
+      "subject": 133339.0,
+      "opponent": 131354.0,
+      "pair": [
+        "ICE_CREAM_SHOP",
+        "PIZZA_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2034,
+      "seat": 1,
+      "subject": 133339.0,
+      "opponent": 131354.0,
+      "pair": [
+        "ICE_CREAM_SHOP",
+        "PIZZA_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2035,
+      "seat": 0,
+      "subject": 79855.0,
+      "opponent": 77941.0,
+      "pair": [
+        "YARN_STORE",
+        "ICE_CREAM_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2035,
+      "seat": 1,
+      "subject": 79855.0,
+      "opponent": 77941.0,
+      "pair": [
+        "YARN_STORE",
+        "ICE_CREAM_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2036,
+      "seat": 0,
+      "subject": 93251.0,
+      "opponent": 90216.0,
+      "pair": [
+        "FARMERS_MARKET",
+        "PIZZA_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2036,
+      "seat": 1,
+      "subject": 98917.0,
+      "opponent": 95407.0,
+      "pair": [
+        "FARMERS_MARKET",
+        "PIZZA_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2037,
+      "seat": 0,
+      "subject": 86388.0,
+      "opponent": 82905.0,
+      "pair": [
+        "PIZZA_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2037,
+      "seat": 1,
+      "subject": 86388.0,
+      "opponent": 82905.0,
+      "pair": [
+        "PIZZA_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2038,
+      "seat": 0,
+      "subject": 105426.0,
+      "opponent": 102381.0,
+      "pair": [
+        "YARN_STORE",
+        "PIZZA_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2038,
+      "seat": 1,
+      "subject": 105426.0,
+      "opponent": 102381.0,
+      "pair": [
+        "YARN_STORE",
+        "PIZZA_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2039,
+      "seat": 0,
+      "subject": 97055.0,
+      "opponent": 88060.0,
+      "pair": [
+        "YARN_STORE",
+        "YARN_STORE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2039,
+      "seat": 1,
+      "subject": 97055.0,
+      "opponent": 88060.0,
+      "pair": [
+        "YARN_STORE",
+        "YARN_STORE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2040,
+      "seat": 0,
+      "subject": 78384.0,
+      "opponent": 74807.0,
+      "pair": [
+        "BAKERY",
+        "ICE_CREAM_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2040,
+      "seat": 1,
+      "subject": 78384.0,
+      "opponent": 74807.0,
+      "pair": [
+        "BAKERY",
+        "ICE_CREAM_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2041,
+      "seat": 0,
+      "subject": 142190.0,
+      "opponent": 140733.0,
+      "pair": [
+        "SMOOTHIE_SHOP",
+        "ICE_CREAM_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2041,
+      "seat": 1,
+      "subject": 142190.0,
+      "opponent": 140733.0,
+      "pair": [
+        "SMOOTHIE_SHOP",
+        "ICE_CREAM_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2042,
+      "seat": 0,
+      "subject": 102469.0,
+      "opponent": 99415.0,
+      "pair": [
+        "PIZZA_SHOP",
+        "PIZZA_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2042,
+      "seat": 1,
+      "subject": 102469.0,
+      "opponent": 99415.0,
+      "pair": [
+        "PIZZA_SHOP",
+        "PIZZA_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2043,
+      "seat": 0,
+      "subject": 86994.0,
+      "opponent": 83499.0,
+      "pair": [
+        "BRUNCH_SPOT",
+        "PET_CAFE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2043,
+      "seat": 1,
+      "subject": 86994.0,
+      "opponent": 83499.0,
+      "pair": [
+        "BRUNCH_SPOT",
+        "PET_CAFE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2044,
+      "seat": 0,
+      "subject": 42909.0,
+      "opponent": 40747.0,
+      "pair": [
+        "BAKERY",
+        "PET_CAFE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2044,
+      "seat": 1,
+      "subject": 42909.0,
+      "opponent": 40747.0,
+      "pair": [
+        "BAKERY",
+        "PET_CAFE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2045,
+      "seat": 0,
+      "subject": 102714.0,
+      "opponent": 101899.0,
+      "pair": [
+        "FARMERS_MARKET",
+        "YARN_STORE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2045,
+      "seat": 1,
+      "subject": 102714.0,
+      "opponent": 101899.0,
+      "pair": [
+        "FARMERS_MARKET",
+        "YARN_STORE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2046,
+      "seat": 0,
+      "subject": 137091.0,
+      "opponent": 133633.0,
+      "pair": [
+        "ICE_CREAM_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2046,
+      "seat": 1,
+      "subject": 137091.0,
+      "opponent": 133633.0,
+      "pair": [
+        "ICE_CREAM_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2047,
+      "seat": 0,
+      "subject": 72430.0,
+      "opponent": 66970.0,
+      "pair": [
+        "BAKERY",
+        "PIZZA_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2047,
+      "seat": 1,
+      "subject": 72430.0,
+      "opponent": 66970.0,
+      "pair": [
+        "BAKERY",
+        "PIZZA_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2048,
+      "seat": 0,
+      "subject": 126176.0,
+      "opponent": 123594.0,
+      "pair": [
+        "SMOOTHIE_SHOP",
+        "PET_CAFE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2048,
+      "seat": 1,
+      "subject": 126176.0,
+      "opponent": 123594.0,
+      "pair": [
+        "SMOOTHIE_SHOP",
+        "PET_CAFE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2049,
+      "seat": 0,
+      "subject": 92330.0,
+      "opponent": 89457.0,
+      "pair": [
+        "PET_CAFE",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2049,
+      "seat": 1,
+      "subject": 92330.0,
+      "opponent": 89457.0,
+      "pair": [
+        "PET_CAFE",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2050,
+      "seat": 0,
+      "subject": 62856.0,
+      "opponent": 60324.0,
+      "pair": [
+        "BAKERY",
+        "BAKERY"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2050,
+      "seat": 1,
+      "subject": 62856.0,
+      "opponent": 60324.0,
+      "pair": [
+        "BAKERY",
+        "BAKERY"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2051,
+      "seat": 0,
+      "subject": 110448.0,
+      "opponent": 106541.0,
+      "pair": [
+        "FARMERS_MARKET",
+        "ICE_CREAM_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2051,
+      "seat": 1,
+      "subject": 110448.0,
+      "opponent": 106541.0,
+      "pair": [
+        "FARMERS_MARKET",
+        "ICE_CREAM_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2052,
+      "seat": 0,
+      "subject": 100573.0,
+      "opponent": 97293.0,
+      "pair": [
+        "PIZZA_SHOP",
+        "PIZZA_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2052,
+      "seat": 1,
+      "subject": 90218.0,
+      "opponent": 87003.0,
+      "pair": [
+        "PIZZA_SHOP",
+        "PIZZA_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2053,
+      "seat": 0,
+      "subject": 95132.0,
+      "opponent": 90879.0,
+      "pair": [
+        "PIZZA_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2053,
+      "seat": 1,
+      "subject": 95132.0,
+      "opponent": 90879.0,
+      "pair": [
+        "PIZZA_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2054,
+      "seat": 0,
+      "subject": 76721.0,
+      "opponent": 72741.0,
+      "pair": [
+        "BAKERY",
+        "ICE_CREAM_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2054,
+      "seat": 1,
+      "subject": 76721.0,
+      "opponent": 72741.0,
+      "pair": [
+        "BAKERY",
+        "ICE_CREAM_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2055,
+      "seat": 0,
+      "subject": 88680.0,
+      "opponent": 84349.0,
+      "pair": [
+        "BRUNCH_SPOT",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2055,
+      "seat": 1,
+      "subject": 88680.0,
+      "opponent": 84349.0,
+      "pair": [
+        "BRUNCH_SPOT",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2056,
+      "seat": 0,
+      "subject": 67091.0,
+      "opponent": 64592.0,
+      "pair": [
+        "FARMERS_MARKET",
+        "BAKERY"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2056,
+      "seat": 1,
+      "subject": 67091.0,
+      "opponent": 64592.0,
+      "pair": [
+        "FARMERS_MARKET",
+        "BAKERY"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2057,
+      "seat": 0,
+      "subject": 135310.0,
+      "opponent": 132197.0,
+      "pair": [
+        "YARN_STORE",
+        "FARMERS_MARKET"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2057,
+      "seat": 1,
+      "subject": 135310.0,
+      "opponent": 132197.0,
+      "pair": [
+        "YARN_STORE",
+        "FARMERS_MARKET"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2058,
+      "seat": 0,
+      "subject": 106079.0,
+      "opponent": 101282.0,
+      "pair": [
+        "BAKERY",
+        "YARN_STORE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2058,
+      "seat": 1,
+      "subject": 106079.0,
+      "opponent": 101282.0,
+      "pair": [
+        "BAKERY",
+        "YARN_STORE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2059,
+      "seat": 0,
+      "subject": 120398.0,
+      "opponent": 118687.0,
+      "pair": [
+        "SMOOTHIE_SHOP",
+        "YARN_STORE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2059,
+      "seat": 1,
+      "subject": 120398.0,
+      "opponent": 118687.0,
+      "pair": [
+        "SMOOTHIE_SHOP",
+        "YARN_STORE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2000,
+      "seat": 0,
+      "subject": 100114.0,
+      "opponent": 95092.0,
+      "pair": [
+        "SMOOTHIE_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2000,
+      "seat": 1,
+      "subject": 100114.0,
+      "opponent": 95092.0,
+      "pair": [
+        "SMOOTHIE_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2001,
+      "seat": 0,
+      "subject": 139309.0,
+      "opponent": 133763.0,
+      "pair": [
+        "YARN_STORE",
+        "SMOOTHIE_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2001,
+      "seat": 1,
+      "subject": 139309.0,
+      "opponent": 133763.0,
+      "pair": [
+        "YARN_STORE",
+        "SMOOTHIE_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2002,
+      "seat": 0,
+      "subject": 103787.0,
+      "opponent": 99273.0,
+      "pair": [
+        "ICE_CREAM_SHOP",
+        "BAKERY"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2002,
+      "seat": 1,
+      "subject": 103787.0,
+      "opponent": 99273.0,
+      "pair": [
+        "ICE_CREAM_SHOP",
+        "BAKERY"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2003,
+      "seat": 0,
+      "subject": 104380.0,
+      "opponent": 98413.0,
+      "pair": [
+        "BAKERY",
+        "ICE_CREAM_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2003,
+      "seat": 1,
+      "subject": 104380.0,
+      "opponent": 98413.0,
+      "pair": [
+        "BAKERY",
+        "ICE_CREAM_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2004,
+      "seat": 0,
+      "subject": 88601.0,
+      "opponent": 84459.0,
+      "pair": [
+        "BAKERY",
+        "SMOOTHIE_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2004,
+      "seat": 1,
+      "subject": 88601.0,
+      "opponent": 84459.0,
+      "pair": [
+        "BAKERY",
+        "SMOOTHIE_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2005,
+      "seat": 0,
+      "subject": 75664.0,
+      "opponent": 71656.0,
+      "pair": [
+        "BAKERY",
+        "YARN_STORE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2005,
+      "seat": 1,
+      "subject": 75664.0,
+      "opponent": 71656.0,
+      "pair": [
+        "BAKERY",
+        "YARN_STORE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2006,
+      "seat": 0,
+      "subject": 88679.0,
+      "opponent": 85077.0,
+      "pair": [
+        "PET_CAFE",
+        "YARN_STORE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2006,
+      "seat": 1,
+      "subject": 88679.0,
+      "opponent": 85077.0,
+      "pair": [
+        "PET_CAFE",
+        "YARN_STORE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2007,
+      "seat": 0,
+      "subject": 41679.0,
+      "opponent": 39490.0,
+      "pair": [
+        "BAKERY",
+        "BAKERY"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2007,
+      "seat": 1,
+      "subject": 41679.0,
+      "opponent": 39490.0,
+      "pair": [
+        "BAKERY",
+        "BAKERY"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2008,
+      "seat": 0,
+      "subject": 92480.0,
+      "opponent": 87604.0,
+      "pair": [
+        "PIZZA_SHOP",
+        "FARMERS_MARKET"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2008,
+      "seat": 1,
+      "subject": 92480.0,
+      "opponent": 87604.0,
+      "pair": [
+        "PIZZA_SHOP",
+        "FARMERS_MARKET"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2009,
+      "seat": 0,
+      "subject": 153407.0,
+      "opponent": 149879.0,
+      "pair": [
+        "SMOOTHIE_SHOP",
+        "SMOOTHIE_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2009,
+      "seat": 1,
+      "subject": 153407.0,
+      "opponent": 149879.0,
+      "pair": [
+        "SMOOTHIE_SHOP",
+        "SMOOTHIE_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2010,
+      "seat": 0,
+      "subject": 110240.0,
+      "opponent": 105159.0,
+      "pair": [
+        "ICE_CREAM_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2010,
+      "seat": 1,
+      "subject": 110240.0,
+      "opponent": 105159.0,
+      "pair": [
+        "ICE_CREAM_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2011,
+      "seat": 0,
+      "subject": 107587.0,
+      "opponent": 103922.0,
+      "pair": [
+        "YARN_STORE",
+        "FARMERS_MARKET"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2011,
+      "seat": 1,
+      "subject": 110525.0,
+      "opponent": 103852.0,
+      "pair": [
+        "YARN_STORE",
+        "FARMERS_MARKET"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2012,
+      "seat": 0,
+      "subject": 109782.0,
+      "opponent": 105890.0,
+      "pair": [
+        "PIZZA_SHOP",
+        "PIZZA_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2012,
+      "seat": 1,
+      "subject": 109782.0,
+      "opponent": 105890.0,
+      "pair": [
+        "PIZZA_SHOP",
+        "PIZZA_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2013,
+      "seat": 0,
+      "subject": 88508.0,
+      "opponent": 85502.0,
+      "pair": [
+        "BAKERY",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2013,
+      "seat": 1,
+      "subject": 88508.0,
+      "opponent": 85502.0,
+      "pair": [
+        "BAKERY",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2014,
+      "seat": 0,
+      "subject": 57902.0,
+      "opponent": 54157.0,
+      "pair": [
+        "BAKERY",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2014,
+      "seat": 1,
+      "subject": 57902.0,
+      "opponent": 54157.0,
+      "pair": [
+        "BAKERY",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2015,
+      "seat": 0,
+      "subject": 93807.0,
+      "opponent": 90898.0,
+      "pair": [
+        "BRUNCH_SPOT",
+        "PET_CAFE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2015,
+      "seat": 1,
+      "subject": 93807.0,
+      "opponent": 90898.0,
+      "pair": [
+        "BRUNCH_SPOT",
+        "PET_CAFE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2016,
+      "seat": 0,
+      "subject": 129123.0,
+      "opponent": 124534.0,
+      "pair": [
+        "FARMERS_MARKET",
+        "SMOOTHIE_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2016,
+      "seat": 1,
+      "subject": 129123.0,
+      "opponent": 124534.0,
+      "pair": [
+        "FARMERS_MARKET",
+        "SMOOTHIE_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2017,
+      "seat": 0,
+      "subject": 96425.0,
+      "opponent": 91897.0,
+      "pair": [
+        "PIZZA_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2017,
+      "seat": 1,
+      "subject": 96425.0,
+      "opponent": 91897.0,
+      "pair": [
+        "PIZZA_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2018,
+      "seat": 0,
+      "subject": 75662.0,
+      "opponent": 71860.0,
+      "pair": [
+        "BRUNCH_SPOT",
+        "FARMERS_MARKET"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2018,
+      "seat": 1,
+      "subject": 75662.0,
+      "opponent": 71860.0,
+      "pair": [
+        "BRUNCH_SPOT",
+        "FARMERS_MARKET"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2019,
+      "seat": 0,
+      "subject": 86784.0,
+      "opponent": 82673.0,
+      "pair": [
+        "ICE_CREAM_SHOP",
+        "PIZZA_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2019,
+      "seat": 1,
+      "subject": 87095.0,
+      "opponent": 82013.0,
+      "pair": [
+        "ICE_CREAM_SHOP",
+        "PIZZA_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2020,
+      "seat": 0,
+      "subject": 95593.0,
+      "opponent": 89573.0,
+      "pair": [
+        "YARN_STORE",
+        "SMOOTHIE_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2020,
+      "seat": 1,
+      "subject": 95593.0,
+      "opponent": 89573.0,
+      "pair": [
+        "YARN_STORE",
+        "SMOOTHIE_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2021,
+      "seat": 0,
+      "subject": 124268.0,
+      "opponent": 120142.0,
+      "pair": [
+        "SMOOTHIE_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2021,
+      "seat": 1,
+      "subject": 125513.0,
+      "opponent": 120928.0,
+      "pair": [
+        "SMOOTHIE_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2022,
+      "seat": 0,
+      "subject": 84277.0,
+      "opponent": 77971.0,
+      "pair": [
+        "BRUNCH_SPOT",
+        "PET_CAFE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2022,
+      "seat": 1,
+      "subject": 79603.0,
+      "opponent": 75217.0,
+      "pair": [
+        "BRUNCH_SPOT",
+        "PET_CAFE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2023,
+      "seat": 0,
+      "subject": 72536.0,
+      "opponent": 66690.0,
+      "pair": [
+        "PIZZA_SHOP",
+        "BAKERY"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2023,
+      "seat": 1,
+      "subject": 72536.0,
+      "opponent": 66690.0,
+      "pair": [
+        "PIZZA_SHOP",
+        "BAKERY"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2024,
+      "seat": 0,
+      "subject": 112437.0,
+      "opponent": 109769.0,
+      "pair": [
+        "FARMERS_MARKET",
+        "YARN_STORE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2024,
+      "seat": 1,
+      "subject": 112437.0,
+      "opponent": 109769.0,
+      "pair": [
+        "FARMERS_MARKET",
+        "YARN_STORE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2025,
+      "seat": 0,
+      "subject": 105162.0,
+      "opponent": 97593.0,
+      "pair": [
+        "BAKERY",
+        "YARN_STORE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2025,
+      "seat": 1,
+      "subject": 105162.0,
+      "opponent": 97593.0,
+      "pair": [
+        "BAKERY",
+        "YARN_STORE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2026,
+      "seat": 0,
+      "subject": 59942.0,
+      "opponent": 57030.0,
+      "pair": [
+        "BAKERY",
+        "FARMERS_MARKET"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2026,
+      "seat": 1,
+      "subject": 59942.0,
+      "opponent": 57030.0,
+      "pair": [
+        "BAKERY",
+        "FARMERS_MARKET"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2027,
+      "seat": 0,
+      "subject": 85650.0,
+      "opponent": 80444.0,
+      "pair": [
+        "FARMERS_MARKET",
+        "BAKERY"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2027,
+      "seat": 1,
+      "subject": 85650.0,
+      "opponent": 80444.0,
+      "pair": [
+        "FARMERS_MARKET",
+        "BAKERY"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2028,
+      "seat": 0,
+      "subject": 112725.0,
+      "opponent": 108276.0,
+      "pair": [
+        "PIZZA_SHOP",
+        "SMOOTHIE_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2028,
+      "seat": 1,
+      "subject": 112725.0,
+      "opponent": 108276.0,
+      "pair": [
+        "PIZZA_SHOP",
+        "SMOOTHIE_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2029,
+      "seat": 0,
+      "subject": 113609.0,
+      "opponent": 109737.0,
+      "pair": [
+        "BRUNCH_SPOT",
+        "SMOOTHIE_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2029,
+      "seat": 1,
+      "subject": 113609.0,
+      "opponent": 109737.0,
+      "pair": [
+        "BRUNCH_SPOT",
+        "SMOOTHIE_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2030,
+      "seat": 0,
+      "subject": 142356.0,
+      "opponent": 134344.0,
+      "pair": [
+        "BRUNCH_SPOT",
+        "YARN_STORE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2030,
+      "seat": 1,
+      "subject": 120272.0,
+      "opponent": 117525.0,
+      "pair": [
+        "BRUNCH_SPOT",
+        "YARN_STORE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2031,
+      "seat": 0,
+      "subject": 144334.0,
+      "opponent": 140650.0,
+      "pair": [
+        "ICE_CREAM_SHOP",
+        "ICE_CREAM_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2031,
+      "seat": 1,
+      "subject": 144334.0,
+      "opponent": 140650.0,
+      "pair": [
+        "ICE_CREAM_SHOP",
+        "ICE_CREAM_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2032,
+      "seat": 0,
+      "subject": 80418.0,
+      "opponent": 74114.0,
+      "pair": [
+        "BRUNCH_SPOT",
+        "PIZZA_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2032,
+      "seat": 1,
+      "subject": 80418.0,
+      "opponent": 74114.0,
+      "pair": [
+        "BRUNCH_SPOT",
+        "PIZZA_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2033,
+      "seat": 0,
+      "subject": 107307.0,
+      "opponent": 103405.0,
+      "pair": [
+        "ICE_CREAM_SHOP",
+        "ICE_CREAM_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2033,
+      "seat": 1,
+      "subject": 107307.0,
+      "opponent": 103405.0,
+      "pair": [
+        "ICE_CREAM_SHOP",
+        "ICE_CREAM_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2034,
+      "seat": 0,
+      "subject": 133582.0,
+      "opponent": 131135.0,
+      "pair": [
+        "ICE_CREAM_SHOP",
+        "PIZZA_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2034,
+      "seat": 1,
+      "subject": 133582.0,
+      "opponent": 131135.0,
+      "pair": [
+        "ICE_CREAM_SHOP",
+        "PIZZA_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2035,
+      "seat": 0,
+      "subject": 83698.0,
+      "opponent": 79617.0,
+      "pair": [
+        "YARN_STORE",
+        "ICE_CREAM_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2035,
+      "seat": 1,
+      "subject": 83698.0,
+      "opponent": 79617.0,
+      "pair": [
+        "YARN_STORE",
+        "ICE_CREAM_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2036,
+      "seat": 0,
+      "subject": 93498.0,
+      "opponent": 89943.0,
+      "pair": [
+        "FARMERS_MARKET",
+        "PIZZA_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2036,
+      "seat": 1,
+      "subject": 99399.0,
+      "opponent": 94938.0,
+      "pair": [
+        "FARMERS_MARKET",
+        "PIZZA_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2037,
+      "seat": 0,
+      "subject": 86928.0,
+      "opponent": 82391.0,
+      "pair": [
+        "PIZZA_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2037,
+      "seat": 1,
+      "subject": 86928.0,
+      "opponent": 82391.0,
+      "pair": [
+        "PIZZA_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2038,
+      "seat": 0,
+      "subject": 108353.0,
+      "opponent": 101972.0,
+      "pair": [
+        "YARN_STORE",
+        "PIZZA_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2038,
+      "seat": 1,
+      "subject": 108353.0,
+      "opponent": 101972.0,
+      "pair": [
+        "YARN_STORE",
+        "PIZZA_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2039,
+      "seat": 0,
+      "subject": 96891.0,
+      "opponent": 87265.0,
+      "pair": [
+        "YARN_STORE",
+        "YARN_STORE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2039,
+      "seat": 1,
+      "subject": 96891.0,
+      "opponent": 87265.0,
+      "pair": [
+        "YARN_STORE",
+        "YARN_STORE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2040,
+      "seat": 0,
+      "subject": 79314.0,
+      "opponent": 73956.0,
+      "pair": [
+        "BAKERY",
+        "ICE_CREAM_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2040,
+      "seat": 1,
+      "subject": 79314.0,
+      "opponent": 73956.0,
+      "pair": [
+        "BAKERY",
+        "ICE_CREAM_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2041,
+      "seat": 0,
+      "subject": 142418.0,
+      "opponent": 140515.0,
+      "pair": [
+        "SMOOTHIE_SHOP",
+        "ICE_CREAM_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2041,
+      "seat": 1,
+      "subject": 142418.0,
+      "opponent": 140515.0,
+      "pair": [
+        "SMOOTHIE_SHOP",
+        "ICE_CREAM_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2042,
+      "seat": 0,
+      "subject": 102836.0,
+      "opponent": 99126.0,
+      "pair": [
+        "PIZZA_SHOP",
+        "PIZZA_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2042,
+      "seat": 1,
+      "subject": 102836.0,
+      "opponent": 99126.0,
+      "pair": [
+        "PIZZA_SHOP",
+        "PIZZA_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2043,
+      "seat": 0,
+      "subject": 87590.0,
+      "opponent": 83001.0,
+      "pair": [
+        "BRUNCH_SPOT",
+        "PET_CAFE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2043,
+      "seat": 1,
+      "subject": 87590.0,
+      "opponent": 83001.0,
+      "pair": [
+        "BRUNCH_SPOT",
+        "PET_CAFE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2044,
+      "seat": 0,
+      "subject": 43220.0,
+      "opponent": 40401.0,
+      "pair": [
+        "BAKERY",
+        "PET_CAFE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2044,
+      "seat": 1,
+      "subject": 43220.0,
+      "opponent": 40401.0,
+      "pair": [
+        "BAKERY",
+        "PET_CAFE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2045,
+      "seat": 0,
+      "subject": 103126.0,
+      "opponent": 100650.0,
+      "pair": [
+        "FARMERS_MARKET",
+        "YARN_STORE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2045,
+      "seat": 1,
+      "subject": 103126.0,
+      "opponent": 100650.0,
+      "pair": [
+        "FARMERS_MARKET",
+        "YARN_STORE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2046,
+      "seat": 0,
+      "subject": 137548.0,
+      "opponent": 133238.0,
+      "pair": [
+        "ICE_CREAM_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2046,
+      "seat": 1,
+      "subject": 137548.0,
+      "opponent": 133238.0,
+      "pair": [
+        "ICE_CREAM_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2047,
+      "seat": 0,
+      "subject": 73367.0,
+      "opponent": 66087.0,
+      "pair": [
+        "BAKERY",
+        "PIZZA_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2047,
+      "seat": 1,
+      "subject": 73367.0,
+      "opponent": 66087.0,
+      "pair": [
+        "BAKERY",
+        "PIZZA_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2048,
+      "seat": 0,
+      "subject": 126620.0,
+      "opponent": 123156.0,
+      "pair": [
+        "SMOOTHIE_SHOP",
+        "PET_CAFE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2048,
+      "seat": 1,
+      "subject": 126620.0,
+      "opponent": 123156.0,
+      "pair": [
+        "SMOOTHIE_SHOP",
+        "PET_CAFE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2049,
+      "seat": 0,
+      "subject": 92617.0,
+      "opponent": 89255.0,
+      "pair": [
+        "PET_CAFE",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2049,
+      "seat": 1,
+      "subject": 92617.0,
+      "opponent": 89255.0,
+      "pair": [
+        "PET_CAFE",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2050,
+      "seat": 0,
+      "subject": 63583.0,
+      "opponent": 59727.0,
+      "pair": [
+        "BAKERY",
+        "BAKERY"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2050,
+      "seat": 1,
+      "subject": 63583.0,
+      "opponent": 59727.0,
+      "pair": [
+        "BAKERY",
+        "BAKERY"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2051,
+      "seat": 0,
+      "subject": 110815.0,
+      "opponent": 106283.0,
+      "pair": [
+        "FARMERS_MARKET",
+        "ICE_CREAM_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2051,
+      "seat": 1,
+      "subject": 110815.0,
+      "opponent": 106283.0,
+      "pair": [
+        "FARMERS_MARKET",
+        "ICE_CREAM_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2052,
+      "seat": 0,
+      "subject": 101119.0,
+      "opponent": 96998.0,
+      "pair": [
+        "PIZZA_SHOP",
+        "PIZZA_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2052,
+      "seat": 1,
+      "subject": 90877.0,
+      "opponent": 86443.0,
+      "pair": [
+        "PIZZA_SHOP",
+        "PIZZA_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2053,
+      "seat": 0,
+      "subject": 95820.0,
+      "opponent": 90375.0,
+      "pair": [
+        "PIZZA_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2053,
+      "seat": 1,
+      "subject": 95820.0,
+      "opponent": 90375.0,
+      "pair": [
+        "PIZZA_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2054,
+      "seat": 0,
+      "subject": 77146.0,
+      "opponent": 72340.0,
+      "pair": [
+        "BAKERY",
+        "ICE_CREAM_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2054,
+      "seat": 1,
+      "subject": 77146.0,
+      "opponent": 72340.0,
+      "pair": [
+        "BAKERY",
+        "ICE_CREAM_SHOP"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2055,
+      "seat": 0,
+      "subject": 89526.0,
+      "opponent": 83648.0,
+      "pair": [
+        "BRUNCH_SPOT",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2055,
+      "seat": 1,
+      "subject": 89526.0,
+      "opponent": 83648.0,
+      "pair": [
+        "BRUNCH_SPOT",
+        "BRUNCH_SPOT"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2056,
+      "seat": 0,
+      "subject": 67816.0,
+      "opponent": 63997.0,
+      "pair": [
+        "FARMERS_MARKET",
+        "BAKERY"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2056,
+      "seat": 1,
+      "subject": 67816.0,
+      "opponent": 63997.0,
+      "pair": [
+        "FARMERS_MARKET",
+        "BAKERY"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2057,
+      "seat": 0,
+      "subject": 135680.0,
+      "opponent": 131418.0,
+      "pair": [
+        "YARN_STORE",
+        "FARMERS_MARKET"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2057,
+      "seat": 1,
+      "subject": 135680.0,
+      "opponent": 131418.0,
+      "pair": [
+        "YARN_STORE",
+        "FARMERS_MARKET"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2058,
+      "seat": 0,
+      "subject": 110245.0,
+      "opponent": 102218.0,
+      "pair": [
+        "BAKERY",
+        "YARN_STORE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2058,
+      "seat": 1,
+      "subject": 110245.0,
+      "opponent": 102218.0,
+      "pair": [
+        "BAKERY",
+        "YARN_STORE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2059,
+      "seat": 0,
+      "subject": 123376.0,
+      "opponent": 117888.0,
+      "pair": [
+        "SMOOTHIE_SHOP",
+        "YARN_STORE"
+      ],
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2059,
+      "seat": 1,
+      "subject": 123376.0,
+      "opponent": 117888.0,
+      "pair": [
+        "SMOOTHIE_SHOP",
+        "YARN_STORE"
+      ],
+      "result": "W"
+    }
+  ],
+  "panel": "build",
+  "seeds": [
+    2000,
+    2059
+  ]
+}

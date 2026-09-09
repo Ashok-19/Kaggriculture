@@ -1,0 +1,15 @@
+{
+  "panel": "shop_router_0909_official_canary_v1",
+  "engine": "1.32.7",
+  "status": "STOPPED_EARLY_BY_REQUEST",
+  "matched_cases_planned": 64,
+  "matched_cases_completed": 42,
+  "engine_runs": 84,
+  "acting_steps_compared": 30198,
+  "action_mismatches": 0,
+  "state_mismatches": 0,
+  "observation_mismatches": 0,
+  "terminal_mismatches": 0,
+  "faults": 0,
+  "note": "Each case asserts observation, action and state equality at every acting step and identical terminal rewards across two independent official-engine arms. The run was stopped after the completed case count above, so every completed case matched exactly. Per-case progress is in canary_partial.log."
+}

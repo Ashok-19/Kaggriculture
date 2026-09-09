@@ -1,0 +1,382 @@
+{
+  "schema_version": 4,
+  "name": "BKG4_SHOP_ROUTER_0909",
+  "blackboard": [
+    {
+      "name": "route",
+      "type": "I32",
+      "initial": 0
+    }
+  ],
+  "tree": {
+    "type": "Sequence",
+    "children": [
+      {
+        "type": "If",
+        "condition": {
+          "type": "Condition",
+          "lhs": {
+            "feature": "STEP"
+          },
+          "op": "EQ",
+          "rhs": 144
+        },
+        "then": {
+          "type": "Selector",
+          "children": [
+            {
+              "type": "Sequence",
+              "children": [
+                {
+                  "type": "Condition",
+                  "lhs": {
+                    "feature": "SHOP_AT",
+                    "arg": 1
+                  },
+                  "op": "EQ",
+                  "rhs": 7
+                },
+                {
+                  "type": "Selector",
+                  "children": [
+                    {
+                      "type": "Sequence",
+                      "children": [
+                        {
+                          "type": "Condition",
+                          "lhs": {
+                            "feature": "SHOP_AT",
+                            "arg": 0
+                          },
+                          "op": "EQ",
+                          "rhs": 0
+                        },
+                        {
+                          "type": "SetBlackboard",
+                          "slot": "route",
+                          "value": 3
+                        }
+                      ]
+                    },
+                    {
+                      "type": "Sequence",
+                      "children": [
+                        {
+                          "type": "Condition",
+                          "lhs": {
+                            "feature": "SHOP_AT",
+                            "arg": 0
+                          },
+                          "op": "EQ",
+                          "rhs": 1
+                        },
+                        {
+                          "type": "SetBlackboard",
+                          "slot": "route",
+                          "value": 4
+                        }
+                      ]
+                    },
+                    {
+                      "type": "Sequence",
+                      "children": [
+                        {
+                          "type": "Condition",
+                          "lhs": {
+                            "feature": "SHOP_AT",
+                            "arg": 0
+                          },
+                          "op": "EQ",
+                          "rhs": 2
+                        },
+                        {
+                          "type": "SetBlackboard",
+                          "slot": "route",
+                          "value": 5
+                        }
+                      ]
+                    },
+                    {
+                      "type": "Sequence",
+                      "children": [
+                        {
+                          "type": "Condition",
+                          "lhs": {
+                            "feature": "SHOP_AT",
+                            "arg": 0
+                          },
+                          "op": "EQ",
+                          "rhs": 3
+                        },
+                        {
+                          "type": "SetBlackboard",
+                          "slot": "route",
+                          "value": 6
+                        }
+                      ]
+                    },
+                    {
+                      "type": "Sequence",
+                      "children": [
+                        {
+                          "type": "Condition",
+                          "lhs": {
+                            "feature": "SHOP_AT",
+                            "arg": 0
+                          },
+                          "op": "EQ",
+                          "rhs": 4
+                        },
+                        {
+                          "type": "SetBlackboard",
+                          "slot": "route",
+                          "value": 5
+                        }
+                      ]
+                    },
+                    {
+                      "type": "Sequence",
+                      "children": [
+                        {
+                          "type": "Condition",
+                          "lhs": {
+                            "feature": "SHOP_AT",
+                            "arg": 0
+                          },
+                          "op": "EQ",
+                          "rhs": 5
+                        },
+                        {
+                          "type": "SetBlackboard",
+                          "slot": "route",
+                          "value": 7
+                        }
+                      ]
+                    },
+                    {
+                      "type": "Sequence",
+                      "children": [
+                        {
+                          "type": "Condition",
+                          "lhs": {
+                            "feature": "SHOP_AT",
+                            "arg": 0
+                          },
+                          "op": "EQ",
+                          "rhs": 6
+                        },
+                        {
+                          "type": "SetBlackboard",
+                          "slot": "route",
+                          "value": 8
+                        }
+                      ]
+                    },
+                    {
+                      "type": "Sequence",
+                      "children": [
+                        {
+                          "type": "Condition",
+                          "lhs": {
+                            "feature": "SHOP_AT",
+                            "arg": 0
+                          },
+                          "op": "EQ",
+                          "rhs": 7
+                        },
+                        {
+                          "type": "SetBlackboard",
+                          "slot": "route",
+                          "value": 12
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "Sequence",
+              "children": [
+                {
+                  "type": "Condition",
+                  "lhs": {
+                    "feature": "SHOP_AT",
+                    "arg": 0
+                  },
+                  "op": "EQ",
+                  "rhs": 7
+                },
+                {
+                  "type": "Selector",
+                  "children": [
+                    {
+                      "type": "Sequence",
+                      "children": [
+                        {
+                          "type": "Condition",
+                          "lhs": {
+                            "feature": "SHOP_AT",
+                            "arg": 1
+                          },
+                          "op": "EQ",
+                          "rhs": 0
+                        },
+                        {
+                          "type": "SetBlackboard",
+                          "slot": "route",
+                          "value": 9
+                        }
+                      ]
+                    },
+                    {
+                      "type": "Sequence",
+                      "children": [
+                        {
+                          "type": "Condition",
+                          "lhs": {
+                            "feature": "SHOP_AT",
+                            "arg": 1
+                          },
+                          "op": "EQ",
+                          "rhs": 1
+                        },
+                        {
+                          "type": "SetBlackboard",
+                          "slot": "route",
+                          "value": 9
+                        }
+                      ]
+                    },
+                    {
+                      "type": "Sequence",
+                      "children": [
+                        {
+                          "type": "Condition",
+                          "lhs": {
+                            "feature": "SHOP_AT",
+                            "arg": 1
+                          },
+                          "op": "EQ",
+                          "rhs": 2
+                        },
+                        {
+                          "type": "SetBlackboard",
+                          "slot": "route",
+                          "value": 1
+                        }
+                      ]
+                    },
+                    {
+                      "type": "Sequence",
+                      "children": [
+                        {
+                          "type": "Condition",
+                          "lhs": {
+                            "feature": "SHOP_AT",
+                            "arg": 1
+                          },
+                          "op": "EQ",
+                          "rhs": 3
+                        },
+                        {
+                          "type": "SetBlackboard",
+                          "slot": "route",
+                          "value": 9
+                        }
+                      ]
+                    },
+                    {
+                      "type": "Sequence",
+                      "children": [
+                        {
+                          "type": "Condition",
+                          "lhs": {
+                            "feature": "SHOP_AT",
+                            "arg": 1
+                          },
+                          "op": "EQ",
+                          "rhs": 4
+                        },
+                        {
+                          "type": "SetBlackboard",
+                          "slot": "route",
+                          "value": 10
+                        }
+                      ]
+                    },
+                    {
+                      "type": "Sequence",
+                      "children": [
+                        {
+                          "type": "Condition",
+                          "lhs": {
+                            "feature": "SHOP_AT",
+                            "arg": 1
+                          },
+                          "op": "EQ",
+                          "rhs": 5
+                        },
+                        {
+                          "type": "SetBlackboard",
+                          "slot": "route",
+                          "value": 6
+                        }
+                      ]
+                    },
+                    {
+                      "type": "Sequence",
+                      "children": [
+                        {
+                          "type": "Condition",
+                          "lhs": {
+                            "feature": "SHOP_AT",
+                            "arg": 1
+                          },
+                          "op": "EQ",
+                          "rhs": 6
+                        },
+                        {
+                          "type": "SetBlackboard",
+                          "slot": "route",
+                          "value": 11
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "SetBlackboard",
+              "slot": "route",
+              "value": 0
+            }
+          ]
+        },
+        "else": {
+          "type": "Success"
+        }
+      },
+      {
+        "type": "If",
+        "condition": {
+          "type": "Condition",
+          "lhs": {
+            "feature": "STEP"
+          },
+          "op": "EQ",
+          "rhs": 648
+        },
+        "then": {
+          "type": "SetBlackboard",
+          "slot": "route",
+          "value": 2
+        },
+        "else": {
+          "type": "Success"
+        }
+      }
+    ]
+  }
+}

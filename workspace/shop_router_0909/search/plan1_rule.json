@@ -1,0 +1,2743 @@
+{
+  "panel": "build",
+  "seeds": [
+    2011,
+    2057,
+    2060,
+    2219,
+    2243
+  ],
+  "targets": [
+    "new_notebook"
+  ],
+  "routes": {},
+  "rule_routes": [
+    1
+  ],
+  "base": {
+    "start": 704,
+    "end": 717,
+    "mode": 4
+  },
+  "results": [
+    {
+      "spec": {
+        "routes": {},
+        "endgame": [
+          {
+            "start": 716,
+            "end": 717,
+            "mode": 1,
+            "routes": [
+              1
+            ]
+          },
+          {
+            "start": 704,
+            "end": 717,
+            "mode": 4
+          }
+        ]
+      },
+      "summary": {
+        "new_notebook": {
+          "W": 9,
+          "T": 0,
+          "L": 1
+        }
+      },
+      "losses": [
+        [
+          "new_notebook",
+          2011,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          110783,
+          114608
+        ]
+      ],
+      "games": 10
+    },
+    {
+      "spec": {
+        "routes": {},
+        "endgame": [
+          {
+            "start": 716,
+            "end": 717,
+            "mode": 2,
+            "routes": [
+              1
+            ]
+          },
+          {
+            "start": 704,
+            "end": 717,
+            "mode": 4
+          }
+        ]
+      },
+      "summary": {
+        "new_notebook": {
+          "W": 9,
+          "T": 0,
+          "L": 1
+        }
+      },
+      "losses": [
+        [
+          "new_notebook",
+          2011,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          110783,
+          114608
+        ]
+      ],
+      "games": 10
+    },
+    {
+      "spec": {
+        "routes": {},
+        "endgame": [
+          {
+            "start": 716,
+            "end": 717,
+            "mode": 4,
+            "routes": [
+              1
+            ]
+          },
+          {
+            "start": 704,
+            "end": 717,
+            "mode": 4
+          }
+        ]
+      },
+      "summary": {
+        "new_notebook": {
+          "W": 9,
+          "T": 0,
+          "L": 1
+        }
+      },
+      "losses": [
+        [
+          "new_notebook",
+          2011,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          110783,
+          114608
+        ]
+      ],
+      "games": 10
+    },
+    {
+      "spec": {
+        "routes": {},
+        "endgame": [
+          {
+            "start": 716,
+            "end": 717,
+            "mode": 8,
+            "routes": [
+              1
+            ]
+          },
+          {
+            "start": 704,
+            "end": 717,
+            "mode": 4
+          }
+        ]
+      },
+      "summary": {
+        "new_notebook": {
+          "W": 9,
+          "T": 0,
+          "L": 1
+        }
+      },
+      "losses": [
+        [
+          "new_notebook",
+          2011,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          110783,
+          114608
+        ]
+      ],
+      "games": 10
+    },
+    {
+      "spec": {
+        "routes": {},
+        "endgame": [
+          {
+            "start": 716,
+            "end": 717,
+            "mode": 16,
+            "routes": [
+              1
+            ]
+          },
+          {
+            "start": 704,
+            "end": 717,
+            "mode": 4
+          }
+        ]
+      },
+      "summary": {
+        "new_notebook": {
+          "W": 9,
+          "T": 0,
+          "L": 1
+        }
+      },
+      "losses": [
+        [
+          "new_notebook",
+          2011,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          110783,
+          114608
+        ]
+      ],
+      "games": 10
+    },
+    {
+      "spec": {
+        "routes": {},
+        "endgame": [
+          {
+            "start": 716,
+            "end": 717,
+            "mode": 6,
+            "routes": [
+              1
+            ]
+          },
+          {
+            "start": 704,
+            "end": 717,
+            "mode": 4
+          }
+        ]
+      },
+      "summary": {
+        "new_notebook": {
+          "W": 9,
+          "T": 0,
+          "L": 1
+        }
+      },
+      "losses": [
+        [
+          "new_notebook",
+          2011,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          110783,
+          114608
+        ]
+      ],
+      "games": 10
+    },
+    {
+      "spec": {
+        "routes": {},
+        "endgame": [
+          {
+            "start": 716,
+            "end": 717,
+            "mode": 12,
+            "routes": [
+              1
+            ]
+          },
+          {
+            "start": 704,
+            "end": 717,
+            "mode": 4
+          }
+        ]
+      },
+      "summary": {
+        "new_notebook": {
+          "W": 9,
+          "T": 0,
+          "L": 1
+        }
+      },
+      "losses": [
+        [
+          "new_notebook",
+          2011,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          110783,
+          114608
+        ]
+      ],
+      "games": 10
+    },
+    {
+      "spec": {
+        "routes": {},
+        "endgame": [
+          {
+            "start": 716,
+            "end": 717,
+            "mode": 20,
+            "routes": [
+              1
+            ]
+          },
+          {
+            "start": 704,
+            "end": 717,
+            "mode": 4
+          }
+        ]
+      },
+      "summary": {
+        "new_notebook": {
+          "W": 9,
+          "T": 0,
+          "L": 1
+        }
+      },
+      "losses": [
+        [
+          "new_notebook",
+          2011,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          110783,
+          114608
+        ]
+      ],
+      "games": 10
+    },
+    {
+      "spec": {
+        "routes": {},
+        "endgame": [
+          {
+            "start": 704,
+            "end": 717,
+            "mode": 1,
+            "routes": [
+              1
+            ]
+          },
+          {
+            "start": 704,
+            "end": 717,
+            "mode": 4
+          }
+        ]
+      },
+      "summary": {
+        "new_notebook": {
+          "W": 9,
+          "T": 0,
+          "L": 1
+        }
+      },
+      "losses": [
+        [
+          "new_notebook",
+          2011,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          110783,
+          114608
+        ]
+      ],
+      "games": 10
+    },
+    {
+      "spec": {
+        "routes": {},
+        "endgame": [
+          {
+            "start": 704,
+            "end": 717,
+            "mode": 2,
+            "routes": [
+              1
+            ]
+          },
+          {
+            "start": 704,
+            "end": 717,
+            "mode": 4
+          }
+        ]
+      },
+      "summary": {
+        "new_notebook": {
+          "W": 9,
+          "T": 0,
+          "L": 1
+        }
+      },
+      "losses": [
+        [
+          "new_notebook",
+          2011,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          110783,
+          114608
+        ]
+      ],
+      "games": 10
+    },
+    {
+      "spec": {
+        "routes": {},
+        "endgame": [
+          {
+            "start": 704,
+            "end": 717,
+            "mode": 4,
+            "routes": [
+              1
+            ]
+          },
+          {
+            "start": 704,
+            "end": 717,
+            "mode": 4
+          }
+        ]
+      },
+      "summary": {
+        "new_notebook": {
+          "W": 9,
+          "T": 0,
+          "L": 1
+        }
+      },
+      "losses": [
+        [
+          "new_notebook",
+          2011,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          110783,
+          114608
+        ]
+      ],
+      "games": 10
+    },
+    {
+      "spec": {
+        "routes": {},
+        "endgame": [
+          {
+            "start": 704,
+            "end": 717,
+            "mode": 8,
+            "routes": [
+              1
+            ]
+          },
+          {
+            "start": 704,
+            "end": 717,
+            "mode": 4
+          }
+        ]
+      },
+      "summary": {
+        "new_notebook": {
+          "W": 9,
+          "T": 0,
+          "L": 1
+        }
+      },
+      "losses": [
+        [
+          "new_notebook",
+          2011,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          110783,
+          114608
+        ]
+      ],
+      "games": 10
+    },
+    {
+      "spec": {
+        "routes": {},
+        "endgame": [
+          {
+            "start": 704,
+            "end": 717,
+            "mode": 16,
+            "routes": [
+              1
+            ]
+          },
+          {
+            "start": 704,
+            "end": 717,
+            "mode": 4
+          }
+        ]
+      },
+      "summary": {
+        "new_notebook": {
+          "W": 9,
+          "T": 0,
+          "L": 1
+        }
+      },
+      "losses": [
+        [
+          "new_notebook",
+          2011,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          110783,
+          114608
+        ]
+      ],
+      "games": 10
+    },
+    {
+      "spec": {
+        "routes": {},
+        "endgame": [
+          {
+            "start": 704,
+            "end": 717,
+            "mode": 6,
+            "routes": [
+              1
+            ]
+          },
+          {
+            "start": 704,
+            "end": 717,
+            "mode": 4
+          }
+        ]
+      },
+      "summary": {
+        "new_notebook": {
+          "W": 9,
+          "T": 0,
+          "L": 1
+        }
+      },
+      "losses": [
+        [
+          "new_notebook",
+          2011,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          110783,
+          114608
+        ]
+      ],
+      "games": 10
+    },
+    {
+      "spec": {
+        "routes": {},
+        "endgame": [
+          {
+            "start": 704,
+            "end": 717,
+            "mode": 12,
+            "routes": [
+              1
+            ]
+          },
+          {
+            "start": 704,
+            "end": 717,
+            "mode": 4
+          }
+        ]
+      },
+      "summary": {
+        "new_notebook": {
+          "W": 9,
+          "T": 0,
+          "L": 1
+        }
+      },
+      "losses": [
+        [
+          "new_notebook",
+          2011,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          110783,
+          114608
+        ]
+      ],
+      "games": 10
+    },
+    {
+      "spec": {
+        "routes": {},
+        "endgame": [
+          {
+            "start": 704,
+            "end": 717,
+            "mode": 20,
+            "routes": [
+              1
+            ]
+          },
+          {
+            "start": 704,
+            "end": 717,
+            "mode": 4
+          }
+        ]
+      },
+      "summary": {
+        "new_notebook": {
+          "W": 9,
+          "T": 0,
+          "L": 1
+        }
+      },
+      "losses": [
+        [
+          "new_notebook",
+          2011,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          110783,
+          114608
+        ]
+      ],
+      "games": 10
+    },
+    {
+      "spec": {
+        "routes": {},
+        "endgame": [
+          {
+            "start": 672,
+            "end": 717,
+            "mode": 1,
+            "routes": [
+              1
+            ]
+          },
+          {
+            "start": 704,
+            "end": 717,
+            "mode": 4
+          }
+        ]
+      },
+      "summary": {
+        "new_notebook": {
+          "W": 9,
+          "T": 0,
+          "L": 1
+        }
+      },
+      "losses": [
+        [
+          "new_notebook",
+          2011,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          110783,
+          114608
+        ]
+      ],
+      "games": 10
+    },
+    {
+      "spec": {
+        "routes": {},
+        "endgame": [
+          {
+            "start": 672,
+            "end": 717,
+            "mode": 2,
+            "routes": [
+              1
+            ]
+          },
+          {
+            "start": 704,
+            "end": 717,
+            "mode": 4
+          }
+        ]
+      },
+      "summary": {
+        "new_notebook": {
+          "W": 9,
+          "T": 0,
+          "L": 1
+        }
+      },
+      "losses": [
+        [
+          "new_notebook",
+          2011,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          110783,
+          114608
+        ]
+      ],
+      "games": 10
+    },
+    {
+      "spec": {
+        "routes": {},
+        "endgame": [
+          {
+            "start": 672,
+            "end": 717,
+            "mode": 4,
+            "routes": [
+              1
+            ]
+          },
+          {
+            "start": 704,
+            "end": 717,
+            "mode": 4
+          }
+        ]
+      },
+      "summary": {
+        "new_notebook": {
+          "W": 9,
+          "T": 0,
+          "L": 1
+        }
+      },
+      "losses": [
+        [
+          "new_notebook",
+          2011,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          110783,
+          114608
+        ]
+      ],
+      "games": 10
+    },
+    {
+      "spec": {
+        "routes": {},
+        "endgame": [
+          {
+            "start": 672,
+            "end": 717,
+            "mode": 8,
+            "routes": [
+              1
+            ]
+          },
+          {
+            "start": 704,
+            "end": 717,
+            "mode": 4
+          }
+        ]
+      },
+      "summary": {
+        "new_notebook": {
+          "W": 9,
+          "T": 0,
+          "L": 1
+        }
+      },
+      "losses": [
+        [
+          "new_notebook",
+          2011,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          110783,
+          114608
+        ]
+      ],
+      "games": 10
+    },
+    {
+      "spec": {
+        "routes": {},
+        "endgame": [
+          {
+            "start": 672,
+            "end": 717,
+            "mode": 16,
+            "routes": [
+              1
+            ]
+          },
+          {
+            "start": 704,
+            "end": 717,
+            "mode": 4
+          }
+        ]
+      },
+      "summary": {
+        "new_notebook": {
+          "W": 9,
+          "T": 0,
+          "L": 1
+        }
+      },
+      "losses": [
+        [
+          "new_notebook",
+          2011,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          110783,
+          114608
+        ]
+      ],
+      "games": 10
+    },
+    {
+      "spec": {
+        "routes": {},
+        "endgame": [
+          {
+            "start": 672,
+            "end": 717,
+            "mode": 6,
+            "routes": [
+              1
+            ]
+          },
+          {
+            "start": 704,
+            "end": 717,
+            "mode": 4
+          }
+        ]
+      },
+      "summary": {
+        "new_notebook": {
+          "W": 9,
+          "T": 0,
+          "L": 1
+        }
+      },
+      "losses": [
+        [
+          "new_notebook",
+          2011,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          110783,
+          114608
+        ]
+      ],
+      "games": 10
+    },
+    {
+      "spec": {
+        "routes": {},
+        "endgame": [
+          {
+            "start": 672,
+            "end": 717,
+            "mode": 12,
+            "routes": [
+              1
+            ]
+          },
+          {
+            "start": 704,
+            "end": 717,
+            "mode": 4
+          }
+        ]
+      },
+      "summary": {
+        "new_notebook": {
+          "W": 9,
+          "T": 0,
+          "L": 1
+        }
+      },
+      "losses": [
+        [
+          "new_notebook",
+          2011,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          110783,
+          114608
+        ]
+      ],
+      "games": 10
+    },
+    {
+      "spec": {
+        "routes": {},
+        "endgame": [
+          {
+            "start": 672,
+            "end": 717,
+            "mode": 20,
+            "routes": [
+              1
+            ]
+          },
+          {
+            "start": 704,
+            "end": 717,
+            "mode": 4
+          }
+        ]
+      },
+      "summary": {
+        "new_notebook": {
+          "W": 9,
+          "T": 0,
+          "L": 1
+        }
+      },
+      "losses": [
+        [
+          "new_notebook",
+          2011,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          110783,
+          114608
+        ]
+      ],
+      "games": 10
+    },
+    {
+      "spec": {
+        "routes": {},
+        "endgame": [
+          {
+            "start": 576,
+            "end": 717,
+            "mode": 1,
+            "routes": [
+              1
+            ]
+          },
+          {
+            "start": 704,
+            "end": 717,
+            "mode": 4
+          }
+        ]
+      },
+      "summary": {
+        "new_notebook": {
+          "W": 9,
+          "T": 0,
+          "L": 1
+        }
+      },
+      "losses": [
+        [
+          "new_notebook",
+          2011,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          111312,
+          113729
+        ]
+      ],
+      "games": 10
+    },
+    {
+      "spec": {
+        "routes": {},
+        "endgame": [
+          {
+            "start": 576,
+            "end": 717,
+            "mode": 2,
+            "routes": [
+              1
+            ]
+          },
+          {
+            "start": 704,
+            "end": 717,
+            "mode": 4
+          }
+        ]
+      },
+      "summary": {
+        "new_notebook": {
+          "W": 0,
+          "T": 0,
+          "L": 10
+        }
+      },
+      "losses": [
+        [
+          "new_notebook",
+          2011,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          98184,
+          119394
+        ],
+        [
+          "new_notebook",
+          2011,
+          1,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          102194,
+          115061
+        ],
+        [
+          "new_notebook",
+          2057,
+          1,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          109870,
+          135605
+        ],
+        [
+          "new_notebook",
+          2057,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          109870,
+          135605
+        ],
+        [
+          "new_notebook",
+          2060,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          84690,
+          103289
+        ],
+        [
+          "new_notebook",
+          2219,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          80755,
+          87046
+        ],
+        [
+          "new_notebook",
+          2219,
+          1,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          80755,
+          87046
+        ],
+        [
+          "new_notebook",
+          2060,
+          1,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          84690,
+          103289
+        ],
+        [
+          "new_notebook",
+          2243,
+          1,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          101144,
+          122891
+        ],
+        [
+          "new_notebook",
+          2243,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          101144,
+          122891
+        ]
+      ],
+      "games": 10
+    },
+    {
+      "spec": {
+        "routes": {},
+        "endgame": [
+          {
+            "start": 576,
+            "end": 717,
+            "mode": 4,
+            "routes": [
+              1
+            ]
+          },
+          {
+            "start": 704,
+            "end": 717,
+            "mode": 4
+          }
+        ]
+      },
+      "summary": {
+        "new_notebook": {
+          "W": 3,
+          "T": 0,
+          "L": 7
+        }
+      },
+      "losses": [
+        [
+          "new_notebook",
+          2060,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          101246,
+          101522
+        ],
+        [
+          "new_notebook",
+          2057,
+          1,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          131615,
+          132434
+        ],
+        [
+          "new_notebook",
+          2057,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          131615,
+          132434
+        ],
+        [
+          "new_notebook",
+          2011,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          108852,
+          113441
+        ],
+        [
+          "new_notebook",
+          2060,
+          1,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          101246,
+          101522
+        ],
+        [
+          "new_notebook",
+          2243,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          118482,
+          119374
+        ],
+        [
+          "new_notebook",
+          2243,
+          1,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          118482,
+          119374
+        ]
+      ],
+      "games": 10
+    },
+    {
+      "spec": {
+        "routes": {},
+        "endgame": [
+          {
+            "start": 576,
+            "end": 717,
+            "mode": 8,
+            "routes": [
+              1
+            ]
+          },
+          {
+            "start": 704,
+            "end": 717,
+            "mode": 4
+          }
+        ]
+      },
+      "summary": {
+        "new_notebook": {
+          "W": 9,
+          "T": 0,
+          "L": 1
+        }
+      },
+      "losses": [
+        [
+          "new_notebook",
+          2011,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          111216,
+          114330
+        ]
+      ],
+      "games": 10
+    },
+    {
+      "spec": {
+        "routes": {},
+        "endgame": [
+          {
+            "start": 576,
+            "end": 717,
+            "mode": 16,
+            "routes": [
+              1
+            ]
+          },
+          {
+            "start": 704,
+            "end": 717,
+            "mode": 4
+          }
+        ]
+      },
+      "summary": {
+        "new_notebook": {
+          "W": 0,
+          "T": 0,
+          "L": 10
+        }
+      },
+      "losses": [
+        [
+          "new_notebook",
+          2011,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          91976,
+          121935
+        ],
+        [
+          "new_notebook",
+          2057,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          101446,
+          136833
+        ],
+        [
+          "new_notebook",
+          2011,
+          1,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          95979,
+          118136
+        ],
+        [
+          "new_notebook",
+          2219,
+          1,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          73048,
+          89089
+        ],
+        [
+          "new_notebook",
+          2057,
+          1,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          101446,
+          136833
+        ],
+        [
+          "new_notebook",
+          2219,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          73048,
+          89089
+        ],
+        [
+          "new_notebook",
+          2243,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          92686,
+          123618
+        ],
+        [
+          "new_notebook",
+          2060,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          78109,
+          104740
+        ],
+        [
+          "new_notebook",
+          2060,
+          1,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          78109,
+          104740
+        ],
+        [
+          "new_notebook",
+          2243,
+          1,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          92686,
+          123618
+        ]
+      ],
+      "games": 10
+    },
+    {
+      "spec": {
+        "routes": {},
+        "endgame": [
+          {
+            "start": 576,
+            "end": 717,
+            "mode": 6,
+            "routes": [
+              1
+            ]
+          },
+          {
+            "start": 704,
+            "end": 717,
+            "mode": 4
+          }
+        ]
+      },
+      "summary": {
+        "new_notebook": {
+          "W": 0,
+          "T": 0,
+          "L": 10
+        }
+      },
+      "losses": [
+        [
+          "new_notebook",
+          2057,
+          1,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          108706,
+          135122
+        ],
+        [
+          "new_notebook",
+          2011,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          97056,
+          119150
+        ],
+        [
+          "new_notebook",
+          2011,
+          1,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          101212,
+          114452
+        ],
+        [
+          "new_notebook",
+          2057,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          108706,
+          135122
+        ],
+        [
+          "new_notebook",
+          2060,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          84033,
+          103222
+        ],
+        [
+          "new_notebook",
+          2060,
+          1,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          84033,
+          103222
+        ],
+        [
+          "new_notebook",
+          2219,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          80216,
+          85809
+        ],
+        [
+          "new_notebook",
+          2219,
+          1,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          80216,
+          85809
+        ],
+        [
+          "new_notebook",
+          2243,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          99723,
+          122236
+        ],
+        [
+          "new_notebook",
+          2243,
+          1,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          99723,
+          122236
+        ]
+      ],
+      "games": 10
+    },
+    {
+      "spec": {
+        "routes": {},
+        "endgame": [
+          {
+            "start": 576,
+            "end": 717,
+            "mode": 12,
+            "routes": [
+              1
+            ]
+          },
+          {
+            "start": 704,
+            "end": 717,
+            "mode": 4
+          }
+        ]
+      },
+      "summary": {
+        "new_notebook": {
+          "W": 3,
+          "T": 0,
+          "L": 7
+        }
+      },
+      "losses": [
+        [
+          "new_notebook",
+          2011,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          108851,
+          113441
+        ],
+        [
+          "new_notebook",
+          2057,
+          1,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          131614,
+          132435
+        ],
+        [
+          "new_notebook",
+          2057,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          131614,
+          132435
+        ],
+        [
+          "new_notebook",
+          2060,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          101244,
+          101524
+        ],
+        [
+          "new_notebook",
+          2243,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          118479,
+          119377
+        ],
+        [
+          "new_notebook",
+          2243,
+          1,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          118479,
+          119377
+        ],
+        [
+          "new_notebook",
+          2060,
+          1,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          101244,
+          101524
+        ]
+      ],
+      "games": 10
+    },
+    {
+      "spec": {
+        "routes": {},
+        "endgame": [
+          {
+            "start": 576,
+            "end": 717,
+            "mode": 20,
+            "routes": [
+              1
+            ]
+          },
+          {
+            "start": 704,
+            "end": 717,
+            "mode": 4
+          }
+        ]
+      },
+      "summary": {
+        "new_notebook": {
+          "W": 0,
+          "T": 0,
+          "L": 10
+        }
+      },
+      "losses": [
+        [
+          "new_notebook",
+          2011,
+          1,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          95597,
+          117681
+        ],
+        [
+          "new_notebook",
+          2011,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          91426,
+          121809
+        ],
+        [
+          "new_notebook",
+          2057,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          100723,
+          136457
+        ],
+        [
+          "new_notebook",
+          2057,
+          1,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          100723,
+          136457
+        ],
+        [
+          "new_notebook",
+          2060,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          77749,
+          104708
+        ],
+        [
+          "new_notebook",
+          2060,
+          1,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          77749,
+          104708
+        ],
+        [
+          "new_notebook",
+          2219,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          73025,
+          87985
+        ],
+        [
+          "new_notebook",
+          2219,
+          1,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          73025,
+          87985
+        ],
+        [
+          "new_notebook",
+          2243,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          91883,
+          123023
+        ],
+        [
+          "new_notebook",
+          2243,
+          1,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          91883,
+          123023
+        ]
+      ],
+      "games": 10
+    },
+    {
+      "spec": {
+        "routes": {},
+        "endgame": [
+          {
+            "start": 144,
+            "end": 647,
+            "mode": 1,
+            "routes": [
+              1
+            ]
+          },
+          {
+            "start": 704,
+            "end": 717,
+            "mode": 4
+          }
+        ]
+      },
+      "summary": {
+        "new_notebook": {
+          "W": 9,
+          "T": 0,
+          "L": 1
+        }
+      },
+      "losses": [
+        [
+          "new_notebook",
+          2011,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          111382,
+          113109
+        ]
+      ],
+      "games": 10
+    },
+    {
+      "spec": {
+        "routes": {},
+        "endgame": [
+          {
+            "start": 144,
+            "end": 647,
+            "mode": 2,
+            "routes": [
+              1
+            ]
+          },
+          {
+            "start": 704,
+            "end": 717,
+            "mode": 4
+          }
+        ]
+      },
+      "summary": {
+        "new_notebook": {
+          "W": 0,
+          "T": 0,
+          "L": 10
+        }
+      },
+      "losses": [
+        [
+          "new_notebook",
+          2011,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          21429,
+          157727
+        ],
+        [
+          "new_notebook",
+          2011,
+          1,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          21568,
+          150710
+        ],
+        [
+          "new_notebook",
+          2057,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          25175,
+          181904
+        ],
+        [
+          "new_notebook",
+          2057,
+          1,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          25175,
+          181904
+        ],
+        [
+          "new_notebook",
+          2060,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          25510,
+          173993
+        ],
+        [
+          "new_notebook",
+          2060,
+          1,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          25510,
+          173993
+        ],
+        [
+          "new_notebook",
+          2243,
+          1,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          27611,
+          145224
+        ],
+        [
+          "new_notebook",
+          2219,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          21599,
+          158350
+        ],
+        [
+          "new_notebook",
+          2219,
+          1,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          21599,
+          158350
+        ],
+        [
+          "new_notebook",
+          2243,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          27611,
+          145224
+        ]
+      ],
+      "games": 10
+    },
+    {
+      "spec": {
+        "routes": {},
+        "endgame": [
+          {
+            "start": 144,
+            "end": 647,
+            "mode": 4,
+            "routes": [
+              1
+            ]
+          },
+          {
+            "start": 704,
+            "end": 717,
+            "mode": 4
+          }
+        ]
+      },
+      "summary": {
+        "new_notebook": {
+          "W": 3,
+          "T": 0,
+          "L": 7
+        }
+      },
+      "losses": [
+        [
+          "new_notebook",
+          2011,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          107424,
+          112658
+        ],
+        [
+          "new_notebook",
+          2057,
+          1,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          130732,
+          131911
+        ],
+        [
+          "new_notebook",
+          2060,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          100892,
+          101256
+        ],
+        [
+          "new_notebook",
+          2057,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          130732,
+          131911
+        ],
+        [
+          "new_notebook",
+          2060,
+          1,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          100892,
+          101256
+        ],
+        [
+          "new_notebook",
+          2243,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          117828,
+          118778
+        ],
+        [
+          "new_notebook",
+          2243,
+          1,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          117828,
+          118778
+        ]
+      ],
+      "games": 10
+    },
+    {
+      "spec": {
+        "routes": {},
+        "endgame": [
+          {
+            "start": 144,
+            "end": 647,
+            "mode": 8,
+            "routes": [
+              1
+            ]
+          },
+          {
+            "start": 704,
+            "end": 717,
+            "mode": 4
+          }
+        ]
+      },
+      "summary": {
+        "new_notebook": {
+          "W": 7,
+          "T": 0,
+          "L": 3
+        }
+      },
+      "losses": [
+        [
+          "new_notebook",
+          2011,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          110964,
+          114470
+        ],
+        [
+          "new_notebook",
+          2057,
+          1,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          133365,
+          133385
+        ],
+        [
+          "new_notebook",
+          2057,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          133365,
+          133385
+        ]
+      ],
+      "games": 10
+    },
+    {
+      "spec": {
+        "routes": {},
+        "endgame": [
+          {
+            "start": 144,
+            "end": 647,
+            "mode": 16,
+            "routes": [
+              1
+            ]
+          },
+          {
+            "start": 704,
+            "end": 717,
+            "mode": 4
+          }
+        ]
+      },
+      "summary": {
+        "new_notebook": {
+          "W": 0,
+          "T": 0,
+          "L": 10
+        }
+      },
+      "losses": [
+        [
+          "new_notebook",
+          2011,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          15172,
+          173028
+        ],
+        [
+          "new_notebook",
+          2011,
+          1,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          15198,
+          165527
+        ],
+        [
+          "new_notebook",
+          2057,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          10620,
+          138624
+        ],
+        [
+          "new_notebook",
+          2057,
+          1,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          10620,
+          138624
+        ],
+        [
+          "new_notebook",
+          2060,
+          1,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          8910,
+          154555
+        ],
+        [
+          "new_notebook",
+          2060,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          8910,
+          154555
+        ],
+        [
+          "new_notebook",
+          2219,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          16204,
+          175776
+        ],
+        [
+          "new_notebook",
+          2243,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          12778,
+          163593
+        ],
+        [
+          "new_notebook",
+          2219,
+          1,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          16204,
+          175776
+        ],
+        [
+          "new_notebook",
+          2243,
+          1,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          12778,
+          163593
+        ]
+      ],
+      "games": 10
+    },
+    {
+      "spec": {
+        "routes": {},
+        "endgame": [
+          {
+            "start": 144,
+            "end": 647,
+            "mode": 6,
+            "routes": [
+              1
+            ]
+          },
+          {
+            "start": 704,
+            "end": 717,
+            "mode": 4
+          }
+        ]
+      },
+      "summary": {
+        "new_notebook": {
+          "W": 0,
+          "T": 0,
+          "L": 10
+        }
+      },
+      "losses": [
+        [
+          "new_notebook",
+          2011,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          21263,
+          157674
+        ],
+        [
+          "new_notebook",
+          2057,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          25016,
+          181880
+        ],
+        [
+          "new_notebook",
+          2060,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          25361,
+          173958
+        ],
+        [
+          "new_notebook",
+          2011,
+          1,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          21415,
+          150661
+        ],
+        [
+          "new_notebook",
+          2057,
+          1,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          25016,
+          181880
+        ],
+        [
+          "new_notebook",
+          2060,
+          1,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          25361,
+          173958
+        ],
+        [
+          "new_notebook",
+          2219,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          21486,
+          158284
+        ],
+        [
+          "new_notebook",
+          2243,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          27354,
+          145171
+        ],
+        [
+          "new_notebook",
+          2219,
+          1,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          21486,
+          158284
+        ],
+        [
+          "new_notebook",
+          2243,
+          1,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          27354,
+          145171
+        ]
+      ],
+      "games": 10
+    },
+    {
+      "spec": {
+        "routes": {},
+        "endgame": [
+          {
+            "start": 144,
+            "end": 647,
+            "mode": 12,
+            "routes": [
+              1
+            ]
+          },
+          {
+            "start": 704,
+            "end": 717,
+            "mode": 4
+          }
+        ]
+      },
+      "summary": {
+        "new_notebook": {
+          "W": 3,
+          "T": 0,
+          "L": 7
+        }
+      },
+      "losses": [
+        [
+          "new_notebook",
+          2011,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          107313,
+          112712
+        ],
+        [
+          "new_notebook",
+          2057,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          130616,
+          131971
+        ],
+        [
+          "new_notebook",
+          2060,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          100802,
+          101319
+        ],
+        [
+          "new_notebook",
+          2057,
+          1,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          130616,
+          131971
+        ],
+        [
+          "new_notebook",
+          2060,
+          1,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          100802,
+          101319
+        ],
+        [
+          "new_notebook",
+          2243,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          117742,
+          118831
+        ],
+        [
+          "new_notebook",
+          2243,
+          1,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          117742,
+          118831
+        ]
+      ],
+      "games": 10
+    },
+    {
+      "spec": {
+        "routes": {},
+        "endgame": [
+          {
+            "start": 144,
+            "end": 647,
+            "mode": 20,
+            "routes": [
+              1
+            ]
+          },
+          {
+            "start": 704,
+            "end": 717,
+            "mode": 4
+          }
+        ]
+      },
+      "summary": {
+        "new_notebook": {
+          "W": 0,
+          "T": 0,
+          "L": 10
+        }
+      },
+      "losses": [
+        [
+          "new_notebook",
+          2011,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          14878,
+          172969
+        ],
+        [
+          "new_notebook",
+          2011,
+          1,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          14904,
+          165468
+        ],
+        [
+          "new_notebook",
+          2057,
+          1,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          10329,
+          138472
+        ],
+        [
+          "new_notebook",
+          2057,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          10329,
+          138472
+        ],
+        [
+          "new_notebook",
+          2060,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          8739,
+          154423
+        ],
+        [
+          "new_notebook",
+          2060,
+          1,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          8739,
+          154423
+        ],
+        [
+          "new_notebook",
+          2219,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          15964,
+          175723
+        ],
+        [
+          "new_notebook",
+          2243,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          12444,
+          163476
+        ],
+        [
+          "new_notebook",
+          2219,
+          1,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          15964,
+          175723
+        ],
+        [
+          "new_notebook",
+          2243,
+          1,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          12444,
+          163476
+        ]
+      ],
+      "games": 10
+    }
+  ],
+  "note": "Per-game rows dropped; aggregates and every non-win retained."
+}

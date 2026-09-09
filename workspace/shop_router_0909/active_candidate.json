@@ -1,0 +1,50 @@
+{
+  "identity": "BKG4_SHOP_ROUTER_0909_PLUS",
+  "parent": "BKG4_SHOP_ROUTER_0909",
+  "parent_controller_semantic_hash": "20a38c39ab956caf3558e236522d3280245be3a0a760562ae9388e2751d205f6",
+  "parent_route_pack_sha256": "f711680c0c4514be70c97e64491f969ad31d79edd6a639b42cf950b98eebe696",
+  "candidate": {
+    "endgame": {
+      "start": 704,
+      "end": 717,
+      "mode": 4
+    },
+    "routes": {
+      "YARN_STORE|FARMERS_MARKET": 9
+    }
+  },
+  "status": "FROZEN_COMPOSITION",
+  "gate_semantic_hash": "2207e9f02c80e3b5971745426897a78cdfad16abf4d7694b716dfbc9613dd03b",
+  "gate_sha256": "9cedb97b79c322970a9eccd342e7f552b831c5b92cf7f082ca216eeb57f2f21a",
+  "gate_nodes": 85,
+  "gate_blackboard_slots": 2,
+  "gate_node_state_slots": 0,
+  "route_pack_changes": 0,
+  "routes": {
+    "BAKERY|YARN_STORE": 3,
+    "BRUNCH_SPOT|YARN_STORE": 4,
+    "FARMERS_MARKET|YARN_STORE": 5,
+    "ICE_CREAM_SHOP|YARN_STORE": 6,
+    "PET_CAFE|YARN_STORE": 5,
+    "PIZZA_SHOP|YARN_STORE": 7,
+    "SMOOTHIE_SHOP|YARN_STORE": 8,
+    "YARN_STORE|BAKERY": 9,
+    "YARN_STORE|BRUNCH_SPOT": 9,
+    "YARN_STORE|FARMERS_MARKET": 9,
+    "YARN_STORE|ICE_CREAM_SHOP": 9,
+    "YARN_STORE|PET_CAFE": 10,
+    "YARN_STORE|PIZZA_SHOP": 6,
+    "YARN_STORE|SMOOTHIE_SHOP": 11,
+    "YARN_STORE|YARN_STORE": 12
+  },
+  "endgame": {
+    "start": 704,
+    "end": 717,
+    "mode": 4
+  },
+  "runtime_features": [
+    "STEP",
+    "SHOP_AT"
+  ],
+  "notes": "One bounded terminal repair (projected-shed sell top-up, steps 704-717) plus one shop-pair route specialist: the YARN_STORE|FARMERS_MARKET regime takes plan 9 instead of the donor's plan 1. BUILD evidence rejected overrides for every other regime."
+}

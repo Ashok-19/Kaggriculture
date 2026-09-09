@@ -1,0 +1,604 @@
+{
+  "subject": "parent",
+  "games": 72,
+  "summary": {
+    "new_notebook": {
+      "W": 1,
+      "T": 22,
+      "L": 1
+    },
+    "gold_v25_plus": {
+      "W": 20,
+      "T": 0,
+      "L": 4
+    },
+    "gold_v25": {
+      "W": 23,
+      "T": 0,
+      "L": 1
+    }
+  },
+  "rows": [
+    {
+      "target": "new_notebook",
+      "seed": 2000,
+      "seat": 0,
+      "subject": 97638.0,
+      "opponent": 97638.0,
+      "result": "T"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2000,
+      "seat": 1,
+      "subject": 97638.0,
+      "opponent": 97638.0,
+      "result": "T"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2001,
+      "seat": 0,
+      "subject": 133561.0,
+      "opponent": 133561.0,
+      "result": "T"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2001,
+      "seat": 1,
+      "subject": 133561.0,
+      "opponent": 133561.0,
+      "result": "T"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2002,
+      "seat": 0,
+      "subject": 101359.0,
+      "opponent": 101359.0,
+      "result": "T"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2002,
+      "seat": 1,
+      "subject": 101359.0,
+      "opponent": 101359.0,
+      "result": "T"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2003,
+      "seat": 0,
+      "subject": 101848.0,
+      "opponent": 101848.0,
+      "result": "T"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2003,
+      "seat": 1,
+      "subject": 101848.0,
+      "opponent": 101848.0,
+      "result": "T"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2004,
+      "seat": 0,
+      "subject": 86563.0,
+      "opponent": 86563.0,
+      "result": "T"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2004,
+      "seat": 1,
+      "subject": 86563.0,
+      "opponent": 86563.0,
+      "result": "T"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2005,
+      "seat": 0,
+      "subject": 72459.0,
+      "opponent": 72459.0,
+      "result": "T"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2005,
+      "seat": 1,
+      "subject": 72459.0,
+      "opponent": 72459.0,
+      "result": "T"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2006,
+      "seat": 0,
+      "subject": 86468.0,
+      "opponent": 86468.0,
+      "result": "T"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2006,
+      "seat": 1,
+      "subject": 86468.0,
+      "opponent": 86468.0,
+      "result": "T"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2007,
+      "seat": 0,
+      "subject": 40871.0,
+      "opponent": 40871.0,
+      "result": "T"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2007,
+      "seat": 1,
+      "subject": 40871.0,
+      "opponent": 40871.0,
+      "result": "T"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2008,
+      "seat": 0,
+      "subject": 90228.0,
+      "opponent": 90228.0,
+      "result": "T"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2008,
+      "seat": 1,
+      "subject": 90228.0,
+      "opponent": 90228.0,
+      "result": "T"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2009,
+      "seat": 0,
+      "subject": 151685.0,
+      "opponent": 151685.0,
+      "result": "T"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2009,
+      "seat": 1,
+      "subject": 151685.0,
+      "opponent": 151685.0,
+      "result": "T"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2010,
+      "seat": 0,
+      "subject": 108426.0,
+      "opponent": 108426.0,
+      "result": "T"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2010,
+      "seat": 1,
+      "subject": 108426.0,
+      "opponent": 108426.0,
+      "result": "T"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2011,
+      "seat": 0,
+      "subject": 110900.0,
+      "opponent": 114977.0,
+      "result": "L"
+    },
+    {
+      "target": "new_notebook",
+      "seed": 2011,
+      "seat": 1,
+      "subject": 114977.0,
+      "opponent": 110900.0,
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2000,
+      "seat": 0,
+      "subject": 99090.0,
+      "opponent": 96267.0,
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2000,
+      "seat": 1,
+      "subject": 99090.0,
+      "opponent": 96267.0,
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2001,
+      "seat": 0,
+      "subject": 135322.0,
+      "opponent": 133350.0,
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2001,
+      "seat": 1,
+      "subject": 135322.0,
+      "opponent": 133350.0,
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2002,
+      "seat": 0,
+      "subject": 102750.0,
+      "opponent": 100485.0,
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2002,
+      "seat": 1,
+      "subject": 102750.0,
+      "opponent": 100485.0,
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2003,
+      "seat": 0,
+      "subject": 103163.0,
+      "opponent": 99683.0,
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2003,
+      "seat": 1,
+      "subject": 103163.0,
+      "opponent": 99683.0,
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2004,
+      "seat": 0,
+      "subject": 87569.0,
+      "opponent": 85611.0,
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2004,
+      "seat": 1,
+      "subject": 87569.0,
+      "opponent": 85611.0,
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2005,
+      "seat": 0,
+      "subject": 73299.0,
+      "opponent": 73396.0,
+      "result": "L"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2005,
+      "seat": 1,
+      "subject": 73299.0,
+      "opponent": 73396.0,
+      "result": "L"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2006,
+      "seat": 0,
+      "subject": 86329.0,
+      "opponent": 86292.0,
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2006,
+      "seat": 1,
+      "subject": 86329.0,
+      "opponent": 86292.0,
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2007,
+      "seat": 0,
+      "subject": 41510.0,
+      "opponent": 39718.0,
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2007,
+      "seat": 1,
+      "subject": 41510.0,
+      "opponent": 39718.0,
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2008,
+      "seat": 0,
+      "subject": 91343.0,
+      "opponent": 88836.0,
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2008,
+      "seat": 1,
+      "subject": 91343.0,
+      "opponent": 88836.0,
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2009,
+      "seat": 0,
+      "subject": 152899.0,
+      "opponent": 150528.0,
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2009,
+      "seat": 1,
+      "subject": 152899.0,
+      "opponent": 150528.0,
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2010,
+      "seat": 0,
+      "subject": 109672.0,
+      "opponent": 105887.0,
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2010,
+      "seat": 1,
+      "subject": 109672.0,
+      "opponent": 105887.0,
+      "result": "W"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2011,
+      "seat": 0,
+      "subject": 107909.0,
+      "opponent": 114301.0,
+      "result": "L"
+    },
+    {
+      "target": "gold_v25_plus",
+      "seed": 2011,
+      "seat": 1,
+      "subject": 108448.0,
+      "opponent": 111161.0,
+      "result": "L"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2000,
+      "seat": 0,
+      "subject": 100393.0,
+      "opponent": 95092.0,
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2000,
+      "seat": 1,
+      "subject": 100393.0,
+      "opponent": 95092.0,
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2001,
+      "seat": 0,
+      "subject": 139339.0,
+      "opponent": 134036.0,
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2001,
+      "seat": 1,
+      "subject": 139339.0,
+      "opponent": 134036.0,
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2002,
+      "seat": 0,
+      "subject": 104165.0,
+      "opponent": 99273.0,
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2002,
+      "seat": 1,
+      "subject": 104165.0,
+      "opponent": 99273.0,
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2003,
+      "seat": 0,
+      "subject": 104689.0,
+      "opponent": 98413.0,
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2003,
+      "seat": 1,
+      "subject": 104689.0,
+      "opponent": 98413.0,
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2004,
+      "seat": 0,
+      "subject": 88797.0,
+      "opponent": 84459.0,
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2004,
+      "seat": 1,
+      "subject": 88797.0,
+      "opponent": 84459.0,
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2005,
+      "seat": 0,
+      "subject": 75997.0,
+      "opponent": 71887.0,
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2005,
+      "seat": 1,
+      "subject": 75997.0,
+      "opponent": 71887.0,
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2006,
+      "seat": 0,
+      "subject": 88912.0,
+      "opponent": 85254.0,
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2006,
+      "seat": 1,
+      "subject": 88912.0,
+      "opponent": 85254.0,
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2007,
+      "seat": 0,
+      "subject": 41739.0,
+      "opponent": 39484.0,
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2007,
+      "seat": 1,
+      "subject": 41739.0,
+      "opponent": 39484.0,
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2008,
+      "seat": 0,
+      "subject": 92789.0,
+      "opponent": 87604.0,
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2008,
+      "seat": 1,
+      "subject": 92789.0,
+      "opponent": 87604.0,
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2009,
+      "seat": 0,
+      "subject": 153582.0,
+      "opponent": 149879.0,
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2009,
+      "seat": 1,
+      "subject": 153582.0,
+      "opponent": 149879.0,
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2010,
+      "seat": 0,
+      "subject": 110461.0,
+      "opponent": 105159.0,
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2010,
+      "seat": 1,
+      "subject": 110461.0,
+      "opponent": 105159.0,
+      "result": "W"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2011,
+      "seat": 0,
+      "subject": 112151.0,
+      "opponent": 113512.0,
+      "result": "L"
+    },
+    {
+      "target": "gold_v25",
+      "seed": 2011,
+      "seat": 1,
+      "subject": 115498.0,
+      "opponent": 109529.0,
+      "result": "W"
+    }
+  ],
+  "panel": "build",
+  "seeds": [
+    2000,
+    2011
+  ]
+}

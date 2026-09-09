@@ -1,0 +1,582 @@
+{
+  "panel": "shop_router_0909_differential_v1",
+  "games": 24,
+  "acting_steps": 17256,
+  "action_mismatches": 0,
+  "state_mismatches": 0,
+  "cpu_cuda_mismatches": 0,
+  "routes": {
+    "0": 4464,
+    "1": 1008,
+    "2": 1704,
+    "3": 1008,
+    "4": 1008,
+    "5": 1008,
+    "6": 1008,
+    "7": 1008,
+    "8": 1008,
+    "9": 1008,
+    "10": 1008,
+    "11": 1008,
+    "12": 1008
+  },
+  "events": {
+    "weed_queue": 14,
+    "sale_lead": 425,
+    "liquidate": 24
+  },
+  "cases": [
+    {
+      "opponent": "reference",
+      "seed": 0,
+      "seat": 0,
+      "rewards": [
+        69503.0,
+        69503.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "trace_sha256": "b78c4c6ecde3708544c257987677917098ba9643cc601319ff2755b498dfb41a",
+      "routes": {
+        "0": 648,
+        "2": 71
+      },
+      "events": {
+        "weed_queue": 7,
+        "sale_lead": 11,
+        "liquidate": 1
+      }
+    },
+    {
+      "opponent": "port",
+      "seed": 0,
+      "seat": 1,
+      "rewards": [
+        69503.0,
+        69503.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "trace_sha256": "48ba45f684a592e199cb0b56d97ad3f09ced9013670caa161e327d11ec3b4561",
+      "routes": {
+        "0": 648,
+        "2": 71
+      },
+      "events": {
+        "sale_lead": 11,
+        "liquidate": 1
+      }
+    },
+    {
+      "opponent": "gold_v25",
+      "seed": 55,
+      "seat": 0,
+      "rewards": [
+        106287.0,
+        103902.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "trace_sha256": "9e22d44d045cb3e7a3e212674939dce4941a8fa4cec4e9861f01952fdd3430b3",
+      "routes": {
+        "0": 144,
+        "1": 504,
+        "2": 71
+      },
+      "events": {
+        "sale_lead": 21,
+        "liquidate": 1
+      }
+    },
+    {
+      "opponent": "reference",
+      "seed": 55,
+      "seat": 1,
+      "rewards": [
+        105464.0,
+        105464.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "trace_sha256": "9e22d44d045cb3e7a3e212674939dce4941a8fa4cec4e9861f01952fdd3430b3",
+      "routes": {
+        "0": 144,
+        "1": 504,
+        "2": 71
+      },
+      "events": {
+        "sale_lead": 21,
+        "liquidate": 1
+      }
+    },
+    {
+      "opponent": "port",
+      "seed": 3,
+      "seat": 0,
+      "rewards": [
+        74906.0,
+        74906.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "trace_sha256": "79fb9d3b9e997b41745f7d1d8d85d3e4c8cbeee19bc6b4b5fc4f4636b2808cc8",
+      "routes": {
+        "0": 144,
+        "3": 504,
+        "2": 71
+      },
+      "events": {
+        "sale_lead": 23,
+        "liquidate": 1
+      }
+    },
+    {
+      "opponent": "gold_v25",
+      "seed": 3,
+      "seat": 1,
+      "rewards": [
+        74220.0,
+        78309.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "trace_sha256": "79fb9d3b9e997b41745f7d1d8d85d3e4c8cbeee19bc6b4b5fc4f4636b2808cc8",
+      "routes": {
+        "0": 144,
+        "3": 504,
+        "2": 71
+      },
+      "events": {
+        "sale_lead": 23,
+        "liquidate": 1
+      }
+    },
+    {
+      "opponent": "reference",
+      "seed": 120,
+      "seat": 0,
+      "rewards": [
+        94621.0,
+        94621.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "trace_sha256": "52a83c006a35b33fe337d8b59c15f68f1d9a3bd8730f1d38e308979807a69081",
+      "routes": {
+        "0": 144,
+        "4": 504,
+        "2": 71
+      },
+      "events": {
+        "sale_lead": 21,
+        "liquidate": 1
+      }
+    },
+    {
+      "opponent": "port",
+      "seed": 120,
+      "seat": 1,
+      "rewards": [
+        94621.0,
+        94621.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "trace_sha256": "52a83c006a35b33fe337d8b59c15f68f1d9a3bd8730f1d38e308979807a69081",
+      "routes": {
+        "0": 144,
+        "4": 504,
+        "2": 71
+      },
+      "events": {
+        "sale_lead": 21,
+        "liquidate": 1
+      }
+    },
+    {
+      "opponent": "gold_v25",
+      "seed": 45,
+      "seat": 0,
+      "rewards": [
+        129134.0,
+        127369.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "trace_sha256": "3822f33fa4c2343cad149881e26c989dfb88719db696caab1c2edfa14237fc31",
+      "routes": {
+        "0": 144,
+        "5": 504,
+        "2": 71
+      },
+      "events": {
+        "sale_lead": 10,
+        "liquidate": 1
+      }
+    },
+    {
+      "opponent": "reference",
+      "seed": 45,
+      "seat": 1,
+      "rewards": [
+        128628.0,
+        128628.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "trace_sha256": "3822f33fa4c2343cad149881e26c989dfb88719db696caab1c2edfa14237fc31",
+      "routes": {
+        "0": 144,
+        "5": 504,
+        "2": 71
+      },
+      "events": {
+        "sale_lead": 10,
+        "liquidate": 1
+      }
+    },
+    {
+      "opponent": "port",
+      "seed": 153,
+      "seat": 0,
+      "rewards": [
+        98023.0,
+        98023.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "trace_sha256": "679ea8d05f0c31851ed3d6eef332d64d54ea2f7d691615a4f552ca645d7754f9",
+      "routes": {
+        "0": 144,
+        "6": 504,
+        "2": 71
+      },
+      "events": {
+        "sale_lead": 20,
+        "liquidate": 1
+      }
+    },
+    {
+      "opponent": "gold_v25",
+      "seed": 153,
+      "seat": 1,
+      "rewards": [
+        98385.0,
+        103650.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "trace_sha256": "679ea8d05f0c31851ed3d6eef332d64d54ea2f7d691615a4f552ca645d7754f9",
+      "routes": {
+        "0": 144,
+        "6": 504,
+        "2": 71
+      },
+      "events": {
+        "sale_lead": 20,
+        "liquidate": 1
+      }
+    },
+    {
+      "opponent": "reference",
+      "seed": 127,
+      "seat": 0,
+      "rewards": [
+        82452.0,
+        82452.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "trace_sha256": "2045a3d6a0f1785a9237e60059595e2c522b2e4d6769e16aa1379cf023cf8f1c",
+      "routes": {
+        "0": 144,
+        "7": 504,
+        "2": 71
+      },
+      "events": {
+        "sale_lead": 17,
+        "liquidate": 1
+      }
+    },
+    {
+      "opponent": "port",
+      "seed": 127,
+      "seat": 1,
+      "rewards": [
+        82452.0,
+        82452.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "trace_sha256": "2045a3d6a0f1785a9237e60059595e2c522b2e4d6769e16aa1379cf023cf8f1c",
+      "routes": {
+        "0": 144,
+        "7": 504,
+        "2": 71
+      },
+      "events": {
+        "sale_lead": 17,
+        "liquidate": 1
+      }
+    },
+    {
+      "opponent": "gold_v25",
+      "seed": 17,
+      "seat": 0,
+      "rewards": [
+        116891.0,
+        110818.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "trace_sha256": "9d6b0c866949d8d469ef1d105d6f81e6296e391c5bd91e724b3a5373b9f34606",
+      "routes": {
+        "0": 144,
+        "8": 504,
+        "2": 71
+      },
+      "events": {
+        "sale_lead": 21,
+        "liquidate": 1
+      }
+    },
+    {
+      "opponent": "reference",
+      "seed": 17,
+      "seat": 1,
+      "rewards": [
+        113145.0,
+        113145.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "trace_sha256": "9d6b0c866949d8d469ef1d105d6f81e6296e391c5bd91e724b3a5373b9f34606",
+      "routes": {
+        "0": 144,
+        "8": 504,
+        "2": 71
+      },
+      "events": {
+        "sale_lead": 21,
+        "liquidate": 1
+      }
+    },
+    {
+      "opponent": "port",
+      "seed": 2,
+      "seat": 0,
+      "rewards": [
+        99362.0,
+        99362.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "trace_sha256": "f300a930848845bdab35b793c5096cb1ff753317e62c58574769595aea098d1e",
+      "routes": {
+        "0": 144,
+        "9": 504,
+        "2": 71
+      },
+      "events": {
+        "sale_lead": 16,
+        "liquidate": 1
+      }
+    },
+    {
+      "opponent": "gold_v25",
+      "seed": 2,
+      "seat": 1,
+      "rewards": [
+        92208.0,
+        98683.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "trace_sha256": "12280d2dfa89aea4097733b3690e15d3d515c177ac25a453728147caa0ad533e",
+      "routes": {
+        "0": 144,
+        "9": 504,
+        "2": 71
+      },
+      "events": {
+        "sale_lead": 15,
+        "liquidate": 1
+      }
+    },
+    {
+      "opponent": "reference",
+      "seed": 38,
+      "seat": 0,
+      "rewards": [
+        101726.0,
+        101726.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "trace_sha256": "72877d0ac0a7c02d91a4baa9a1bae566159e80a0dfcf208c9eaf62f8c4ac1f15",
+      "routes": {
+        "0": 144,
+        "10": 504,
+        "2": 71
+      },
+      "events": {
+        "sale_lead": 22,
+        "liquidate": 1
+      }
+    },
+    {
+      "opponent": "port",
+      "seed": 38,
+      "seat": 1,
+      "rewards": [
+        101726.0,
+        101726.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "trace_sha256": "72877d0ac0a7c02d91a4baa9a1bae566159e80a0dfcf208c9eaf62f8c4ac1f15",
+      "routes": {
+        "0": 144,
+        "10": 504,
+        "2": 71
+      },
+      "events": {
+        "sale_lead": 22,
+        "liquidate": 1
+      }
+    },
+    {
+      "opponent": "gold_v25",
+      "seed": 25,
+      "seat": 0,
+      "rewards": [
+        114878.0,
+        106791.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "trace_sha256": "a05e8aec42be3911d5ad0aec6932e5eb967cfec558e7e660a503eefd12b2c5cb",
+      "routes": {
+        "0": 144,
+        "11": 504,
+        "2": 71
+      },
+      "events": {
+        "sale_lead": 20,
+        "weed_queue": 7,
+        "liquidate": 1
+      }
+    },
+    {
+      "opponent": "reference",
+      "seed": 25,
+      "seat": 1,
+      "rewards": [
+        113231.0,
+        113231.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "trace_sha256": "bd79589d878ae5896fb3b1ab4225d3342ed4b6a24e9526971a0d32facc6baec3",
+      "routes": {
+        "0": 144,
+        "11": 504,
+        "2": 71
+      },
+      "events": {
+        "sale_lead": 21,
+        "liquidate": 1
+      }
+    },
+    {
+      "opponent": "port",
+      "seed": 150,
+      "seat": 0,
+      "rewards": [
+        100206.0,
+        100206.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "trace_sha256": "c5a73adcdd51d21522b452e41276b191c71aa6cace818073ab9a3053178535f4",
+      "routes": {
+        "0": 144,
+        "12": 504,
+        "2": 71
+      },
+      "events": {
+        "sale_lead": 11,
+        "liquidate": 1
+      }
+    },
+    {
+      "opponent": "gold_v25",
+      "seed": 150,
+      "seat": 1,
+      "rewards": [
+        91368.0,
+        101040.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "trace_sha256": "66c1fdb779169fc81455f6d0570a46513612f0800e85c984087c767004cb78fc",
+      "routes": {
+        "0": 144,
+        "12": 504,
+        "2": 71
+      },
+      "events": {
+        "sale_lead": 10,
+        "liquidate": 1
+      }
+    }
+  ]
+}

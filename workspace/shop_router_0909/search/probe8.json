@@ -1,0 +1,1936 @@
+{
+  "panel": "build",
+  "seeds": [
+    2000,
+    2007
+  ],
+  "targets": [
+    "new_notebook"
+  ],
+  "plans": [
+    0,
+    1,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12
+  ],
+  "donor_routes": {
+    "BAKERY|YARN_STORE": 3,
+    "BRUNCH_SPOT|YARN_STORE": 4,
+    "FARMERS_MARKET|YARN_STORE": 5,
+    "ICE_CREAM_SHOP|YARN_STORE": 6,
+    "PET_CAFE|YARN_STORE": 5,
+    "PIZZA_SHOP|YARN_STORE": 7,
+    "SMOOTHIE_SHOP|YARN_STORE": 8,
+    "YARN_STORE|YARN_STORE": 12,
+    "YARN_STORE|BAKERY": 9,
+    "YARN_STORE|BRUNCH_SPOT": 9,
+    "YARN_STORE|FARMERS_MARKET": 1,
+    "YARN_STORE|ICE_CREAM_SHOP": 9,
+    "YARN_STORE|PET_CAFE": 10,
+    "YARN_STORE|PIZZA_SHOP": 6,
+    "YARN_STORE|SMOOTHIE_SHOP": 11
+  },
+  "by_regime": {
+    "BAKERY|BAKERY": {
+      "0": {
+        "W": 0,
+        "T": 2,
+        "L": 0
+      },
+      "1": {
+        "W": 0,
+        "T": 0,
+        "L": 2
+      },
+      "3": {
+        "W": 0,
+        "T": 0,
+        "L": 2
+      },
+      "4": {
+        "W": 0,
+        "T": 0,
+        "L": 2
+      },
+      "5": {
+        "W": 0,
+        "T": 0,
+        "L": 2
+      },
+      "6": {
+        "W": 0,
+        "T": 0,
+        "L": 2
+      },
+      "7": {
+        "W": 0,
+        "T": 0,
+        "L": 2
+      },
+      "8": {
+        "W": 0,
+        "T": 0,
+        "L": 2
+      },
+      "9": {
+        "W": 0,
+        "T": 0,
+        "L": 2
+      },
+      "10": {
+        "W": 0,
+        "T": 0,
+        "L": 2
+      },
+      "11": {
+        "W": 0,
+        "T": 0,
+        "L": 2
+      },
+      "12": {
+        "W": 0,
+        "T": 0,
+        "L": 2
+      }
+    },
+    "BAKERY|ICE_CREAM_SHOP": {
+      "0": {
+        "W": 0,
+        "T": 2,
+        "L": 0
+      },
+      "1": {
+        "W": 0,
+        "T": 0,
+        "L": 2
+      },
+      "3": {
+        "W": 0,
+        "T": 0,
+        "L": 2
+      },
+      "4": {
+        "W": 0,
+        "T": 0,
+        "L": 2
+      },
+      "5": {
+        "W": 0,
+        "T": 0,
+        "L": 2
+      },
+      "6": {
+        "W": 0,
+        "T": 0,
+        "L": 2
+      },
+      "7": {
+        "W": 0,
+        "T": 0,
+        "L": 2
+      },
+      "8": {
+        "W": 0,
+        "T": 0,
+        "L": 2
+      },
+      "9": {
+        "W": 0,
+        "T": 0,
+        "L": 2
+      },
+      "10": {
+        "W": 0,
+        "T": 0,
+        "L": 2
+      },
+      "11": {
+        "W": 0,
+        "T": 0,
+        "L": 2
+      },
+      "12": {
+        "W": 0,
+        "T": 0,
+        "L": 2
+      }
+    },
+    "BAKERY|SMOOTHIE_SHOP": {
+      "0": {
+        "W": 0,
+        "T": 2,
+        "L": 0
+      },
+      "1": {
+        "W": 2,
+        "T": 0,
+        "L": 0
+      },
+      "3": {
+        "W": 2,
+        "T": 0,
+        "L": 0
+      },
+      "4": {
+        "W": 2,
+        "T": 0,
+        "L": 0
+      },
+      "5": {
+        "W": 2,
+        "T": 0,
+        "L": 0
+      },
+      "6": {
+        "W": 2,
+        "T": 0,
+        "L": 0
+      },
+      "7": {
+        "W": 2,
+        "T": 0,
+        "L": 0
+      },
+      "8": {
+        "W": 2,
+        "T": 0,
+        "L": 0
+      },
+      "9": {
+        "W": 2,
+        "T": 0,
+        "L": 0
+      },
+      "10": {
+        "W": 0,
+        "T": 0,
+        "L": 2
+      },
+      "11": {
+        "W": 2,
+        "T": 0,
+        "L": 0
+      },
+      "12": {
+        "W": 0,
+        "T": 0,
+        "L": 2
+      }
+    },
+    "BAKERY|YARN_STORE": {
+      "0": {
+        "W": 0,
+        "T": 0,
+        "L": 2
+      },
+      "1": {
+        "W": 0,
+        "T": 0,
+        "L": 2
+      },
+      "3": {
+        "W": 0,
+        "T": 2,
+        "L": 0
+      },
+      "4": {
+        "W": 0,
+        "T": 0,
+        "L": 2
+      },
+      "5": {
+        "W": 0,
+        "T": 0,
+        "L": 2
+      },
+      "6": {
+        "W": 2,
+        "T": 0,
+        "L": 0
+      },
+      "7": {
+        "W": 2,
+        "T": 0,
+        "L": 0
+      },
+      "8": {
+        "W": 2,
+        "T": 0,
+        "L": 0
+      },
+      "9": {
+        "W": 0,
+        "T": 0,
+        "L": 2
+      },
+      "10": {
+        "W": 0,
+        "T": 0,
+        "L": 2
+      },
+      "11": {
+        "W": 2,
+        "T": 0,
+        "L": 0
+      },
+      "12": {
+        "W": 2,
+        "T": 0,
+        "L": 0
+      }
+    },
+    "ICE_CREAM_SHOP|BAKERY": {
+      "0": {
+        "W": 0,
+        "T": 2,
+        "L": 0
+      },
+      "1": {
+        "W": 2,
+        "T": 0,
+        "L": 0
+      },
+      "3": {
+        "W": 2,
+        "T": 0,
+        "L": 0
+      },
+      "4": {
+        "W": 2,
+        "T": 0,
+        "L": 0
+      },
+      "5": {
+        "W": 2,
+        "T": 0,
+        "L": 0
+      },
+      "6": {
+        "W": 2,
+        "T": 0,
+        "L": 0
+      },
+      "7": {
+        "W": 2,
+        "T": 0,
+        "L": 0
+      },
+      "8": {
+        "W": 2,
+        "T": 0,
+        "L": 0
+      },
+      "9": {
+        "W": 2,
+        "T": 0,
+        "L": 0
+      },
+      "10": {
+        "W": 2,
+        "T": 0,
+        "L": 0
+      },
+      "11": {
+        "W": 2,
+        "T": 0,
+        "L": 0
+      },
+      "12": {
+        "W": 0,
+        "T": 0,
+        "L": 2
+      }
+    },
+    "PET_CAFE|YARN_STORE": {
+      "0": {
+        "W": 0,
+        "T": 0,
+        "L": 2
+      },
+      "1": {
+        "W": 0,
+        "T": 0,
+        "L": 2
+      },
+      "3": {
+        "W": 2,
+        "T": 0,
+        "L": 0
+      },
+      "4": {
+        "W": 0,
+        "T": 0,
+        "L": 2
+      },
+      "5": {
+        "W": 0,
+        "T": 2,
+        "L": 0
+      },
+      "6": {
+        "W": 2,
+        "T": 0,
+        "L": 0
+      },
+      "7": {
+        "W": 2,
+        "T": 0,
+        "L": 0
+      },
+      "8": {
+        "W": 2,
+        "T": 0,
+        "L": 0
+      },
+      "9": {
+        "W": 2,
+        "T": 0,
+        "L": 0
+      },
+      "10": {
+        "W": 0,
+        "T": 0,
+        "L": 2
+      },
+      "11": {
+        "W": 2,
+        "T": 0,
+        "L": 0
+      },
+      "12": {
+        "W": 0,
+        "T": 0,
+        "L": 2
+      }
+    },
+    "SMOOTHIE_SHOP|BRUNCH_SPOT": {
+      "0": {
+        "W": 0,
+        "T": 2,
+        "L": 0
+      },
+      "1": {
+        "W": 0,
+        "T": 0,
+        "L": 2
+      },
+      "3": {
+        "W": 0,
+        "T": 0,
+        "L": 2
+      },
+      "4": {
+        "W": 0,
+        "T": 0,
+        "L": 2
+      },
+      "5": {
+        "W": 0,
+        "T": 0,
+        "L": 2
+      },
+      "6": {
+        "W": 0,
+        "T": 0,
+        "L": 2
+      },
+      "7": {
+        "W": 0,
+        "T": 0,
+        "L": 2
+      },
+      "8": {
+        "W": 0,
+        "T": 0,
+        "L": 2
+      },
+      "9": {
+        "W": 0,
+        "T": 0,
+        "L": 2
+      },
+      "10": {
+        "W": 0,
+        "T": 0,
+        "L": 2
+      },
+      "11": {
+        "W": 0,
+        "T": 0,
+        "L": 2
+      },
+      "12": {
+        "W": 2,
+        "T": 0,
+        "L": 0
+      }
+    },
+    "YARN_STORE|SMOOTHIE_SHOP": {
+      "0": {
+        "W": 0,
+        "T": 0,
+        "L": 2
+      },
+      "1": {
+        "W": 0,
+        "T": 0,
+        "L": 2
+      },
+      "3": {
+        "W": 2,
+        "T": 0,
+        "L": 0
+      },
+      "4": {
+        "W": 0,
+        "T": 0,
+        "L": 2
+      },
+      "5": {
+        "W": 0,
+        "T": 0,
+        "L": 2
+      },
+      "6": {
+        "W": 0,
+        "T": 0,
+        "L": 2
+      },
+      "7": {
+        "W": 2,
+        "T": 0,
+        "L": 0
+      },
+      "8": {
+        "W": 0,
+        "T": 0,
+        "L": 2
+      },
+      "9": {
+        "W": 0,
+        "T": 0,
+        "L": 2
+      },
+      "10": {
+        "W": 0,
+        "T": 0,
+        "L": 2
+      },
+      "11": {
+        "W": 0,
+        "T": 2,
+        "L": 0
+      },
+      "12": {
+        "W": 0,
+        "T": 0,
+        "L": 2
+      }
+    }
+  },
+  "summary_by_target": {
+    "new_notebook": {
+      "W": 66,
+      "T": 16,
+      "L": 110
+    }
+  },
+  "losses": [
+    [
+      "new_notebook",
+      2000,
+      0,
+      [
+        "SMOOTHIE_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      97638,
+      97638
+    ],
+    [
+      "new_notebook",
+      2000,
+      1,
+      [
+        "SMOOTHIE_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      97638,
+      97638
+    ],
+    [
+      "new_notebook",
+      2001,
+      0,
+      [
+        "YARN_STORE",
+        "SMOOTHIE_SHOP"
+      ],
+      131410,
+      138762
+    ],
+    [
+      "new_notebook",
+      2001,
+      1,
+      [
+        "YARN_STORE",
+        "SMOOTHIE_SHOP"
+      ],
+      131410,
+      138762
+    ],
+    [
+      "new_notebook",
+      2002,
+      0,
+      [
+        "ICE_CREAM_SHOP",
+        "BAKERY"
+      ],
+      101359,
+      101359
+    ],
+    [
+      "new_notebook",
+      2002,
+      1,
+      [
+        "ICE_CREAM_SHOP",
+        "BAKERY"
+      ],
+      101359,
+      101359
+    ],
+    [
+      "new_notebook",
+      2003,
+      0,
+      [
+        "BAKERY",
+        "ICE_CREAM_SHOP"
+      ],
+      101848,
+      101848
+    ],
+    [
+      "new_notebook",
+      2003,
+      1,
+      [
+        "BAKERY",
+        "ICE_CREAM_SHOP"
+      ],
+      101848,
+      101848
+    ],
+    [
+      "new_notebook",
+      2004,
+      0,
+      [
+        "BAKERY",
+        "SMOOTHIE_SHOP"
+      ],
+      86563,
+      86563
+    ],
+    [
+      "new_notebook",
+      2004,
+      1,
+      [
+        "BAKERY",
+        "SMOOTHIE_SHOP"
+      ],
+      86563,
+      86563
+    ],
+    [
+      "new_notebook",
+      2005,
+      0,
+      [
+        "BAKERY",
+        "YARN_STORE"
+      ],
+      77842,
+      81937
+    ],
+    [
+      "new_notebook",
+      2005,
+      1,
+      [
+        "BAKERY",
+        "YARN_STORE"
+      ],
+      77842,
+      81937
+    ],
+    [
+      "new_notebook",
+      2006,
+      0,
+      [
+        "PET_CAFE",
+        "YARN_STORE"
+      ],
+      90395,
+      92791
+    ],
+    [
+      "new_notebook",
+      2006,
+      1,
+      [
+        "PET_CAFE",
+        "YARN_STORE"
+      ],
+      90395,
+      92791
+    ],
+    [
+      "new_notebook",
+      2007,
+      0,
+      [
+        "BAKERY",
+        "BAKERY"
+      ],
+      40871,
+      40871
+    ],
+    [
+      "new_notebook",
+      2007,
+      1,
+      [
+        "BAKERY",
+        "BAKERY"
+      ],
+      40871,
+      40871
+    ],
+    [
+      "new_notebook",
+      2000,
+      0,
+      [
+        "SMOOTHIE_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      87574,
+      90185
+    ],
+    [
+      "new_notebook",
+      2000,
+      1,
+      [
+        "SMOOTHIE_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      87574,
+      90185
+    ],
+    [
+      "new_notebook",
+      2001,
+      0,
+      [
+        "YARN_STORE",
+        "SMOOTHIE_SHOP"
+      ],
+      134730,
+      138645
+    ],
+    [
+      "new_notebook",
+      2001,
+      1,
+      [
+        "YARN_STORE",
+        "SMOOTHIE_SHOP"
+      ],
+      134730,
+      138645
+    ],
+    [
+      "new_notebook",
+      2003,
+      0,
+      [
+        "BAKERY",
+        "ICE_CREAM_SHOP"
+      ],
+      86890,
+      106513
+    ],
+    [
+      "new_notebook",
+      2003,
+      1,
+      [
+        "BAKERY",
+        "ICE_CREAM_SHOP"
+      ],
+      86890,
+      106513
+    ],
+    [
+      "new_notebook",
+      2005,
+      0,
+      [
+        "BAKERY",
+        "YARN_STORE"
+      ],
+      73121,
+      74671
+    ],
+    [
+      "new_notebook",
+      2005,
+      1,
+      [
+        "BAKERY",
+        "YARN_STORE"
+      ],
+      73121,
+      74671
+    ],
+    [
+      "new_notebook",
+      2006,
+      0,
+      [
+        "PET_CAFE",
+        "YARN_STORE"
+      ],
+      86679,
+      87656
+    ],
+    [
+      "new_notebook",
+      2006,
+      1,
+      [
+        "PET_CAFE",
+        "YARN_STORE"
+      ],
+      86679,
+      87656
+    ],
+    [
+      "new_notebook",
+      2007,
+      0,
+      [
+        "BAKERY",
+        "BAKERY"
+      ],
+      33216,
+      42603
+    ],
+    [
+      "new_notebook",
+      2007,
+      1,
+      [
+        "BAKERY",
+        "BAKERY"
+      ],
+      33216,
+      42603
+    ],
+    [
+      "new_notebook",
+      2000,
+      0,
+      [
+        "SMOOTHIE_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      84783,
+      87753
+    ],
+    [
+      "new_notebook",
+      2000,
+      1,
+      [
+        "SMOOTHIE_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      84783,
+      87753
+    ],
+    [
+      "new_notebook",
+      2003,
+      0,
+      [
+        "BAKERY",
+        "ICE_CREAM_SHOP"
+      ],
+      86392,
+      104997
+    ],
+    [
+      "new_notebook",
+      2003,
+      1,
+      [
+        "BAKERY",
+        "ICE_CREAM_SHOP"
+      ],
+      86392,
+      104997
+    ],
+    [
+      "new_notebook",
+      2005,
+      0,
+      [
+        "BAKERY",
+        "YARN_STORE"
+      ],
+      72459,
+      72459
+    ],
+    [
+      "new_notebook",
+      2005,
+      1,
+      [
+        "BAKERY",
+        "YARN_STORE"
+      ],
+      72459,
+      72459
+    ],
+    [
+      "new_notebook",
+      2007,
+      0,
+      [
+        "BAKERY",
+        "BAKERY"
+      ],
+      32026,
+      42569
+    ],
+    [
+      "new_notebook",
+      2007,
+      1,
+      [
+        "BAKERY",
+        "BAKERY"
+      ],
+      32026,
+      42569
+    ],
+    [
+      "new_notebook",
+      2000,
+      0,
+      [
+        "SMOOTHIE_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      87649,
+      89193
+    ],
+    [
+      "new_notebook",
+      2000,
+      1,
+      [
+        "SMOOTHIE_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      87649,
+      89193
+    ],
+    [
+      "new_notebook",
+      2001,
+      0,
+      [
+        "YARN_STORE",
+        "SMOOTHIE_SHOP"
+      ],
+      133474,
+      135378
+    ],
+    [
+      "new_notebook",
+      2001,
+      1,
+      [
+        "YARN_STORE",
+        "SMOOTHIE_SHOP"
+      ],
+      133474,
+      135378
+    ],
+    [
+      "new_notebook",
+      2003,
+      0,
+      [
+        "BAKERY",
+        "ICE_CREAM_SHOP"
+      ],
+      87304,
+      104860
+    ],
+    [
+      "new_notebook",
+      2003,
+      1,
+      [
+        "BAKERY",
+        "ICE_CREAM_SHOP"
+      ],
+      87304,
+      104860
+    ],
+    [
+      "new_notebook",
+      2005,
+      0,
+      [
+        "BAKERY",
+        "YARN_STORE"
+      ],
+      73097,
+      73610
+    ],
+    [
+      "new_notebook",
+      2005,
+      1,
+      [
+        "BAKERY",
+        "YARN_STORE"
+      ],
+      73097,
+      73610
+    ],
+    [
+      "new_notebook",
+      2006,
+      0,
+      [
+        "PET_CAFE",
+        "YARN_STORE"
+      ],
+      86343,
+      86660
+    ],
+    [
+      "new_notebook",
+      2006,
+      1,
+      [
+        "PET_CAFE",
+        "YARN_STORE"
+      ],
+      86343,
+      86660
+    ],
+    [
+      "new_notebook",
+      2007,
+      0,
+      [
+        "BAKERY",
+        "BAKERY"
+      ],
+      33175,
+      42523
+    ],
+    [
+      "new_notebook",
+      2007,
+      1,
+      [
+        "BAKERY",
+        "BAKERY"
+      ],
+      33175,
+      42523
+    ],
+    [
+      "new_notebook",
+      2000,
+      0,
+      [
+        "SMOOTHIE_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      87193,
+      89151
+    ],
+    [
+      "new_notebook",
+      2000,
+      1,
+      [
+        "SMOOTHIE_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      87193,
+      89151
+    ],
+    [
+      "new_notebook",
+      2001,
+      0,
+      [
+        "YARN_STORE",
+        "SMOOTHIE_SHOP"
+      ],
+      133490,
+      135085
+    ],
+    [
+      "new_notebook",
+      2001,
+      1,
+      [
+        "YARN_STORE",
+        "SMOOTHIE_SHOP"
+      ],
+      133490,
+      135085
+    ],
+    [
+      "new_notebook",
+      2003,
+      0,
+      [
+        "BAKERY",
+        "ICE_CREAM_SHOP"
+      ],
+      86992,
+      104824
+    ],
+    [
+      "new_notebook",
+      2003,
+      1,
+      [
+        "BAKERY",
+        "ICE_CREAM_SHOP"
+      ],
+      86992,
+      104824
+    ],
+    [
+      "new_notebook",
+      2005,
+      0,
+      [
+        "BAKERY",
+        "YARN_STORE"
+      ],
+      72878,
+      73229
+    ],
+    [
+      "new_notebook",
+      2005,
+      1,
+      [
+        "BAKERY",
+        "YARN_STORE"
+      ],
+      72878,
+      73229
+    ],
+    [
+      "new_notebook",
+      2006,
+      0,
+      [
+        "PET_CAFE",
+        "YARN_STORE"
+      ],
+      86468,
+      86468
+    ],
+    [
+      "new_notebook",
+      2006,
+      1,
+      [
+        "PET_CAFE",
+        "YARN_STORE"
+      ],
+      86468,
+      86468
+    ],
+    [
+      "new_notebook",
+      2007,
+      0,
+      [
+        "BAKERY",
+        "BAKERY"
+      ],
+      33006,
+      42606
+    ],
+    [
+      "new_notebook",
+      2007,
+      1,
+      [
+        "BAKERY",
+        "BAKERY"
+      ],
+      33006,
+      42606
+    ],
+    [
+      "new_notebook",
+      2000,
+      0,
+      [
+        "SMOOTHIE_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      84860,
+      87472
+    ],
+    [
+      "new_notebook",
+      2000,
+      1,
+      [
+        "SMOOTHIE_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      84860,
+      87472
+    ],
+    [
+      "new_notebook",
+      2001,
+      0,
+      [
+        "YARN_STORE",
+        "SMOOTHIE_SHOP"
+      ],
+      133284,
+      133295
+    ],
+    [
+      "new_notebook",
+      2001,
+      1,
+      [
+        "YARN_STORE",
+        "SMOOTHIE_SHOP"
+      ],
+      133284,
+      133295
+    ],
+    [
+      "new_notebook",
+      2003,
+      0,
+      [
+        "BAKERY",
+        "ICE_CREAM_SHOP"
+      ],
+      86235,
+      104763
+    ],
+    [
+      "new_notebook",
+      2003,
+      1,
+      [
+        "BAKERY",
+        "ICE_CREAM_SHOP"
+      ],
+      86235,
+      104763
+    ],
+    [
+      "new_notebook",
+      2007,
+      0,
+      [
+        "BAKERY",
+        "BAKERY"
+      ],
+      32072,
+      42460
+    ],
+    [
+      "new_notebook",
+      2007,
+      1,
+      [
+        "BAKERY",
+        "BAKERY"
+      ],
+      32072,
+      42460
+    ],
+    [
+      "new_notebook",
+      2000,
+      0,
+      [
+        "SMOOTHIE_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      84898,
+      87471
+    ],
+    [
+      "new_notebook",
+      2000,
+      1,
+      [
+        "SMOOTHIE_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      84898,
+      87471
+    ],
+    [
+      "new_notebook",
+      2003,
+      0,
+      [
+        "BAKERY",
+        "ICE_CREAM_SHOP"
+      ],
+      86272,
+      104762
+    ],
+    [
+      "new_notebook",
+      2003,
+      1,
+      [
+        "BAKERY",
+        "ICE_CREAM_SHOP"
+      ],
+      86272,
+      104762
+    ],
+    [
+      "new_notebook",
+      2007,
+      0,
+      [
+        "BAKERY",
+        "BAKERY"
+      ],
+      32109,
+      42459
+    ],
+    [
+      "new_notebook",
+      2007,
+      1,
+      [
+        "BAKERY",
+        "BAKERY"
+      ],
+      32109,
+      42459
+    ],
+    [
+      "new_notebook",
+      2000,
+      0,
+      [
+        "SMOOTHIE_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      84967,
+      87421
+    ],
+    [
+      "new_notebook",
+      2000,
+      1,
+      [
+        "SMOOTHIE_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      84967,
+      87421
+    ],
+    [
+      "new_notebook",
+      2001,
+      0,
+      [
+        "YARN_STORE",
+        "SMOOTHIE_SHOP"
+      ],
+      133303,
+      133307
+    ],
+    [
+      "new_notebook",
+      2001,
+      1,
+      [
+        "YARN_STORE",
+        "SMOOTHIE_SHOP"
+      ],
+      133303,
+      133307
+    ],
+    [
+      "new_notebook",
+      2003,
+      0,
+      [
+        "BAKERY",
+        "ICE_CREAM_SHOP"
+      ],
+      86342,
+      104712
+    ],
+    [
+      "new_notebook",
+      2003,
+      1,
+      [
+        "BAKERY",
+        "ICE_CREAM_SHOP"
+      ],
+      86342,
+      104712
+    ],
+    [
+      "new_notebook",
+      2007,
+      0,
+      [
+        "BAKERY",
+        "BAKERY"
+      ],
+      32179,
+      42409
+    ],
+    [
+      "new_notebook",
+      2007,
+      1,
+      [
+        "BAKERY",
+        "BAKERY"
+      ],
+      32179,
+      42409
+    ],
+    [
+      "new_notebook",
+      2000,
+      0,
+      [
+        "SMOOTHIE_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      87052,
+      89260
+    ],
+    [
+      "new_notebook",
+      2000,
+      1,
+      [
+        "SMOOTHIE_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      87052,
+      89260
+    ],
+    [
+      "new_notebook",
+      2001,
+      0,
+      [
+        "YARN_STORE",
+        "SMOOTHIE_SHOP"
+      ],
+      129325,
+      131899
+    ],
+    [
+      "new_notebook",
+      2001,
+      1,
+      [
+        "YARN_STORE",
+        "SMOOTHIE_SHOP"
+      ],
+      129325,
+      131899
+    ],
+    [
+      "new_notebook",
+      2003,
+      0,
+      [
+        "BAKERY",
+        "ICE_CREAM_SHOP"
+      ],
+      85666,
+      105657
+    ],
+    [
+      "new_notebook",
+      2003,
+      1,
+      [
+        "BAKERY",
+        "ICE_CREAM_SHOP"
+      ],
+      85666,
+      105657
+    ],
+    [
+      "new_notebook",
+      2005,
+      0,
+      [
+        "BAKERY",
+        "YARN_STORE"
+      ],
+      67833,
+      69524
+    ],
+    [
+      "new_notebook",
+      2005,
+      1,
+      [
+        "BAKERY",
+        "YARN_STORE"
+      ],
+      67833,
+      69524
+    ],
+    [
+      "new_notebook",
+      2007,
+      0,
+      [
+        "BAKERY",
+        "BAKERY"
+      ],
+      31762,
+      41771
+    ],
+    [
+      "new_notebook",
+      2007,
+      1,
+      [
+        "BAKERY",
+        "BAKERY"
+      ],
+      31762,
+      41771
+    ],
+    [
+      "new_notebook",
+      2000,
+      0,
+      [
+        "SMOOTHIE_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      68119,
+      78531
+    ],
+    [
+      "new_notebook",
+      2000,
+      1,
+      [
+        "SMOOTHIE_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      68119,
+      78531
+    ],
+    [
+      "new_notebook",
+      2001,
+      0,
+      [
+        "YARN_STORE",
+        "SMOOTHIE_SHOP"
+      ],
+      115510,
+      116102
+    ],
+    [
+      "new_notebook",
+      2001,
+      1,
+      [
+        "YARN_STORE",
+        "SMOOTHIE_SHOP"
+      ],
+      115510,
+      116102
+    ],
+    [
+      "new_notebook",
+      2003,
+      0,
+      [
+        "BAKERY",
+        "ICE_CREAM_SHOP"
+      ],
+      79048,
+      96885
+    ],
+    [
+      "new_notebook",
+      2003,
+      1,
+      [
+        "BAKERY",
+        "ICE_CREAM_SHOP"
+      ],
+      79048,
+      96885
+    ],
+    [
+      "new_notebook",
+      2004,
+      0,
+      [
+        "BAKERY",
+        "SMOOTHIE_SHOP"
+      ],
+      78410,
+      86229
+    ],
+    [
+      "new_notebook",
+      2004,
+      1,
+      [
+        "BAKERY",
+        "SMOOTHIE_SHOP"
+      ],
+      78410,
+      86229
+    ],
+    [
+      "new_notebook",
+      2005,
+      0,
+      [
+        "BAKERY",
+        "YARN_STORE"
+      ],
+      94357,
+      95331
+    ],
+    [
+      "new_notebook",
+      2005,
+      1,
+      [
+        "BAKERY",
+        "YARN_STORE"
+      ],
+      94357,
+      95331
+    ],
+    [
+      "new_notebook",
+      2006,
+      0,
+      [
+        "PET_CAFE",
+        "YARN_STORE"
+      ],
+      73997,
+      74541
+    ],
+    [
+      "new_notebook",
+      2006,
+      1,
+      [
+        "PET_CAFE",
+        "YARN_STORE"
+      ],
+      73997,
+      74541
+    ],
+    [
+      "new_notebook",
+      2007,
+      0,
+      [
+        "BAKERY",
+        "BAKERY"
+      ],
+      38902,
+      48085
+    ],
+    [
+      "new_notebook",
+      2007,
+      1,
+      [
+        "BAKERY",
+        "BAKERY"
+      ],
+      38902,
+      48085
+    ],
+    [
+      "new_notebook",
+      2000,
+      0,
+      [
+        "SMOOTHIE_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      84789,
+      87584
+    ],
+    [
+      "new_notebook",
+      2000,
+      1,
+      [
+        "SMOOTHIE_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      84789,
+      87584
+    ],
+    [
+      "new_notebook",
+      2001,
+      0,
+      [
+        "YARN_STORE",
+        "SMOOTHIE_SHOP"
+      ],
+      133561,
+      133561
+    ],
+    [
+      "new_notebook",
+      2001,
+      1,
+      [
+        "YARN_STORE",
+        "SMOOTHIE_SHOP"
+      ],
+      133561,
+      133561
+    ],
+    [
+      "new_notebook",
+      2003,
+      0,
+      [
+        "BAKERY",
+        "ICE_CREAM_SHOP"
+      ],
+      86287,
+      104894
+    ],
+    [
+      "new_notebook",
+      2003,
+      1,
+      [
+        "BAKERY",
+        "ICE_CREAM_SHOP"
+      ],
+      86287,
+      104894
+    ],
+    [
+      "new_notebook",
+      2007,
+      0,
+      [
+        "BAKERY",
+        "BAKERY"
+      ],
+      32136,
+      42332
+    ],
+    [
+      "new_notebook",
+      2007,
+      1,
+      [
+        "BAKERY",
+        "BAKERY"
+      ],
+      32136,
+      42332
+    ],
+    [
+      "new_notebook",
+      2001,
+      0,
+      [
+        "YARN_STORE",
+        "SMOOTHIE_SHOP"
+      ],
+      111949,
+      126545
+    ],
+    [
+      "new_notebook",
+      2001,
+      1,
+      [
+        "YARN_STORE",
+        "SMOOTHIE_SHOP"
+      ],
+      111949,
+      126545
+    ],
+    [
+      "new_notebook",
+      2002,
+      0,
+      [
+        "ICE_CREAM_SHOP",
+        "BAKERY"
+      ],
+      77154,
+      97664
+    ],
+    [
+      "new_notebook",
+      2002,
+      1,
+      [
+        "ICE_CREAM_SHOP",
+        "BAKERY"
+      ],
+      77154,
+      97664
+    ],
+    [
+      "new_notebook",
+      2003,
+      0,
+      [
+        "BAKERY",
+        "ICE_CREAM_SHOP"
+      ],
+      90340,
+      127026
+    ],
+    [
+      "new_notebook",
+      2003,
+      1,
+      [
+        "BAKERY",
+        "ICE_CREAM_SHOP"
+      ],
+      90340,
+      127026
+    ],
+    [
+      "new_notebook",
+      2004,
+      0,
+      [
+        "BAKERY",
+        "SMOOTHIE_SHOP"
+      ],
+      59208,
+      70060
+    ],
+    [
+      "new_notebook",
+      2004,
+      1,
+      [
+        "BAKERY",
+        "SMOOTHIE_SHOP"
+      ],
+      59208,
+      70060
+    ],
+    [
+      "new_notebook",
+      2006,
+      0,
+      [
+        "PET_CAFE",
+        "YARN_STORE"
+      ],
+      72787,
+      81240
+    ],
+    [
+      "new_notebook",
+      2006,
+      1,
+      [
+        "PET_CAFE",
+        "YARN_STORE"
+      ],
+      72787,
+      81240
+    ],
+    [
+      "new_notebook",
+      2007,
+      0,
+      [
+        "BAKERY",
+        "BAKERY"
+      ],
+      52439,
+      65223
+    ],
+    [
+      "new_notebook",
+      2007,
+      1,
+      [
+        "BAKERY",
+        "BAKERY"
+      ],
+      52439,
+      65223
+    ]
+  ],
+  "games": 192,
+  "note": "Per-game rows dropped; aggregates and every non-win retained."
+}

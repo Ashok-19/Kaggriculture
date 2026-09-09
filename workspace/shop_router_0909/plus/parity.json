@@ -1,0 +1,251 @@
+{
+  "panel": "shop_router_0909_plus_parity_v1",
+  "games": 12,
+  "acting_steps": 8628,
+  "controller_sha256": "84bbfe9a32ccf4d202664500b28bba787dab18cb18180c539d70f1890b1cc450",
+  "action_mismatches": 0,
+  "state_mismatches": 0,
+  "cpu_cuda_mismatches": 0,
+  "faults": 0,
+  "gated_steps": 168,
+  "cases": [
+    {
+      "opponent": "reference",
+      "seed": 0,
+      "seat": 0,
+      "rewards": [
+        69401.0,
+        69110.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "trace_sha256": "7770ae0856a7048f2878dc50caf91194dddd4f1be29e23b525fdcf1f5c956783",
+      "gated_steps": 14,
+      "routes": {
+        "0": 648,
+        "2": 71
+      }
+    },
+    {
+      "opponent": "reference",
+      "seed": 0,
+      "seat": 1,
+      "rewards": [
+        69110.0,
+        69401.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "trace_sha256": "db6fa405a9bf6b2b644e7204a74932c4c07a04e514761f1d42ae2052fbc2b91b",
+      "gated_steps": 14,
+      "routes": {
+        "0": 648,
+        "2": 71
+      }
+    },
+    {
+      "opponent": "reference",
+      "seed": 3,
+      "seat": 0,
+      "rewards": [
+        74755.0,
+        74368.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "trace_sha256": "cbb16d6d350093c50c0d7e8d98cc38b9ed5a3a5e1469709e3f0bf89e22f817bf",
+      "gated_steps": 14,
+      "routes": {
+        "0": 144,
+        "3": 504,
+        "2": 71
+      }
+    },
+    {
+      "opponent": "reference",
+      "seed": 3,
+      "seat": 1,
+      "rewards": [
+        74368.0,
+        74755.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "trace_sha256": "cbb16d6d350093c50c0d7e8d98cc38b9ed5a3a5e1469709e3f0bf89e22f817bf",
+      "gated_steps": 14,
+      "routes": {
+        "0": 144,
+        "3": 504,
+        "2": 71
+      }
+    },
+    {
+      "opponent": "reference",
+      "seed": 45,
+      "seat": 0,
+      "rewards": [
+        128610.0,
+        128466.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "trace_sha256": "af110f9c862394d85b626ee6f18f44f56fa8956ba43a05a50dad6766cf3126ab",
+      "gated_steps": 14,
+      "routes": {
+        "0": 144,
+        "5": 504,
+        "2": 71
+      }
+    },
+    {
+      "opponent": "reference",
+      "seed": 45,
+      "seat": 1,
+      "rewards": [
+        128466.0,
+        128610.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "trace_sha256": "af110f9c862394d85b626ee6f18f44f56fa8956ba43a05a50dad6766cf3126ab",
+      "gated_steps": 14,
+      "routes": {
+        "0": 144,
+        "5": 504,
+        "2": 71
+      }
+    },
+    {
+      "opponent": "reference",
+      "seed": 150,
+      "seat": 0,
+      "rewards": [
+        100266.0,
+        99825.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "trace_sha256": "c5cb49ee260559419551500a72bf5b7412d4abdf53c3e3ffa7916650d4e701a8",
+      "gated_steps": 14,
+      "routes": {
+        "0": 144,
+        "12": 504,
+        "2": 71
+      }
+    },
+    {
+      "opponent": "reference",
+      "seed": 150,
+      "seat": 1,
+      "rewards": [
+        99825.0,
+        100266.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "trace_sha256": "c5cb49ee260559419551500a72bf5b7412d4abdf53c3e3ffa7916650d4e701a8",
+      "gated_steps": 14,
+      "routes": {
+        "0": 144,
+        "12": 504,
+        "2": 71
+      }
+    },
+    {
+      "opponent": "gold_v25",
+      "seed": 17,
+      "seat": 0,
+      "rewards": [
+        116762.0,
+        110545.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "trace_sha256": "0d9c91ab1c5b1c3e052c95c0699743cfe73f8f887beb4e66d4e90e13964d366d",
+      "gated_steps": 14,
+      "routes": {
+        "0": 144,
+        "8": 504,
+        "2": 71
+      }
+    },
+    {
+      "opponent": "gold_v25",
+      "seed": 17,
+      "seat": 1,
+      "rewards": [
+        110545.0,
+        116762.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "trace_sha256": "0d9c91ab1c5b1c3e052c95c0699743cfe73f8f887beb4e66d4e90e13964d366d",
+      "gated_steps": 14,
+      "routes": {
+        "0": 144,
+        "8": 504,
+        "2": 71
+      }
+    },
+    {
+      "opponent": "gold_v25",
+      "seed": 127,
+      "seat": 0,
+      "rewards": [
+        88156.0,
+        83367.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "trace_sha256": "ae4f8e52d4536ee97fa28389cf3bc55f5c950f76b38f970ee11a987dfd3c671c",
+      "gated_steps": 14,
+      "routes": {
+        "0": 144,
+        "7": 504,
+        "2": 71
+      }
+    },
+    {
+      "opponent": "gold_v25",
+      "seed": 127,
+      "seat": 1,
+      "rewards": [
+        83367.0,
+        88156.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "trace_sha256": "ae4f8e52d4536ee97fa28389cf3bc55f5c950f76b38f970ee11a987dfd3c671c",
+      "gated_steps": 14,
+      "routes": {
+        "0": 144,
+        "7": 504,
+        "2": 71
+      }
+    }
+  ]
+}

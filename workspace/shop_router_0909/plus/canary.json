@@ -1,0 +1,462 @@
+{
+  "panel": "shop_router_0909_plus_official_canary_v1",
+  "engine": "1.32.7",
+  "matched_cases": 32,
+  "engine_runs": 64,
+  "acting_steps_compared": 23008,
+  "action_mismatches": 0,
+  "state_mismatches": 0,
+  "observation_mismatches": 0,
+  "terminal_mismatches": 0,
+  "faults": 0,
+  "cases": [
+    {
+      "opponent": "reference",
+      "seed": 9200,
+      "seat": 0,
+      "rewards": [
+        88427.0,
+        88279.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "cc20242d403fabc463646b21f2656313fb005b5b91f093ace7fc98ee91a02ea5"
+    },
+    {
+      "opponent": "reference",
+      "seed": 9200,
+      "seat": 1,
+      "rewards": [
+        88279.0,
+        88427.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "cc20242d403fabc463646b21f2656313fb005b5b91f093ace7fc98ee91a02ea5"
+    },
+    {
+      "opponent": "reference",
+      "seed": 9201,
+      "seat": 0,
+      "rewards": [
+        62784.0,
+        62364.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "a64db3942e2bcd8d13ec338bd733c4c3d8100d196a4e3f27bdd251e215f1ec5f"
+    },
+    {
+      "opponent": "reference",
+      "seed": 9201,
+      "seat": 1,
+      "rewards": [
+        62364.0,
+        62784.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "a64db3942e2bcd8d13ec338bd733c4c3d8100d196a4e3f27bdd251e215f1ec5f"
+    },
+    {
+      "opponent": "reference",
+      "seed": 9202,
+      "seat": 0,
+      "rewards": [
+        126064.0,
+        127348.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "21eddd215c23146f527447e7b6a7e2376cc98bdb2235fa385a5c4b988c2fff63"
+    },
+    {
+      "opponent": "reference",
+      "seed": 9202,
+      "seat": 1,
+      "rewards": [
+        125887.0,
+        127525.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "bf9e7e825728b48c839b017b54e088b1ccb8e8d7b1872ce5ecc685582d196b63"
+    },
+    {
+      "opponent": "reference",
+      "seed": 9203,
+      "seat": 0,
+      "rewards": [
+        80520.0,
+        80193.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "61bd042e691a24d2b6c58376a9eb5768a63fcf2129eec2ffc49b88e378787ff1"
+    },
+    {
+      "opponent": "reference",
+      "seed": 9203,
+      "seat": 1,
+      "rewards": [
+        80193.0,
+        80520.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "61bd042e691a24d2b6c58376a9eb5768a63fcf2129eec2ffc49b88e378787ff1"
+    },
+    {
+      "opponent": "reference",
+      "seed": 9204,
+      "seat": 0,
+      "rewards": [
+        140582.0,
+        140576.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "db1dc46e1dcc8397a13941e35c0ba6f100ccceede22a4864172ebe88109aa02a"
+    },
+    {
+      "opponent": "reference",
+      "seed": 9204,
+      "seat": 1,
+      "rewards": [
+        140576.0,
+        140582.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "db1dc46e1dcc8397a13941e35c0ba6f100ccceede22a4864172ebe88109aa02a"
+    },
+    {
+      "opponent": "reference",
+      "seed": 9205,
+      "seat": 0,
+      "rewards": [
+        93533.0,
+        93389.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "910d597d9b4e11da0a3042896268b973447a87d192012464a81bafd1535b8fd4"
+    },
+    {
+      "opponent": "reference",
+      "seed": 9205,
+      "seat": 1,
+      "rewards": [
+        93389.0,
+        93533.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "d6453df466e41f618392ff6f51fbfe358116613f747f0d45ae401cca7c24684f"
+    },
+    {
+      "opponent": "reference",
+      "seed": 9206,
+      "seat": 0,
+      "rewards": [
+        97065.0,
+        96888.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "0fb25d632c11a45f6f05e8b62c6a5694edcdbbd443199f995321fd9eaab919df"
+    },
+    {
+      "opponent": "reference",
+      "seed": 9206,
+      "seat": 1,
+      "rewards": [
+        96888.0,
+        97065.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "0fb25d632c11a45f6f05e8b62c6a5694edcdbbd443199f995321fd9eaab919df"
+    },
+    {
+      "opponent": "reference",
+      "seed": 9207,
+      "seat": 0,
+      "rewards": [
+        136634.0,
+        136608.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "db1dc46e1dcc8397a13941e35c0ba6f100ccceede22a4864172ebe88109aa02a"
+    },
+    {
+      "opponent": "reference",
+      "seed": 9207,
+      "seat": 1,
+      "rewards": [
+        136608.0,
+        136634.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "db1dc46e1dcc8397a13941e35c0ba6f100ccceede22a4864172ebe88109aa02a"
+    },
+    {
+      "opponent": "gold_v25",
+      "seed": 9300,
+      "seat": 0,
+      "rewards": [
+        75246.0,
+        70262.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "cc20242d403fabc463646b21f2656313fb005b5b91f093ace7fc98ee91a02ea5"
+    },
+    {
+      "opponent": "gold_v25",
+      "seed": 9300,
+      "seat": 1,
+      "rewards": [
+        70262.0,
+        75246.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "cc20242d403fabc463646b21f2656313fb005b5b91f093ace7fc98ee91a02ea5"
+    },
+    {
+      "opponent": "gold_v25",
+      "seed": 9301,
+      "seat": 0,
+      "rewards": [
+        105734.0,
+        98977.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "0405c10c6f02d0425cf9fe9d058e5456710fbf665868b45607eb78cd3e1a41a7"
+    },
+    {
+      "opponent": "gold_v25",
+      "seed": 9301,
+      "seat": 1,
+      "rewards": [
+        98977.0,
+        105734.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "0405c10c6f02d0425cf9fe9d058e5456710fbf665868b45607eb78cd3e1a41a7"
+    },
+    {
+      "opponent": "gold_v25",
+      "seed": 9302,
+      "seat": 0,
+      "rewards": [
+        112566.0,
+        110313.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "f1753fb225380e1b8cac510ba24d53385f3e471c92b89b6396801ee5e4e6c927"
+    },
+    {
+      "opponent": "gold_v25",
+      "seed": 9302,
+      "seat": 1,
+      "rewards": [
+        110313.0,
+        112566.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "f1753fb225380e1b8cac510ba24d53385f3e471c92b89b6396801ee5e4e6c927"
+    },
+    {
+      "opponent": "gold_v25",
+      "seed": 9303,
+      "seat": 0,
+      "rewards": [
+        132620.0,
+        130112.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "99a345ef4fe371249e7c6b96a4b32f35f14f9a8ccbe625bfc63ccc338de36a0d"
+    },
+    {
+      "opponent": "gold_v25",
+      "seed": 9303,
+      "seat": 1,
+      "rewards": [
+        130112.0,
+        132620.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "99a345ef4fe371249e7c6b96a4b32f35f14f9a8ccbe625bfc63ccc338de36a0d"
+    },
+    {
+      "opponent": "gold_v25",
+      "seed": 9304,
+      "seat": 0,
+      "rewards": [
+        63445.0,
+        58975.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "904e65e0f68423bf283a3fe651931e1e7f2a310a54bdaf75bef06c31dd9fe3ff"
+    },
+    {
+      "opponent": "gold_v25",
+      "seed": 9304,
+      "seat": 1,
+      "rewards": [
+        58975.0,
+        63445.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "904e65e0f68423bf283a3fe651931e1e7f2a310a54bdaf75bef06c31dd9fe3ff"
+    },
+    {
+      "opponent": "gold_v25",
+      "seed": 9305,
+      "seat": 0,
+      "rewards": [
+        95470.0,
+        91436.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "99a345ef4fe371249e7c6b96a4b32f35f14f9a8ccbe625bfc63ccc338de36a0d"
+    },
+    {
+      "opponent": "gold_v25",
+      "seed": 9305,
+      "seat": 1,
+      "rewards": [
+        91436.0,
+        95470.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "99a345ef4fe371249e7c6b96a4b32f35f14f9a8ccbe625bfc63ccc338de36a0d"
+    },
+    {
+      "opponent": "gold_v25",
+      "seed": 9306,
+      "seat": 0,
+      "rewards": [
+        95639.0,
+        90885.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "ea856206949513055ad6dcc689c6f5390200c1cc1544e919d10a106196682e7c"
+    },
+    {
+      "opponent": "gold_v25",
+      "seed": 9306,
+      "seat": 1,
+      "rewards": [
+        90885.0,
+        95639.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "ea856206949513055ad6dcc689c6f5390200c1cc1544e919d10a106196682e7c"
+    },
+    {
+      "opponent": "gold_v25",
+      "seed": 9307,
+      "seat": 0,
+      "rewards": [
+        94453.0,
+        90515.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "99a345ef4fe371249e7c6b96a4b32f35f14f9a8ccbe625bfc63ccc338de36a0d"
+    },
+    {
+      "opponent": "gold_v25",
+      "seed": 9307,
+      "seat": 1,
+      "rewards": [
+        90515.0,
+        94453.0
+      ],
+      "status": [
+        "DONE",
+        "DONE"
+      ],
+      "action_trace_sha256": "99a345ef4fe371249e7c6b96a4b32f35f14f9a8ccbe625bfc63ccc338de36a0d"
+    }
+  ]
+}

@@ -1,0 +1,842 @@
+{
+  "panel": "build",
+  "seeds": [
+    2000,
+    2011
+  ],
+  "targets": [
+    "new_notebook",
+    "gold_v25_plus",
+    "gold_v25"
+  ],
+  "routes": {},
+  "results": [
+    {
+      "spec": {
+        "routes": {},
+        "endgame": {
+          "start": 698,
+          "end": 717,
+          "mode": 4
+        }
+      },
+      "summary": {
+        "new_notebook": {
+          "W": 19,
+          "T": 0,
+          "L": 5
+        },
+        "gold_v25_plus": {
+          "W": 22,
+          "T": 0,
+          "L": 2
+        },
+        "gold_v25": {
+          "W": 23,
+          "T": 0,
+          "L": 1
+        }
+      },
+      "losses": [
+        [
+          "new_notebook",
+          2009,
+          0,
+          [
+            "SMOOTHIE_SHOP",
+            "SMOOTHIE_SHOP"
+          ],
+          151531,
+          151554
+        ],
+        [
+          "new_notebook",
+          2010,
+          1,
+          [
+            "ICE_CREAM_SHOP",
+            "BRUNCH_SPOT"
+          ],
+          108224,
+          108270
+        ],
+        [
+          "new_notebook",
+          2010,
+          0,
+          [
+            "ICE_CREAM_SHOP",
+            "BRUNCH_SPOT"
+          ],
+          108224,
+          108270
+        ],
+        [
+          "new_notebook",
+          2011,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          110573,
+          114608
+        ],
+        [
+          "new_notebook",
+          2009,
+          1,
+          [
+            "SMOOTHIE_SHOP",
+            "SMOOTHIE_SHOP"
+          ],
+          151531,
+          151554
+        ],
+        [
+          "gold_v25_plus",
+          2011,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          107920,
+          113670
+        ],
+        [
+          "gold_v25_plus",
+          2011,
+          1,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          108461,
+          110500
+        ],
+        [
+          "gold_v25",
+          2011,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          111677,
+          113335
+        ]
+      ],
+      "games": 72
+    },
+    {
+      "spec": {
+        "routes": {},
+        "endgame": {
+          "start": 700,
+          "end": 717,
+          "mode": 4
+        }
+      },
+      "summary": {
+        "new_notebook": {
+          "W": 19,
+          "T": 0,
+          "L": 5
+        },
+        "gold_v25_plus": {
+          "W": 22,
+          "T": 0,
+          "L": 2
+        },
+        "gold_v25": {
+          "W": 23,
+          "T": 0,
+          "L": 1
+        }
+      },
+      "losses": [
+        [
+          "new_notebook",
+          2009,
+          0,
+          [
+            "SMOOTHIE_SHOP",
+            "SMOOTHIE_SHOP"
+          ],
+          151531,
+          151554
+        ],
+        [
+          "new_notebook",
+          2010,
+          0,
+          [
+            "ICE_CREAM_SHOP",
+            "BRUNCH_SPOT"
+          ],
+          108224,
+          108270
+        ],
+        [
+          "new_notebook",
+          2009,
+          1,
+          [
+            "SMOOTHIE_SHOP",
+            "SMOOTHIE_SHOP"
+          ],
+          151531,
+          151554
+        ],
+        [
+          "new_notebook",
+          2011,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          110573,
+          114608
+        ],
+        [
+          "new_notebook",
+          2010,
+          1,
+          [
+            "ICE_CREAM_SHOP",
+            "BRUNCH_SPOT"
+          ],
+          108224,
+          108270
+        ],
+        [
+          "gold_v25_plus",
+          2011,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          107920,
+          113670
+        ],
+        [
+          "gold_v25_plus",
+          2011,
+          1,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          108461,
+          110500
+        ],
+        [
+          "gold_v25",
+          2011,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          111677,
+          113335
+        ]
+      ],
+      "games": 72
+    },
+    {
+      "spec": {
+        "routes": {},
+        "endgame": {
+          "start": 702,
+          "end": 717,
+          "mode": 4
+        }
+      },
+      "summary": {
+        "new_notebook": {
+          "W": 23,
+          "T": 0,
+          "L": 1
+        },
+        "gold_v25_plus": {
+          "W": 22,
+          "T": 0,
+          "L": 2
+        },
+        "gold_v25": {
+          "W": 23,
+          "T": 0,
+          "L": 1
+        }
+      },
+      "losses": [
+        [
+          "new_notebook",
+          2011,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          110783,
+          114608
+        ],
+        [
+          "gold_v25_plus",
+          2011,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          108129,
+          113670
+        ],
+        [
+          "gold_v25_plus",
+          2011,
+          1,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          108680,
+          110500
+        ],
+        [
+          "gold_v25",
+          2011,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          111885,
+          113335
+        ]
+      ],
+      "games": 72
+    },
+    {
+      "spec": {
+        "routes": {},
+        "endgame": {
+          "start": 704,
+          "end": 717,
+          "mode": 4
+        }
+      },
+      "summary": {
+        "new_notebook": {
+          "W": 23,
+          "T": 0,
+          "L": 1
+        },
+        "gold_v25_plus": {
+          "W": 22,
+          "T": 0,
+          "L": 2
+        },
+        "gold_v25": {
+          "W": 23,
+          "T": 0,
+          "L": 1
+        }
+      },
+      "losses": [
+        [
+          "new_notebook",
+          2011,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          110783,
+          114608
+        ],
+        [
+          "gold_v25_plus",
+          2011,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          108129,
+          113670
+        ],
+        [
+          "gold_v25_plus",
+          2011,
+          1,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          108680,
+          110500
+        ],
+        [
+          "gold_v25",
+          2011,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          111885,
+          113335
+        ]
+      ],
+      "games": 72
+    },
+    {
+      "spec": {
+        "routes": {},
+        "endgame": {
+          "start": 706,
+          "end": 717,
+          "mode": 4
+        }
+      },
+      "summary": {
+        "new_notebook": {
+          "W": 23,
+          "T": 0,
+          "L": 1
+        },
+        "gold_v25_plus": {
+          "W": 22,
+          "T": 0,
+          "L": 2
+        },
+        "gold_v25": {
+          "W": 23,
+          "T": 0,
+          "L": 1
+        }
+      },
+      "losses": [
+        [
+          "new_notebook",
+          2011,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          110987,
+          114608
+        ],
+        [
+          "gold_v25_plus",
+          2011,
+          1,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          108892,
+          110500
+        ],
+        [
+          "gold_v25_plus",
+          2011,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          108331,
+          113670
+        ],
+        [
+          "gold_v25",
+          2011,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          112086,
+          113335
+        ]
+      ],
+      "games": 72
+    },
+    {
+      "spec": {
+        "routes": {},
+        "endgame": {
+          "start": 708,
+          "end": 717,
+          "mode": 4
+        }
+      },
+      "summary": {
+        "new_notebook": {
+          "W": 23,
+          "T": 0,
+          "L": 1
+        },
+        "gold_v25_plus": {
+          "W": 20,
+          "T": 0,
+          "L": 4
+        },
+        "gold_v25": {
+          "W": 23,
+          "T": 0,
+          "L": 1
+        }
+      },
+      "losses": [
+        [
+          "new_notebook",
+          2011,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          110987,
+          114608
+        ],
+        [
+          "gold_v25_plus",
+          2005,
+          0,
+          [
+            "BAKERY",
+            "YARN_STORE"
+          ],
+          73076,
+          73362
+        ],
+        [
+          "gold_v25_plus",
+          2005,
+          1,
+          [
+            "BAKERY",
+            "YARN_STORE"
+          ],
+          73076,
+          73362
+        ],
+        [
+          "gold_v25_plus",
+          2011,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          107700,
+          114301
+        ],
+        [
+          "gold_v25_plus",
+          2011,
+          1,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          108231,
+          111161
+        ],
+        [
+          "gold_v25",
+          2011,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          112086,
+          113335
+        ]
+      ],
+      "games": 72
+    },
+    {
+      "spec": {
+        "routes": {},
+        "endgame": {
+          "start": 710,
+          "end": 717,
+          "mode": 4
+        }
+      },
+      "summary": {
+        "new_notebook": {
+          "W": 7,
+          "T": 16,
+          "L": 1
+        },
+        "gold_v25_plus": {
+          "W": 20,
+          "T": 0,
+          "L": 4
+        },
+        "gold_v25": {
+          "W": 23,
+          "T": 0,
+          "L": 1
+        }
+      },
+      "losses": [
+        [
+          "new_notebook",
+          2000,
+          1,
+          [
+            "SMOOTHIE_SHOP",
+            "BRUNCH_SPOT"
+          ],
+          97638,
+          97638
+        ],
+        [
+          "new_notebook",
+          2000,
+          0,
+          [
+            "SMOOTHIE_SHOP",
+            "BRUNCH_SPOT"
+          ],
+          97638,
+          97638
+        ],
+        [
+          "new_notebook",
+          2002,
+          0,
+          [
+            "ICE_CREAM_SHOP",
+            "BAKERY"
+          ],
+          101359,
+          101359
+        ],
+        [
+          "new_notebook",
+          2003,
+          0,
+          [
+            "BAKERY",
+            "ICE_CREAM_SHOP"
+          ],
+          101848,
+          101848
+        ],
+        [
+          "new_notebook",
+          2002,
+          1,
+          [
+            "ICE_CREAM_SHOP",
+            "BAKERY"
+          ],
+          101359,
+          101359
+        ],
+        [
+          "new_notebook",
+          2003,
+          1,
+          [
+            "BAKERY",
+            "ICE_CREAM_SHOP"
+          ],
+          101848,
+          101848
+        ],
+        [
+          "new_notebook",
+          2004,
+          0,
+          [
+            "BAKERY",
+            "SMOOTHIE_SHOP"
+          ],
+          86563,
+          86563
+        ],
+        [
+          "new_notebook",
+          2004,
+          1,
+          [
+            "BAKERY",
+            "SMOOTHIE_SHOP"
+          ],
+          86563,
+          86563
+        ],
+        [
+          "new_notebook",
+          2007,
+          0,
+          [
+            "BAKERY",
+            "BAKERY"
+          ],
+          40871,
+          40871
+        ],
+        [
+          "new_notebook",
+          2008,
+          0,
+          [
+            "PIZZA_SHOP",
+            "FARMERS_MARKET"
+          ],
+          90228,
+          90228
+        ],
+        [
+          "new_notebook",
+          2007,
+          1,
+          [
+            "BAKERY",
+            "BAKERY"
+          ],
+          40871,
+          40871
+        ],
+        [
+          "new_notebook",
+          2009,
+          1,
+          [
+            "SMOOTHIE_SHOP",
+            "SMOOTHIE_SHOP"
+          ],
+          151685,
+          151685
+        ],
+        [
+          "new_notebook",
+          2008,
+          1,
+          [
+            "PIZZA_SHOP",
+            "FARMERS_MARKET"
+          ],
+          90228,
+          90228
+        ],
+        [
+          "new_notebook",
+          2009,
+          0,
+          [
+            "SMOOTHIE_SHOP",
+            "SMOOTHIE_SHOP"
+          ],
+          151685,
+          151685
+        ],
+        [
+          "new_notebook",
+          2010,
+          0,
+          [
+            "ICE_CREAM_SHOP",
+            "BRUNCH_SPOT"
+          ],
+          108426,
+          108426
+        ],
+        [
+          "new_notebook",
+          2010,
+          1,
+          [
+            "ICE_CREAM_SHOP",
+            "BRUNCH_SPOT"
+          ],
+          108426,
+          108426
+        ],
+        [
+          "new_notebook",
+          2011,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          110945,
+          114938
+        ],
+        [
+          "gold_v25_plus",
+          2005,
+          0,
+          [
+            "BAKERY",
+            "YARN_STORE"
+          ],
+          73299,
+          73396
+        ],
+        [
+          "gold_v25_plus",
+          2005,
+          1,
+          [
+            "BAKERY",
+            "YARN_STORE"
+          ],
+          73299,
+          73396
+        ],
+        [
+          "gold_v25_plus",
+          2011,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          107909,
+          114301
+        ],
+        [
+          "gold_v25_plus",
+          2011,
+          1,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          108448,
+          111161
+        ],
+        [
+          "gold_v25",
+          2011,
+          0,
+          [
+            "YARN_STORE",
+            "FARMERS_MARKET"
+          ],
+          112240,
+          113399
+        ]
+      ],
+      "games": 72
+    }
+  ],
+  "note": "Per-game rows dropped; aggregates and every non-win retained."
+}
