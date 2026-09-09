@@ -1,0 +1,9 @@
+{
+  "beneficial_candidate_retention": 1.0,
+  "beneficial_candidates": 15,
+  "fork_turns": 333480,
+  "mismatches": [],
+  "naive_turns": 1069872,
+  "pairs": 1464,
+  "savings_percent": 68.82991610211316
+}

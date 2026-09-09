@@ -1,0 +1,280 @@
+{
+  "backend": "official_python",
+  "engine": "1.32.7",
+  "mismatches": 0,
+  "rows": [
+    {
+      "arm": "parent",
+      "candidate": "legal_6_359",
+      "fallback_steps_checked": 719,
+      "mismatch": false,
+      "native_rewards": [
+        69820,
+        69820
+      ],
+      "rewards": [
+        69820.0,
+        69820.0
+      ],
+      "seat": 0,
+      "seed": 19091101,
+      "turns": 719
+    },
+    {
+      "arm": "candidate",
+      "candidate": "legal_6_359",
+      "fallback_steps_checked": 671,
+      "mismatch": false,
+      "native_rewards": [
+        69718,
+        69651
+      ],
+      "rewards": [
+        69718.0,
+        69651.0
+      ],
+      "seat": 0,
+      "seed": 19091101,
+      "turns": 719
+    },
+    {
+      "arm": "parent",
+      "candidate": "legal_6_359",
+      "fallback_steps_checked": 719,
+      "mismatch": false,
+      "native_rewards": [
+        69820,
+        69820
+      ],
+      "rewards": [
+        69820.0,
+        69820.0
+      ],
+      "seat": 1,
+      "seed": 19091101,
+      "turns": 719
+    },
+    {
+      "arm": "candidate",
+      "candidate": "legal_6_359",
+      "fallback_steps_checked": 671,
+      "mismatch": false,
+      "native_rewards": [
+        69651,
+        69718
+      ],
+      "rewards": [
+        69651.0,
+        69718.0
+      ],
+      "seat": 1,
+      "seed": 19091101,
+      "turns": 719
+    },
+    {
+      "arm": "parent",
+      "candidate": "legal_6_359",
+      "fallback_steps_checked": 719,
+      "mismatch": false,
+      "native_rewards": [
+        96559,
+        96559
+      ],
+      "rewards": [
+        96559.0,
+        96559.0
+      ],
+      "seat": 0,
+      "seed": 19091102,
+      "turns": 719
+    },
+    {
+      "arm": "candidate",
+      "candidate": "legal_6_359",
+      "fallback_steps_checked": 671,
+      "mismatch": false,
+      "native_rewards": [
+        96573,
+        96339
+      ],
+      "rewards": [
+        96573.0,
+        96339.0
+      ],
+      "seat": 0,
+      "seed": 19091102,
+      "turns": 719
+    },
+    {
+      "arm": "parent",
+      "candidate": "legal_6_359",
+      "fallback_steps_checked": 719,
+      "mismatch": false,
+      "native_rewards": [
+        96559,
+        96559
+      ],
+      "rewards": [
+        96559.0,
+        96559.0
+      ],
+      "seat": 1,
+      "seed": 19091102,
+      "turns": 719
+    },
+    {
+      "arm": "candidate",
+      "candidate": "legal_6_359",
+      "fallback_steps_checked": 671,
+      "mismatch": false,
+      "native_rewards": [
+        96339,
+        96573
+      ],
+      "rewards": [
+        96339.0,
+        96573.0
+      ],
+      "seat": 1,
+      "seed": 19091102,
+      "turns": 719
+    },
+    {
+      "arm": "parent",
+      "candidate": "legal_32_359",
+      "fallback_steps_checked": 719,
+      "mismatch": false,
+      "native_rewards": [
+        69820,
+        69820
+      ],
+      "rewards": [
+        69820.0,
+        69820.0
+      ],
+      "seat": 0,
+      "seed": 19091101,
+      "turns": 719
+    },
+    {
+      "arm": "candidate",
+      "candidate": "legal_32_359",
+      "fallback_steps_checked": 715,
+      "mismatch": false,
+      "native_rewards": [
+        69825,
+        69814
+      ],
+      "rewards": [
+        69825.0,
+        69814.0
+      ],
+      "seat": 0,
+      "seed": 19091101,
+      "turns": 719
+    },
+    {
+      "arm": "parent",
+      "candidate": "legal_32_359",
+      "fallback_steps_checked": 719,
+      "mismatch": false,
+      "native_rewards": [
+        69820,
+        69820
+      ],
+      "rewards": [
+        69820.0,
+        69820.0
+      ],
+      "seat": 1,
+      "seed": 19091101,
+      "turns": 719
+    },
+    {
+      "arm": "candidate",
+      "candidate": "legal_32_359",
+      "fallback_steps_checked": 715,
+      "mismatch": false,
+      "native_rewards": [
+        69814,
+        69825
+      ],
+      "rewards": [
+        69814.0,
+        69825.0
+      ],
+      "seat": 1,
+      "seed": 19091101,
+      "turns": 719
+    },
+    {
+      "arm": "parent",
+      "candidate": "legal_32_359",
+      "fallback_steps_checked": 719,
+      "mismatch": false,
+      "native_rewards": [
+        96559,
+        96559
+      ],
+      "rewards": [
+        96559.0,
+        96559.0
+      ],
+      "seat": 0,
+      "seed": 19091102,
+      "turns": 719
+    },
+    {
+      "arm": "candidate",
+      "candidate": "legal_32_359",
+      "fallback_steps_checked": 715,
+      "mismatch": false,
+      "native_rewards": [
+        96564,
+        96553
+      ],
+      "rewards": [
+        96564.0,
+        96553.0
+      ],
+      "seat": 0,
+      "seed": 19091102,
+      "turns": 719
+    },
+    {
+      "arm": "parent",
+      "candidate": "legal_32_359",
+      "fallback_steps_checked": 719,
+      "mismatch": false,
+      "native_rewards": [
+        96559,
+        96559
+      ],
+      "rewards": [
+        96559.0,
+        96559.0
+      ],
+      "seat": 1,
+      "seed": 19091102,
+      "turns": 719
+    },
+    {
+      "arm": "candidate",
+      "candidate": "legal_32_359",
+      "fallback_steps_checked": 715,
+      "mismatch": false,
+      "native_rewards": [
+        96553,
+        96564
+      ],
+      "rewards": [
+        96553.0,
+        96564.0
+      ],
+      "seat": 1,
+      "seed": 19091102,
+      "turns": 719
+    }
+  ],
+  "simulated_turns": 11504
+}

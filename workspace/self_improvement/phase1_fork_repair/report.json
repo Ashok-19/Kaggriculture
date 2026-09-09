@@ -1,0 +1,316 @@
+{
+  "all_in_fge": 2518.9,
+  "all_in_simulated_turns": 1813608,
+  "baseline_capture_executions": 24,
+  "checkpoints": {
+    "359": 12,
+    "647": 12
+  },
+  "cpu_cuda_mismatches": 0,
+  "dev_candidate_runs": 64,
+  "discovery_transitions_all_candidates": {
+    "L->W": 1,
+    "T->W": 78,
+    "W->L": 473,
+    "W->T": 0
+  },
+  "distinct_discovery_games": 12,
+  "efficiency": {
+    "beneficial_candidate_retention": 1.0,
+    "beneficial_candidates": 15,
+    "fork_turns": 333480,
+    "mismatches": [],
+    "naive_turns": 1069872,
+    "pairs": 1464,
+    "savings_percent": 68.82991610211316
+  },
+  "environment": {
+    "architecture": "sm_86",
+    "cpp_flags": "-std=c++17 -O2 -ffp-contract=off",
+    "cuda_flags": "-std=c++17 -O2 --fmad=false -arch=sm_86",
+    "driver": "595.84",
+    "g++": "11.4.0",
+    "gpu": "NVIDIA GeForce RTX 3050 Laptop GPU",
+    "gpu_memory_mib": 4096,
+    "nvcc": "11.5.119"
+  },
+  "fallback_steps_checked": 11296,
+  "fork_roots": 24,
+  "fresh_build_cases": 12,
+  "fresh_dev_cases": 16,
+  "frozen_primary_candidate": "legal_6_359",
+  "gates": {
+    "budget": true,
+    "efficiency": true,
+    "fresh_full_game_retention": true,
+    "matched_matrix": true,
+    "official_native": true,
+    "parent_unchanged": true,
+    "snapshot_and_cpu_cuda": true,
+    "two_repair_phenotypes": true
+  },
+  "identity_controls": 1,
+  "internal_dev_survivors": [
+    "legal_2_359",
+    "legal_32_359",
+    "legal_4_359",
+    "legal_6_359"
+  ],
+  "ledger": [
+    {
+      "artifact": "dev_legal_2_359.json",
+      "backend": "cuda_gate",
+      "binary_sha256": "113afffcb6d89d526c2c5906edc9569a13a363a62eddcd2d9eb4b30700c9883f",
+      "simulated_turns": 23008,
+      "wall_seconds": 0.9776649160048692
+    },
+    {
+      "artifact": "dev_legal_32_359.json",
+      "backend": "cuda_gate",
+      "binary_sha256": "113afffcb6d89d526c2c5906edc9569a13a363a62eddcd2d9eb4b30700c9883f",
+      "simulated_turns": 23008,
+      "wall_seconds": 0.975191988000006
+    },
+    {
+      "artifact": "dev_legal_4_359.json",
+      "backend": "cuda_gate",
+      "binary_sha256": "113afffcb6d89d526c2c5906edc9569a13a363a62eddcd2d9eb4b30700c9883f",
+      "simulated_turns": 23008,
+      "wall_seconds": 0.9680764389995602
+    },
+    {
+      "artifact": "dev_legal_6_359.json",
+      "backend": "cuda_gate",
+      "binary_sha256": "113afffcb6d89d526c2c5906edc9569a13a363a62eddcd2d9eb4b30700c9883f",
+      "simulated_turns": 23008,
+      "wall_seconds": 2.475984835997224
+    },
+    {
+      "artifact": "fidelity_cpu.json",
+      "backend": "cpu",
+      "binary_sha256": null,
+      "simulated_turns": 48708,
+      "wall_seconds": 1.6931686579991947
+    },
+    {
+      "artifact": "fidelity_cpu_2.json",
+      "backend": "cpu",
+      "binary_sha256": null,
+      "simulated_turns": 48708,
+      "wall_seconds": 1.6972911429984379
+    },
+    {
+      "artifact": "fidelity_cuda.json",
+      "backend": "cuda",
+      "binary_sha256": null,
+      "simulated_turns": 48708,
+      "wall_seconds": 4.280007807996299
+    },
+    {
+      "artifact": "fidelity_cuda_2.json",
+      "backend": "cuda",
+      "binary_sha256": null,
+      "simulated_turns": 48708,
+      "wall_seconds": 4.281773203998455
+    },
+    {
+      "artifact": "focused_test.json",
+      "backend": "focused_test_cpu_cuda",
+      "binary_sha256": null,
+      "simulated_turns": 14096,
+      "wall_seconds": null
+    },
+    {
+      "artifact": "integration_cpu_legal_2_359.json",
+      "backend": "cpu_gate",
+      "binary_sha256": "0a94f526d160d38358977300cf40768131c0d196adc8494a91fe8db5fc6385c7",
+      "simulated_turns": 3596,
+      "wall_seconds": 0.14805036799953086
+    },
+    {
+      "artifact": "integration_cpu_legal_32_359.json",
+      "backend": "cpu_gate",
+      "binary_sha256": "0a94f526d160d38358977300cf40768131c0d196adc8494a91fe8db5fc6385c7",
+      "simulated_turns": 3596,
+      "wall_seconds": 0.14734550599678187
+    },
+    {
+      "artifact": "integration_cpu_legal_4_359.json",
+      "backend": "cpu_gate",
+      "binary_sha256": "0a94f526d160d38358977300cf40768131c0d196adc8494a91fe8db5fc6385c7",
+      "simulated_turns": 3596,
+      "wall_seconds": 0.1468458939998527
+    },
+    {
+      "artifact": "integration_cpu_legal_6_359.json",
+      "backend": "cpu_gate",
+      "binary_sha256": "0a94f526d160d38358977300cf40768131c0d196adc8494a91fe8db5fc6385c7",
+      "simulated_turns": 3596,
+      "wall_seconds": 0.14753474399913102
+    },
+    {
+      "artifact": "integration_cuda_legal_2_359.json",
+      "backend": "cuda_gate",
+      "binary_sha256": "113afffcb6d89d526c2c5906edc9569a13a363a62eddcd2d9eb4b30700c9883f",
+      "simulated_turns": 3596,
+      "wall_seconds": 1.1379455380010768
+    },
+    {
+      "artifact": "integration_cuda_legal_32_359.json",
+      "backend": "cuda_gate",
+      "binary_sha256": "113afffcb6d89d526c2c5906edc9569a13a363a62eddcd2d9eb4b30700c9883f",
+      "simulated_turns": 3596,
+      "wall_seconds": 1.1394253210019087
+    },
+    {
+      "artifact": "integration_cuda_legal_4_359.json",
+      "backend": "cuda_gate",
+      "binary_sha256": "113afffcb6d89d526c2c5906edc9569a13a363a62eddcd2d9eb4b30700c9883f",
+      "simulated_turns": 3596,
+      "wall_seconds": 1.1418097909991047
+    },
+    {
+      "artifact": "integration_cuda_legal_6_359.json",
+      "backend": "cuda_gate",
+      "binary_sha256": "113afffcb6d89d526c2c5906edc9569a13a363a62eddcd2d9eb4b30700c9883f",
+      "simulated_turns": 3596,
+      "wall_seconds": 2.6397764649955207
+    },
+    {
+      "artifact": "legal_build_legal_2_359.json",
+      "backend": "cuda_gate",
+      "binary_sha256": "113afffcb6d89d526c2c5906edc9569a13a363a62eddcd2d9eb4b30700c9883f",
+      "simulated_turns": 17256,
+      "wall_seconds": 0.9787463389948243
+    },
+    {
+      "artifact": "legal_build_legal_32_359.json",
+      "backend": "cuda_gate",
+      "binary_sha256": "113afffcb6d89d526c2c5906edc9569a13a363a62eddcd2d9eb4b30700c9883f",
+      "simulated_turns": 17256,
+      "wall_seconds": 0.9806208240042906
+    },
+    {
+      "artifact": "legal_build_legal_4_359.json",
+      "backend": "cuda_gate",
+      "binary_sha256": "113afffcb6d89d526c2c5906edc9569a13a363a62eddcd2d9eb4b30700c9883f",
+      "simulated_turns": 17256,
+      "wall_seconds": 0.9764095630016527
+    },
+    {
+      "artifact": "legal_build_legal_6_359.json",
+      "backend": "cuda_gate",
+      "binary_sha256": "113afffcb6d89d526c2c5906edc9569a13a363a62eddcd2d9eb4b30700c9883f",
+      "simulated_turns": 17256,
+      "wall_seconds": 2.4867404680044274
+    },
+    {
+      "artifact": "matched_full_matrix.json",
+      "backend": "cuda_gate",
+      "binary_sha256": "113afffcb6d89d526c2c5906edc9569a13a363a62eddcd2d9eb4b30700c9883f",
+      "simulated_turns": 1069872,
+      "wall_seconds": 10.873232107995136
+    },
+    {
+      "artifact": "matrix.json",
+      "backend": "cuda",
+      "binary_sha256": null,
+      "simulated_turns": 333480,
+      "wall_seconds": 6.758714670999325
+    },
+    {
+      "artifact": "official.json",
+      "backend": "official_python",
+      "binary_sha256": null,
+      "simulated_turns": 11504,
+      "wall_seconds": null
+    }
+  ],
+  "legal_build_candidate_runs": 48,
+  "legal_build_survivors": 4,
+  "legalized_candidates": 4,
+  "limitations": [
+    "Small internal panels; no universal non-regression claim or external evidence.",
+    "Gains are modest and chiefly tie-to-win market effects; no demonstrated new strategic economy.",
+    "Discovery roots use route 0; fresh BUILD includes route 12 and DEV includes route 4. Route-12 restoration has an added parity fixture.",
+    "BKG4 legal overrides were reused directly; no new SpecialistProgram executor or grammar was added.",
+    "Snapshots are same-build owned-state disk round trips, not a portable cross-version archive API.",
+    "A separate supplementary local fork/repair plan was not found; both tracked first-place plans were read.",
+    "Initial fidelity runs were repeated after adding disk reload; both are charged in the ledger.",
+    "GPU wall time includes process/table setup; compile time was not instrumented."
+  ],
+  "matched_full_candidate_runs": 1464,
+  "official_games": 16,
+  "official_native_mismatches": 0,
+  "parent": "shop_router_0909/plus",
+  "parent_blackboard_slots": 2,
+  "parent_node_state_slots": 0,
+  "parent_nodes": 85,
+  "parent_sha256": "84bbfe9a32ccf4d202664500b28bba787dab18cb18180c539d70f1890b1cc450",
+  "parent_unchanged": true,
+  "primary_build": {
+    "activation_turns": 576,
+    "cases": 12,
+    "name": "legal_6_359",
+    "negative_cases": 0,
+    "net_delta": 1272,
+    "positive_cases": 12,
+    "survivor": true,
+    "transitions": {
+      "L->W": 0,
+      "T->W": 6,
+      "W->L": 0,
+      "W->T": 0
+    }
+  },
+  "primary_dev": {
+    "activation_turns": 768,
+    "cases": 16,
+    "name": "legal_6_359",
+    "negative_cases": 0,
+    "net_delta": 4584,
+    "positive_cases": 16,
+    "survivor": true,
+    "transitions": {
+      "L->W": 0,
+      "T->W": 8,
+      "W->L": 0,
+      "W->T": 0
+    }
+  },
+  "repair_candidates": 60,
+  "repair_continuations": 1440,
+  "snapshot_bytes": 49488,
+  "snapshot_mismatches": 0,
+  "source_sha256": {
+    "native/cpp/include/sim.hpp": "30d57104377baf03415e1fccc35a9bfadf9432e12d61e8bf34c9565dfd5e569d",
+    "native/cuda/include/sim.cuh": "aee205ae5ac368be5496e0d217223d0536846e7ef1fef1e9934fc7270e1a7091",
+    "native/cuda/src/phase1_fork_repair.cu": "bf59eb868e5576de3b3f43922946b223aa4f5454696b6ec7793f48551dca4a90",
+    "src/kaggriculture_bonsai/search/phase1_fork_repair.py": "ce7d8ed888bfe4e6cc532cdbee863f083a8b6a383169c1fa72764c4b1f406707",
+    "src/kaggriculture_bonsai/search/phase1_legal_agent.py": "d2e2879e3b2c1d95b434b781935e913edc1ac5e40695a85c1ba92c230fe7cf13"
+  },
+  "starting_head": "11e5543169510a935416e8e6f16f32201b0109e3",
+  "total_matrix_continuations": 1464,
+  "useful_phenotypes": [
+    "sell_topup",
+    "value_sort"
+  ],
+  "useful_support": {
+    "checkpoint": 359,
+    "members": [
+      0,
+      1
+    ],
+    "roots_per_phenotype": 12,
+    "seats": [
+      0,
+      1
+    ],
+    "seeds": [
+      19091001,
+      19091002,
+      19091003
+    ]
+  },
+  "verdict": "PHASE 1 PASS - FORK-AND-REPAIR VALIDATED, PROCEED TO MINIMAL CCPR"
+}

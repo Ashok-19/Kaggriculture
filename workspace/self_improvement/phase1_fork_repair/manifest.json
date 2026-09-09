@@ -1,0 +1,34 @@
+{
+  "arity_sha256": "5e8305647ac58067267515699c0dc15371e7d738d299512bfd26615ebfb882af",
+  "build_seeds": [
+    19091001,
+    19091002,
+    19091003
+  ],
+  "dev_seeds": [
+    19092001,
+    19092002,
+    19092003,
+    19092004
+  ],
+  "discovery_checkpoints": [
+    359,
+    647
+  ],
+  "engine": "kaggle-environments 1.32.7 / 28b6d8af3ce73926b3d0fda1410c1ddd8384ab8c",
+  "fge_denominator": 720,
+  "max_candidates": 61,
+  "max_fge": 3200,
+  "max_legalized": 12,
+  "members": [
+    "parent_self_play",
+    "parent_sell_topup_576_703"
+  ],
+  "native_source_sha256": "ee91e46da8cdf521aa36a70dd6feadaeb15246af38ad5f4ee6661a38ee4b7b09",
+  "ordering": "candidate_id, seed, seat, member, checkpoint; fixed enumeration; no early pruning",
+  "parent": "shop_router_0909/plus",
+  "parent_sha256": "84bbfe9a32ccf4d202664500b28bba787dab18cb18180c539d70f1890b1cc450",
+  "route_pack_sha256": "f711680c0c4514be70c97e64491f969ad31d79edd6a639b42cf950b98eebe696",
+  "source_head": "11e5543169510a935416e8e6f16f32201b0109e3",
+  "terminal_transitions": 719
+}

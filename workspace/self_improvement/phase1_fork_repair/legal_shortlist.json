@@ -1,0 +1,125 @@
+{
+  "candidates": [
+    {
+      "blackboard_slots": 1,
+      "duration": 48,
+      "effect": [
+        234,
+        234,
+        234,
+        234,
+        138,
+        138,
+        138,
+        138,
+        245,
+        231,
+        245,
+        231
+      ],
+      "gate_sha256": "77f3498382572fd8b2762fde35a78ea1f62c855bcacf553dede964365cbdcec1",
+      "id": 6,
+      "mode": 1,
+      "name": "legal_6_359",
+      "net_delta": 2440,
+      "nodes": 6,
+      "phenotype": "sell_topup",
+      "start": 359,
+      "state_slots": 0
+    },
+    {
+      "blackboard_slots": 1,
+      "duration": 16,
+      "effect": [
+        95,
+        95,
+        95,
+        95,
+        64,
+        64,
+        64,
+        64,
+        91,
+        91,
+        91,
+        91
+      ],
+      "gate_sha256": "27371444d0b4cb749e760086ae840f0bba3cdb2bfb84b1b171439f18476c3612",
+      "id": 4,
+      "mode": 1,
+      "name": "legal_4_359",
+      "net_delta": 1000,
+      "nodes": 6,
+      "phenotype": "sell_topup",
+      "start": 359,
+      "state_slots": 0
+    },
+    {
+      "blackboard_slots": 1,
+      "duration": 4,
+      "effect": [
+        75,
+        75,
+        75,
+        75,
+        27,
+        27,
+        27,
+        27,
+        75,
+        75,
+        75,
+        75
+      ],
+      "gate_sha256": "c49bbfa6b9f45b96b9f02e0cb790ebf42515b8f94e86992a8c1031b2b24b8a85",
+      "id": 2,
+      "mode": 1,
+      "name": "legal_2_359",
+      "net_delta": 708,
+      "nodes": 6,
+      "phenotype": "sell_topup",
+      "start": 359,
+      "state_slots": 0
+    },
+    {
+      "blackboard_slots": 1,
+      "duration": 4,
+      "effect": [
+        11,
+        11,
+        11,
+        11,
+        11,
+        11,
+        11,
+        11,
+        11,
+        11,
+        11,
+        11
+      ],
+      "gate_sha256": "405a581cab7b32b574a5b6edd77d949ad4327c4d8457d98804887e756a8cda2f",
+      "id": 32,
+      "mode": 6,
+      "name": "legal_32_359",
+      "net_delta": 132,
+      "nodes": 6,
+      "phenotype": "value_sort",
+      "start": 359,
+      "state_slots": 0
+    }
+  ],
+  "dev_seeds": [
+    19092001,
+    19092002,
+    19092003,
+    19092004
+  ],
+  "fresh_build_seeds": [
+    19091101,
+    19091102,
+    19091103
+  ],
+  "selection": "positive net, >=2 seeds, both seats, zero W->L/W->T; distinct phenotype/effect; net then size",
+  "status": "FROZEN_BEFORE_FRESH_BUILD_AND_INTERNAL_DEV"
+}

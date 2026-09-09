@@ -1,0 +1,47 @@
+{
+  "blackboard": [
+    {
+      "initial": 0,
+      "name": "repair",
+      "type": "I32"
+    }
+  ],
+  "name": "PHASE1_BOUNDED_REPAIR",
+  "schema_version": 4,
+  "tree": {
+    "children": [
+      {
+        "children": [
+          {
+            "lhs": {
+              "feature": "STEP"
+            },
+            "op": "GE",
+            "rhs": 359,
+            "type": "Condition"
+          },
+          {
+            "lhs": {
+              "feature": "STEP"
+            },
+            "op": "LE",
+            "rhs": 362,
+            "type": "Condition"
+          },
+          {
+            "slot": "repair",
+            "type": "SetBlackboard",
+            "value": 6
+          }
+        ],
+        "type": "Sequence"
+      },
+      {
+        "slot": "repair",
+        "type": "SetBlackboard",
+        "value": 0
+      }
+    ],
+    "type": "Selector"
+  }
+}

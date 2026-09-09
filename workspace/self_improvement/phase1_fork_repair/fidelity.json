@@ -1,0 +1,31 @@
+{
+  "candidate_controls": [
+    [
+      0,
+      0,
+      0
+    ],
+    [
+      1,
+      1,
+      24
+    ],
+    [
+      3,
+      3,
+      8
+    ]
+  ],
+  "cases": 12,
+  "checkpoints": [
+    23,
+    71,
+    143,
+    359,
+    647,
+    705
+  ],
+  "errors": [],
+  "pass": true,
+  "simulated_turns": 97416
+}
