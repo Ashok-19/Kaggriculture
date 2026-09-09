@@ -17,6 +17,30 @@ namespace engine = kag;
 #endif
 namespace parent = shop_router_0909;
 
+// Phase-2 telemetry uses existing legal BKG4 features, never snapshot-only data.
+constexpr int ROOT_FEATURES = 12;
+struct LegalObservation {
+    const engine::Sim& sim;
+    int player;
+    HD int feature(int id,int a0=0,int a1=0) const {
+        (void)a1;const auto&f=sim.st.farms[player];
+        switch(id){
+            case bonsaikg4::F_STEP:return sim.st.step;
+            case bonsaikg4::F_DAY:return sim.st.day;
+            case bonsaikg4::F_HOUR:return sim.st.hour;
+            case bonsaikg4::F_OWN_MONEY:return static_cast<int>(f.money);
+            case bonsaikg4::F_OWN_UNITS:return f.n_units;
+            case bonsaikg4::F_OWN_LAND:return f.n_quadrants;
+            case bonsaikg4::F_MARKET_INVENTORY:return a0>=0&&a0<9?sim.st.market.inventory[a0]:0;
+            case bonsaikg4::F_MARKET_PRICE:return a0>=0&&a0<9?sim.st.market.prices[a0]:0;
+            case bonsaikg4::F_OWN_SHED:return a0>=0&&a0<12?f.shed[a0]:0;
+            case bonsaikg4::F_OWN_SHED_TOTAL:return f.shed_total;
+            case bonsaikg4::F_SHOP_AT:return a0>=0&&a0<sim.st.n_shops?sim.st.shops[a0]:-1;
+            default:return 0;
+        }
+    }
+};
+
 struct Case { uint64_t seed; int seat, member, checkpoint; };
 struct Candidate { int id, mode, duration; };
 struct Fork {
@@ -32,6 +56,7 @@ struct Row {
     double money[2]{};
     uint64_t root=0, simulation=0, controller=0, actions=0;
     int fault=0, changes=0, duration=0, turns=0, route=0, shops[2]{-1,-1};
+    int features[ROOT_FEATURES]{};
 };
 // Logical fields only: no padding, pointer addresses or dead queue entries.
 struct Hash {
@@ -140,7 +165,8 @@ HD void turn(engine::Sim&sim,const bonsaikg4::PolicyView4&policy,parent::PackVie
             if(gate.n_nodes&&candidate.mode){
                 int32_t board[1]{};bonsaikg4::RuntimeMeta4 meta{};
                 bonsaikg4::RuntimeView4 runtime{board,nullptr,&meta};bonsaikg4::reset_runtime(gate,runtime);
-                bonsaikg4::ActionResult4 ignored{};bonsaikg4::tick4(gate,runtime,o,0,ignored);
+                bonsaikg4::ActionResult4 ignored{};LegalObservation legal{sim,p};
+                bonsaikg4::tick4(gate,runtime,legal,0,ignored);
                 if(meta.fault)r.fault=meta.fault;
                 mode=board[0];
             }
@@ -179,6 +205,12 @@ HD Row run(engine::Sim&sim,const bonsaikg4::PolicyView4&policy,parent::PackView 
             }
             Hash h;hash_state(h,sim);hash_controller(h,states[0]);hash_controller(h,states[1]);r.root=h.value;
             r.route=states[c.seat].bb[0];auto o=observe(sim,c.seat);r.shops[0]=o.shop0;r.shops[1]=o.shop1;
+            LegalObservation legal{sim,c.seat};
+            const int ids[ROOT_FEATURES]={bonsaikg4::F_OWN_MONEY,bonsaikg4::F_OWN_UNITS,bonsaikg4::F_OWN_LAND,
+                bonsaikg4::F_MARKET_INVENTORY,bonsaikg4::F_MARKET_INVENTORY,bonsaikg4::F_MARKET_PRICE,bonsaikg4::F_MARKET_PRICE,
+                bonsaikg4::F_OWN_SHED,bonsaikg4::F_OWN_SHED,bonsaikg4::F_OWN_SHED_TOTAL,bonsaikg4::F_SHOP_AT,bonsaikg4::F_SHOP_AT};
+            const int args[ROOT_FEATURES]={0,0,0,2,7,2,7,2,7,0,0,1};
+            for(int i=0;i<ROOT_FEATURES;++i)r.features[i]=legal.feature(ids[i],args[i]);
             // Compare only the matched suffix. Prefix work remains in the ledger.
             sh=Hash{};ch=Hash{};ah=Hash{};
         }
@@ -201,12 +233,12 @@ template<class T>T*upload(const T*data,size_t n){T*out=nullptr;if(!n)return out;
     KAGCUDA_CHECK(cudaMalloc(&out,n*sizeof(T)));KAGCUDA_CHECK(cudaMemcpy(out,data,n*sizeof(T),cudaMemcpyHostToDevice));return out;}
 #endif
 int main(int argc,char**argv){
-    if(argc!=8&&argc!=9){std::cerr<<"controller routes arity cases candidates audit matched [legal_gate]\n";return 2;}
+    if(argc<8||argc>10){std::cerr<<"controller routes arity cases candidates audit matched [legal_gate|-] [features]\n";return 2;}
     auto owned=bonsaikg4::load_compiled4(argv[1]);auto policy=owned.view();
     if(policy.n_bb!=2||policy.n_state!=0){std::cerr<<"unsupported parent state layout\n";return 2;}
     auto pack=bonsaikg4_champion::load_extended_route_pack(argv[2]);
     bonsaikg4::OwnedPolicy4 owned_gate;bonsaikg4::PolicyView4 gate{};
-    if(argc==9){owned_gate=bonsaikg4::load_compiled4(argv[8]);gate=owned_gate.view();
+    if(argc>=9&&std::string(argv[8])!="-"){owned_gate=bonsaikg4::load_compiled4(argv[8]);gate=owned_gate.view();
         if(gate.n_bb!=1||gate.n_state!=0)return 2;}
     std::vector<uint16_t>arity(parent::ROUTES*parent::STEPS);std::ifstream af(argv[3],std::ios::binary);
     af.read((char*)arity.data(),arity.size()*2);if(!af)return 2;
@@ -235,9 +267,28 @@ int main(int argc,char**argv){
 #else
     auto forks=std::make_unique<Fork[]>(rows.size());auto states=std::make_unique<parent::State[]>(2);
 #endif
-    for(int index=-1;index<(int)candidates.size();++index){
+    // Mode 3 reuses a context-pinned disk capture; mode 4 captures only.
+    // The Python driver verifies the binary/case/parent identity and file digest.
+    if(matched==3){
+        std::vector<Fork> restored(rows.size());
+#ifdef __CUDACC__
+        std::string path=std::string(argv[4])+".cuda.snapshots";
+#else
+        std::string path=std::string(argv[4])+".cpu.snapshots";
+#endif
+        std::ifstream file(path,std::ios::binary);file.read((char*)restored.data(),restored.size()*sizeof(Fork));
+        if(!file||file.peek()!=std::ifstream::traits_type::eof())return 2;
+        for(size_t i=0;i<restored.size();++i)
+            if(restored[i].game.cfg.seed!=cases[i].seed||restored[i].game.st.step!=cases[i].checkpoint)return 2;
+#ifdef __CUDACC__
+        KAGCUDA_CHECK(cudaMemcpy(forks,restored.data(),restored.size()*sizeof(Fork),cudaMemcpyHostToDevice));
+#else
+        for(size_t i=0;i<restored.size();++i)forks[i]=restored[i];
+#endif
+    }
+    for(int index=matched==3?0:-1;index<(matched==4?0:(int)candidates.size());++index){
         candidate=index<0?Candidate{}:candidates[index];
-        for(int kind=index<0?0:matched==2?2:1;kind<=(index<0?0:matched?2:1);++kind){
+        for(int kind=index<0?0:matched==2?2:1;kind<=(index<0?0:(matched==1||matched==2)?2:1);++kind){
 #ifdef __CUDACC__
             evaluate<<<(rows.size()+31)/32,32>>>(tables.dev,policy,pv,forks,states,device_cases,rows.size(),candidate,kind,audit,device_rows,gate);
             KAGCUDA_CHECK(cudaGetLastError());KAGCUDA_CHECK(cudaMemcpy(rows.data(),device_rows,rows.size()*sizeof(Row),cudaMemcpyDeviceToHost));
@@ -248,7 +299,9 @@ int main(int argc,char**argv){
             for(size_t i=0;i<rows.size();++i){const auto&r=rows[i];const auto&x=cases[i];
                 std::cout<<kind<<" "<<candidate.id<<" "<<x.seed<<" "<<x.seat<<" "<<x.member<<" "<<x.checkpoint
                     <<" "<<r.money[0]<<" "<<r.money[1]<<" "<<r.root<<" "<<r.simulation<<" "<<r.controller<<" "<<r.actions
-                    <<" "<<r.fault<<" "<<r.changes<<" "<<r.duration<<" "<<r.turns<<" "<<r.route<<" "<<r.shops[0]<<" "<<r.shops[1]<<"\n";
+                    <<" "<<r.fault<<" "<<r.changes<<" "<<r.duration<<" "<<r.turns<<" "<<r.route<<" "<<r.shops[0]<<" "<<r.shops[1];
+                if(argc==10)for(int j=0;j<ROOT_FEATURES;++j)std::cout<<" "<<r.features[j];
+                std::cout<<"\n";
             }std::cout.flush();
             if(kind==0){
                 // Exercise an actual host/disk round trip, not just a live device copy.
