@@ -1,0 +1,59 @@
+{
+  "candidates": [
+    {
+      "id": 300,
+      "start": 0,
+      "end": 718,
+      "mode": 33
+    },
+    {
+      "id": 301,
+      "start": 0,
+      "end": 718,
+      "mode": 65
+    },
+    {
+      "id": 302,
+      "start": 288,
+      "end": 718,
+      "mode": 33
+    },
+    {
+      "id": 303,
+      "start": 288,
+      "end": 718,
+      "mode": 65
+    },
+    {
+      "id": 304,
+      "start": 432,
+      "end": 718,
+      "mode": 33
+    },
+    {
+      "id": 305,
+      "start": 432,
+      "end": 718,
+      "mode": 65
+    },
+    {
+      "id": 306,
+      "start": 576,
+      "end": 718,
+      "mode": 33
+    },
+    {
+      "id": 307,
+      "start": 576,
+      "end": 718,
+      "mode": 65
+    }
+  ],
+  "screen_seeds": [
+    990057,
+    990042,
+    990017,
+    990031
+  ],
+  "rationale": "Anticipate own scheduled non-input sales by two or three steps, without crossing the next four-step consumption boundary or shop unlock."
+}

@@ -1,0 +1,234 @@
+{
+  "status": "NOT_COMPLETE_NO_PROMOTION",
+  "starting_head": "47b304c8954216b99705df92c510612d7068f6eb",
+  "best_frozen_candidate": {
+    "identity": "BKG4_GOLD_V25_PLUS_MARKET_V2",
+    "parent": "BKG4_GOLD_V25",
+    "candidate": {
+      "id": 108,
+      "start": 576,
+      "end": 718,
+      "mode": 9
+    },
+    "status": "FROZEN_BEFORE_INTERNAL_DEV",
+    "selection": "BUILD only: all wins, greatest minimum margin",
+    "gate_semantic_hash": "cb472b52d07619e46e9159d260355dc8f771dda3cbec768a829ef9b2f18b928c",
+    "gate_sha256": "6621737ffbda4c7e3f4c9311ef0eeb3edcc10608fc81853e86016627ffd745c3",
+    "gate_nodes": 9,
+    "gate_bb": 1,
+    "gate_node_state_slots": 0,
+    "specialists": 2,
+    "route_pack_changes": 0
+  },
+  "panels": {
+    "BUILD_v1": {
+      "games": 32,
+      "parent_wtl": {
+        "W": 1,
+        "T": 30,
+        "L": 1
+      },
+      "improved_wtl": {
+        "W": 32,
+        "T": 0,
+        "L": 0
+      },
+      "transitions": {
+        "WW": 1,
+        "WT": 0,
+        "WL": 0,
+        "TW": 30,
+        "TT": 0,
+        "TL": 0,
+        "LW": 1,
+        "LT": 0,
+        "LL": 0
+      },
+      "protected_regressions": 0,
+      "minimum_margin": 447.0
+    },
+    "DEV_v1": {
+      "games": 64,
+      "parent_wtl": {
+        "W": 1,
+        "T": 62,
+        "L": 1
+      },
+      "improved_wtl": {
+        "W": 64,
+        "T": 0,
+        "L": 0
+      },
+      "transitions": {
+        "WW": 1,
+        "WT": 0,
+        "WL": 0,
+        "TW": 62,
+        "TT": 0,
+        "TL": 0,
+        "LW": 1,
+        "LT": 0,
+        "LL": 0
+      },
+      "protected_regressions": 0,
+      "minimum_margin": 408.0
+    },
+    "BUILD_v2": {
+      "games": 64,
+      "parent_wtl": {
+        "W": 0,
+        "T": 64,
+        "L": 0
+      },
+      "improved_wtl": {
+        "W": 64,
+        "T": 0,
+        "L": 0
+      },
+      "transitions": {
+        "WW": 0,
+        "WT": 0,
+        "WL": 0,
+        "TW": 64,
+        "TT": 0,
+        "TL": 0,
+        "LW": 0,
+        "LT": 0,
+        "LL": 0
+      },
+      "protected_regressions": 0,
+      "minimum_margin": 399.0
+    },
+    "DEV_v2": {
+      "games": 64,
+      "parent_wtl": {
+        "W": 6,
+        "T": 52,
+        "L": 6
+      },
+      "improved_wtl": {
+        "W": 63,
+        "T": 0,
+        "L": 1
+      },
+      "transitions": {
+        "WW": 6,
+        "WT": 0,
+        "WL": 0,
+        "TW": 52,
+        "TT": 0,
+        "TL": 0,
+        "LW": 5,
+        "LT": 0,
+        "LL": 1
+      },
+      "protected_regressions": 0,
+      "minimum_margin": -3853.0
+    },
+    "BUILD_v3": {
+      "games": 128,
+      "parent_wtl": {
+        "W": 7,
+        "T": 114,
+        "L": 7
+      },
+      "improved_wtl": {
+        "W": 127,
+        "T": 0,
+        "L": 1
+      },
+      "transitions": {
+        "WW": 7,
+        "WT": 0,
+        "WL": 0,
+        "TW": 114,
+        "TT": 0,
+        "TL": 0,
+        "LW": 6,
+        "LT": 0,
+        "LL": 1
+      },
+      "protected_regressions": 0,
+      "minimum_margin": -4488.0
+    }
+  },
+  "combined": {
+    "games": 352,
+    "parent_wtl": {
+      "W": 15,
+      "T": 322,
+      "L": 15
+    },
+    "improved_wtl": {
+      "W": 350,
+      "T": 0,
+      "L": 2
+    },
+    "transitions": {
+      "WW": 15,
+      "WT": 0,
+      "WL": 0,
+      "TW": 322,
+      "TT": 0,
+      "TL": 0,
+      "LW": 13,
+      "LT": 0,
+      "LL": 2
+    },
+    "protected_regressions": 0,
+    "minimum_margin": -4488.0
+  },
+  "cpu_cuda_probe_games": 16,
+  "cpu_cuda_mismatches": 0,
+  "tests": {
+    "parent_focused_groups": 3,
+    "v4_semantic_tests": 40,
+    "evaluator_tests_including_cuda": 19,
+    "plus_focused_groups": 2
+  },
+  "FINAL_TARGET_games": 0,
+  "FINAL_TARGET_status": "UNOPENED",
+  "official_canary_v1": {
+    "games": 64,
+    "wtl": {
+      "W": 62,
+      "T": 0,
+      "L": 2
+    },
+    "official_native_cuda_trace_mismatches": 0,
+    "status": "REJECTED_100_PERCENT_TARGET_NOT_MET",
+    "final_target_opened": false
+  },
+  "official_canary_v2_games": 0,
+  "original_parent_champion_baselines_unchanged": true,
+  "controller_nodes_total": 32,
+  "controller_blackboard_total": 4,
+  "controller_node_state_slots": 0,
+  "route_pack_changes": 0,
+  "generic_runtime_changes": 0,
+  "stop_reason": "The best frozen composition still loses. Two distinct additional market representations yielded no better candidate; no proven production-preserving weed repair was found. No extra downstream evaluation or promotion is justified.",
+  "source_sha256": {
+    "submission_main.py": "b2047fff2664c9e776f81d6be10963687ff9a5da4faf8998fc6c8a28db5de402",
+    "diagnose.py": "b1ed89f2257046f5ecd0d533e54808e95c08b466ac6f2d774d4dcc894b013d25",
+    "lead.hpp": "13cd7cef0192f226ea5395514a4e7276b4e98feb6d0f5dd31f192584c9e3640c",
+    "audit.py": "6ef09b8dc7ae0788fad95a08da17240fbbd2188b19dbdcb17136a0431ba90ef5",
+    "inspect_build.py": "565e40d575882241980be41c01f75346d2f328e5f1832540efd989a3b273059e",
+    "verify.py": "557cbb42a458f810c586380b34f51717b935226d6b49447fca42da71f93e1cfe",
+    "search.py": "66474b4c56ad7e024159adaa881789910cd65f3156abc40cb3201b6c53088dfe",
+    "search3.py": "8447c1161ad25c84d4d2b92c11ac3fdc5fb00eb382be41f6894197cff4a0adb2",
+    "bridge.cpp": "ac61a16fcb6d28eeb26a735d5df1a7a8b0d94915783afbf8cce6853c135ac064",
+    "__init__.py": "fd0b5f9bdc33f28cba8721efada9b5f1d435bd10542c47cb8df190a44b9bcfff",
+    "cleanroom_check.py": "8775d7ebb48ceb283d7daf26ccc793aacef38e124c0c5c1a8553cf57e97615fd",
+    "agent.py": "b13380bfecc05fa4bc6d648ef1d3d5d1a02a16680c883467529e0368d0415cb2",
+    "round2.py": "f97d2d0dede0d78b7753d9fd553475e4ba375bc60845d06ed5117b2e52bb98ee",
+    "test_plus.py": "be52af94dc1aaea955292bfa7d8abd77cdc353b5237a0c4957580212eceae6f0",
+    "build.py": "15fc979f4901b0c21220a560efca54fe5d95e92a97c946db3cedd528488e74a4",
+    "screen.py": "fbb2bee0b73ec4c3ef206a442538383d4fe7b6c15f457606b73df86dc2e8b4dd",
+    "round3.py": "0c64a4ea5362a02d3e1e19820ad0c33838258ce48fe46d76975771714f02f3ab",
+    "benchmark.py": "c99132be8f33d5da8589736d55ca146a00e9a259e5c6f7b1b0bd812f529737a4",
+    "README.md": "1f4385cf5e76ce877b27dcd0622a3b05e25e813acc3199085c05048465bb41a3",
+    "evaluate.cu": "bc8d197861334b2d13abed418f0d87dc2c261a6dcddfc6ebae4443009cb84ac4",
+    "package.py": "0d2b538211dac0b181d8442a0286f97bdaa9f1716e4c4233e796863d807dc0e9",
+    "search4.py": "6cce23fb926ff9d25511a0f83bb101c7e9121e251f861d57447d2e90fe951ab3"
+  }
+}

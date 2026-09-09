@@ -1,0 +1,11 @@
+{
+  "games": 64,
+  "wtl": {
+    "W": 62,
+    "T": 0,
+    "L": 2
+  },
+  "official_native_cuda_trace_mismatches": 0,
+  "status": "REJECTED_100_PERCENT_TARGET_NOT_MET",
+  "final_target_opened": false
+}

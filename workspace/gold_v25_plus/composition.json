@@ -1,0 +1,19 @@
+{
+  "identity": "BKG4_GOLD_V25_PLUS_ENDGAME_V1",
+  "parent": "BKG4_GOLD_V25",
+  "candidate": {
+    "id": 16,
+    "start": 708,
+    "end": 718,
+    "mode": 5
+  },
+  "selection": "BUILD only: all wins, greatest minimum margin, lowest id tie-break",
+  "gate_semantic_hash": "2152b3210d87287d6594864387e77a0393912635e6ae2de07b49b2975c8a0a4c",
+  "gate_nodes": 6,
+  "gate_bb": 1,
+  "gate_node_state_slots": 0,
+  "gate_sha256": "76ebe8561a6fecbf7017ac63393d0a89d7ef25071e6d2fb040303a80a10b2cc9",
+  "status": "FROZEN_BEFORE_INTERNAL_DEV",
+  "specialists": 1,
+  "route_pack_changes": 0
+}

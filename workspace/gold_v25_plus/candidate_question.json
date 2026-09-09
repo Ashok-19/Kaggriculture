@@ -1,0 +1,293 @@
+{
+  "question": "Can bounded late cargo consolidation / market priority turn symmetric outcomes into wins?",
+  "candidates": [
+    {
+      "id": 1,
+      "start": 696,
+      "end": 718,
+      "mode": 1
+    },
+    {
+      "id": 2,
+      "start": 696,
+      "end": 718,
+      "mode": 2
+    },
+    {
+      "id": 3,
+      "start": 696,
+      "end": 718,
+      "mode": 3
+    },
+    {
+      "id": 4,
+      "start": 696,
+      "end": 718,
+      "mode": 5
+    },
+    {
+      "id": 5,
+      "start": 696,
+      "end": 718,
+      "mode": 6
+    },
+    {
+      "id": 6,
+      "start": 696,
+      "end": 718,
+      "mode": 7
+    },
+    {
+      "id": 7,
+      "start": 704,
+      "end": 718,
+      "mode": 1
+    },
+    {
+      "id": 8,
+      "start": 704,
+      "end": 718,
+      "mode": 2
+    },
+    {
+      "id": 9,
+      "start": 704,
+      "end": 718,
+      "mode": 3
+    },
+    {
+      "id": 10,
+      "start": 704,
+      "end": 718,
+      "mode": 5
+    },
+    {
+      "id": 11,
+      "start": 704,
+      "end": 718,
+      "mode": 6
+    },
+    {
+      "id": 12,
+      "start": 704,
+      "end": 718,
+      "mode": 7
+    },
+    {
+      "id": 13,
+      "start": 708,
+      "end": 718,
+      "mode": 1
+    },
+    {
+      "id": 14,
+      "start": 708,
+      "end": 718,
+      "mode": 2
+    },
+    {
+      "id": 15,
+      "start": 708,
+      "end": 718,
+      "mode": 3
+    },
+    {
+      "id": 16,
+      "start": 708,
+      "end": 718,
+      "mode": 5
+    },
+    {
+      "id": 17,
+      "start": 708,
+      "end": 718,
+      "mode": 6
+    },
+    {
+      "id": 18,
+      "start": 708,
+      "end": 718,
+      "mode": 7
+    },
+    {
+      "id": 19,
+      "start": 712,
+      "end": 718,
+      "mode": 1
+    },
+    {
+      "id": 20,
+      "start": 712,
+      "end": 718,
+      "mode": 2
+    },
+    {
+      "id": 21,
+      "start": 712,
+      "end": 718,
+      "mode": 3
+    },
+    {
+      "id": 22,
+      "start": 712,
+      "end": 718,
+      "mode": 5
+    },
+    {
+      "id": 23,
+      "start": 712,
+      "end": 718,
+      "mode": 6
+    },
+    {
+      "id": 24,
+      "start": 712,
+      "end": 718,
+      "mode": 7
+    },
+    {
+      "id": 25,
+      "start": 714,
+      "end": 718,
+      "mode": 1
+    },
+    {
+      "id": 26,
+      "start": 714,
+      "end": 718,
+      "mode": 2
+    },
+    {
+      "id": 27,
+      "start": 714,
+      "end": 718,
+      "mode": 3
+    },
+    {
+      "id": 28,
+      "start": 714,
+      "end": 718,
+      "mode": 5
+    },
+    {
+      "id": 29,
+      "start": 714,
+      "end": 718,
+      "mode": 6
+    },
+    {
+      "id": 30,
+      "start": 714,
+      "end": 718,
+      "mode": 7
+    },
+    {
+      "id": 31,
+      "start": 716,
+      "end": 718,
+      "mode": 1
+    },
+    {
+      "id": 32,
+      "start": 716,
+      "end": 718,
+      "mode": 2
+    },
+    {
+      "id": 33,
+      "start": 716,
+      "end": 718,
+      "mode": 3
+    },
+    {
+      "id": 34,
+      "start": 716,
+      "end": 718,
+      "mode": 5
+    },
+    {
+      "id": 35,
+      "start": 716,
+      "end": 718,
+      "mode": 6
+    },
+    {
+      "id": 36,
+      "start": 716,
+      "end": 718,
+      "mode": 7
+    },
+    {
+      "id": 37,
+      "start": 717,
+      "end": 718,
+      "mode": 1
+    },
+    {
+      "id": 38,
+      "start": 717,
+      "end": 718,
+      "mode": 2
+    },
+    {
+      "id": 39,
+      "start": 717,
+      "end": 718,
+      "mode": 3
+    },
+    {
+      "id": 40,
+      "start": 717,
+      "end": 718,
+      "mode": 5
+    },
+    {
+      "id": 41,
+      "start": 717,
+      "end": 718,
+      "mode": 6
+    },
+    {
+      "id": 42,
+      "start": 717,
+      "end": 718,
+      "mode": 7
+    },
+    {
+      "id": 43,
+      "start": 718,
+      "end": 718,
+      "mode": 1
+    },
+    {
+      "id": 44,
+      "start": 718,
+      "end": 718,
+      "mode": 2
+    },
+    {
+      "id": 45,
+      "start": 718,
+      "end": 718,
+      "mode": 3
+    },
+    {
+      "id": 46,
+      "start": 718,
+      "end": 718,
+      "mode": 5
+    },
+    {
+      "id": 47,
+      "start": 718,
+      "end": 718,
+      "mode": 6
+    },
+    {
+      "id": 48,
+      "start": 718,
+      "end": 718,
+      "mode": 7
+    }
+  ]
+}

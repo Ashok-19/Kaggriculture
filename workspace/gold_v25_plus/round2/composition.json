@@ -1,0 +1,19 @@
+{
+  "identity": "BKG4_GOLD_V25_PLUS_MARKET_V2",
+  "parent": "BKG4_GOLD_V25",
+  "candidate": {
+    "id": 108,
+    "start": 576,
+    "end": 718,
+    "mode": 9
+  },
+  "status": "FROZEN_BEFORE_INTERNAL_DEV",
+  "selection": "BUILD only: all wins, greatest minimum margin",
+  "gate_semantic_hash": "cb472b52d07619e46e9159d260355dc8f771dda3cbec768a829ef9b2f18b928c",
+  "gate_sha256": "6621737ffbda4c7e3f4c9311ef0eeb3edcc10608fc81853e86016627ffd745c3",
+  "gate_nodes": 9,
+  "gate_bb": 1,
+  "gate_node_state_slots": 0,
+  "specialists": 2,
+  "route_pack_changes": 0
+}

@@ -1,0 +1,59 @@
+{
+  "candidates": [
+    {
+      "id": 200,
+      "start": 0,
+      "end": 718,
+      "mode": 17
+    },
+    {
+      "id": 201,
+      "start": 144,
+      "end": 718,
+      "mode": 17
+    },
+    {
+      "id": 202,
+      "start": 288,
+      "end": 718,
+      "mode": 17
+    },
+    {
+      "id": 203,
+      "start": 360,
+      "end": 718,
+      "mode": 17
+    },
+    {
+      "id": 204,
+      "start": 432,
+      "end": 718,
+      "mode": 17
+    },
+    {
+      "id": 205,
+      "start": 504,
+      "end": 718,
+      "mode": 17
+    },
+    {
+      "id": 206,
+      "start": 576,
+      "end": 718,
+      "mode": 17
+    },
+    {
+      "id": 207,
+      "start": 648,
+      "end": 718,
+      "mode": 17
+    }
+  ],
+  "screen_seeds": [
+    990057,
+    990042,
+    990017,
+    990031
+  ],
+  "rationale": "The weakest BUILD case loses thousands before late routing, while saleable products wait in the shed. Sell non-input products on all-SELL/no-op turns, preserving wheat, fertilizer, purchases, unit actions and parent state."
+}

@@ -1,0 +1,16 @@
+{
+  "candidate": "BKG4_GOLD_V25_PLUS_MARKET_V2",
+  "files": {
+    "LICENSE": "7a24be1310ab9ce504e3db5e9451b8ff8eca327043a3a52a2b1c7cffb99c30f6",
+    "PROVENANCE.md": "4d58f3fb8080b01124172724f3f479f5adedd7f3363a790feb25b979fab2375f",
+    "assets/arity.bin": "1096167123e8e0365eccc43fe52c7e9318c7289262bf62d7b232ede64a2eca5c",
+    "assets/controller.bkgc": "842e04c8ada511806be0321f7b52408b8ce4a4a9fd33d753c9dcf5173b715f3c",
+    "assets/identity.json": "40ca8ba108ccb7b471b5ff0570ee4a29c4334094928a2d0dce0d54a54adc0bc7",
+    "assets/routes.bkv6": "27aa7e818348b9d8c7ce6bf45c8f83736fd5933e407a8a09956071864b8b1f22",
+    "assets/specialist.bkgc": "6621737ffbda4c7e3f4c9311ef0eeb3edcc10608fc81853e86016627ffd745c3",
+    "candidate.json": "6e6f598462df9a184b5817d627174a089d4d39e6b90fcca5303cb044957c2330",
+    "gold_cpu.so": "8cb7f8d4b38c88450ce3a6b6eb8fb78f606b47594633dc1d9b29efa7bd3f91c4",
+    "gold_runtime.py": "b073402b26cac84b0333a627e38a6db6f17539ccf93801cf8b2d7e96134efacf",
+    "main.py": "b2047fff2664c9e776f81d6be10963687ff9a5da4faf8998fc6c8a28db5de402"
+  }
+}
