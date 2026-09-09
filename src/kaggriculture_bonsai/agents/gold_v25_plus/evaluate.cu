@@ -1,6 +1,8 @@
 // Isolated bounded gold-v25 self-play evaluator; no parent source changes.
 #include "../gold_v25/native.hpp"
 #include "lead.hpp"
+#include "feed.hpp"
+#include "seeds.hpp"
 #include "bonsai_kg_v4_io.hpp"
 #include "extended_route_pack.hpp"
 #include <fstream>
@@ -41,6 +43,11 @@ HD engine::Action convert(const gold_v25::Action&a){
     return out;
 }
 HD void repair(gold_v25::Action&a,const gold_v25::Observation&o,Candidate c,gold_v25::PackView pack,int route){
+    if(c.mode==129||c.mode==257||c.mode==513||c.mode==1025){
+        gold_v25_plus::feed(a,o,pack,route,c.start,c.end);
+        if(c.mode==257||c.mode==513||c.mode==1025)gold_v25_plus::structure(a,o);
+        c={c.id,576,718,9};
+    }
     if(!c.mode||o.step<c.start||o.step>c.end)return;
     if(c.mode==9)c.mode=o.step>=708?5:1;
     if(c.mode==17)c.mode=o.step>=708?5:17;
@@ -69,7 +76,7 @@ HD void repair(gold_v25::Action&a,const gold_v25::Observation&o,Candidate c,gold
     }
 }
 HD Row episode(engine::Sim&sim,const bonsaikg4::PolicyView4&policy,gold_v25::PackView pack,gold_v25::State*states,Candidate c,int seat,const bonsaikg4::PolicyView4*gate=nullptr){
-    states[0].initialized=states[1].initialized=0;Row row{};row.hash=14695981039346656037ULL;
+    states[0].initialized=states[1].initialized=0;gold_v25_plus::RepairState repairs[2]{};gold_v25_plus::SeedState seed_states[2]{};Row row{};row.hash=14695981039346656037ULL;
     while(!sim.st.done){
         engine::Action actions[2];
         for(int p=0;p<2;++p){auto o=observe(sim,p);gold_v25::Result result{};gold_v25::tick(policy,pack,o,states[p],result);
@@ -79,9 +86,15 @@ HD Row episode(engine::Sim&sim,const bonsaikg4::PolicyView4&policy,gold_v25::Pac
                 if(gate){int32_t bb[1]{};bonsaikg4::RuntimeMeta4 meta{};bonsaikg4::RuntimeView4 state{bb,nullptr,&meta};
                     bonsaikg4::reset_runtime(*gate,state);bonsaikg4::ActionResult4 ignored{};
                     bonsaikg4::tick4(*gate,state,o,0,ignored);enabled=bb[0]!=0;
-                    if(meta.fault||enabled!=(o.step>=c.start&&o.step<=c.end))row.fault=200;
+                    if(c.mode==513||c.mode==1025){
+                        int expected=o.step>=719?0:o.step>=708?53:o.step>=647?49:o.step>=576?57:o.step>=144?56:48;
+                        if(c.mode==1025&&o.step>=144&&o.step<647)expected+=64;
+                        if(meta.fault||bb[0]!=expected)row.fault=200;
+                    }else if(meta.fault||enabled!=(o.step>=c.start&&o.step<=c.end))row.fault=200;
                 }
                 if(enabled)repair(result.action,o,c,pack,result.route);
+                if(c.mode==513||c.mode==1025)gold_v25_plus::dispatch(result.action,o,pack,result.route,states[p],repairs[p]);
+                if(c.mode==1025)gold_v25_plus::seeds(result.action,o,pack,result.route,seed_states[p]);
                 bool changed=old.n_market!=result.action.n_market;
                 for(int i=0;i<old.n_units;++i)changed|=old.units[i].op!=result.action.units[i].op||old.units[i].arg!=result.action.units[i].arg||old.units[i].n!=result.action.units[i].n;
                 for(int i=0;i<old.n_market&&i<result.action.n_market;++i)changed|=old.market[i].op!=result.action.market[i].op||old.market[i].item!=result.action.market[i].item||old.market[i].n!=result.action.market[i].n;

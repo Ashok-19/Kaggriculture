@@ -185,7 +185,7 @@
     0,
     1
   ],
-  "final_target_status": "UNOPENED",
+  "final_target_status": "OPENED_AFTER_FREEZE",
   "parent": "BKG4_GOLD_V25",
   "target": "frozen notebook v25",
   "starting_head": "47b304c8954216b99705df92c510612d7068f6eb"

@@ -1,0 +1,206 @@
+{
+  "composition_sha256": "f8679896c2fb4c225bb8789884a1c1b760d4493036a438e58da9a574a8dc8918",
+  "gate_sha256": "bdf88a5d16463ce423911cfeaed7b3fb40898f26ab845cae33bcc37f0af01e78",
+  "source_sha256": {
+    "repair_controller.py": "dfa19f12a3df7559a49725922d8816e929da0d03f005b1fcdcf177cefbf74bd5",
+    "feed_probe.py": "2284bb77e8d3b30fdafe9d5cda95a5640ac0dc113a52bdec049991a621601e67",
+    "submission_main.py": "b2047fff2664c9e776f81d6be10963687ff9a5da4faf8998fc6c8a28db5de402",
+    "release.py": "b5ad404d1693f60be204325d6b46c4b91ccb69632ded348db6ee1ce6e2b66c92",
+    "search5.py": "df3202456884e624fdd5b0397280eba3272b724696d1a26c5ae29bdff789bbc9",
+    "diagnose.py": "b1ed89f2257046f5ecd0d533e54808e95c08b466ac6f2d774d4dcc894b013d25",
+    "search8.py": "6737ed49e54b6b8b6aad264dd010772375fb00c32576d660f15c1daae51f2ef8",
+    "lead.hpp": "13cd7cef0192f226ea5395514a4e7276b4e98feb6d0f5dd31f192584c9e3640c",
+    "search7.py": "94598f52a8a25842c92cf934d5670d5ab88e4f7675fb694758e4464ffef495f7",
+    "seeds.hpp": "24e5875d05b255e17b50d4b9fd2cf562703d93b382f778c140a1e5030395549e",
+    "freeze7.py": "793ba138d5fa6726f18e53b45d1ed4b1f223bce3af175cca11110a6626b6a83b",
+    "diagnose7.py": "bdbe7a2964c3214cd99b62f703ca22fb7eebe259fdbe2171bca02a50451d8d7c",
+    "audit.py": "6ef09b8dc7ae0788fad95a08da17240fbbd2188b19dbdcb17136a0431ba90ef5",
+    "inspect_build.py": "565e40d575882241980be41c01f75346d2f328e5f1832540efd989a3b273059e",
+    "verify.py": "5d09283223bdb207b5c48cc3ec68f1e5674adcbf03278e5fe08226556f7e477c",
+    "search.py": "66474b4c56ad7e024159adaa881789910cd65f3156abc40cb3201b6c53088dfe",
+    "search3.py": "8447c1161ad25c84d4d2b92c11ac3fdc5fb00eb382be41f6894197cff4a0adb2",
+    "bridge.cpp": "d78d007ca187bcabdbfadcfbdefbe23c4794629f6d6b6f75769cc84f60b2704e",
+    "__init__.py": "fd0b5f9bdc33f28cba8721efada9b5f1d435bd10542c47cb8df190a44b9bcfff",
+    "cleanroom_check.py": "8775d7ebb48ceb283d7daf26ccc793aacef38e124c0c5c1a8553cf57e97615fd",
+    "agent.py": "7e1328f719cf79fb505a7e5a38d415917c876e40bd20538ab31a01e9b54f052b",
+    "round2.py": "f97d2d0dede0d78b7753d9fd553475e4ba375bc60845d06ed5117b2e52bb98ee",
+    "test_plus.py": "cf64eae07eadb01d1f2e5ad75e8ffb74dabf995ec98623dc7d0e3bf4c2177b28",
+    "build.py": "15fc979f4901b0c21220a560efca54fe5d95e92a97c946db3cedd528488e74a4",
+    "feed.hpp": "e166f1fb5dc1a5dd0fec12304cefd7c91da60672a86fbc83876b95a74eedbd13",
+    "test_repair.py": "11b354fb200f031b9df20eb60accdc16ee17233a1cffe940c49a08b161565ba2",
+    "screen.py": "fbb2bee0b73ec4c3ef206a442538383d4fe7b6c15f457606b73df86dc2e8b4dd",
+    "round3.py": "0c64a4ea5362a02d3e1e19820ad0c33838258ce48fe46d76975771714f02f3ab",
+    "benchmark.py": "c99132be8f33d5da8589736d55ca146a00e9a259e5c6f7b1b0bd812f529737a4",
+    "README.md": "02158c86a3b0031fd637e7a0fae633b0bb6d27a729d3cb3bcc9968a480ac9d57",
+    "diagnose8.py": "6687a6160c1d02f729e33ea450e74749eabf3fdbbaabd67fb24c3493af04b2c0",
+    "evaluate.cu": "5ca0fcf694a3edaf8027513520fab52513ac8880227f948e6ae0a7f5d33c0869",
+    "search6.py": "abfe8836b232e4ee42ee2ce0e0b34965315d31595d4019cb182de476427aca12",
+    "package.py": "d39a756f1afc7d6e8737a25aa10cd0468972f1f4a1c55bb5633503229c42cdc6",
+    "search4.py": "6cce23fb926ff9d25511a0f83bb101c7e9121e251f861d57447d2e90fe951ab3"
+  },
+  "official_cpu_cuda_action_trace_mismatches": 0,
+  "official_canary_wtl": {
+    "W": 64,
+    "T": 0,
+    "L": 0
+  },
+  "protected_panels": {
+    "original_BUILD": {
+      "games": 32,
+      "parent_wtl": {
+        "W": 1,
+        "T": 30,
+        "L": 1
+      },
+      "improved_wtl": {
+        "W": 32,
+        "T": 0,
+        "L": 0
+      },
+      "transitions": {
+        "WW": 1,
+        "WT": 0,
+        "WL": 0,
+        "TW": 30,
+        "TT": 0,
+        "TL": 0,
+        "LW": 1,
+        "LT": 0,
+        "LL": 0
+      },
+      "protected_regressions": 0,
+      "minimum_margin": 702.0
+    },
+    "original_DEV": {
+      "games": 64,
+      "parent_wtl": {
+        "W": 1,
+        "T": 62,
+        "L": 1
+      },
+      "improved_wtl": {
+        "W": 64,
+        "T": 0,
+        "L": 0
+      },
+      "transitions": {
+        "WW": 1,
+        "WT": 0,
+        "WL": 0,
+        "TW": 62,
+        "TT": 0,
+        "TL": 0,
+        "LW": 1,
+        "LT": 0,
+        "LL": 0
+      },
+      "protected_regressions": 0,
+      "minimum_margin": 406.0
+    },
+    "round2_BUILD": {
+      "games": 64,
+      "parent_wtl": {
+        "W": 0,
+        "T": 64,
+        "L": 0
+      },
+      "improved_wtl": {
+        "W": 64,
+        "T": 0,
+        "L": 0
+      },
+      "transitions": {
+        "WW": 0,
+        "WT": 0,
+        "WL": 0,
+        "TW": 64,
+        "TT": 0,
+        "TL": 0,
+        "LW": 0,
+        "LT": 0,
+        "LL": 0
+      },
+      "protected_regressions": 0,
+      "minimum_margin": 521.0
+    },
+    "round2_DEV": {
+      "games": 64,
+      "parent_wtl": {
+        "W": 6,
+        "T": 52,
+        "L": 6
+      },
+      "improved_wtl": {
+        "W": 64,
+        "T": 0,
+        "L": 0
+      },
+      "transitions": {
+        "WW": 6,
+        "WT": 0,
+        "WL": 0,
+        "TW": 52,
+        "TT": 0,
+        "TL": 0,
+        "LW": 6,
+        "LT": 0,
+        "LL": 0
+      },
+      "protected_regressions": 0,
+      "minimum_margin": 460.0
+    },
+    "round6_DEV": {
+      "games": 128,
+      "parent_wtl": {
+        "W": 3,
+        "T": 122,
+        "L": 3
+      },
+      "improved_wtl": {
+        "W": 127,
+        "T": 0,
+        "L": 1
+      },
+      "transitions": {
+        "WW": 3,
+        "WT": 0,
+        "WL": 0,
+        "TW": 122,
+        "TT": 0,
+        "TL": 0,
+        "LW": 2,
+        "LT": 0,
+        "LL": 1
+      },
+      "protected_regressions": 0,
+      "minimum_margin": -333.0
+    },
+    "round7_DEV": {
+      "games": 128,
+      "parent_wtl": {
+        "W": 4,
+        "T": 120,
+        "L": 4
+      },
+      "improved_wtl": {
+        "W": 128,
+        "T": 0,
+        "L": 0
+      },
+      "transitions": {
+        "WW": 4,
+        "WT": 0,
+        "WL": 0,
+        "TW": 120,
+        "TT": 0,
+        "TL": 0,
+        "LW": 4,
+        "LT": 0,
+        "LL": 0
+      },
+      "protected_regressions": 0,
+      "minimum_margin": 449.0
+    }
+  },
+  "status": "FROZEN_BEFORE_FINAL_TARGET"
+}

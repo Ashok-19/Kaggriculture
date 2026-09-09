@@ -1,0 +1,10 @@
+{
+  "candidate": {
+    "id": 700,
+    "start": 144,
+    "end": 647,
+    "mode": 513
+  },
+  "status": "FROZEN_BEFORE_INTERNAL_DEV",
+  "question": "Remember blocked construction and dispatch an idle farmer only when a complete return trip fits within five scheduled PASS actions."
+}

@@ -27,6 +27,7 @@ class GoldV25Plus:
 
     def __call__(self, obs, cfg=None):
         action = self.parent(obs,cfg)
+        action = self.before_market(action,obs)
         result = self.vm.tick(obs,max_market_orders=0)
         if result.fault:
             raise RuntimeError('specialist BKG4 fault')
@@ -77,15 +78,23 @@ class GoldV25Plus:
             action['market'].sort(key=lambda o: -view.prices.get(o[1],0)*min(projected.get(o[1],0),o[2]) if o else 0)
         return action
 
+    def before_market(self,action,obs):
+        return action
+
 
 _DEFAULT=None
 
 
 def agent(observation, configuration=None):
-    """Entry for the separately frozen round-2 composition, never the champion."""
+    """Entry for the explicitly selected isolated candidate, never the champion."""
     global _DEFAULT
     if _DEFAULT is None:
-        path=ROOT/'workspace/gold_v25_plus/round2/composition.json'
+        path=ROOT/'workspace/gold_v25_plus/active_candidate.json'
+        if not path.exists():path=ROOT/'workspace/gold_v25_plus/round2/composition.json'
         candidate=json.loads(path.read_text())['candidate']
-        _DEFAULT=GoldV25Plus(candidate['start'],candidate['end'],candidate['mode'])
+        if candidate['mode']==1025:
+            from .feed_probe import SeedProbe
+            _DEFAULT=SeedProbe()
+        else:
+            _DEFAULT=GoldV25Plus(candidate['start'],candidate['end'],candidate['mode'])
     return _DEFAULT(observation,configuration)

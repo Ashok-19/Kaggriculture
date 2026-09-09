@@ -23,12 +23,14 @@ def main(evidence=OUT):
     source=ROOT/'src/kaggriculture_bonsai/agents/gold_v25_plus'
     shutil.copyfile(source/'submission_main.py',PACKAGE/'main.py')
     identity=json.loads((evidence/'composition.json').read_text())
-    (PACKAGE/'PROVENANCE.md').write_text((HERE/'PROVENANCE.md').read_text()+'\n\nThis separate ReCurSiON candidate adds BKG4-gated market-order specialists. '+json.dumps(identity['candidate'])+'. Mode 5 liquidates projected products, sorted by descending current value. Mode 9 uses only all-SELL/no-op stable order priority before step708, then mode5 through 718. Parent unit actions, parent state updates and all four donor tapes are unchanged.\n')
+    (PACKAGE/'PROVENANCE.md').write_text((HERE/'PROVENANCE.md').read_text()+'\n\nThis separate ReCurSiON candidate adds BKG4-gated specialists. '+json.dumps(identity['candidate'])+'. Mode 5 liquidates projected products, sorted by descending current value. Mode 9 uses only all-SELL/no-op stable order priority before step708, then mode5 through 718. Parent state updates and all four donor tapes are unchanged. Recovery-specific unit overrides are described below.\n')
     # Preserve the entire inherited notice, not an abbreviated license excerpt.
     text=(HERE/'overlay.py').read_text();license_block=text.split('# Mechanically extracted',1)[0]
     (PACKAGE/'LICENSE').write_text(license_block)
     with (PACKAGE/'PROVENANCE.md').open('a') as provenance:
         provenance.write('Mode 17 sells available non-input products on all-SELL/no-op turns before step708, then uses mode5. Wheat and fertilizer orders remain unchanged before the endgame phase.\n')
+        if identity['candidate']['mode'] in (513,1025):
+            provenance.write('Recovery compositions retain the frozen parent, add projected wheat-pickup coverage, repair missing animal structures, and remember blocked construction for a bounded idle-farmer return trip. Mode 1025 also reduces excess seed purchases against full remaining own-route demand, conservatively accounting for both late branches. These are ReCurSiON specialists; the donor schedules are unchanged.\n')
     subprocess.run(['g++','-std=c++17','-O2','-shared','-fPIC','-Inative/bkg4/include','-Inative/bkg4/stateful',str(source/'bridge.cpp'),'-o',str(PACKAGE/'gold_cpu.so')],cwd=ROOT,check=True)
     names=['main.py','gold_runtime.py','gold_cpu.so','LICENSE','PROVENANCE.md','candidate.json']+['assets/'+n for n in ('controller.bkgc','routes.bkv6','arity.bin','identity.json','specialist.bkgc')]
     hashes={name:hashlib.sha256((PACKAGE/name).read_bytes()).hexdigest() for name in sorted(names)}

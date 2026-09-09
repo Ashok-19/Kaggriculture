@@ -1,0 +1,279 @@
+{
+  "status": "BUILD_ONLY_PYTHON_PROBE_NOT_NATIVE_CANDIDATE",
+  "cases": [
+    {
+      "seed": 990057,
+      "seat": 0,
+      "money": [
+        108699.0,
+        100634.0
+      ],
+      "margin": 8065.0,
+      "events": [
+        {
+          "step": 311,
+          "demand": 5,
+          "available": 0,
+          "buy": 5
+        },
+        {
+          "step": 312,
+          "demand": 15,
+          "available": 11,
+          "buy": 4
+        },
+        {
+          "step": 359,
+          "demand": 5,
+          "available": 0,
+          "buy": 5
+        },
+        {
+          "step": 455,
+          "demand": 5,
+          "available": 0,
+          "buy": 5
+        },
+        {
+          "step": 527,
+          "demand": 5,
+          "available": 4,
+          "buy": 1
+        }
+      ]
+    },
+    {
+      "seed": 990057,
+      "seat": 1,
+      "money": [
+        106268.0,
+        108396.0
+      ],
+      "margin": 2128.0,
+      "events": [
+        {
+          "step": 243,
+          "demand": 5,
+          "available": 3,
+          "buy": 2
+        },
+        {
+          "step": 311,
+          "demand": 5,
+          "available": 0,
+          "buy": 5
+        },
+        {
+          "step": 312,
+          "demand": 15,
+          "available": 11,
+          "buy": 4
+        },
+        {
+          "step": 359,
+          "demand": 5,
+          "available": 0,
+          "buy": 5
+        },
+        {
+          "step": 455,
+          "demand": 5,
+          "available": 0,
+          "buy": 5
+        },
+        {
+          "step": 527,
+          "demand": 5,
+          "available": 4,
+          "buy": 1
+        }
+      ]
+    },
+    {
+      "seed": 990042,
+      "seat": 0,
+      "money": [
+        86206.0,
+        85126.0
+      ],
+      "margin": 1080.0,
+      "events": [
+        {
+          "step": 311,
+          "demand": 5,
+          "available": 0,
+          "buy": 5
+        },
+        {
+          "step": 312,
+          "demand": 15,
+          "available": 11,
+          "buy": 4
+        },
+        {
+          "step": 359,
+          "demand": 5,
+          "available": 0,
+          "buy": 5
+        },
+        {
+          "step": 455,
+          "demand": 5,
+          "available": 0,
+          "buy": 5
+        },
+        {
+          "step": 527,
+          "demand": 5,
+          "available": 4,
+          "buy": 1
+        }
+      ]
+    },
+    {
+      "seed": 990042,
+      "seat": 1,
+      "money": [
+        85126.0,
+        86206.0
+      ],
+      "margin": 1080.0,
+      "events": [
+        {
+          "step": 311,
+          "demand": 5,
+          "available": 0,
+          "buy": 5
+        },
+        {
+          "step": 312,
+          "demand": 15,
+          "available": 11,
+          "buy": 4
+        },
+        {
+          "step": 359,
+          "demand": 5,
+          "available": 0,
+          "buy": 5
+        },
+        {
+          "step": 455,
+          "demand": 5,
+          "available": 0,
+          "buy": 5
+        },
+        {
+          "step": 527,
+          "demand": 5,
+          "available": 4,
+          "buy": 1
+        }
+      ]
+    },
+    {
+      "seed": 990017,
+      "seat": 0,
+      "money": [
+        104819.0,
+        100942.0
+      ],
+      "margin": 3877.0,
+      "events": [
+        {
+          "step": 311,
+          "demand": 5,
+          "available": 0,
+          "buy": 5
+        },
+        {
+          "step": 312,
+          "demand": 15,
+          "available": 11,
+          "buy": 4
+        },
+        {
+          "step": 359,
+          "demand": 5,
+          "available": 0,
+          "buy": 5
+        },
+        {
+          "step": 455,
+          "demand": 5,
+          "available": 0,
+          "buy": 5
+        },
+        {
+          "step": 527,
+          "demand": 5,
+          "available": 4,
+          "buy": 1
+        }
+      ]
+    },
+    {
+      "seed": 990017,
+      "seat": 1,
+      "money": [
+        103190.0,
+        103913.0
+      ],
+      "margin": 723.0,
+      "events": [
+        {
+          "step": 312,
+          "demand": 15,
+          "available": 12,
+          "buy": 3
+        },
+        {
+          "step": 359,
+          "demand": 5,
+          "available": 0,
+          "buy": 5
+        },
+        {
+          "step": 455,
+          "demand": 5,
+          "available": 0,
+          "buy": 5
+        }
+      ]
+    },
+    {
+      "seed": 990031,
+      "seat": 0,
+      "money": [
+        103580.0,
+        102967.0
+      ],
+      "margin": 613.0,
+      "events": [
+        {
+          "step": 527,
+          "demand": 2,
+          "available": 0,
+          "buy": 2
+        }
+      ]
+    },
+    {
+      "seed": 990031,
+      "seat": 1,
+      "money": [
+        102967.0,
+        103580.0
+      ],
+      "margin": 613.0,
+      "events": [
+        {
+          "step": 527,
+          "demand": 2,
+          "available": 0,
+          "buy": 2
+        }
+      ]
+    }
+  ]
+}

@@ -1,6 +1,57 @@
 # Gold V25 Reinforcement
 
-## Status: Not Complete
+## Current Validation
+
+The continuation from commit `26284e7` is recorded in rounds 5-8. Its frozen
+candidate is `BKG4_GOLD_V25_PLUS_RECOVERY_V8`; acceptance is determined only by
+`round8/final_target.json`, `round8/freeze.json`, and `round8/release.json`.
+Until those gates pass it is experimental. The earlier audit below is historical,
+not the result of the current composition. `active_candidate.json` is written
+only after the independent exit gates pass; otherwise the convenience entry
+remains the earlier experimental v2.
+
+BUILD diagnostics identified three propagation mechanisms: short wheat pickups
+leave later FEED actions unfunded; a weed-blocked structure is dropped from the
+parent repair queue before an animal arrives; and a skipped planting can leave
+surplus seeds that the schedule buys again. Recovery does not rewrite the tapes.
+It adds projected pickup coverage during steps 144-646, missing-structure recovery,
+and a remembered construction job performed by the farmer only when a complete
+return trip fits inside up to five scheduled PASS actions. Seed purchase reduction
+uses the full remaining production requirement and the maximum requirement of
+both late routes. A short-horizon seed reduction failed and was discarded.
+
+V7 passed 512 BUILD and 128 fresh DEV games but its official canary was 63 W /
+0 T / 1 L. Its official case was not used to tune V8. V8 was derived from fresh
+BUILD 1080000-1080127, and passed that 256-game panel plus 512 previous BUILD
+games. Its untouched DEV 1090000-1090063 passed 128/128, both seats. Its official
+canary uses 1100000-1100031; FINAL_TARGET remains the originally reserved
+930000-930127 until the freeze gate opens it.
+
+V8 has a 16-node specialist controller plus the 23-node parent: 39 total nodes,
+four I32 blackboard slots, and zero VM node-state slots. Additional overlay state
+is 488 bytes per player (last step, 100 target entries, queue length, five actions).
+A 12,984-byte per-player cache is derived from immutable own schedules for seed
+requirements. No generic runtime or route-pack format changes were made. All
+new routing depends on own observations/state and own schedules, never opponent
+identity. Parent/champion/baseline assets remain separate and unchanged.
+
+Reproduction for the frozen V8 candidate:
+
+```sh
+.venv/bin/python -m kaggriculture_bonsai.agents.gold_v25_plus.build
+.venv/bin/python -m kaggriculture_bonsai.agents.gold_v25_plus.freeze7 --round 8
+.venv/bin/python -m kaggriculture_bonsai.agents.gold_v25_plus.package --evidence workspace/gold_v25_plus/round8
+.venv/bin/python -m unittest kaggriculture_bonsai.agents.gold_v25_plus.test_repair kaggriculture_bonsai.agents.gold_v25_plus.test_plus
+.venv/bin/python -m kaggriculture_bonsai.agents.gold_v25_plus.verify canary --evidence workspace/gold_v25_plus/round8
+.venv/bin/python -m kaggriculture_bonsai.agents.gold_v25_plus.verify final --evidence workspace/gold_v25_plus/round8
+```
+
+Do not overwrite a completed official/final panel. The final command is a
+one-time gate, not a search loop. Official canaries compare every action and
+parent state; focused recovery tests additionally compare the full new queue
+and target state on BUILD histories and repeated/backward/per-player resets.
+
+## Historical V2 Stop
 
 No candidate is accepted or promoted. The best frozen experimental composition,
 `BKG4_GOLD_V25_PLUS_MARKET_V2`, scores 350 W / 0 T / 2 L over the combined

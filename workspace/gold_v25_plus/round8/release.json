@@ -1,0 +1,212 @@
+{
+  "status": "COMPLETE_OBSERVED_100_PERCENT_WITH_ZERO_PROTECTED_REGRESSION",
+  "starting_head_this_continuation": "26284e75deb74dc45898b8f3285360cdcca9ca2c",
+  "original_phase_starting_head": "47b304c8954216b99705df92c510612d7068f6eb",
+  "candidate": "BKG4_GOLD_V25_PLUS_RECOVERY_V8",
+  "parent": "BKG4_GOLD_V25",
+  "final_target": {
+    "games": 256,
+    "parent_wtl": {
+      "W": 15,
+      "T": 226,
+      "L": 15
+    },
+    "improved_wtl": {
+      "W": 256,
+      "T": 0,
+      "L": 0
+    },
+    "transitions": {
+      "WW": 15,
+      "WT": 0,
+      "WL": 0,
+      "TW": 226,
+      "TT": 0,
+      "TL": 0,
+      "LW": 15,
+      "LT": 0,
+      "LL": 0
+    },
+    "protected_regressions": 0,
+    "minimum_margin": 306.0
+  },
+  "official_canary": {
+    "games": 64,
+    "W": 64,
+    "T": 0,
+    "L": 0,
+    "action_state_mismatches": 0,
+    "cpu_cuda_trace_mismatches": 0
+  },
+  "protected_panels": {
+    "original_BUILD": {
+      "games": 32,
+      "parent_wtl": {
+        "W": 1,
+        "T": 30,
+        "L": 1
+      },
+      "improved_wtl": {
+        "W": 32,
+        "T": 0,
+        "L": 0
+      },
+      "transitions": {
+        "WW": 1,
+        "WT": 0,
+        "WL": 0,
+        "TW": 30,
+        "TT": 0,
+        "TL": 0,
+        "LW": 1,
+        "LT": 0,
+        "LL": 0
+      },
+      "protected_regressions": 0,
+      "minimum_margin": 702.0
+    },
+    "original_DEV": {
+      "games": 64,
+      "parent_wtl": {
+        "W": 1,
+        "T": 62,
+        "L": 1
+      },
+      "improved_wtl": {
+        "W": 64,
+        "T": 0,
+        "L": 0
+      },
+      "transitions": {
+        "WW": 1,
+        "WT": 0,
+        "WL": 0,
+        "TW": 62,
+        "TT": 0,
+        "TL": 0,
+        "LW": 1,
+        "LT": 0,
+        "LL": 0
+      },
+      "protected_regressions": 0,
+      "minimum_margin": 406.0
+    },
+    "round2_BUILD": {
+      "games": 64,
+      "parent_wtl": {
+        "W": 0,
+        "T": 64,
+        "L": 0
+      },
+      "improved_wtl": {
+        "W": 64,
+        "T": 0,
+        "L": 0
+      },
+      "transitions": {
+        "WW": 0,
+        "WT": 0,
+        "WL": 0,
+        "TW": 64,
+        "TT": 0,
+        "TL": 0,
+        "LW": 0,
+        "LT": 0,
+        "LL": 0
+      },
+      "protected_regressions": 0,
+      "minimum_margin": 521.0
+    },
+    "round2_DEV": {
+      "games": 64,
+      "parent_wtl": {
+        "W": 6,
+        "T": 52,
+        "L": 6
+      },
+      "improved_wtl": {
+        "W": 64,
+        "T": 0,
+        "L": 0
+      },
+      "transitions": {
+        "WW": 6,
+        "WT": 0,
+        "WL": 0,
+        "TW": 52,
+        "TT": 0,
+        "TL": 0,
+        "LW": 6,
+        "LT": 0,
+        "LL": 0
+      },
+      "protected_regressions": 0,
+      "minimum_margin": 460.0
+    },
+    "round6_DEV": {
+      "games": 128,
+      "parent_wtl": {
+        "W": 3,
+        "T": 122,
+        "L": 3
+      },
+      "improved_wtl": {
+        "W": 127,
+        "T": 0,
+        "L": 1
+      },
+      "transitions": {
+        "WW": 3,
+        "WT": 0,
+        "WL": 0,
+        "TW": 122,
+        "TT": 0,
+        "TL": 0,
+        "LW": 2,
+        "LT": 0,
+        "LL": 1
+      },
+      "protected_regressions": 0,
+      "minimum_margin": -333.0
+    },
+    "round7_DEV": {
+      "games": 128,
+      "parent_wtl": {
+        "W": 4,
+        "T": 120,
+        "L": 4
+      },
+      "improved_wtl": {
+        "W": 128,
+        "T": 0,
+        "L": 0
+      },
+      "transitions": {
+        "WW": 4,
+        "WT": 0,
+        "WL": 0,
+        "TW": 120,
+        "TT": 0,
+        "TL": 0,
+        "LW": 4,
+        "LT": 0,
+        "LL": 0
+      },
+      "protected_regressions": 0,
+      "minimum_margin": 449.0
+    }
+  },
+  "tests_passed": 65,
+  "standalone_cleanroom": "PASS",
+  "parent_champion_baselines_unchanged": true,
+  "nodes": 39,
+  "blackboard_slots": 4,
+  "vm_node_state_slots": 0,
+  "additional_overlay_state_bytes_per_player": 488,
+  "derived_seed_cache_bytes_per_player": 12984,
+  "generic_runtime_changes": 0,
+  "route_pack_changes": 0,
+  "specialists": 6,
+  "package_sha256": "30f10c77c69d3e31152022328aab40baeaff32808738fde7ccc6318d2406a312",
+  "freeze_sha256": "91810dd807f913700d55f3a9dfc853143254d0cd834a47203660def9c1d1ffc6"
+}

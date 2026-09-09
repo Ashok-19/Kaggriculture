@@ -1,0 +1,10 @@
+{
+  "candidate": {
+    "id": 800,
+    "start": 144,
+    "end": 647,
+    "mode": 1025
+  },
+  "status": "FROZEN_BEFORE_INTERNAL_DEV",
+  "question": "Reduce only seed purchases exceeding the worst remaining own-route inventory requirement, accounting for both late branches."
+}

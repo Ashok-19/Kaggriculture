@@ -1,0 +1,158 @@
+{
+  "original_BUILD": {
+    "games": 32,
+    "parent_wtl": {
+      "W": 1,
+      "T": 30,
+      "L": 1
+    },
+    "improved_wtl": {
+      "W": 32,
+      "T": 0,
+      "L": 0
+    },
+    "transitions": {
+      "WW": 1,
+      "WT": 0,
+      "WL": 0,
+      "TW": 30,
+      "TT": 0,
+      "TL": 0,
+      "LW": 1,
+      "LT": 0,
+      "LL": 0
+    },
+    "protected_regressions": 0,
+    "minimum_margin": 702.0
+  },
+  "original_DEV": {
+    "games": 64,
+    "parent_wtl": {
+      "W": 1,
+      "T": 62,
+      "L": 1
+    },
+    "improved_wtl": {
+      "W": 64,
+      "T": 0,
+      "L": 0
+    },
+    "transitions": {
+      "WW": 1,
+      "WT": 0,
+      "WL": 0,
+      "TW": 62,
+      "TT": 0,
+      "TL": 0,
+      "LW": 1,
+      "LT": 0,
+      "LL": 0
+    },
+    "protected_regressions": 0,
+    "minimum_margin": 406.0
+  },
+  "round2_BUILD": {
+    "games": 64,
+    "parent_wtl": {
+      "W": 0,
+      "T": 64,
+      "L": 0
+    },
+    "improved_wtl": {
+      "W": 64,
+      "T": 0,
+      "L": 0
+    },
+    "transitions": {
+      "WW": 0,
+      "WT": 0,
+      "WL": 0,
+      "TW": 64,
+      "TT": 0,
+      "TL": 0,
+      "LW": 0,
+      "LT": 0,
+      "LL": 0
+    },
+    "protected_regressions": 0,
+    "minimum_margin": 521.0
+  },
+  "round2_DEV": {
+    "games": 64,
+    "parent_wtl": {
+      "W": 6,
+      "T": 52,
+      "L": 6
+    },
+    "improved_wtl": {
+      "W": 64,
+      "T": 0,
+      "L": 0
+    },
+    "transitions": {
+      "WW": 6,
+      "WT": 0,
+      "WL": 0,
+      "TW": 52,
+      "TT": 0,
+      "TL": 0,
+      "LW": 6,
+      "LT": 0,
+      "LL": 0
+    },
+    "protected_regressions": 0,
+    "minimum_margin": 460.0
+  },
+  "round6_DEV": {
+    "games": 128,
+    "parent_wtl": {
+      "W": 3,
+      "T": 122,
+      "L": 3
+    },
+    "improved_wtl": {
+      "W": 127,
+      "T": 0,
+      "L": 1
+    },
+    "transitions": {
+      "WW": 3,
+      "WT": 0,
+      "WL": 0,
+      "TW": 122,
+      "TT": 0,
+      "TL": 0,
+      "LW": 2,
+      "LT": 0,
+      "LL": 1
+    },
+    "protected_regressions": 0,
+    "minimum_margin": -333.0
+  },
+  "round7_DEV": {
+    "games": 128,
+    "parent_wtl": {
+      "W": 4,
+      "T": 120,
+      "L": 4
+    },
+    "improved_wtl": {
+      "W": 128,
+      "T": 0,
+      "L": 0
+    },
+    "transitions": {
+      "WW": 4,
+      "WT": 0,
+      "WL": 0,
+      "TW": 120,
+      "TT": 0,
+      "TL": 0,
+      "LW": 4,
+      "LT": 0,
+      "LL": 0
+    },
+    "protected_regressions": 0,
+    "minimum_margin": 449.0
+  }
+}

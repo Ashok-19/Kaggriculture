@@ -34,11 +34,16 @@ class SpecialistTests(unittest.TestCase):
                     native.close()
 
     def test_gate_parent_fallback_and_native_actions(self):
-        c=json.loads((PACKAGE/'candidate.json').read_text())['candidate']
+        c={'start':576,'end':718,'mode':9}
+        directory=tempfile.TemporaryDirectory();self.addCleanup(directory.cleanup)
+        assets=Path(directory.name)
+        for name in ('controller.bkgc','routes.bkv6','arity.bin','identity.json'):
+            shutil.copyfile(ASSETS/name,assets/name)
+        bkg.save_compiled(controller(c['start'],c['end'],c['mode']),assets/'specialist.bkgc')
         vm=bkg.VM(controller(c['start'],c['end'],c['mode']))
         python=GoldV25Plus(c['start'],c['end'],c['mode'])
         parent=GoldV25Agent()
-        native=NativeAgent(PACKAGE/'gold_cpu.so',assets=PACKAGE/'assets')
+        native=NativeAgent(PACKAGE/'gold_cpu.so',assets=assets)
         self.addCleanup(native.close)
         for step in (*range(719),719,708,0):
             obs=observation(step)

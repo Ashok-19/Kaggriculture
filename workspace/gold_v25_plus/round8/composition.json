@@ -1,0 +1,20 @@
+{
+  "identity": "BKG4_GOLD_V25_PLUS_RECOVERY_V8",
+  "parent": "BKG4_GOLD_V25",
+  "candidate": {
+    "id": 800,
+    "start": 144,
+    "end": 647,
+    "mode": 1025
+  },
+  "status": "FROZEN_AFTER_PASSING_INTERNAL_DEV",
+  "gate_sha256": "bdf88a5d16463ce423911cfeaed7b3fb40898f26ab845cae33bcc37f0af01e78",
+  "gate_semantic_hash": "12ee2d1f04b823132a5f811c7aba7041b27137d84b9d0998025bc537fd2dd393",
+  "gate_nodes": 16,
+  "gate_bb": 1,
+  "gate_node_state_slots": 0,
+  "specialists": 6,
+  "route_pack_changes": 0,
+  "repair_state": "Per player: last step, 100 missed-construction entries, at most five farmer actions. Reset on zero or repeated/backward step.",
+  "wrapper_abi_marker": -800
+}

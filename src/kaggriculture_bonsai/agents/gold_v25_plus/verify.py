@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 from .benchmark import OUT, panels
 from .agent import GoldV25Plus
+from .feed_probe import DispatchProbe,SeedProbe
 from .package import PACKAGE
 from .search import run
 from .screen import summarize
@@ -30,7 +31,7 @@ def canary(evidence=OUT):
     seeds=json.loads((evidence/'panels.json').read_text()).get('official_canary',list(range(940000,940032)))
     for seed in seeds:
         for seat in (0,1):
-            parent=reference();python=GoldV25Plus(c['start'],c['end'],c['mode'])
+            parent=reference();python=SeedProbe() if c['mode']==1025 else DispatchProbe() if c['mode']==513 else GoldV25Plus(c['start'],c['end'],c['mode'])
             native=NativeAgent(PACKAGE/'gold_cpu.so',assets=PACKAGE/'assets');trace=Trace();count=0
             def own(obs,cfg=None):
                 nonlocal count
@@ -59,7 +60,8 @@ def final(evidence=OUT):
     # Verify the final compiled BKG4 gate on existing BUILD before opening FINAL_TARGET.
     local=json.loads((evidence/'panels.json').read_text());gate=evidence/'specialist.bkgc'
     build=run('/tmp/gold_plus_cuda',[candidate],local['BUILD'],'frozen_build',gate=gate)
-    old=[r for r in json.loads((evidence/('search.json' if evidence==OUT else 'build.json')).read_text())['build'] if r['candidate']==candidate['id']]
+    saved=json.loads((evidence/('search.json' if evidence==OUT else 'build.json')).read_text())
+    old=saved['panels']['BUILD']['improved'] if candidate['mode'] in (513,1025) else [r for r in saved['build'] if r['candidate']==candidate['id']]
     assert build==old
     cpu=run('/tmp/gold_plus_cpu',[candidate],local['BUILD'][:2],'frozen_cpu',gate=gate)
     assert cpu==build[:4]
@@ -77,7 +79,10 @@ def final(evidence=OUT):
         ('original_DEV',OUT/'internal_dev.json','parent'),
         ('round2_BUILD',OUT/'round2/build.json','parent'),
         ('round2_DEV',OUT/'round2/internal_dev.json','parent'),
+        ('round6_DEV',OUT/'round6/internal_dev.json','parent'),
+        ('round7_DEV',OUT/'round7/internal_dev.json','parent'),
     ):
+        if not path.exists():continue
         baseline=json.loads(path.read_text())[key]
         seeds=list(dict.fromkeys(r['seed'] for r in baseline))
         result=run('/tmp/gold_plus_cuda',[candidate],seeds,label+'_protection',gate=gate)
