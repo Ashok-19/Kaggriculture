@@ -12,6 +12,7 @@ public-notebooks/
 # Rebuilt staging directory for the standalone gold-v25 archive
 workspace/gold_v25_submission/package/
 workspace/gold_v25_plus_submission/package/
+workspace/shop_router_0909/plus_submission/package/
 
 # User-supplied, untracked HOLDOUT panels
 external/
