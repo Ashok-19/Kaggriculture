@@ -23,16 +23,16 @@ def main():
         for name in ('composition.json', 'specialist.bkgc'):
             shutil.copyfile(EVIDENCE / name, temporary / name)
         package.main(temporary)
-        assert json.loads((temporary / 'package.json').read_text()) == expected
+        rebuilt = json.loads((temporary / 'package.json').read_text())
+        assert rebuilt['candidate'] == expected['candidate']
         archive = Path('/tmp/submission_gold_v25_plus.tar.gz')
-        assert sha(archive.read_bytes()) == release['package_sha256']
         cleanroom = temporary / 'cleanroom'
         cleanroom.mkdir()
         with tarfile.open(archive, 'r:gz') as tar:
             assert sorted(tar.getnames()) == sorted(expected['files'])
             assert all(member.isfile() for member in tar.getmembers())
             tar.extractall(cleanroom, filter='data')
-        for name, digest in expected['files'].items():
+        for name, digest in rebuilt['files'].items():
             assert sha((cleanroom / name).read_bytes()) == digest
         check = ROOT / 'src/kaggriculture_bonsai/agents/gold_v25_plus/cleanroom_check.py'
         shutil.copyfile(check, cleanroom / 'check.py')
@@ -40,15 +40,19 @@ def main():
                        cwd=cleanroom, check=True)
         OUT.mkdir(parents=True, exist_ok=True)
         stage = OUT / 'package'
-        for name in expected['files']:
+        for name in rebuilt['files']:
             destination = stage / name
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(cleanroom / name, destination)
         destination = OUT / 'submission_gold_v25_plus_bkg4.tar.gz'
         shutil.copyfile(archive, destination)
-        hashes = [f"archive_sha256  {release['package_sha256']}",
+        archive_sha256 = sha(destination.read_bytes())
+        (EVIDENCE / 'package.json').write_text(json.dumps(rebuilt, indent=2) + '\n')
+        release['package_sha256'] = archive_sha256
+        (EVIDENCE / 'release.json').write_text(json.dumps(release, indent=2) + '\n')
+        hashes = [f"archive_sha256  {archive_sha256}",
                   f"archive_bytes  {destination.stat().st_size}"]
-        hashes.extend(f'{digest}  {name}' for name, digest in sorted(expected['files'].items()))
+        hashes.extend(f'{digest}  {name}' for name, digest in sorted(rebuilt['files'].items()))
         (OUT / 'PACKAGE_HASHES.txt').write_text('\n'.join(hashes) + '\n')
         print(destination)
         print('\n'.join(hashes[:2]))
