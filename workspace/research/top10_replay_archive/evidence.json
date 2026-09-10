@@ -1,0 +1,1599 @@
+{
+  "research_date": "2026-09-10",
+  "starting_head": "dffa9b4013df653b8d7409027c1bc36f63bd420a",
+  "scope": "Public dataset provenance, complete compressed-file/ID index, stratified body parsing. No simulation, search, training or production edits.",
+  "same_version_temporal_check": {
+    "module_version": "1.32.7",
+    "2026-08-15_through_2026-08-26": {"selected_trajectories": 159, "any_goose_at_576": 14},
+    "2026-08-27_through_2026-09-08": {"selected_trajectories": 176, "any_goose_at_576": 52},
+    "interpretation": "Descriptive supply diversification, not causal policy improvement. Opponents, shops and selection remain confounded."
+  },
+  "dataset": {
+    "ref": "ashok205/kaggriculture-top10-replay-archive",
+    "id": 11731942,
+    "version": 19,
+    "license": "CC0",
+    "last_updated_utc": "2026-09-09T23:19:37.640Z",
+    "files": 45,
+    "downloaded_bytes": 2213153054,
+    "first_date": "2026-07-30",
+    "last_date": "2026-09-08",
+    "daily_shards": 41,
+    "manifest_recorded_sha256": "ae186afe5eafc9e961cf16e27eafa177b00746eecb94294f47db8537b8ba4cd3",
+    "manifest_file_sha256": "413cc04e0ab0b74dc1f46ac49e985fd879587380f4a6ba68d5b1ceb7c802078b",
+    "source_index_manifest_sha256": "c13b7e4cbe4aa49e4ca5c3ba561140110b0f23c5ea57a79dafa07314f55a4b2c",
+    "all_44_manifest_payload_hashes_verified": true,
+    "all_45_listing_sizes_verified": true,
+    "archive_schema": 3,
+    "compression": "Parquet ZSTD level 10; one episode per row group",
+    "replay_columns": {
+      "episode_id": "int64",
+      "replay_json": "large_string"
+    },
+    "versions_are_cumulative": true
+  },
+  "collector": {
+    "url": "https://www.kaggle.com/code/ashok205/top10-replay-dataset-archive",
+    "retrieved_metadata_version": 18,
+    "source_sha256": "1e2b739d81864141700f2c8992181fc6f0b7d959b5abaf09e4c500f66dfa79bd",
+    "ranking": "Maximum observed pair-average rating per team/day; both participants receive same pair evidence. Not actual leaderboard rank.",
+    "source_manifest_episodes": 28864,
+    "selected_episodes": 16168,
+    "source_unavailable_headers": 1,
+    "selected_unavailable_bodies": 0,
+    "winner_filter": false,
+    "source_bias": "Official completed high-pair-rating games capped at 20 GiB/day; additional proxy-top10 team filter."
+  },
+  "index": {
+    "rows": 22731,
+    "unique_episode_ids": 16168,
+    "unique_replay_hashes": 16168,
+    "cross_date_episode_duplicates": 0,
+    "extra_participant_rows": 6563,
+    "selected_teams": 191,
+    "all_participant_names": 814,
+    "unordered_matchups": 5171,
+    "ordered_matchups": 7130,
+    "date_unique_episodes": {
+      "2026-09-04": 639,
+      "2026-09-07": 613,
+      "2026-09-05": 609,
+      "2026-09-06": 605,
+      "2026-09-08": 570,
+      "2026-09-03": 556,
+      "2026-09-01": 539,
+      "2026-08-15": 522,
+      "2026-09-02": 492,
+      "2026-08-17": 465,
+      "2026-08-16": 464,
+      "2026-08-02": 455,
+      "2026-07-31": 452,
+      "2026-08-01": 399,
+      "2026-08-19": 376,
+      "2026-08-22": 376,
+      "2026-08-21": 373,
+      "2026-08-09": 372,
+      "2026-08-11": 370,
+      "2026-08-12": 365,
+      "2026-08-14": 363,
+      "2026-08-23": 363,
+      "2026-08-27": 355,
+      "2026-08-13": 353,
+      "2026-08-10": 349,
+      "2026-08-29": 349,
+      "2026-08-20": 336,
+      "2026-08-08": 325,
+      "2026-08-30": 321,
+      "2026-08-18": 314,
+      "2026-07-30": 310,
+      "2026-08-06": 302,
+      "2026-08-26": 295,
+      "2026-08-07": 293,
+      "2026-08-04": 292,
+      "2026-08-05": 287,
+      "2026-08-28": 274,
+      "2026-08-25": 270,
+      "2026-08-31": 269,
+      "2026-08-03": 268,
+      "2026-08-24": 268
+    }
+  },
+  "top_selected_team_days": [
+    [
+      "Crop Dusta",
+      18
+    ],
+    [
+      "Subramanya N",
+      12
+    ],
+    [
+      "カワシギ",
+      11
+    ],
+    [
+      "tetsuya",
+      11
+    ],
+    [
+      "Ryo Hasegawa",
+      11
+    ]
+  ],
+  "top_matchups": [
+    [
+      "('Crop Dusta', 'Ryo Hasegawa')",
+      172
+    ],
+    [
+      "('Jesse Bullard', 'keiz')",
+      101
+    ],
+    [
+      "('Crop Dusta', 'keiz')",
+      100
+    ],
+    [
+      "('Crop Dusta', 'Milan Leonard')",
+      95
+    ],
+    [
+      "('Crop Dusta', 'Subramanya N')",
+      91
+    ]
+  ],
+  "shard_totals": {
+    "files": 41,
+    "rows": 16168,
+    "unique_ids": 16168,
+    "id_set_matches_metadata": true,
+    "bytes": 2211614445,
+    "uncompressed_column_chunk_bytes": 495925263181
+  },
+  "shard_integrity": [
+    {
+      "name": "replays_2026-07-30.parquet",
+      "bytes": 29352170,
+      "rows": 310,
+      "row_groups": 310,
+      "sha256": "18d36fffebc682741f76eb878a16e4e2e7435e21c71fcb540516f22ea4eac428",
+      "uncompressed_column_chunk_bytes": 6307778535
+    },
+    {
+      "name": "replays_2026-07-31.parquet",
+      "bytes": 56053811,
+      "rows": 452,
+      "row_groups": 452,
+      "sha256": "f58ae9ffeff04e97964b83a674e190799ddf6faec6f357d274e95cf837ad2daf",
+      "uncompressed_column_chunk_bytes": 10583468893
+    },
+    {
+      "name": "replays_2026-08-01.parquet",
+      "bytes": 50965371,
+      "rows": 399,
+      "row_groups": 399,
+      "sha256": "5724d20ec7f07974d94d9092fd32601fcc5c3fbc0c124ca698e93533fc4bc2aa",
+      "uncompressed_column_chunk_bytes": 10210913221
+    },
+    {
+      "name": "replays_2026-08-02.parquet",
+      "bytes": 46858722,
+      "rows": 455,
+      "row_groups": 455,
+      "sha256": "ad88f35194e005e180faaaf67dddb1fabb0489cf69e5386ad696de0ef9af14b3",
+      "uncompressed_column_chunk_bytes": 12323431926
+    },
+    {
+      "name": "replays_2026-08-03.parquet",
+      "bytes": 28647980,
+      "rows": 268,
+      "row_groups": 268,
+      "sha256": "9a9be60d8d06e12b68c8af5571bf9f1972e2a47765378910093ef73f53d6bb0b",
+      "uncompressed_column_chunk_bytes": 7438008704
+    },
+    {
+      "name": "replays_2026-08-04.parquet",
+      "bytes": 31401967,
+      "rows": 292,
+      "row_groups": 292,
+      "sha256": "f608b60897132074dd6dc70e6fa6cf01497e43f824c6850f869255c291d5bb48",
+      "uncompressed_column_chunk_bytes": 8318612176
+    },
+    {
+      "name": "replays_2026-08-05.parquet",
+      "bytes": 35651661,
+      "rows": 287,
+      "row_groups": 287,
+      "sha256": "5829f452c7c8530ffdaa06a36aa223d4f3961731062df4dbaeab7866b1509a44",
+      "uncompressed_column_chunk_bytes": 8310338391
+    },
+    {
+      "name": "replays_2026-08-06.parquet",
+      "bytes": 36694501,
+      "rows": 302,
+      "row_groups": 302,
+      "sha256": "986cea6e85d1bbd1bd028943bd1028853b663ff784ffcecec9b3418fcf77906b",
+      "uncompressed_column_chunk_bytes": 9481179971
+    },
+    {
+      "name": "replays_2026-08-07.parquet",
+      "bytes": 34200270,
+      "rows": 293,
+      "row_groups": 293,
+      "sha256": "528f647a5aff18b0a7edab5da507d55721542622ed8d5065b0ffc47f94706545",
+      "uncompressed_column_chunk_bytes": 9295909161
+    },
+    {
+      "name": "replays_2026-08-08.parquet",
+      "bytes": 34893948,
+      "rows": 325,
+      "row_groups": 325,
+      "sha256": "559c3f82f7a0967079b0e69e0dd07ff3e44ddcaf34f54ed219f7b1c7e692011a",
+      "uncompressed_column_chunk_bytes": 10268177794
+    },
+    {
+      "name": "replays_2026-08-09.parquet",
+      "bytes": 47538613,
+      "rows": 372,
+      "row_groups": 372,
+      "sha256": "85797b2ef1baa35cdafde037c619aba79d6d81ff3290f0dc0ea9053f782d9624",
+      "uncompressed_column_chunk_bytes": 11575480710
+    },
+    {
+      "name": "replays_2026-08-10.parquet",
+      "bytes": 42987550,
+      "rows": 349,
+      "row_groups": 349,
+      "sha256": "74fda300d12c457649510c83c01617d814677875cd6776402fe462558bfdfcf6",
+      "uncompressed_column_chunk_bytes": 10949951611
+    },
+    {
+      "name": "replays_2026-08-11.parquet",
+      "bytes": 45321223,
+      "rows": 370,
+      "row_groups": 370,
+      "sha256": "e9d8a375be2d4dbf85b2e44f3f3415f3f62177e1616af68be985d3200df3304c",
+      "uncompressed_column_chunk_bytes": 11608571043
+    },
+    {
+      "name": "replays_2026-08-12.parquet",
+      "bytes": 45792559,
+      "rows": 365,
+      "row_groups": 365,
+      "sha256": "930b93833f1dcc186ad0299c6018ad2773d7077c73b21159f71e50d671648018",
+      "uncompressed_column_chunk_bytes": 11449477254
+    },
+    {
+      "name": "replays_2026-08-13.parquet",
+      "bytes": 42042053,
+      "rows": 353,
+      "row_groups": 353,
+      "sha256": "de76938d8b4e19d07ae5484b29adcbef3753bf9a60412f60ca6749d784ea97af",
+      "uncompressed_column_chunk_bytes": 11003387392
+    },
+    {
+      "name": "replays_2026-08-14.parquet",
+      "bytes": 47969571,
+      "rows": 363,
+      "row_groups": 363,
+      "sha256": "95e5bd27a2c54641a2d421d21640ddecd14357875a45f490b627b2bf89fdb42b",
+      "uncompressed_column_chunk_bytes": 11262663592
+    },
+    {
+      "name": "replays_2026-08-15.parquet",
+      "bytes": 67393391,
+      "rows": 522,
+      "row_groups": 522,
+      "sha256": "674bde527eb943d0c86d1613b35ba3a690435d3574119c11d4a4df87bd1a62a5",
+      "uncompressed_column_chunk_bytes": 16061842817
+    },
+    {
+      "name": "replays_2026-08-16.parquet",
+      "bytes": 61483789,
+      "rows": 464,
+      "row_groups": 464,
+      "sha256": "f5ff68c2f33cac5725221cc6e077e12ef0547e31606785403c0e70d9e8071d68",
+      "uncompressed_column_chunk_bytes": 14268474416
+    },
+    {
+      "name": "replays_2026-08-17.parquet",
+      "bytes": 62522096,
+      "rows": 465,
+      "row_groups": 465,
+      "sha256": "09d5a11f1845779c179c8bd743d6d66283c1dc5f866f477a5d43e9616332f800",
+      "uncompressed_column_chunk_bytes": 14269991660
+    },
+    {
+      "name": "replays_2026-08-18.parquet",
+      "bytes": 42928204,
+      "rows": 314,
+      "row_groups": 314,
+      "sha256": "0aedf432034c7b21d4533e70d5ec6bfa92e6fccbdaa567818e57df501b1dee76",
+      "uncompressed_column_chunk_bytes": 9658415748
+    },
+    {
+      "name": "replays_2026-08-19.parquet",
+      "bytes": 53373427,
+      "rows": 376,
+      "row_groups": 376,
+      "sha256": "11ae4a8eede12d7f658d0c1e6fcbe9b697890cc42206da9280e145199877f3fc",
+      "uncompressed_column_chunk_bytes": 11636449711
+    },
+    {
+      "name": "replays_2026-08-20.parquet",
+      "bytes": 48089441,
+      "rows": 336,
+      "row_groups": 336,
+      "sha256": "62cff77ab4d41d515422a2546ac08c8a571d4882fb7cb8253d0e1712c1e7c380",
+      "uncompressed_column_chunk_bytes": 10357797938
+    },
+    {
+      "name": "replays_2026-08-21.parquet",
+      "bytes": 54639557,
+      "rows": 373,
+      "row_groups": 373,
+      "sha256": "cc9a5655263691f63ff4a6d4e93ced8d5fe033e959f8f8aafd999fb369caef18",
+      "uncompressed_column_chunk_bytes": 11508715107
+    },
+    {
+      "name": "replays_2026-08-22.parquet",
+      "bytes": 56683696,
+      "rows": 376,
+      "row_groups": 376,
+      "sha256": "270c27e64b75999464325cb983747082d51274c4ca61458aae3b1dc592e9a6ed",
+      "uncompressed_column_chunk_bytes": 11669133367
+    },
+    {
+      "name": "replays_2026-08-23.parquet",
+      "bytes": 55867269,
+      "rows": 363,
+      "row_groups": 363,
+      "sha256": "8a1f51479dbd71c362d226c944021d15cd5e620f5b6b3738b6e16510268d34e1",
+      "uncompressed_column_chunk_bytes": 11328306087
+    },
+    {
+      "name": "replays_2026-08-24.parquet",
+      "bytes": 39390535,
+      "rows": 268,
+      "row_groups": 268,
+      "sha256": "bcc12386097044ef7e9c88b4791e765316d5b76d367c27abeb43ee03f9bea953",
+      "uncompressed_column_chunk_bytes": 8356124369
+    },
+    {
+      "name": "replays_2026-08-25.parquet",
+      "bytes": 38130015,
+      "rows": 270,
+      "row_groups": 270,
+      "sha256": "791e896ec4d2ae683baa064bea2178d60671f29c47a61905a1c0141d3d73aee0",
+      "uncompressed_column_chunk_bytes": 8461833841
+    },
+    {
+      "name": "replays_2026-08-26.parquet",
+      "bytes": 42769052,
+      "rows": 295,
+      "row_groups": 295,
+      "sha256": "1ed9e597d1253ed22c2df19b4b365343c319b40ae090182b1741ba057955b1f0",
+      "uncompressed_column_chunk_bytes": 9213953446
+    },
+    {
+      "name": "replays_2026-08-27.parquet",
+      "bytes": 50189216,
+      "rows": 355,
+      "row_groups": 355,
+      "sha256": "35337917e222bc0f6663dfbcff62eafd40bdfbca79c51bdc6f3795f1b2e64931",
+      "uncompressed_column_chunk_bytes": 10927348480
+    },
+    {
+      "name": "replays_2026-08-28.parquet",
+      "bytes": 42590367,
+      "rows": 274,
+      "row_groups": 274,
+      "sha256": "9ba10e83159f01afadc6592ebae63af1dc56cfaf35d55892ce206b354c2f8a9e",
+      "uncompressed_column_chunk_bytes": 8653321686
+    },
+    {
+      "name": "replays_2026-08-29.parquet",
+      "bytes": 51599794,
+      "rows": 349,
+      "row_groups": 349,
+      "sha256": "25453800fe80297cab3d0058abb1c2178e3446fda1b61b80d301141e37ad67e0",
+      "uncompressed_column_chunk_bytes": 11193207463
+    },
+    {
+      "name": "replays_2026-08-30.parquet",
+      "bytes": 45758858,
+      "rows": 321,
+      "row_groups": 321,
+      "sha256": "3e754bdb474e3358ede66613e33b216e02aabb4487d1ada0872d9daa5855bb60",
+      "uncompressed_column_chunk_bytes": 10335288049
+    },
+    {
+      "name": "replays_2026-08-31.parquet",
+      "bytes": 38052012,
+      "rows": 269,
+      "row_groups": 269,
+      "sha256": "e6fe411adfcc13aa57f361f4f31685f2d0afed314e386277dbe5d7938e0ec574",
+      "uncompressed_column_chunk_bytes": 8607377966
+    },
+    {
+      "name": "replays_2026-09-01.parquet",
+      "bytes": 78826972,
+      "rows": 539,
+      "row_groups": 539,
+      "sha256": "9daf0eb02ca45094af3ea5036019a69a23aa704b4ce1d377a6e3ff2fbc4f8e1d",
+      "uncompressed_column_chunk_bytes": 17409281189
+    },
+    {
+      "name": "replays_2026-09-02.parquet",
+      "bytes": 74448406,
+      "rows": 492,
+      "row_groups": 492,
+      "sha256": "27d25f1b3552bbd1d20144ad4ebb37d2a1a43db5ae126de69c4f7d5c4a41ecab",
+      "uncompressed_column_chunk_bytes": 15730683989
+    },
+    {
+      "name": "replays_2026-09-03.parquet",
+      "bytes": 80946956,
+      "rows": 556,
+      "row_groups": 556,
+      "sha256": "88733d727b1d25b0ed39c42844f72ed3f5193fefb31efc6be7e5a022f04443ba",
+      "uncompressed_column_chunk_bytes": 17827844341
+    },
+    {
+      "name": "replays_2026-09-04.parquet",
+      "bytes": 93848050,
+      "rows": 639,
+      "row_groups": 639,
+      "sha256": "2159aa6fbc9284ebb339c63c92b48e0ec646f53d51ba0187c8d58b26ef6912b4",
+      "uncompressed_column_chunk_bytes": 20501427605
+    },
+    {
+      "name": "replays_2026-09-05.parquet",
+      "bytes": 90709955,
+      "rows": 609,
+      "row_groups": 609,
+      "sha256": "21a6235667641dc2f75e9bd34b45f5720bcfed0bc58347696657419c476780bd",
+      "uncompressed_column_chunk_bytes": 19672057026
+    },
+    {
+      "name": "replays_2026-09-06.parquet",
+      "bytes": 97807481,
+      "rows": 605,
+      "row_groups": 605,
+      "sha256": "667264f8a6c0369500d402042d48a424170860c417b6fb0ec84aa912e2906945",
+      "uncompressed_column_chunk_bytes": 19608662609
+    },
+    {
+      "name": "replays_2026-09-07.parquet",
+      "bytes": 96692246,
+      "rows": 613,
+      "row_groups": 613,
+      "sha256": "ae7f6bc4a2d2775f403226b4dd11fd32d3bfbe00cf35d18867fd6eb0528c83e3",
+      "uncompressed_column_chunk_bytes": 19801014416
+    },
+    {
+      "name": "replays_2026-09-08.parquet",
+      "bytes": 90501690,
+      "rows": 570,
+      "row_groups": 570,
+      "sha256": "d44793b715b7d16fefe41369cf4d81d8641e0e26d30d43eb141859f79d927e9e",
+      "uncompressed_column_chunk_bytes": 18479359481
+    }
+  ],
+  "sample": {
+    "episodes": 348,
+    "players": 696,
+    "selected_players": 527,
+    "dates": {
+      "2026-08-06": 10,
+      "2026-08-18": 10,
+      "2026-09-03": 10,
+      "2026-07-31": 9,
+      "2026-08-01": 9,
+      "2026-08-04": 9,
+      "2026-08-05": 9,
+      "2026-08-08": 9,
+      "2026-08-09": 9,
+      "2026-08-11": 9,
+      "2026-08-13": 9,
+      "2026-08-14": 9,
+      "2026-08-15": 9,
+      "2026-08-16": 9,
+      "2026-08-17": 9,
+      "2026-08-19": 9,
+      "2026-08-24": 9,
+      "2026-08-26": 9,
+      "2026-08-27": 9,
+      "2026-09-07": 9,
+      "2026-07-30": 8,
+      "2026-08-03": 8,
+      "2026-08-07": 8,
+      "2026-08-10": 8,
+      "2026-09-08": 8,
+      "2026-08-20": 8,
+      "2026-08-21": 8,
+      "2026-08-22": 8,
+      "2026-08-23": 8,
+      "2026-08-25": 8,
+      "2026-08-29": 8,
+      "2026-08-30": 8,
+      "2026-08-31": 8,
+      "2026-09-01": 8,
+      "2026-09-02": 8,
+      "2026-09-04": 8,
+      "2026-09-05": 8,
+      "2026-09-06": 8,
+      "2026-08-02": 7,
+      "2026-08-12": 7,
+      "2026-08-28": 7
+    },
+    "module_versions": {
+      "1.32.7": 211,
+      "1.32.6": 64,
+      "1.32.2": 34,
+      "1.32.4": 16,
+      "1.32.3": 12,
+      "1.32.5": 11
+    },
+    "schema_versions": {
+      "1": 348
+    },
+    "steps": {
+      "720": 348
+    },
+    "statuses": {
+      "['DONE', 'DONE']": 348
+    },
+    "seed_unique": 348,
+    "body_bytes": 10605340258,
+    "info_key_sets": {
+      "['Agents', 'EpisodeId', 'LiveVideoPath', 'TeamNames', 'seed']": 348
+    },
+    "configuration_sets": {
+      "{\"actTimeout\": 1, \"boardSize\": 10, \"episodeSteps\": 720, \"farmHandCostMult\": 1, \"marketParams\": {}, \"maxMarketOrdersPerTurn\": 10, \"runTimeout\": 1200, \"seed\": null, \"shedCapacity\": 100, \"startingMoney\": 3000, \"townCenterSellInterval\": 24, \"townShopSellInterval\": 4, \"townShopUnlockInterval\": 3, \"turnsPerDay\": 24, \"weedSpawnChance\": 0.005}": 275,
+      "{\"actTimeout\": 1, \"boardSize\": 10, \"episodeSteps\": 720, \"farmHandCostMult\": 1, \"marketParams\": {}, \"maxMarketOrdersPerTurn\": 10, \"runTimeout\": 1200, \"seed\": null, \"shedCapacity\": 100, \"startingMoney\": 3000, \"townCenterSellInterval\": 12, \"townShopSellInterval\": 4, \"townShopUnlockInterval\": 3, \"turnsPerDay\": 24, \"weedSpawnChance\": 0.005}": 73
+    },
+    "full_action_unique_all": 682,
+    "seed_version_by_date": {
+      "2026-07-30": {
+        "1.32.2": 8
+      },
+      "2026-07-31": {
+        "1.32.2": 9
+      },
+      "2026-08-01": {
+        "1.32.2": 9
+      },
+      "2026-08-02": {
+        "1.32.2": 7
+      },
+      "2026-08-03": {
+        "1.32.3": 7,
+        "1.32.2": 1
+      },
+      "2026-08-04": {
+        "1.32.3": 5,
+        "1.32.4": 4
+      },
+      "2026-08-05": {
+        "1.32.4": 9
+      },
+      "2026-08-06": {
+        "1.32.5": 7,
+        "1.32.4": 3
+      },
+      "2026-08-07": {
+        "1.32.5": 4,
+        "1.32.6": 4
+      },
+      "2026-08-08": {
+        "1.32.6": 9
+      },
+      "2026-08-09": {
+        "1.32.6": 9
+      },
+      "2026-08-10": {
+        "1.32.6": 8
+      },
+      "2026-08-11": {
+        "1.32.6": 9
+      },
+      "2026-08-12": {
+        "1.32.6": 7
+      },
+      "2026-08-13": {
+        "1.32.6": 9
+      },
+      "2026-08-14": {
+        "1.32.6": 9
+      },
+      "2026-08-15": {
+        "1.32.7": 9
+      },
+      "2026-08-16": {
+        "1.32.7": 9
+      },
+      "2026-08-17": {
+        "1.32.7": 9
+      },
+      "2026-08-18": {
+        "1.32.7": 10
+      },
+      "2026-08-19": {
+        "1.32.7": 9
+      },
+      "2026-08-20": {
+        "1.32.7": 8
+      },
+      "2026-08-21": {
+        "1.32.7": 8
+      },
+      "2026-08-22": {
+        "1.32.7": 8
+      },
+      "2026-08-23": {
+        "1.32.7": 8
+      },
+      "2026-08-24": {
+        "1.32.7": 9
+      },
+      "2026-08-25": {
+        "1.32.7": 8
+      },
+      "2026-08-26": {
+        "1.32.7": 9
+      },
+      "2026-08-27": {
+        "1.32.7": 9
+      },
+      "2026-08-28": {
+        "1.32.7": 7
+      },
+      "2026-08-29": {
+        "1.32.7": 8
+      },
+      "2026-08-30": {
+        "1.32.7": 8
+      },
+      "2026-08-31": {
+        "1.32.7": 8
+      },
+      "2026-09-01": {
+        "1.32.7": 8
+      },
+      "2026-09-02": {
+        "1.32.7": 8
+      },
+      "2026-09-03": {
+        "1.32.7": 10
+      },
+      "2026-09-04": {
+        "1.32.7": 8
+      },
+      "2026-09-05": {
+        "1.32.7": 8
+      },
+      "2026-09-06": {
+        "1.32.7": 8
+      },
+      "2026-09-07": {
+        "1.32.7": 9
+      },
+      "2026-09-08": {
+        "1.32.7": 8
+      }
+    }
+  },
+  "sample_selection": {
+    "rule": "SHA256 gold-replay-audit-v1:episode_id minimum per selected team-day; union",
+    "episode_ids": [
+      89028663,
+      89030519,
+      89030524,
+      89031429,
+      89034644,
+      89042439,
+      89043372,
+      89049879,
+      89091749,
+      89143795,
+      89168087,
+      89174200,
+      89175728,
+      89177740,
+      89211415,
+      89213435,
+      89224977,
+      89243903,
+      89316185,
+      89394925,
+      89401768,
+      89404954,
+      89408073,
+      89410721,
+      89412284,
+      89412851,
+      89572122,
+      89572679,
+      89599016,
+      89600649,
+      89612231,
+      89612232,
+      89612789,
+      89729208,
+      89776880,
+      89778032,
+      89779202,
+      89793681,
+      89803935,
+      89814938,
+      89817349,
+      89820316,
+      89838547,
+      89942532,
+      89950187,
+      89994082,
+      89999809,
+      90003742,
+      90012782,
+      90025819,
+      90053286,
+      90066283,
+      90166548,
+      90211875,
+      90228460,
+      90257567,
+      90277534,
+      90282508,
+      90291114,
+      90473753,
+      90482986,
+      90496737,
+      90521996,
+      90523651,
+      90540370,
+      90542868,
+      90552109,
+      90555854,
+      90556676,
+      90577216,
+      90613920,
+      90630427,
+      90749462,
+      90787255,
+      90841022,
+      90842744,
+      90847526,
+      90876349,
+      90904182,
+      90912593,
+      90992733,
+      91009346,
+      91097320,
+      91106894,
+      91112915,
+      91130443,
+      91173553,
+      91192901,
+      91200685,
+      91321801,
+      91348833,
+      91390417,
+      91398531,
+      91418481,
+      91460792,
+      91490957,
+      91511031,
+      91516541,
+      91549407,
+      91614855,
+      91759414,
+      91782452,
+      91797217,
+      91845717,
+      91894279,
+      91963252,
+      92007254,
+      92039248,
+      92077956,
+      92081569,
+      92111568,
+      92118981,
+      92143532,
+      92231620,
+      92312827,
+      92333218,
+      92341656,
+      92367084,
+      92440446,
+      92482309,
+      92508352,
+      92524000,
+      92643365,
+      92652703,
+      92695708,
+      92732829,
+      92775295,
+      92791997,
+      92834799,
+      92911052,
+      92948271,
+      92962192,
+      93006838,
+      93014309,
+      93022778,
+      93064430,
+      93116286,
+      93191035,
+      93232066,
+      93250870,
+      93258919,
+      93263507,
+      93314410,
+      93332287,
+      93368028,
+      93377956,
+      93463534,
+      93515969,
+      93523040,
+      93531178,
+      93540112,
+      93541093,
+      93596638,
+      93700738,
+      93753364,
+      93787884,
+      93797468,
+      93829889,
+      93932003,
+      93977796,
+      93978784,
+      93987590,
+      94034980,
+      94041982,
+      94079883,
+      94079899,
+      94221374,
+      94242740,
+      94247835,
+      94268242,
+      94321877,
+      94327009,
+      94338451,
+      94344661,
+      94374510,
+      94381650,
+      94393832,
+      94409820,
+      94436066,
+      94458225,
+      94693275,
+      94696650,
+      94711810,
+      94854173,
+      94924923,
+      94945313,
+      95217127,
+      95381519,
+      95383770,
+      95477256,
+      95481731,
+      95632289,
+      95670944,
+      95803412,
+      95942615,
+      96074913,
+      96100056,
+      96303081,
+      96314388,
+      96378278,
+      96430635,
+      96487657,
+      96574150,
+      96622150,
+      96651836,
+      96676936,
+      96980560,
+      97199338,
+      97384177,
+      97436630,
+      97573388,
+      97676260,
+      97699000,
+      97817863,
+      97877115,
+      98093786,
+      98191725,
+      98239487,
+      98269331,
+      98271628,
+      98353840,
+      98597922,
+      98782135,
+      98816344,
+      98832334,
+      98852913,
+      99226953,
+      99480103,
+      99505242,
+      99521188,
+      99536994,
+      99603288,
+      99650958,
+      99705912,
+      99724096,
+      99762908,
+      99808519,
+      99890703,
+      100013971,
+      100084756,
+      100451393,
+      100515300,
+      100529109,
+      100549633,
+      100618016,
+      100679556,
+      100695463,
+      101113242,
+      101126947,
+      101160964,
+      101277166,
+      101348579,
+      101406532,
+      102033869,
+      102036105,
+      102040817,
+      102058523,
+      102266227,
+      102538447,
+      102661404,
+      102703830,
+      102712628,
+      102748471,
+      102781914,
+      102862084,
+      102891140,
+      103000403,
+      103002611,
+      103004927,
+      103042717,
+      103268400,
+      103290706,
+      103623130,
+      103710264,
+      103743661,
+      103841774,
+      103953427,
+      104000423,
+      104248129,
+      104424278,
+      104431059,
+      104481363,
+      104527555,
+      104586846,
+      104603739,
+      104629058,
+      104634013,
+      104658772,
+      104663125,
+      104668384,
+      104675042,
+      104688684,
+      104823501,
+      104903068,
+      104949371,
+      104961002,
+      104965807,
+      104970470,
+      105016432,
+      105033380,
+      105062249,
+      105065768,
+      105089826,
+      105230105,
+      105265116,
+      105270680,
+      105282879,
+      105289670,
+      105338106,
+      105402061,
+      105426891,
+      105458810,
+      105527692,
+      105550533,
+      105577056,
+      105626188,
+      105632580,
+      105639045,
+      105686962,
+      105721834,
+      105773147,
+      105893363,
+      105905738,
+      105957857,
+      106077317,
+      106079196,
+      106106169,
+      106129747,
+      106136867,
+      106236337,
+      106257898,
+      106284178,
+      106302938,
+      106314852,
+      106345043,
+      106423115,
+      106521701,
+      106538996,
+      106568983,
+      106593492,
+      106622723,
+      106626472,
+      106630211,
+      106681535,
+      106692598,
+      106889315,
+      106918471,
+      106922313
+    ]
+  },
+  "sample_selected_outcomes": {
+    "loss": 231,
+    "win": 291,
+    "tie": 5
+  },
+  "behaviour_definitions": {
+    "asset_profile": "Tuple of (cow,sheep,goose,owned tile count,actual hand count) at pre-action observations 144,288,432,576; day-boundary hand counts are zero and do not measure labour diversity.",
+    "regime": "Herd at observation 576; species-heavy when >=60% animal count, otherwise mixed; no-herd separate.",
+    "effective_count": "exp(-sum(p*ln(p))) over empirical histogram; not independent policy count.",
+    "action_hash": "SHA256 of sort_keys=True, separators=(comma,colon) canonical JSON of steps[1:] actions for one seat, preserving list order/arity.",
+    "prefix_hash": "Same canonical action hash restricted to first N actionable records.",
+    "selected_population": "All sampled player trajectories whose names are proxy-selected that day, including second selected participant.",
+    "body_sampling": "Outcome-blind minimum SHA256(gold-replay-audit-v1:<episode_id>) per selected team-day; union; both seats parsed.",
+    "detail_sampling": "Minimum episode ID among selected body sample each day; both seats; 41 games.",
+    "disagreement_contract": "Module-version and role-normalized own/public farm, own private, market, town and checkpoint; no seed/opponent-private/controller state. Seat excluded, so matches are economic, not identical complete decision observations.",
+    "disagreement_label": "Ordered requested BUY_ANIMAL,BUY_LAND,HIRE sequences in next 72 turns; not causal/immediate-decision labels.",
+    "lifecycle": "Observed tile coordinate/type/planted_day or placed_day; same-day replacement can alias. Positive crop yield_units does not imply maturity."
+  },
+  "strategic_selected": {
+    "early": {
+      "n_selected_trajectories": 164,
+      "regimes": {
+        "mixed-herd": 104,
+        "cow-heavy": 47,
+        "no-herd": 6,
+        "sheep-heavy": 6,
+        "goose-heavy": 1
+      },
+      "regime_effective_count": 2.51,
+      "distinct_4checkpoint_asset_profiles": 57,
+      "profile_effective_count": 19.004,
+      "full_action_unique": 160,
+      "farm_action_unique": 120,
+      "prefix_unique": {
+        "24": 57,
+        "72": 69,
+        "144": 87,
+        "288": 125
+      },
+      "land_at_288": {
+        "0": 50,
+        "1": 100,
+        "0.1": 75,
+        "0.5": 75,
+        "0.9": 75
+      },
+      "animals_at_288": {
+        "COW": {
+          "0": 0,
+          "1": 15,
+          "0.1": 6,
+          "0.5": 8,
+          "0.9": 8
+        },
+        "SHEEP": {
+          "0": 0,
+          "1": 13,
+          "0.1": 3,
+          "0.5": 6,
+          "0.9": 7
+        },
+        "GOOSE": {
+          "0": 0,
+          "1": 1,
+          "0.1": 0,
+          "0.5": 0,
+          "0.9": 0
+        }
+      },
+      "crop_requests": {
+        "WHEAT": {
+          "0": 0,
+          "1": 148,
+          "0.1": 16,
+          "0.5": 72,
+          "0.9": 143
+        },
+        "STRAWBERRY": {
+          "0": 0,
+          "1": 64,
+          "0.1": 31,
+          "0.5": 42,
+          "0.9": 44
+        },
+        "MELON": {
+          "0": 11,
+          "1": 112,
+          "0.1": 17,
+          "0.5": 21,
+          "0.9": 26
+        },
+        "CARROT": {
+          "0": 0,
+          "1": 203,
+          "0.1": 0,
+          "0.5": 0,
+          "0.9": 7
+        },
+        "TOMATO": {
+          "0": 0,
+          "1": 11,
+          "0.1": 0,
+          "0.5": 0,
+          "0.9": 0
+        }
+      },
+      "tomato_request_trajectories": 6,
+      "max_hands_action": 15,
+      "has_geese_at_576": 2,
+      "cash_at_144": {
+        "0": 3,
+        "1": 1740,
+        "0.1": 258,
+        "0.5": 642,
+        "0.9": 1691
+      },
+      "top_herds_at_576": [
+        [
+          "(8, 6, 0)",
+          76
+        ],
+        [
+          "(9, 5, 0)",
+          14
+        ],
+        [
+          "(9, 4, 0)",
+          12
+        ],
+        [
+          "(8, 4, 0)",
+          10
+        ],
+        [
+          "(0, 0, 0)",
+          6
+        ]
+      ]
+    },
+    "middle": {
+      "n_selected_trajectories": 187,
+      "regimes": {
+        "cow-heavy": 129,
+        "sheep-heavy": 32,
+        "mixed-herd": 26
+      },
+      "regime_effective_count": 2.299,
+      "distinct_4checkpoint_asset_profiles": 72,
+      "profile_effective_count": 27.436,
+      "full_action_unique": 187,
+      "farm_action_unique": 167,
+      "prefix_unique": {
+        "24": 22,
+        "72": 46,
+        "144": 103,
+        "288": 172
+      },
+      "land_at_288": {
+        "0": 50,
+        "1": 75,
+        "0.1": 75,
+        "0.5": 75,
+        "0.9": 75
+      },
+      "animals_at_288": {
+        "COW": {
+          "0": 3,
+          "1": 12,
+          "0.1": 6,
+          "0.5": 8,
+          "0.9": 10
+        },
+        "SHEEP": {
+          "0": 2,
+          "1": 13,
+          "0.1": 3,
+          "0.5": 4,
+          "0.9": 8
+        },
+        "GOOSE": {
+          "0": 0,
+          "1": 4,
+          "0.1": 0,
+          "0.5": 0,
+          "0.9": 0
+        }
+      },
+      "crop_requests": {
+        "WHEAT": {
+          "0": 62,
+          "1": 201,
+          "0.1": 108,
+          "0.5": 127,
+          "0.9": 143
+        },
+        "STRAWBERRY": {
+          "0": 12,
+          "1": 52,
+          "0.1": 32,
+          "0.5": 37,
+          "0.9": 42
+        },
+        "MELON": {
+          "0": 7,
+          "1": 26,
+          "0.1": 11,
+          "0.5": 14,
+          "0.9": 20
+        },
+        "CARROT": {
+          "0": 0,
+          "1": 68,
+          "0.1": 0,
+          "0.5": 6,
+          "0.9": 29
+        },
+        "TOMATO": {
+          "0": 0,
+          "1": 25,
+          "0.1": 0,
+          "0.5": 0,
+          "0.9": 0
+        }
+      },
+      "tomato_request_trajectories": 18,
+      "max_hands_action": 15,
+      "has_geese_at_576": 14,
+      "cash_at_144": {
+        "0": 1,
+        "1": 1154,
+        "0.1": 20,
+        "0.5": 189,
+        "0.9": 684
+      },
+      "top_herds_at_576": [
+        [
+          "(10, 4, 0)",
+          53
+        ],
+        [
+          "(8, 4, 0)",
+          19
+        ],
+        [
+          "(11, 4, 0)",
+          15
+        ],
+        [
+          "(8, 6, 0)",
+          10
+        ],
+        [
+          "(6, 12, 0)",
+          9
+        ]
+      ]
+    },
+    "late": {
+      "n_selected_trajectories": 176,
+      "regimes": {
+        "cow-heavy": 72,
+        "mixed-herd": 65,
+        "sheep-heavy": 38,
+        "goose-heavy": 1
+      },
+      "regime_effective_count": 2.986,
+      "distinct_4checkpoint_asset_profiles": 106,
+      "profile_effective_count": 63.784,
+      "full_action_unique": 174,
+      "farm_action_unique": 164,
+      "prefix_unique": {
+        "24": 61,
+        "72": 93,
+        "144": 119,
+        "288": 160
+      },
+      "land_at_288": {
+        "0": 25,
+        "1": 100,
+        "0.1": 75,
+        "0.5": 75,
+        "0.9": 75
+      },
+      "animals_at_288": {
+        "COW": {
+          "0": 0,
+          "1": 12,
+          "0.1": 4,
+          "0.5": 7,
+          "0.9": 9
+        },
+        "SHEEP": {
+          "0": 1,
+          "1": 14,
+          "0.1": 3,
+          "0.5": 4,
+          "0.9": 11
+        },
+        "GOOSE": {
+          "0": 0,
+          "1": 8,
+          "0.1": 0,
+          "0.5": 0,
+          "0.9": 3
+        }
+      },
+      "crop_requests": {
+        "WHEAT": {
+          "0": 54,
+          "1": 225,
+          "0.1": 109,
+          "0.5": 164,
+          "0.9": 192
+        },
+        "STRAWBERRY": {
+          "0": 13,
+          "1": 53,
+          "0.1": 26,
+          "0.5": 37,
+          "0.9": 38
+        },
+        "MELON": {
+          "0": 7,
+          "1": 20,
+          "0.1": 11,
+          "0.5": 12,
+          "0.9": 15
+        },
+        "CARROT": {
+          "0": 0,
+          "1": 128,
+          "0.1": 6,
+          "0.5": 15,
+          "0.9": 56
+        },
+        "TOMATO": {
+          "0": 0,
+          "1": 28,
+          "0.1": 0,
+          "0.5": 0,
+          "0.9": 12
+        }
+      },
+      "tomato_request_trajectories": 42,
+      "max_hands_action": 15,
+      "has_geese_at_576": 52,
+      "cash_at_144": {
+        "0": 0,
+        "1": 1404,
+        "0.1": 27,
+        "0.5": 309,
+        "0.9": 850
+      },
+      "top_herds_at_576": [
+        [
+          "(9, 5, 0)",
+          26
+        ],
+        [
+          "(6, 11, 0)",
+          11
+        ],
+        [
+          "(8, 5, 0)",
+          9
+        ],
+        [
+          "(7, 6, 0)",
+          8
+        ],
+        [
+          "(6, 10, 0)",
+          6
+        ]
+      ]
+    },
+    "all": {
+      "n_selected_trajectories": 527,
+      "regimes": {
+        "cow-heavy": 248,
+        "mixed-herd": 195,
+        "sheep-heavy": 76,
+        "no-herd": 6,
+        "goose-heavy": 2
+      },
+      "regime_effective_count": 2.927,
+      "distinct_4checkpoint_asset_profiles": 224,
+      "profile_effective_count": 85.092,
+      "full_action_unique": 521,
+      "farm_action_unique": 450,
+      "prefix_unique": {
+        "24": 129,
+        "72": 197,
+        "144": 302,
+        "288": 456
+      },
+      "land_at_288": {
+        "0": 25,
+        "1": 100,
+        "0.1": 75,
+        "0.5": 75,
+        "0.9": 75
+      },
+      "animals_at_288": {
+        "COW": {
+          "0": 0,
+          "1": 15,
+          "0.1": 5,
+          "0.5": 8,
+          "0.9": 10
+        },
+        "SHEEP": {
+          "0": 0,
+          "1": 14,
+          "0.1": 3,
+          "0.5": 4,
+          "0.9": 9
+        },
+        "GOOSE": {
+          "0": 0,
+          "1": 8,
+          "0.1": 0,
+          "0.5": 0,
+          "0.9": 1
+        }
+      },
+      "crop_requests": {
+        "WHEAT": {
+          "0": 0,
+          "1": 225,
+          "0.1": 66,
+          "0.5": 129,
+          "0.9": 187
+        },
+        "STRAWBERRY": {
+          "0": 0,
+          "1": 64,
+          "0.1": 30,
+          "0.5": 38,
+          "0.9": 44
+        },
+        "MELON": {
+          "0": 7,
+          "1": 112,
+          "0.1": 11,
+          "0.5": 15,
+          "0.9": 24
+        },
+        "CARROT": {
+          "0": 0,
+          "1": 203,
+          "0.1": 0,
+          "0.5": 6,
+          "0.9": 41
+        },
+        "TOMATO": {
+          "0": 0,
+          "1": 28,
+          "0.1": 0,
+          "0.5": 0,
+          "0.9": 4
+        }
+      },
+      "tomato_request_trajectories": 66,
+      "max_hands_action": 15,
+      "has_geese_at_576": 68,
+      "cash_at_144": {
+        "0": 0,
+        "1": 1740,
+        "0.1": 28,
+        "0.5": 360,
+        "0.9": 970
+      },
+      "top_herds_at_576": [
+        [
+          "(8, 6, 0)",
+          86
+        ],
+        [
+          "(10, 4, 0)",
+          57
+        ],
+        [
+          "(9, 5, 0)",
+          43
+        ],
+        [
+          "(8, 4, 0)",
+          34
+        ],
+        [
+          "(9, 4, 0)",
+          22
+        ]
+      ]
+    }
+  },
+  "detail": {
+    "games": 41,
+    "players": 82,
+    "max_real_hands": 15,
+    "players_ever_over_12_hands": 31,
+    "midday_hands_min_median_max": [
+      0,
+      11,
+      15
+    ],
+    "shed_ge95_observations_median_max": [
+      2,
+      28
+    ],
+    "role_normalized_disagreements": {
+      "72": {
+        "groups": 66,
+        "repeated_groups": 12,
+        "different_next_72_turn_investment_requests": 2
+      },
+      "144": {
+        "groups": 73,
+        "repeated_groups": 9,
+        "different_next_72_turn_investment_requests": 1
+      },
+      "216": {
+        "groups": 77,
+        "repeated_groups": 5,
+        "different_next_72_turn_investment_requests": 1
+      }
+    },
+    "example": {
+      "episode_id": 106622723,
+      "date": "2026-09-08",
+      "seat": 0,
+      "cell_row_col": [
+        4,
+        7
+      ],
+      "animal": "SHEEP",
+      "first_present_observation": 160,
+      "placed_day": 6,
+      "first_positive_stored_yield_observation": 288,
+      "first_positive_stored_yield_units": 5
+    }
+  },
+  "unavailable_or_unmeasured": [
+    "Exact submission IDs and independent policy count",
+    "True leaderboard rank",
+    "Full-corpus body seed/version/status statistics",
+    "Private policy controller state",
+    "Independent live competitive value of any mined job",
+    "Authoritative full rules and directly retrieved linked host permissions"
+  ],
+  "decision": "Option B: replay-seeded CUDA population production-route synthesis with live best-response league and BKG4 compilation; experimental, no measured gain yet.",
+  "research_script_hashes": {
+    "audit.py": "9bc5404f736b96399ac429a8f3795740a691ccd77cbbdce52edaabd76e652cad",
+    "analyze.py": "e5810478ff615eea7b21c6f02c200a59738e25c938125a7931e48b53c1526730",
+    "report.py": "a5995c7e718041c10cf2df2d3c781eae6719efe59dbe473533f87ffebcdf653d",
+    "detail.py": "d034d21e042bf636517330cff95d136ba95776aa98f79ec689fca1ff58da56e0"
+  },
+  "large_local_files": "Ignored build/top10_archive_research; no decoded full-corpus export or committed replay bodies."
+}

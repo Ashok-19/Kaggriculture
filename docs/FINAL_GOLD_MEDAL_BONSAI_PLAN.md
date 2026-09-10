@@ -2,11 +2,11 @@
 
 ## Executive verdict
 
-**Selected architecture: CUDA population-based production-route synthesis, with a small best-response league, compiled into a BKG4 route portfolio and a bounded reactive executor.**
+**Selected architecture: replay-seeded CUDA population-based production-route synthesis, with a small live best-response league, compiled into a BKG4 route portfolio and a bounded reactive executor (Option B).**
 
 **THIS IS THE PLAN WE SHOULD EXECUTE.**
 
-The teacher is an expensive offline search system, not a neural policy and not the Bonsai tree. It evolves coordinated production jobs and their dependent full-season schedules, evaluates both agents live through the final actionable turn, and retains economically different successful routes. BKG4 executes the resulting route data, chooses among a few compatible continuations using legal observations, and handles bounded recovery. No planner or neural network ships.
+The teacher remains an expensive offline search system, not a neural policy and not the Bonsai tree. Public replays now supply a small, deduplicated set of production-job examples, timing priors and economic challenges instead of requiring all useful job content to be hand-designed. Search evolves their dependent full-season schedules, evaluates both agents live through the final actionable turn, and retains economically different successful routes. BKG4 executes the resulting route data, chooses among a few compatible continuations using legal observations, and handles bounded recovery. No replay lookup, planner or neural network ships.
 
 The immediate starting executor and deployment reference are `shop_router_0909/plus`, verified at **85 nodes, 2 blackboard slots, 0 node-state slots, 3,224 controller bytes**, with **13 x 719 route records** in an **878,770-byte** pack. The direct Shop Router and Gold families are founding strategy material and comparison opponents, not sacred parents. The authoritative champion remains the different asset in `assets/champion/`; this document does not promote anything.
 
@@ -16,7 +16,7 @@ The decisive external clue is that a strong public Shop Router author describes 
 
 The primary investment is therefore a mutable route/job representation and efficient live CUDA continuations, not another specialist-gate campaign. Use stochastic proposals with reproducible experiment seeds; permit temporary and ordinary matchup regressions during discovery; select on diverse-league win utility and downside risk. Preserve exact simulator semantics, legal observations, deployment correctness, and catastrophic-failure protection without making every historical game an immutable strategic constraint.
 
-**Single next experiment:** a frozen comparison of 128 coordinated production-route proposals against 128 local-repair proposals, with 32 discovery roots, full-horizon continuations, independent BUILD confirmation, one frozen winner per arm, and fresh internal/external evaluation. Cap it at 12,000 native full-game equivalents, two GPU-hours, two CPU-hours for independent Python opponents, and four engineering days. Details and falsification gates appear below. Do not build the full league before this test succeeds.
+**Single next experiment:** 128 replay-informed production proposals versus 128 uninformed production proposals using the same job compiler, legal support and compute. Replace the old local-repair arm, rather than adding a third arm. Use 32 discovery roots, full-horizon continuations, independent BUILD confirmation, one frozen winner per arm, and fresh internal/external evaluation. Cap it at 12,000 native full-game equivalents, two GPU-hours, two CPU-hours for independent Python opponents, and four engineering days. Mine at most 24 job records before this test; do not build a large strategy library or learned proposal model first.
 
 The expected major upside is a stronger production economy across many matchups, rather than more wins against near-identical ancestors. The main risk is that useful new schedules remain hard to generate or fail when live market responses change. Top-10 status and a gold medal are objectives, not outcomes established by current evidence.
 
@@ -30,6 +30,8 @@ The evidence cutoff is **2026-09-10**. Labels have the following meanings:
 - **PROPOSAL:** the selected design, budget, threshold, or prediction; not a measured result.
 
 The audited branch was clean `main`, at **`7331794590efac169c06cf4c26b6c0625ce0ecd4`**, commit subject `Validate trajectory-diverse CCPR against independent control`. All identities and historical comparisons below refer to that input commit. The documentation commit containing this report is necessarily a later HEAD.
+
+The focused replay-archive continuation started from clean `main` at **`dffa9b4013df653b8d7409027c1bc36f63bd420a`**. It changes the proposal-information source and pilot comparison, not the audited production assets or historical experimental conclusions. Its bounded dataset measurements are recorded in [the replay evidence manifest](../workspace/research/top10_replay_archive/evidence.json).
 
 ### Actual policy assets
 
@@ -144,6 +146,8 @@ Record-level inspection found routes 3-12 identical to route 0 before step 144, 
 
 All 13 stored Shop tapes contain **zero TOMATO PLANT requests**. Eleven have the same crop-request counts: 12 melon, 163 wheat, 33 strawberry, and 31 carrot. Routes 9 and 12 request 165 wheat and 28 carrot. These are raw schedule requests, not realized plantings or proof that tomato is profitable. They do show that a 13-route portfolio can contain much less production diversity than its route count suggests.
 
+The replay archive extends this lesson: neither a large action-hash count nor a large collection of team names establishes many independent strategies. Mine realized production profiles first, then inspect the service and financing sequences behind distinctive profiles. A public trajectory can supply a missing job idea without supplying a deployable policy or evidence that the idea beats Shop Plus.
+
 Animal purchase schedules differ more. Route 0 requests 8 cows, 6 sheep, and 3 geese; route 3 requests 6 cows and 11 sheep; route 12 requests 4 cows and 14 sheep. Purchases after step 144 include decisions at 150, 169-178, 195-226, and 241-265. There is a concrete, accessible search space of future herd allocation and hundreds of turns of associated service, not merely endgame sales.
 
 ### Public strategy structures inspected
@@ -166,6 +170,82 @@ A public report by sobameshi describes a round robin of 14 public implementation
 **INFERENCE:** much of the public meta may be a ladder of increasingly productive economies, with tactical adaptation deciding close mirrors. Thus a robust, generally stronger schedule is a better first target than an elaborate anti-cycle router. Private leaders may discover more productive economies through search, hand-designed scheduling, learned teachers, or combinations; the visible evidence does not identify which training algorithm they use. Implement capabilities that produce and withstand new economies, not assumptions about private source code.
 
 **Answer to the route question:** yes, the evidence supports moving the unit of improvement from tiny local repairs to coordinated full-season production alternatives. It does not imply deleting reactive repairs or assuming that arbitrary full-tape mutation will work.
+
+## Top-10 Replay Archive Strategy
+
+**Decision: Option B, replay-seeded route synthesis. YES, this materially improves the plan's proposal source and first experiment; it does not establish a measured competitive gain.** Keep the CUDA truth oracle, live league, small archive and BKG4 deployment. Do not build a replay-first mega-library or make imitation the primary teacher.
+
+### Contents, provenance and limits
+
+**EXTERNAL DATA, locally measured:** `ashok205/kaggriculture-top10-replay-archive`, dataset ID **11731942**, public **version 19**, CC0, updated **2026-09-09 23:19:37.640 UTC**, contains **45 files / 2,213,153,054 downloaded bytes** (2.213 GB, 2.061 GiB). There are 41 daily ZSTD-compressed Parquet replay shards, July 30 through **September 8**, plus four metadata files. All listed file sizes and the 44 payload hashes in the archive manifest were verified; the manifest is separately pinned. The official index version 42 already lists September 9, but this archive version does not. Coverage begins with the official published index, not a proven complete competition history.[^39][^40][^41]
+
+The entire episode-ID index was read, not every full replay. It contains **16,168 distinct episodes and distinct recorded replay hashes**, with **zero duplicate IDs across shards**. `episodes.parquet` has **22,731 participant-selection rows**: 6,563 extra rows, or **28.87%**, are intentional second selected-team links, not duplicate replay bodies. There are **814 participant names**, **191 selected names**, 410 selected team-days, **5,171 unordered / 7,130 ordered name-pair matchups**. The most repeated pairing has 172 episodes. Names are not submission IDs or policy counts.
+
+The 2.2 GB size is misleading for processing cost: replay column chunks expand to **495,925,263,181 bytes** (495.9 GB / 461.9 GiB, Parquet metadata accounting). They store one `episode_id:int64, replay_json:large_string` row per row group, compressed with ZSTD level 10. Read IDs/footers globally and selected row groups individually. Do not load all decoded JSON or build a feature-store service.
+
+Collector source explains an important misnomer: each day's ten teams are chosen by **maximum observed pair-average rating**, with additional score evidence and name tie-breaking, not verified leaderboard positions. Both players receive the same pair-level score evidence. The source official daily archives already select completed games by pair-average rating under a 20-GiB/day cap. This archive then keeps games involving its ten proxy-selected teams. It retained 16,168 of 28,864 source-indexed episodes; one source header was unavailable, zero selected bodies were unavailable. The collector has no winner-only filter. Versions are cumulative copies plus new daily shards; never concatenate all 19 versions.[^40][^41]
+
+**Bounded body audit:** deterministically select the minimum SHA256 of `gold-replay-audit-v1:<episode_id>` per selected team-day, then deduplicate the union. This yields **348 episodes, all 41 dates, 696 player trajectories**, including 527 trajectories belonging to that day's selected names. All 191 selected names are represented. Raw sampled bodies total **10,605,340,258 bytes**, decoded one game at a time and hash-checked. The sample has 291 selected-player wins, 231 losses and five ties; it is not a winners-only corpus. All 348 sampled games have 720 steps and DONE/DONE status. **Archive-wide timeout/error prevalence and seed uniqueness are unmeasured**, not zero by inference from this sample.
+
+| Available in inspected bodies | Missing or not established |
+| --- | --- |
+| Both 719-action streams: farmer, ordered hands, ordered market lists; step rewards/statuses and final rewards | Source code, submission IDs, numeric team IDs, exact collection-time leaderboard rank, individual agent rating |
+| Both public farm boards, land, cash, unit positions; plant/animal fields; markets, prices, shops | Agent memory, route ID, causal branch rationale, random policy state, native snapshot/controller state |
+| Each seat's private shed, seeds and carried inventories; episode config; `info.EpisodeId`, names, replay seed | Opponent private state is **not live-observable**; replay seed is **not live-observable**; precise game timestamp absent from inspected schema |
+| `module_version`, replay schema/version; daily collection date in index | Engine source hash; explicit default market curves when `marketParams={}`; proof that all archive versions share one body schema |
+
+All sampled replay schemas are 1; archive metadata schema is 3. Body package versions are **1.32.2:34, 1.32.3:12, 1.32.4:16, 1.32.5:11, 1.32.6:64, 1.32.7:211**. Early configurations use town-center selling interval 12 versus current 24. Match both package/configuration and the audited engine semantics before interpreting old economics. Version/date alone does not establish an innovation's value.
+
+**Legality:** public CC0 distribution and official publication support offline analysis; the full competition rules and linked host statements remain inaccessible through available public access. The previously cited participant reports host permission for replay-based submissions, but that is not independently retrieved host text.[^8] The plan permits public-data analysis, job proposals and legal-state opponent-regime modelling subject to the existing pre-release rules check. It does not authorize hidden/private access. Strip opponent-private fields, IDs, names, seed and future shops from all selector/proposal-model runtime features. Replay seeds may be offline provenance or reproduction inputs only. No live seed dependency or hidden-information route lookup is proposed.
+
+### Measured strategic information
+
+Behavioural grouping uses **realized** `(cow, sheep, goose, owned tiles, hands)` at observations 144/288/432/576, not team identity. Coarse regimes use the herd at 576: a species is dominant at >=60% of animal count; otherwise mixed; zero animals is separate. These are descriptive fingerprints, **not inferred independent policies**. Worker counts at day boundaries are zero because hands expire; midday/max-worker profiles are necessary for labour diversity.
+
+| Selected-player sample | Jul 30-Aug 12 | Aug 13-26 | Aug 27-Sep 8 |
+| --- | ---: | ---: | ---: |
+| Trajectories | 164 | 187 | 176 |
+| Distinct four-checkpoint asset profiles | 57 | 72 | 106 |
+| Effective profile count, exp(Shannon entropy) | 19.0 | 27.4 | 63.8 |
+| Most frequent herd at 576 | 8 cows/6 sheep: 76 | 10 cows/4 sheep: 53 | 9 cows/5 sheep: 26 |
+| Any geese at 576 | 2 | 14 | 52 |
+| Median requested wheat / melon / carrot plantings | 72 / 21 / 0 | 127 / 14 / 6 | 164 / 12 / 15 |
+
+Across 527 selected trajectories there are **521 full-action hashes**, **450 farm-only hashes**, **129 first-24-action hashes**, and **224 asset profiles** (effective count 85.1). Across all 696 sampled players, 682 action sequences are unique: 14 extra exact copies, **2.01%**. Yet the five selected-player coarse regimes have effective count only **2.93**: 248 cow-heavy, 195 mixed, 76 sheep-heavy, six no-herd and two goose-heavy. Thus many action strings coexist with a few broad economic modes and substantial within-mode variation. Neither 521 nor 224 is a defensible count of independent strategic families.
+
+The early 8-cow/6-sheep profile persists in sampled games through August 23 but has no late-period selected example. The goose increase also appears within package 1.32.7: 14/159 selected trajectories on August 15-26 versus 52/176 afterward. Late geese and sheep-heavy alternatives broaden supply patterns. Requested plantings and observed profiles identify mutation hypotheses, not executed yields or causal score gains. Changed engine, shops, opponents, eligibility and sampling all confound temporal comparisons. The data can mine **behavioural deltas**, not certify that B improved over A. Dates of first observation are upper bounds on when a strategy existed, not invention dates or proven diffusion chains.
+
+### What can actually be recovered
+
+**Routes: partially.** Every sampled realized 719-action sequence is recoverable, but not the generating policy. Align action `steps[t+1][seat].action` with pre-action observation `steps[t]`, excluding the initial dummy action; restore framework-shared fields before live feature comparison. Keep arity/order/zero orders intact. Historical weed responses and future route switches are not reusable unconditional actions. The first pilot translates jobs into the existing executor; it does not blindly replay complete archived tapes.
+
+**Production jobs: yes, as observed examples with inferred contracts awaiting verification.** A detailed 41-game / 82-player pass follows tile identities and placement/planting days, actual hires, land changes and yield fields. Episode 106622723, seat 0, has a sheep at row 4/column 7 first present in observation 160, day 6, with first positive stored yield at observation 288. The same episode has 3-cow/15-sheep versus 1-cow/21-sheep economies at 576. This is concrete late-game material beyond the narrow inherited herd choices, not proof either beats Shop Plus. Crop `yield_units` can already be positive at planting, so it is not a maturity flag; derive harvest readiness from engine semantics and successful state transitions.
+
+Mine boundaries around acquisition -> placement -> repeated service -> harvest -> cargo -> sale, with daily worker resets and land/financing dependencies. A record contains legal entry-state requirements, worker/site roles, ordered actions, time/material/cash requirements, persistent assets, measured state effects and an exit contract. Report requested orders separately from realized asset changes. Exact revenue attribution across simultaneous market interactions needs engine-aware accounting or subsequent CUDA ablation; a cash difference alone is not a job's profit. One narrow extractor can annotate the two existing job types; it cannot automatically infer all missing prerequisites or eliminate compiler design.
+
+**Deltas and disagreement sets: yes, with limitations.** In the detailed pass, role-normalized public/own-private state contracts at steps 72/144/216 produce 66/73/77 groups among 82 trajectories; 12/9/5 groups repeat. Their next-72-turn investment requests disagree in 2/1/1 groups. These windows contain later observations and are not immediate action labels or causal preferences. A concrete step-144 matched-economy pair in episode 93191035 requests two cows versus two sheep at decision 168. Compare actual decision-time legal state, seat and feasible job closure before turning this into a counterfactual. Most exact noninitial states are unique; use contract-filtered retrieval, not claims of abundant matched-treatment data. Generate fresh live BUILD states for final CUDA comparison, never reconstruct an opponent's missing memory from the replay.
+
+Public source remains a cross-check: the already inspected yhay81 and Kaito-lineage code establish tape/router/repair architectures, and their display-name families occur in the index. Display-name coincidence cannot map historical submissions to current source. No private source architecture or exact historical submission mapping is established here. Positive action/prefix and engine-matched source reproduction would be required before assigning ancestry; absence of a match proves little. Do not spend the pilot resolving every identity.
+
+### Mining priorities and implementation choice
+
+| Use | Value | Decision |
+| --- | --- | --- |
+| Lifecycle examples, dependency hints, timing/quantity priors | **HIGH** | Seed at most 24 auditable jobs, family-balanced; compile and mutate, do not copy labels blindly. |
+| Economic regimes, saturation/close-loss challenges | **HIGH** | Convert into live challengers after the pilot; retain losses and rare economies, not just winners. |
+| Route founders and temporal deltas | **MEDIUM** | Translate persistent-asset contracts; no immediate full-route import or causal ranking by date. |
+| Disagreement retrieval | **MEDIUM** | Propose feasible alternatives from comparable legal states; CUDA supplies missing counterfactual returns. |
+| Descriptor thresholds and proposal-frequency priors | **HIGH** | Freeze campaign thresholds on TRAINING only, cap clones and reserve >=20% uninformed exploration. |
+| Selector examples / strategy embeddings | **MEDIUM** | Replay supplies legal state coverage, not the best-route label; train selectors on live counterfactual returns. |
+| Raw-action BC / return-conditioned sequence policy | **LOW** | Joint-action compounding, clone bias, old engines and unavailable live features; not primary. |
+| Offline-RL value targets, logged-win rewards as causal ranking | **REJECT** | Missing counterfactual support and changing opponent policies make confident action extrapolation unjustified. |
+| Recorded opponent suffix as a live challenger; rank/seed identity routing | **REJECT** | Counterfactual inconsistency or unavailable runtime information. |
+
+**Search-space reduction is plausible, not measured speedup.** In the late selected sample, 10th-90th percentile realized day-12 herd ranges are cows 4-9, sheep 3-11, geese 0-3; owned land is usually 75 tiles. These give practical centres, not hard limits: rare late examples reach 21 sheep and broader whole-sample extremes exist. Acquisition/service days, daily labour, observed shop conditions, reserve distributions and sale windows should be conditioned on entry contracts before weighting proposals. A toy independent box of 0-24 animals/species has 15,625 combinations versus 216 in these marginal ranges, about 72x fewer; **this is illustrative arithmetic, not an empirical feasible-space reduction or search acceleration**. Novel exploration and exact verification remain mandatory.
+
+**Learned-model usefulness changed: yes, modestly at the macro-prior level; no change to the primary teacher.** There are at most 32,336 player trajectories and roughly 23.25 million action decisions if all games are full length, but far fewer independent economies. The sample supports retrieval/count-based priors in roughly 0.5-1 engineering day, with no learner GPU cost. A small state-to-job classifier or embedding could take 2-4 days plus approximately 0.5-2 GPU-hours *after* trustworthy macro labels exist; expected improvement is unmeasured. A raw sequence BC/offline-RL system still requires the expensive action/schema/causality work, not just a 2-GB download. Do not fund it before the simple prior wins. CompILE supports the concept of reusable trajectory segmentation; its public example is a toy sequence implementation, not our compiler. SPiRL supports skill-level priors rather than flat action priors, but its robotics results do not establish Kaggriculture gains.[^42][^43]
+
+Choose one local streaming reader plus Parquet/JSONL summaries and a small JSON job list, with raw files ignored. **Option A** leaves useful demonstrated content unused; **Option C** delays falsification behind a large library and unsafe-composition risk; **Option D** adds learning before showing that labels/priors help. **Option B wins** because it changes only the information supplied to the existing search. Full-corpus body parsing is deferred unless a measured sampling gap blocks a valuable job. The fresh live two-arm experiment below, not archived wins, decides whether replay seeding stays.
 
 ## Engine mechanics findings
 
@@ -281,7 +361,7 @@ The relevant literature supports components, not a claim that their benchmark ga
 
 On the currently measured small-batch Shop workload, 10M game transitions correspond to 10M / 719 = **13,908 full-game equivalents**. At approximately 10.6 FGE/s that is about 22 minutes of evaluator wall time, before neural inference/training and data overhead. One billion transitions would be about 36.5 hours at the same evaluator rate. A full RL programme is therefore not rejected because simulation is impossible; it loses because action abstraction, training stability, faithful extraction, and engineering time are unproved while structured route search directly matches the existing deployment format.
 
-Do not train a dynamics world model when exact C++/CUDA dynamics are available and cheap. Do not use public replay action cloning as an unqualified offline-RL dataset: logged trajectories have narrow action support, hidden-state context and adaptive-opponent mismatch. Retain the option of a future small critic only after the selected system has produced enough trustworthy search data; it is neither a parallel architecture nor the fallback.
+Do not train a dynamics world model when exact C++/CUDA dynamics are available and cheap. Do not use public replay action cloning as an unqualified offline-RL dataset: logged trajectories have narrow action support, historical-engine confounding and adaptive-opponent mismatch. The archive makes cheap macro-frequency/retrieval priors worthwhile now; it does not supply counterfactual value labels. A future small critic still requires trustworthy live-search returns and is neither a parallel architecture nor the fallback. The replay-specific cost and model decision appears below.
 
 ## Architecture alternatives
 
@@ -292,7 +372,7 @@ The estimates below assume one engineer using the existing 4 GB RTX 3050 Laptop 
 | Continue deterministic CCPR or DSQD over current SpecialistPrograms | Low-to-medium residual gains | 1-3 days | 1,000-20,000 FGE/test | High representation ceiling; narrow gates remain easy to fit | Excellent reuse, direct compilation | Reject as primary; keep repair tools |
 | Single-incumbent full-route hill climbing / beam search | Medium/high if strong macro decoder | 3-7 days | 10,000-100,000 FGE | Beam/hill-climber can retain one economic basin; heuristic truncation creates horizon bias | High reuse, excellent fit | Serious but dominated by small population search at modest extra cost |
 | Offline macro-MCTS / information-set planner | High possible ceiling | 1-3 weeks | 100,000+ continuations, irregular batches | Branch explosion, uncertain opponent action model; privileged-state determinization risk | Partial GPU reuse; extracting a small causal student is additional work | Do not select for first medal push |
-| **Population production-route synthesis + small live best-response league** | **High practical upside: new economies plus robustness** | **2-4 days bounded first test; roughly 2 weeks to one complete loop if it passes** | **12,000-FGE pilot; 100,000-250,000 FGE per later campaign** | Medium: grammar bias remains, but archives, fresh cohorts and live opponents counter collapse | **High CUDA reuse; nearly exact route compilation** | **SELECTED** |
+| **Replay-seeded population production-route synthesis + small live best-response league** | **High practical upside: informed new economies plus robustness** | **2-4 days bounded first test; roughly 2 weeks to one complete loop if it passes** | **12,000-FGE pilot; 100,000-250,000 FGE per later campaign** | Medium: replay/grammar bias remains; cap clone weight and reserve novel proposals | **High CUDA reuse; nearly exact route compilation** | **SELECTED; replay priors must earn their place** |
 | Neural BC/self-play teacher -> tree/routes | Potentially highest broad reactive ceiling | 2-4 weeks before a fair strong-baseline comparison | 10M-1B transitions; 10-100+ learner GPU-hours | High imitation basin, sparse long credit, distillation loss | Simulator useful, learner integration and student extraction substantial | Not primary |
 | CP-SAT/SMT whole-season economic planner | Good feasibility/upper-bound insight; uncertain game strength | 1-3 weeks | CPU-heavy solve time plus live-simulation checks | Exact full game includes nonlinear prices, RNG-dependent occupancy and opponent policies; simplified optimum can be wrong | Poor direct GPU search reuse; route output fits well | Not primary; bounded feasibility only if needed later |
 | Mechanics-first overlays on latest public port | Medium immediate, lower independent-strategy ceiling | 1-3 days | 1,000-10,000 FGE | Crowded public ideas; improvements may only win mirrors | Excellent reuse and compilation | **Only small fallback after the explicit early failure gate** |
@@ -305,11 +385,13 @@ CMA-ES and Bayesian optimization are useful for low-dimensional numerical parame
 ## Final chosen architecture
 
 ```text
+Public replay index -> small typed-job/timing prior (TRAINING only)
+                         |
 Shop Plus executor + direct-route founders + small frozen league
                          |
            fresh seeds, both seats, difficult live opponents
                          |
-     stochastic dependency-closed production-route proposals
+     replay-seeded dependency-closed proposals + 20% novel exploration
                          |
            batched CUDA full-season continuation oracle
                          |
@@ -329,17 +411,21 @@ Shop Plus executor + direct-route founders + small frozen league
 
 Use **Shop Plus as the initial executor, default behaviour, reset semantics and measured reference**. Use the direct Shop schedules as primary route founders; retain direct Gold/Gold Plus as alternative genetic material and historical comparison policies. `assets/champion/` stays the authoritative repository champion until a later explicit promotion.
 
+Replay-derived economies become additional founder *descriptions*, not raw schedules spliced into the executor. The first pilot imports only post-144 production jobs into the existing causal composition. Earlier openings and full-route founders remain candidates for the same search after this gate, with full reset evaluation and explicit reconstruction of recovery semantics.
+
 There is no requirement that every new genome remain a specialist attached to Shop Plus. A full superior policy may replace its economic schedule. Conversely, do not revert to a direct port solely because of an unverified leaderboard anecdote. The breeding population, not one immutable parent, becomes the strategic centre. Cross-family schedule transfer is admitted only after explicit action/state compatibility checks; raw Gold-to-Shop tape crossover is not assumed safe.
 
 ### 2. Teacher/search system
 
 Run **population-based large-neighbourhood route search**. Maintain at most 24 economically distinct elites. A generation produces 128 proposals from frozen founders and archive elites, evaluates them through the full remaining game against live opponents, confirms a small shortlist on fresh BUILD contexts, and retains complementary successes. The same search engine also produces best responses to vulnerable league cohorts. There is no separate learned teacher.
 
-Proposal sampling is stochastic and recorded. Engine simulation, compiler output, runtime selection and deployment remain deterministic. Reproducibility comes from pinned inputs, proposal RNG state and measured results, not a ban on random search.
+Proposal sampling is stochastic and recorded. Up to 80% of proposals use family-balanced replay/elite job and timing priors; at least 20% ignore replay frequencies and explore the full declared legal job support. This is a mixture inside one search, not an imitation policy followed by an unrelated optimizer. Engine simulation, compiler output, runtime selection and deployment remain deterministic. Reproducibility comes from pinned inputs, proposal RNG state and measured results, not a ban on random search.
 
 ### 3. Search representation
 
 A genome contains a small route portfolio, its existing causal selection skeleton, and **typed production jobs with dependency-closed edits**. Initial jobs cover animal acquisition/service and crop lifecycles. Later successful jobs may change expansion, worker allocation and liquidation timing. One edit may touch 24 or 72 contiguous turns, but its resource and production consequences are repaired through turn 718.
+
+Replay mining proposes job parameters and observed dependencies; the compiler owns feasibility. Keep observed facts separate from inferred prerequisites. A recorded request is not proof of execution, and a successful observed lifecycle is not proof of profitability on today's engine. Missing service/financing dependencies cause rejection, not silent raw-action concatenation.
 
 The minimal job record is:
 
@@ -363,6 +449,8 @@ Cap the working league at **12 live policies**: four anchors/founders, four beha
 Use a simple search opponent mixture: 50% uniformly over structural cohorts, 25% over the current champion and recent strong anchors, 25% over empirically difficult opponents. Maintain a floor on each cohort; hard opponents cannot erase diversity. Targets include milk/wool/crop-heavy production, faster expansion, high-capacity-throughput production, different sales timing, reactive recovery and public-state adaptation. Small fixed stress policies can be useful even if weak overall.
 
 Public agents may be declared **TRAINING** stimuli or founders. This is an explicit strategic change from pure internal BUILD: excluding strong observable strategies a priori is not justified by the evidence. Source identities remain provenance and offline bookkeeping only; they are never runtime features. Public agents used for training are never reported as independent HOLDOUT evidence. Hold out genuinely different source/behaviour families, newly generated adversarial responses, and fresh seeds. Do not move an existing protected panel into BUILD.
+
+Replay-derived challenge regimes enter through executable public policies or newly synthesized live challengers. A historical market-saturation state motivates a supply challenge; its recorded opponent action suffix is not that challenger. Replays lack opponent controller memory, so they cannot directly populate exact native fork roots. Capture roots from fresh live BUILD games instead.
 
 ### 5. Objective
 
@@ -448,6 +536,8 @@ These are **format/VM maxima**, not competition runtime budgets or sensible targ
 
 The BKV6 record is 94 bytes, with at most 12 saved hands plus farmer and ten market positions. Route counts/IDs and per-route lengths use 16-bit fields; action count is 32-bit. The generic extended loader accepts variable route counts, but the isolated Shop adapter hard-codes 13 routes, 719 steps and a one/two-slot controller restriction. Changing packs and adding features therefore needs a **new narrowly scoped candidate adapter**, not a claim that any bigger controller is already plug-compatible. Do not modify the frozen reference adapter to make experiments pass. [Route format](../src/kaggriculture_bonsai/runtime/route_format.py), [Shop pack](../src/kaggriculture_bonsai/agents/shop_router_0909/reference_port/pack.py), [bridge restrictions](../src/kaggriculture_bonsai/agents/shop_router_0909/reference_port/bridge.cu).
 
+**Replay-derived compatibility finding:** the detailed 82-player audit observes up to 15 actual hands, with 31 trajectories exceeding 12 at some point. Raw replay routes therefore need an explicit saved-hand arity check; truncating them is not distillation. The pilot uses existing feasible worker lanes and rejects unsupported imports. If a later valuable founder genuinely needs more lanes, represent the extra bounded jobs in BKG4/runtime intents or make a narrowly scoped, parity-tested route-format extension; do not rewrite the VM merely to ingest the archive. Day-boundary worker counts cannot diagnose this limit because hires reset daily.
+
 ### What lives where
 
 | Component | Deployed responsibility | Initial design budget, not a VM limit |
@@ -469,8 +559,8 @@ A 17-route raw payload is approximately 1.15 MB, far below a reason to optimize 
 
 ### Concrete discovery mechanism
 
-1. Freeze executor, engine/source hashes, route ancestry, proposal RNG, legal feature definitions, league members, cohort weights and disjoint data roles.
-2. Decode the **executed** founder composition into a job/route view. Preserve raw records and arity; attach only the dependencies required for the two initial job families. Verify a zero-edit round trip.
+1. Freeze executor, engine/source hashes, route ancestry, dataset version/manifest, replay TRAINING membership, proposal RNG, legal feature definitions, league members, cohort weights and disjoint data roles.
+2. Index replay metadata and stratified behaviour with a local Parquet/JSONL table; retrieve a capped, current-regime, family-balanced job sample. Decode the **executed** founder composition into a job/route view and translate selected replay jobs into it. Preserve raw records and arity; attach only the dependencies required for the two initial job families. Verify a zero-edit round trip. No database service or neural model is needed.
 3. Generate dependency-closed candidates. Schedule selected jobs against existing lanes, budgets and persistent state; emit compact route deltas plus any bounded overlay parameter changes. Reject structurally impossible candidates before simulation.
 4. Evaluate candidate x context batches in CUDA from shared valid roots, with both policies active at every step. Use full returns and diagnostic counters. Candidate identity includes route delta, controller, overlay and source version.
 5. Confirm a small, behaviourally diverse BUILD shortlist on independent full games. Retain quality by archive cell and payoff coverage, not by how many near-equivalent hashes exist.
@@ -510,6 +600,8 @@ Independent unported public agents may run in the official Python engine for sma
 These are design scales, not evidence already collected. If many opponents are only available as Python agents, reserve the full 512-seed panel for the native league and a predeclared smaller independent-source stratum; report their uncertainty separately rather than pretending equal precision. Do not let slow Python execution turn BUILD into static-tape search.
 
 No seed may cross data roles. Reusing a seed across opponents/seats within a role is useful pairing, but its outcomes form a cluster, not independent samples. Multiple checkpoints in one game are one trajectory. Opponents sharing production schedules form a source/behaviour cohort. Existing DEV/FINAL/SEALED artifacts do not become a new pristine release set because a directory is renamed.
+
+**Replay role:** all inspected/mined archive material is TRAINING/research exposure, never a hidden local HOLDOUT. Record observed replay seeds for exclusion and generate independently salted BUILD/DEV/release seed lists; exact deduplication applies to all consumed replay bodies, without claiming knowledge of unparsed seeds. Group replay examples by episode, economic/action-prefix lineage and time/version, not random steps or team names. A held-out date slice can test a miner, but it does not certify competitive generalization. Public comparison agents with unknown replay ancestry are source-held-out *transfer checks*, not proven behaviour-family holdouts. Release still needs fresh live challengers/families with no mined ancestry; if independence cannot be established, disclose the gap rather than relabeling the archive.
 
 Use cohort-balanced results as primary when real meta frequencies are unknown. Report a secondary plausible current-meta weighting only when based on legitimately observed and timestamped public information; cap clone-family weight and show weight sensitivity. Keep frozen hard-cohort and catastrophic stress results visible. Low-margin games are diagnostic, not the entire opponent distribution.
 
@@ -576,22 +668,22 @@ The phases below are **future work, not executed by this report**. They are sequ
 ### Phase 0: Establish the experiment contract
 
 - **Objective:** make the first route experiment interpretable and legally deployable later, without a new research platform.
-- **Minimal implementation:** a single frozen manifest for byte identities, actual engine/version/rules, data roles, four native training opponents, equal-budget arms and job operators; reconcile future-governance changes with the older plan. Keep existing assets untouched. Identify the two selected production job families and verify exact zero-edit route/executor access.
-- **Experiment:** small zero-edit, reset, clock, capacity, atomic-seed, market-order and terminal fixtures through existing reference paths; no broad search.
-- **Compute budget:** at most 64 full-game-equivalent native diagnostic executions and a small official-engine canary; approximately half an engineering day.
-- **Pass:** pinned references agree, required legal features and job dependencies are available, no unresolved rules issue for ordinary actions, no round-trip action/state discrepancy.
+- **Minimal implementation:** one frozen manifest for byte identities, archive v19, current engine/rules, TRAINING exclusions, four native opponents, two equal-budget production arms and job operators. Reuse the research metadata index; inspect at most 64 selected current-regime replay bodies to annotate no more than 24 job records from at most eight economic founder profiles. Keep existing assets untouched; reconcile future governance and verify zero-edit execution.
+- **Experiment:** validate logged action/pre-state alignment and a few complete observed lifecycles, then the existing small reset, capacity, atomic-seed, market-order and terminal fixtures. This is annotation/compilation fidelity, not search or replay-score replication.
+- **Compute budget:** <=64 native FGE plus a small official canary; no full-corpus body scan, no model, <=one engineering day within the unchanged four-day pilot cap.
+- **Pass:** at least eight nonduplicate, post-144, dependency-auditable job templates (at least four animal and four crop) are expressible in the shared compiler; pinned references agree, legal features are available, no unresolved ordinary-action rules issue or zero-edit discrepancy.
 - **Failure:** any source/runtime mismatch or a need for an invasive VM/simulator rewrite. Stop and resolve identity/correctness before economic search.
 - **Artifact:** compact frozen experiment manifest and fidelity summary, not a new agent or champion.
 
-### Phase 1: Falsify coordinated route improvement
+### Phase 1: Falsify replay-seeded route improvement
 
-- **Objective:** establish whether a small structured production search yields materially broader gains than equal-budget local repair.
+- **Objective:** test whether replay priors improve material fresh production discovery beyond equal-budget uninformed production search.
 - **Minimal implementation:** two dependency-closed job operators, candidate-specific route data access, and a full-horizon native evaluation path. No neural model, full generic scheduler, multiway learned router or league service.
 - **Experiment:** the single immediate experiment specified next.
 - **Compute budget:** 12,000 native FGE, two GPU-hours, two CPU-hours for small independent-source checks; all-in engineering cap four days including Phase 0.
 - **Pass:** the predeclared fresh-policy gain and production-attribution gates below; exact compiled/runtime agreement.
-- **Failure:** no material fresh production-route gain within the fixed budget, only tie-breaking/terminal improvement, or required infrastructure exceeds the cap. Use the single small fallback; do not scale the failed pilot.
-- **Artifact:** one frozen macro-route candidate, one local-control candidate, compact paired results and an explicit pass/fail decision. No automatic promotion.
+- **Failure:** no material fresh gain, only terminal improvement, or infrastructure exceeds the cap. If at least one arm passes the absolute production gate but replay priors do not establish incremental value, disable replay proposal weighting and retain the original route-search architecture. If neither passes, use the existing small mechanics fallback. Do not add another pilot arm or widen the budget after outcomes.
+- **Artifact:** one frozen replay-informed candidate, one uninformed-production candidate, compact paired results and an explicit prior/production pass-fail decision. No automatic promotion.
 
 ### Phase 2: Build the small route league
 
@@ -625,19 +717,25 @@ The phases below are **future work, not executed by this report**. They are sequ
 
 ## Immediate next experiment
 
-**Name: full-horizon production-job mutation versus local repair, with an unchanged causal parent selector.**
+**Name: replay-informed versus uninformed production-job proposals, with an unchanged causal parent selector.**
 
-**Question:** can changing real production commitments create a material fresh gain that a comparable local-repair budget cannot, without first building the complete proposed architecture?
+**Question:** does a small replay-derived job/timing prior discover materially better fresh production policies than the same structured search without that prior? This replaces, not supplements, the old production-versus-local-repair comparison. It tests both absolute economic improvement and the new information source with two arms.
 
 ### Frozen design
 
 **Reference:** exact Shop Plus bytes and native executor identified above. First divergence no earlier than step 144; both agents remain live. The compiler preserves inherited causal route choices and overlay semantics. Candidate route changes include any affected continuation through 718; do not blindly force the old global route-2 tail after changing the economy. Zero-edit candidates must reproduce the original boundary lookahead and actions exactly.
 
-**Arm R, 128 production proposals:** 64 animal-job changes and 64 crop-job changes. Animal jobs alter one or two **not-yet-acquired** placements after 144, or shift their acquisition/service timing by at most one day, updating buy/pickup/place, feed/care/harvest and output disposition together. Crop jobs alter one complete post-144 planting/service/harvest lifecycle or its timing by at most one day, including seed financing, water, fertilizer where used, cargo and feed consequences. Use existing feasible sites/worker lanes. Apply the typed transformation to the relevant inherited route branches; missing/incompatible jobs make a proposal invalid, not a fabricated effect.
+**Mining scope:** reuse all 16,168 episode metadata records and the 348-game stratified research summaries. From current-version/configuration-compatible TRAINING examples, freeze at most 64 episode bodies, outcome-blind and balanced by economic profile/day rather than proxy rank. Inspect both seats, including losing trajectories. Select at most eight founder profiles and 24 auditable job records; keep at least eight nonduplicate templates across the two job families. No additional archive version, bulk full-body scan, large library or raw-route execution is required. Old-engine jobs are hypothesis material only and excluded from this pilot's prior. Record every selected episode/seat, template contract and rejection reason before CUDA returns.
 
-The finite proposal schedule and RNG are frozen before returns. Enumerate the eligible sites/jobs and fixed parameter alternatives; sample 128 unique valid candidates with a cap of 512 compilation attempts. The pilot need not invent a tomato economy or arbitrary full-farm scheduler. It must change production, not only sale quantities. This is a fixed non-adaptive first generation, which cleanly tests representation before funding population infrastructure.
+**Shared production support:** 64 animal-job changes and 64 crop-job changes per arm. Animal jobs alter one or two **not-yet-acquired** placements after 144, or shift their acquisition/service timing by at most one day, updating buy/pickup/place, feed/care/harvest and output disposition together. Crop jobs alter one complete post-144 planting/service/harvest lifecycle or its timing by at most one day, including seed financing, water, fertilizer where used, cargo and feed consequences. Use existing feasible sites/worker lanes. Apply the typed transformation to the relevant inherited route branches; missing/incompatible jobs make a proposal invalid, not a fabricated effect. Both arms have identical grammar, ranges, eligibility, compiler and executor. The contrast is the proposal prior, not a more powerful compiler for one arm.
 
-**Arm L, 128 controls:** bounded gates/windows/quantities over the four existing local repair bodies, drawn from the same legal BUILD information and frozen before outcomes. Give both arms the same continuation and confirmation budgets. Charge rejected simulation attempts and all reference games. Include zero-edit controls separately; do not count them as discoveries.
+**Arm R, 128 replay-informed proposals:** 64 single-job instantiations guided by the mined templates; 38 structured timing/quantity mutations or contract-compatible two-job recombinations; 26 proposals sampled without replay frequencies from the full shared support. Allocate 32/19/13 to each production family. Thus **20.3% deliberately ignores the replay prior**. Templates guide which feasible commitment to alter and its service/timing pattern, not episode-specific action coordinates or future-shop answers. At least half the prior-guided proposals must differ from the inherited production job in more than sale timing.
+
+The finite proposal schedule and RNG are frozen before returns. Enumerate eligible jobs and fixed alternatives; sample 128 unique valid candidates per arm with a cap of 512 compilation attempts per arm. Deduplicate actual compiled closures, not template names. The pilot need not invent an arbitrary full-farm scheduler. It must change production, not only sale quantities. This fixed, non-adaptive first generation tests whether the replay prior is worth retaining before funding population infrastructure. Record acceptance rates and candidate diversity as diagnostics, not substitutes for fresh policy wins.
+
+**Arm U, 128 controls:** uninformed structured production proposals, uniformly sampled from the same declared feasible job/parameter support, with no replay frequencies, nearest-example selection or historical outcome weights. Use 64 animal and 64 crop proposals, the same mutation/recombination scope and independent frozen proposal RNG. Neither arm contains local-repair-only candidates; historical CCPR remains diagnostic evidence, not a third arm. Give both arms identical evaluation budgets, charge failed simulation attempts/reference games, and keep zero-edit checks separate from discoveries.
+
+This is a conservative **proposal-prior ablation**, not a claim that the control's shared grammar was developed without ever seeing public play. It measures whether replay-guided choices add value after equalizing compiler capability; annotation time is charged to the common engineering budget and reported separately. Keep the control's support/proposal schedule frozen before selecting replay job examples.
 
 **Four native discovery opponents:** Shop Plus; direct Shop; a fixed route-3 continuation opponent; and a fixed route-12 continuation opponent. The latter two use the same legal common opening to 144 and live reactive execution thereafter, not recorded opponent actions. Their different production schedules stress supply, although they remain related ancestry. Declare this limitation rather than calling four entries four independent public families. Add no opponent training to this pilot.
 
@@ -648,14 +746,14 @@ The finite proposal schedule and RNG are frozen before returns. Enumerate the el
 | Fidelity and no-edit checks | Phase 0 and candidate-boundary fixtures | <=64 native FGE plus small official checks |
 | Discovery roots | 16 independent seeds; each assigned to one of four opponents, both seats; checkpoint 144 | **32 roots**, one per trajectory; <=32 reference games for capture |
 | Arm R screening | 128 candidates x 32 contexts; suffix 144-718 inclusive | **4,096 continuations**, 2,355,200 transitions |
-| Arm L screening | Same | **4,096 continuations**, 2,355,200 transitions |
+| Arm U screening | Same | **4,096 continuations**, 2,355,200 transitions |
 | Independent BUILD confirmation | Best 2 candidates/arm fixed from discovery; 32 new seeds x both seats x 4 opponents | **1,024 candidate games + 256 paired reference games** |
 | Fresh internal DEV | Exactly 1 candidate/arm frozen before DEV; 64 new seeds x both seats x same 4 opponents | **1,024 candidate games + 512 paired reference games** |
 | External-policy check | Exactly those two candidates and parent; 32 different seeds x both seats x 4 frozen external policies | **768 official-engine games**, CPU; no CUDA static-tape substitute |
 
 The discovery suffixes are approximately **6,551.3 FGE at /719**. Captures, native confirmation, internal DEV and fidelity bring the native total to approximately **9,463 FGE**, leaving room inside the **12,000-FGE** cap for required exact checks and small overhead. Record actual work, not only this estimate. GPU wall cap is two hours; independent Python checks have a two-CPU-hour aggregate budget. If external runtimes cannot fit, stop with an explicitly incomplete generalization result rather than dropping that task or declaring success.
 
-The external policies are frozen **Gold Plus V8**, the inspected **Seyamalam V21-style route/prototype policy**, **COK V10 mixed-herd policy**, and **lonespear V11 reactive scheduler**, subject to public availability/license and source-identity checks. This panel intentionally includes both known history and differently structured executors; some route ancestry overlaps and the reactive agent is not known top-tier. Do not claim four independent strong meta families. These sources are not used as proposal founders or tuning labels in this pilot. If an agent cannot be legally reproduced, choose and freeze a structurally comparable public replacement **before** any candidate outcomes; no result-driven opponent substitution.
+The external policies remain frozen **Gold Plus V8**, the inspected **Seyamalam V21-style route/prototype policy**, **COK V10 mixed-herd policy**, and **lonespear V11 reactive scheduler**, subject to public availability/license and source-identity checks. Do not use these source implementations or their evaluation returns to construct pilot proposals; quarantine positively matched replay lineages from job mining. Unknown replay ancestry cannot be certified absent, so this is explicitly an **external live transfer check, not four independent HOLDOUT families**. The reactive agent is not known top-tier. Freeze any legally necessary structurally comparable replacement before candidate outcomes. Later release requires genuinely fresh challengers; the pilot does not certify medal strength.
 
 ### One-shot decision
 
@@ -664,31 +762,33 @@ Choose the best confirmed complete policy in each arm using BUILD only. Report i
 **Pass the architecture's first gate only if all of the following hold:**
 
 - Arm R's frozen winner gains at least **5 percentage points** of cohort-balanced fresh internal win utility over Shop Plus, with a **one-sided 90% seed-clustered lower bound above zero**.
-- It gains at least **3 points** more internal utility than the frozen local-control winner in point estimate. Report the uncertainty of this difference; do not claim universal algorithm superiority from a single search seed.
+- It gains at least **3 points** more internal utility than the frozen uninformed-production winner in point estimate. Report the uncertainty of this difference; do not claim universal algorithm superiority or measured search-space speedup from one generation.
 - The external panel's mean paired utility is nonnegative, and no external-policy cohort has a point loss exceeding **10 points**. This small panel is an early generalization veto, not release certification.
 - Whole-job ablation shows the improvement requires a changed productive lifecycle or labour schedule. On the preregistered eligible/activated cohort, median final cash-margin improvement is at least **1,000 coins** and the positive economic effect occurs in both seats and against at least two native opponent entries. The eligible cohort is defined from decision-time legal state, never by whether the game improved.
 - The compiled candidate has zero semantic mismatches, runtime faults or catastrophic-firewall failures. No output is selected using hidden seed knowledge or future shops.
 
 The 1,000-coin threshold is a deliberately material search target, not a demonstrated requirement for gold. One strong production mechanism is enough to justify the next phase; do not recreate CCPR's arbitrary requirement that two named mechanisms must survive a tiny initial test. Diversity is required in the subsequent population and challenge distribution.
 
-**Failure** means the budget is exhausted without these results, only local/terminal tie-breaking survives, most jobs cannot be compiled without a general planner, or fresh comparisons erase the gain. Do not rescue a failed result by shrinking cohorts, moving thresholds, querying more DEV candidates, or raising the budget after seeing outcomes. This pilot can falsify the proposed practical path; it cannot prove all possible route search inferior.
+**Replay-prior failure:** no eight auditable templates within the mining cap, raw trajectories fail contract translation, or Arm R misses the incremental +3-point gate. Remove replay proposal weighting rather than funding a bigger miner or a neural rescue. If at least one arm meets the absolute +5-point, uncertainty, external, economic-attribution and exactness gates, that supports production search without establishing the prior's added value: retain the successful candidate as evidence, proceed with the original unweighted route-search architecture, and use new replay material only for challenge/context analysis. Failure before a valid comparison produces an engineering verdict, not evidence that uninformed search won. A failed post-144 pilot does not prove that all historical openings are useless.
+
+**Production-path failure:** neither arm passes those absolute gates, only terminal tie-breaking survives, or most jobs require a general planner. Use the one small fallback below. Do not rescue a failed result by shrinking cohorts, moving thresholds, querying more DEV candidates or raising the budget after outcomes. No production-search experiment, candidate compilation or simulation in this design was run during the replay review.
 
 ## Kill criteria
 
-1. **Early representation/engineering failure:** the immediate experiment fails or needs more than four engineering days before a fair result. Do not build the large archive/league first.
+1. **Early representation/engineering failure:** both production arms fail the absolute gate, or a fair result requires more than four engineering days. A failed replay prior alone removes that module if either arm passes the absolute production gate; it does not invalidate production-route search. Do not build a large mined library/league first.
 2. **No material economic discovery:** 100,000-250,000 additional FGE after a successful pilot produces only near-mirror sale tricks, no repeatable broader economy improvement, or an archive of effective duplicates.
 3. **Live-opponent dependence failure:** candidate gains require recorded opponent actions, hidden-seed-conditioned route selection, unavailable future shops, or a single exact production fingerprint.
 4. **Compilation failure:** exact routes plus bounded reactive behaviour cannot preserve the deployable teacher's gain; improving imitation accuracy is not enough if closed-loop returns regress.
 5. **Simulation or legality failure:** any uncorrected semantic mismatch, unsupported engine version, private information dependency, prohibited technique or unresolved rules condition necessary for the claimed advantage.
 6. **Competitive relevance failure:** two successive meaningful and adequately supported local policy gains do not transfer to later observed competition play. Stop claiming that the existing league predicts rank; refresh strong opponent coverage before another release.
 
-**One small fallback, only after the Phase 1 gate fails:** retain Shop Plus and run one bounded, ordinary-mechanics executor improvement, prioritizing capacity-safe partial deposits and projected feed preservation, with at most 32 overlay candidates and 5,000 native FGE plus the same small independent-source checks. No route league, learned policy, MCTS, solver platform or indefinite CCPR campaign remains active alongside it. If that also fails, keep the existing deployable family and report that the proposed medal path lacks supporting evidence; do not manufacture another open-ended roadmap.
+**One small fallback, only after the production-path gate fails:** retain Shop Plus and run one bounded, ordinary-mechanics executor improvement, prioritizing capacity-safe partial deposits and projected feed preservation, with at most 32 overlay candidates and 5,000 native FGE plus the same small independent-source checks. Removing an unhelpful replay-prior module from otherwise successful route search is an ablation, not a second parallel architecture. No route league, learned policy, MCTS, solver platform or indefinite CCPR campaign remains active alongside the mechanics fallback. If that also fails, keep the existing deployable family and report that the proposed medal path lacks supporting evidence; do not manufacture another open-ended roadmap.
 
 ## Gold-medal path
 
 The current evidence establishes a compact, strong local route-agent family and excellent tools for exact experimentation. It does not establish current top-10 proximity. The largest reachable improvement is to discover a meaningfully more productive economy, make it survive live responses and independent seeds, and deploy it without distillation loss.
 
-The practical path is: **one cheap production-route signal; one small repeated route-search league; one causal compiled portfolio; one statistically defensible release; then repeat against stronger challenges**. A two-week implementation target is plausible only if the four-day pilot works and native throughput is adequate. It is not a schedule guarantee, and the competition deadline must be checked from an authoritative current page rather than a cached countdown.
+The practical path is: **one cheap replay-prior/production-route comparison; one small repeated route-search league; one causal compiled portfolio; one statistically defensible release; then repeat against stronger challenges**. Historical jobs reduce blank-page proposal design; novel mutations and live counterfactual verification must provide the gain beyond the copied public meta. A two-week implementation target is plausible only if the four-day pilot works and native throughput is adequate. It is not a schedule guarantee, and the competition deadline must be checked from an authoritative current page rather than a cached countdown.
 
 Judge progress in opponent-adjusted full-policy wins and economic capability, not controller nodes, number of specialists, perfect records against relatives or volume of experiment artifacts. A top-10 candidate must eventually withstand strong unseen economies and prospective competition evidence. The architecture earns further compute only by producing those signals.
 
@@ -782,4 +882,16 @@ External sources below were accessed or checked on 2026-09-10 unless a different
 
 Reproduction anchors are the input Git commit, asset hashes above, the four self-improvement reports, Shop provenance, Gold Plus V8 release evidence, route-format/VM sources and native simulator/evaluator sources linked in their respective sections. Historical counters were inspected as compact evidence; large campaigns were not rerun. Public API source retrieval and static code analysis provided the external policy observations; the ignored local Shop notebook corroborates the port's provenance.
 
-The only new game execution for this research was the four-transition official PASS-agent clock/seed diagnostic described above. Hardware and binary/route/archive inspection were small read-only diagnostics. No production agents, search implementation, champion, submission package or protected panel was changed; no large training/search, competition submission or push was performed. Phase 0 and the immediate experiment remain unexecuted.
+The original architecture review's only new game execution was the four-transition official PASS-agent clock/seed diagnostic described above. The replay continuation downloaded the pinned public archive, indexed all replay IDs/footers and parsed a bounded body sample; it ran **no games, candidate search or training**. Large compressed files and disposable parsing summaries remain ignored under `build/top10_archive_research/`; only the revised plan and compact evidence manifest are committed. No production agent, search implementation, champion, submission package or protected panel was changed; no competition submission or push occurred. Phase 0 and the revised immediate experiment remain unexecuted.
+
+### Replay-continuation sources
+
+[^39]: ashok205 / NNMax, [Kaggriculture Daily Top-10 Replay Archive](https://www.kaggle.com/datasets/ashok205/kaggriculture-top10-replay-archive/versions/19), Kaggle public dataset, version 19, updated September 9, 2026; [public metadata endpoint](https://www.kaggle.com/api/v1/datasets/view/ashok205/kaggriculture-top10-replay-archive). Why it matters: actual public replay bodies, index, schema-3 manifest and daily provenance, not an assumed 2-GB corpus. Measurements and pinned hashes are in the repository evidence manifest.
+
+[^40]: ashok205 / NNMax, [top10-replay-dataset-archive](https://www.kaggle.com/code/ashok205/top10-replay-dataset-archive), public collector notebook; [source endpoint](https://www.kaggle.com/api/v1/kernels/pull/ashok205/top10-replay-dataset-archive), retrieved metadata version 18, source SHA256 `1e2b739d81864141700f2c8992181fc6f0b7d959b5abaf09e4c500f66dfa79bd`. Why it matters: inspected pair-average proxy ranking, both-team episode links, ZSTD row groups, append-only/cumulative update logic and lack of winner filtering. Mutable notebook metadata and old cell timestamps do not independently pin the collector source used for every historical shard.
+
+[^41]: Kaggle, [Kaggriculture episodes index](https://www.kaggle.com/datasets/kaggle/kaggriculture-episodes-index), official dataset, retrieved version 42, July 30-September 9, 2026; [September 8 official daily archive](https://www.kaggle.com/datasets/kaggle/kaggriculture-episodes-2026-09-08). Why it matters: primary description of completed-game selection by average agent rating under a 20-GiB daily cap, and the upstream coverage boundary. The top-10 archive is a further selected subset, not the complete competition match history.
+
+[^42]: Kipf et al., [CompILE: Compositional Imitation Learning and Execution](https://proceedings.mlr.press/v97/kipf19a.html), ICML 2019; [author implementation](https://github.com/tkipf/compile). Why it matters: primary evidence that variable-length demonstrated behaviour can be segmented and reused; the repository example is a simplified sequence task, not a ready-made production-job miner.
+
+[^43]: Pertsch, Lee and Lim, [Accelerating Reinforcement Learning with Learned Skill Priors](https://proceedings.mlr.press/v155/pertsch21a.html), CoRL 2020 / proceedings 2021; [official SPiRL implementation](https://github.com/clvrai/spirl). Why it matters: skill-level proposal priors can guide exploration more effectively than flat action priors in the studied domains. Transfer to this game is an inference; it motivates the cheap macro-prior contrast, not immediate adoption of its RL stack.
