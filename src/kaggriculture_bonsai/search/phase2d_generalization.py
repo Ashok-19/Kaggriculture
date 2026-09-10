@@ -68,8 +68,9 @@ def evaluate(program, panel, label, **kwargs):
     kind = kwargs.get("kind", 3)
     suffix = sum(719 - c[3] for c in panel)
     planned = len(panel) * 719 if kind == 4 else suffix if kind == 3 else len(panel) * 1438 + (suffix if kind == 1 else 0)
-    if sum(r["turns"] for r in ccpr.load("ledger.json")) + regression_turns() + planned > LIMIT:
-        raise RuntimeError("hard Phase-2D 2000-FGE all-in budget")
+    limit = ccpr.load("config.json").get("budget_fge", 2000) * 720
+    if sum(r["turns"] for r in ccpr.load("ledger.json")) + regression_turns() + planned > limit:
+        raise RuntimeError("hard configured all-in FGE budget")
     rows = ccpr.evaluate(program, panel, label, **kwargs)
     expected = len(panel) * (3 if kind == 1 else 2 if kind == 2 else 1)
     if len(rows) != expected:
