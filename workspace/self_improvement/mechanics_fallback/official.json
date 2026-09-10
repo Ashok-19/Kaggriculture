@@ -1,0 +1,231 @@
+{
+  "engine": "kaggle-environments 1.32.7",
+  "games": 16,
+  "mismatches": 0,
+  "rows": [
+    {
+      "agree": true,
+      "arm": "reference",
+      "native_rewards": [
+        78418.0,
+        78418.0
+      ],
+      "official_rewards": [
+        78418.0,
+        78418.0
+      ],
+      "seat": 0,
+      "seed": 70291001
+    },
+    {
+      "agree": true,
+      "arm": "reference",
+      "native_rewards": [
+        78418.0,
+        78418.0
+      ],
+      "official_rewards": [
+        78418.0,
+        78418.0
+      ],
+      "seat": 1,
+      "seed": 70291001
+    },
+    {
+      "agree": true,
+      "arm": "reference",
+      "native_rewards": [
+        105006.0,
+        105006.0
+      ],
+      "official_rewards": [
+        105006.0,
+        105006.0
+      ],
+      "seat": 0,
+      "seed": 70291002
+    },
+    {
+      "agree": true,
+      "arm": "reference",
+      "native_rewards": [
+        105006.0,
+        105006.0
+      ],
+      "official_rewards": [
+        105006.0,
+        105006.0
+      ],
+      "seat": 1,
+      "seed": 70291002
+    },
+    {
+      "agree": true,
+      "arm": "reference",
+      "native_rewards": [
+        93054.0,
+        93054.0
+      ],
+      "official_rewards": [
+        93054.0,
+        93054.0
+      ],
+      "seat": 0,
+      "seed": 70291003
+    },
+    {
+      "agree": true,
+      "arm": "reference",
+      "native_rewards": [
+        93054.0,
+        93054.0
+      ],
+      "official_rewards": [
+        93054.0,
+        93054.0
+      ],
+      "seat": 1,
+      "seed": 70291003
+    },
+    {
+      "agree": true,
+      "arm": "reference",
+      "native_rewards": [
+        128907.0,
+        128907.0
+      ],
+      "official_rewards": [
+        128907.0,
+        128907.0
+      ],
+      "seat": 0,
+      "seed": 70291004
+    },
+    {
+      "agree": true,
+      "arm": "reference",
+      "native_rewards": [
+        128907.0,
+        128907.0
+      ],
+      "official_rewards": [
+        128907.0,
+        128907.0
+      ],
+      "seat": 1,
+      "seed": 70291004
+    },
+    {
+      "agree": true,
+      "arm": "candidate",
+      "native_rewards": [
+        78405.0,
+        78398.0
+      ],
+      "official_rewards": [
+        78405.0,
+        78398.0
+      ],
+      "seat": 0,
+      "seed": 70291001
+    },
+    {
+      "agree": true,
+      "arm": "candidate",
+      "native_rewards": [
+        78398.0,
+        78405.0
+      ],
+      "official_rewards": [
+        78398.0,
+        78405.0
+      ],
+      "seat": 1,
+      "seed": 70291001
+    },
+    {
+      "agree": true,
+      "arm": "candidate",
+      "native_rewards": [
+        105008.0,
+        105002.0
+      ],
+      "official_rewards": [
+        105008.0,
+        105002.0
+      ],
+      "seat": 0,
+      "seed": 70291002
+    },
+    {
+      "agree": true,
+      "arm": "candidate",
+      "native_rewards": [
+        105002.0,
+        105008.0
+      ],
+      "official_rewards": [
+        105002.0,
+        105008.0
+      ],
+      "seat": 1,
+      "seed": 70291002
+    },
+    {
+      "agree": true,
+      "arm": "candidate",
+      "native_rewards": [
+        93057.0,
+        93054.0
+      ],
+      "official_rewards": [
+        93057.0,
+        93054.0
+      ],
+      "seat": 0,
+      "seed": 70291003
+    },
+    {
+      "agree": true,
+      "arm": "candidate",
+      "native_rewards": [
+        93054.0,
+        93057.0
+      ],
+      "official_rewards": [
+        93054.0,
+        93057.0
+      ],
+      "seat": 1,
+      "seed": 70291003
+    },
+    {
+      "agree": true,
+      "arm": "candidate",
+      "native_rewards": [
+        128907.0,
+        128907.0
+      ],
+      "official_rewards": [
+        128907.0,
+        128907.0
+      ],
+      "seat": 0,
+      "seed": 70291004
+    },
+    {
+      "agree": true,
+      "arm": "candidate",
+      "native_rewards": [
+        128907.0,
+        128907.0
+      ],
+      "official_rewards": [
+        128907.0,
+        128907.0
+      ],
+      "seat": 1,
+      "seed": 70291004
+    }
+  ]
+}

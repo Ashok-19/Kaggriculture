@@ -1,0 +1,156 @@
+{
+  "contexts": 256,
+  "finalists": [
+    {
+      "diagnostics": {
+        "clamped": 0,
+        "clamps": 0,
+        "deposits": 0,
+        "discard_value": 33316,
+        "discard_value_prevented": 174,
+        "discarded": 1898,
+        "empty_pens": 280,
+        "empty_pens_prevented": 0,
+        "failed": 280,
+        "overflow_units_prevented": 174,
+        "presales": 200,
+        "presold": 400,
+        "reference_clamped": 0,
+        "reference_clamps": 0,
+        "reference_deposits": 0,
+        "reference_discard_value": 33490,
+        "reference_discarded": 2072,
+        "reference_empty_pens": 280,
+        "reference_failed": 280,
+        "reference_presales": 0,
+        "reference_presold": 0,
+        "reference_saved": 0,
+        "reference_saved_value": 0,
+        "reference_topups": 0,
+        "reference_unsold": 0,
+        "route_action_failures_prevented": 0,
+        "saved": 0,
+        "saved_value": 0,
+        "topups": 0,
+        "unsold": 0,
+        "unsold_change": 0
+      },
+      "family": "capacity",
+      "games": 256,
+      "lower_bound_90_points": 7.8125,
+      "mean_delta": -3.9453125,
+      "median_delta": 5.0,
+      "name": "c07",
+      "overlay": [
+        0,
+        0,
+        20,
+        4,
+        0,
+        0,
+        0
+      ],
+      "per_opponent": {
+        "0": 35.9375,
+        "1": 0.0,
+        "2": 0.0,
+        "3": 0.0
+      },
+      "per_seat": {
+        "0": 8.984375,
+        "1": 8.984375
+      },
+      "reference_utility": 0.79296875,
+      "transitions": {
+        "L->W": 0,
+        "T->L": 0,
+        "T->W": 46,
+        "W->L": 0,
+        "W->T": 0
+      },
+      "utility": 0.8828125,
+      "utility_change_points": 8.984375
+    },
+    {
+      "diagnostics": {
+        "clamped": 0,
+        "clamps": 0,
+        "deposits": 0,
+        "discard_value": 42438,
+        "discard_value_prevented": -8948,
+        "discarded": 2304,
+        "empty_pens": 280,
+        "empty_pens_prevented": 0,
+        "failed": 280,
+        "overflow_units_prevented": -232,
+        "presales": 0,
+        "presold": 0,
+        "reference_clamped": 0,
+        "reference_clamps": 0,
+        "reference_deposits": 0,
+        "reference_discard_value": 33490,
+        "reference_discarded": 2072,
+        "reference_empty_pens": 280,
+        "reference_failed": 280,
+        "reference_presales": 0,
+        "reference_presold": 0,
+        "reference_saved": 0,
+        "reference_saved_value": 0,
+        "reference_topups": 0,
+        "reference_unsold": 0,
+        "route_action_failures_prevented": 0,
+        "saved": 0,
+        "saved_value": 0,
+        "topups": 4600,
+        "unsold": 0,
+        "unsold_change": 0
+      },
+      "family": "feed",
+      "games": 256,
+      "lower_bound_90_points": -12.109375,
+      "mean_delta": -31.41015625,
+      "median_delta": -42.0,
+      "name": "f28",
+      "overlay": [
+        0,
+        0,
+        0,
+        0,
+        3,
+        2,
+        24
+      ],
+      "per_opponent": {
+        "0": -32.8125,
+        "1": -6.25,
+        "2": 0.0,
+        "3": 1.5625
+      },
+      "per_seat": {
+        "0": -9.375,
+        "1": -9.375
+      },
+      "reference_utility": 0.79296875,
+      "transitions": {
+        "L->W": 0,
+        "T->L": 50,
+        "T->W": 10,
+        "W->L": 4,
+        "W->T": 0
+      },
+      "utility": 0.69921875,
+      "utility_change_points": -9.375
+    }
+  ],
+  "frozen_overlay": [
+    0,
+    0,
+    20,
+    4,
+    0,
+    0,
+    0
+  ],
+  "frozen_winner": "c07",
+  "seeds": 32
+}

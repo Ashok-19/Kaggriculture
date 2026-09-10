@@ -1,0 +1,20 @@
+{
+  "boundary_candidates": 32,
+  "boundary_cpu_cuda_mismatch": 0,
+  "boundary_games": 256,
+  "boundary_games_with_active_mechanic": 144,
+  "boundary_mechanic_events": {
+    "clamped": 1758,
+    "clamps": 2180,
+    "deposits": 0,
+    "presales": 16,
+    "presold": 32,
+    "saved": 0,
+    "saved_value": 0,
+    "topups": 1720
+  },
+  "runtime_faults": 0,
+  "zero_edit_games": 16,
+  "zero_edit_route_pack_untouched": true,
+  "zero_edit_semantic_mismatch": 0
+}

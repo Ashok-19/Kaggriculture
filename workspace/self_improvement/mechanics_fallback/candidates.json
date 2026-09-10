@@ -1,0 +1,433 @@
+{
+  "capacity": 16,
+  "combined": 0,
+  "feed": 16,
+  "items": [
+    {
+      "family": "capacity",
+      "name": "c00",
+      "overlay": [
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "family": "capacity",
+      "name": "c01",
+      "overlay": [
+        1,
+        3,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "family": "capacity",
+      "name": "c02",
+      "overlay": [
+        0,
+        0,
+        5,
+        2,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "family": "capacity",
+      "name": "c03",
+      "overlay": [
+        0,
+        0,
+        5,
+        4,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "family": "capacity",
+      "name": "c04",
+      "overlay": [
+        0,
+        0,
+        10,
+        2,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "family": "capacity",
+      "name": "c05",
+      "overlay": [
+        0,
+        0,
+        10,
+        4,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "family": "capacity",
+      "name": "c06",
+      "overlay": [
+        0,
+        0,
+        20,
+        2,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "family": "capacity",
+      "name": "c07",
+      "overlay": [
+        0,
+        0,
+        20,
+        4,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "family": "capacity",
+      "name": "c08",
+      "overlay": [
+        1,
+        1,
+        5,
+        2,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "family": "capacity",
+      "name": "c09",
+      "overlay": [
+        1,
+        1,
+        5,
+        4,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "family": "capacity",
+      "name": "c10",
+      "overlay": [
+        1,
+        1,
+        10,
+        2,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "family": "capacity",
+      "name": "c11",
+      "overlay": [
+        1,
+        1,
+        10,
+        4,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "family": "capacity",
+      "name": "c12",
+      "overlay": [
+        1,
+        1,
+        20,
+        2,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "family": "capacity",
+      "name": "c13",
+      "overlay": [
+        1,
+        1,
+        20,
+        4,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "family": "capacity",
+      "name": "c14",
+      "overlay": [
+        1,
+        3,
+        5,
+        2,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "family": "capacity",
+      "name": "c15",
+      "overlay": [
+        1,
+        3,
+        5,
+        4,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "family": "feed",
+      "name": "f16",
+      "overlay": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        2,
+        24
+      ]
+    },
+    {
+      "family": "feed",
+      "name": "f17",
+      "overlay": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        2,
+        48
+      ]
+    },
+    {
+      "family": "feed",
+      "name": "f18",
+      "overlay": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        4,
+        24
+      ]
+    },
+    {
+      "family": "feed",
+      "name": "f19",
+      "overlay": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        4,
+        48
+      ]
+    },
+    {
+      "family": "feed",
+      "name": "f20",
+      "overlay": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        8,
+        24
+      ]
+    },
+    {
+      "family": "feed",
+      "name": "f21",
+      "overlay": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        8,
+        48
+      ]
+    },
+    {
+      "family": "feed",
+      "name": "f22",
+      "overlay": [
+        0,
+        0,
+        0,
+        0,
+        2,
+        2,
+        24
+      ]
+    },
+    {
+      "family": "feed",
+      "name": "f23",
+      "overlay": [
+        0,
+        0,
+        0,
+        0,
+        2,
+        2,
+        48
+      ]
+    },
+    {
+      "family": "feed",
+      "name": "f24",
+      "overlay": [
+        0,
+        0,
+        0,
+        0,
+        2,
+        4,
+        24
+      ]
+    },
+    {
+      "family": "feed",
+      "name": "f25",
+      "overlay": [
+        0,
+        0,
+        0,
+        0,
+        2,
+        4,
+        48
+      ]
+    },
+    {
+      "family": "feed",
+      "name": "f26",
+      "overlay": [
+        0,
+        0,
+        0,
+        0,
+        2,
+        8,
+        24
+      ]
+    },
+    {
+      "family": "feed",
+      "name": "f27",
+      "overlay": [
+        0,
+        0,
+        0,
+        0,
+        2,
+        8,
+        48
+      ]
+    },
+    {
+      "family": "feed",
+      "name": "f28",
+      "overlay": [
+        0,
+        0,
+        0,
+        0,
+        3,
+        2,
+        24
+      ]
+    },
+    {
+      "family": "feed",
+      "name": "f29",
+      "overlay": [
+        0,
+        0,
+        0,
+        0,
+        3,
+        2,
+        48
+      ]
+    },
+    {
+      "family": "feed",
+      "name": "f30",
+      "overlay": [
+        0,
+        0,
+        0,
+        0,
+        3,
+        8,
+        24
+      ]
+    },
+    {
+      "family": "feed",
+      "name": "f31",
+      "overlay": [
+        0,
+        0,
+        0,
+        0,
+        3,
+        8,
+        48
+      ]
+    }
+  ],
+  "parameterization": [
+    "cap_mode",
+    "cap_floor",
+    "cap_room",
+    "cap_look",
+    "feed_mode",
+    "feed_res",
+    "feed_look"
+  ],
+  "total": 32
+}
