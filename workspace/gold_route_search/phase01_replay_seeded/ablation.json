@@ -1,0 +1,170 @@
+{
+  "R": {
+    "full_candidate": {
+      "games": 128,
+      "mean_delta": -2080.3125,
+      "median_delta": -801.0,
+      "produced_total": [
+        66176,
+        10752,
+        0,
+        31872,
+        9216,
+        9360,
+        27440,
+        24376,
+        46608,
+        0,
+        0,
+        0
+      ],
+      "reference_free": true,
+      "reference_utility": 0.828125,
+      "transitions": {
+        "L->W": 2,
+        "T->L": 24,
+        "T->W": 8,
+        "W->L": 20,
+        "W->T": 0
+      },
+      "utility": 0.625,
+      "utility_change_points": -20.3125
+    },
+    "median_paired_margin_full": -801.0,
+    "operations": [
+      {
+        "family": "ANIMAL",
+        "ordinal": 3,
+        "shift": 0,
+        "species": 10,
+        "target": 11
+      }
+    ],
+    "opponent_support": {
+      "0": -842.5,
+      "1": -814.5,
+      "2": -1007.0,
+      "3": -168.5
+    },
+    "pack": "build/cand_R_024",
+    "production_effect_points": 15.625,
+    "sales_only": {
+      "games": 128,
+      "mean_delta": -2304.0625,
+      "median_delta": -2312.0,
+      "produced_total": [
+        66176,
+        10752,
+        0,
+        31872,
+        9216,
+        9360,
+        30680,
+        21496,
+        46608,
+        0,
+        0,
+        0
+      ],
+      "reference_free": true,
+      "reference_utility": 0.828125,
+      "transitions": {
+        "L->W": 0,
+        "T->L": 32,
+        "T->W": 0,
+        "W->L": 30,
+        "W->T": 0
+      },
+      "utility": 0.46875,
+      "utility_change_points": -35.9375
+    },
+    "seat_support": {
+      "0": -801.0,
+      "1": -801.0
+    }
+  },
+  "U": {
+    "full_candidate": {
+      "games": 128,
+      "mean_delta": -2080.3125,
+      "median_delta": -801.0,
+      "produced_total": [
+        66176,
+        10752,
+        0,
+        31872,
+        9216,
+        9360,
+        27440,
+        24376,
+        46608,
+        0,
+        0,
+        0
+      ],
+      "reference_free": true,
+      "reference_utility": 0.828125,
+      "transitions": {
+        "L->W": 2,
+        "T->L": 24,
+        "T->W": 8,
+        "W->L": 20,
+        "W->T": 0
+      },
+      "utility": 0.625,
+      "utility_change_points": -20.3125
+    },
+    "median_paired_margin_full": -801.0,
+    "operations": [
+      {
+        "family": "ANIMAL",
+        "ordinal": 3,
+        "shift": 0,
+        "species": 10,
+        "target": 11
+      }
+    ],
+    "opponent_support": {
+      "0": -842.5,
+      "1": -814.5,
+      "2": -1007.0,
+      "3": -168.5
+    },
+    "pack": "build/cand_U_103",
+    "production_effect_points": 15.625,
+    "sales_only": {
+      "games": 128,
+      "mean_delta": -2304.0625,
+      "median_delta": -2312.0,
+      "produced_total": [
+        66176,
+        10752,
+        0,
+        31872,
+        9216,
+        9360,
+        30680,
+        21496,
+        46608,
+        0,
+        0,
+        0
+      ],
+      "reference_free": true,
+      "reference_utility": 0.828125,
+      "transitions": {
+        "L->W": 0,
+        "T->L": 32,
+        "T->W": 0,
+        "W->L": 30,
+        "W->T": 0
+      },
+      "utility": 0.46875,
+      "utility_change_points": -35.9375
+    },
+    "seat_support": {
+      "0": -801.0,
+      "1": -801.0
+    }
+  }
+}

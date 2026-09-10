@@ -1,0 +1,37 @@
+{
+  "checked_games": 8,
+  "cpu_cuda_mismatch": 0,
+  "declared_support": {
+    "ANIMAL": 11,
+    "CROP": 36
+  },
+  "gate": true,
+  "head": "bd6a5ca5758e317f88891270d5b75ce61181ad3f",
+  "reference_footprint": {
+    "blackboard": 2,
+    "node_state": 0,
+    "nodes": 85
+  },
+  "replay_lifecycle_check": {
+    "checked": 12,
+    "detail": [],
+    "mismatches": 0
+  },
+  "route_job_counts": {
+    "0": 216,
+    "1": 215,
+    "10": 212,
+    "11": 216,
+    "12": 201,
+    "2": 216,
+    "3": 216,
+    "4": 215,
+    "5": 215,
+    "6": 216,
+    "7": 216,
+    "8": 216,
+    "9": 216
+  },
+  "zero_edit_bytes_identical": true,
+  "zero_edit_semantic_mismatch": 0
+}

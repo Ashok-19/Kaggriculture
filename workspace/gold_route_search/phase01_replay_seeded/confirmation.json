@@ -1,0 +1,136 @@
+{
+  "R": {
+    "finalists": [
+      {
+        "games": 256,
+        "mean_delta": -895.3125,
+        "median_delta": -59.0,
+        "pack": "build/cand_R_024",
+        "produced_total": [
+          132720,
+          21144,
+          0,
+          63684,
+          18432,
+          13104,
+          53096,
+          54796,
+          92870,
+          0,
+          0,
+          0
+        ],
+        "reference_free": true,
+        "reference_utility": 0.75,
+        "transitions": {
+          "L->W": 0,
+          "T->L": 36,
+          "T->W": 28,
+          "W->L": 28,
+          "W->T": 0
+        },
+        "utility": 0.625,
+        "utility_change_points": -12.5
+      },
+      {
+        "games": 256,
+        "mean_delta": -1650.9140625,
+        "median_delta": -958.0,
+        "pack": "build/cand_R_108",
+        "produced_total": [
+          132720,
+          21144,
+          0,
+          63696,
+          18432,
+          20272,
+          50776,
+          50352,
+          92936,
+          0,
+          0,
+          0
+        ],
+        "reference_free": true,
+        "reference_utility": 0.75,
+        "transitions": {
+          "L->W": 4,
+          "T->L": 48,
+          "T->W": 16,
+          "W->L": 40,
+          "W->T": 0
+        },
+        "utility": 0.546875,
+        "utility_change_points": -20.3125
+      }
+    ],
+    "winner": "build/cand_R_024"
+  },
+  "U": {
+    "finalists": [
+      {
+        "games": 256,
+        "mean_delta": -895.3125,
+        "median_delta": -59.0,
+        "pack": "build/cand_U_103",
+        "produced_total": [
+          132720,
+          21144,
+          0,
+          63684,
+          18432,
+          13104,
+          53096,
+          54796,
+          92870,
+          0,
+          0,
+          0
+        ],
+        "reference_free": true,
+        "reference_utility": 0.75,
+        "transitions": {
+          "L->W": 0,
+          "T->L": 36,
+          "T->W": 28,
+          "W->L": 28,
+          "W->T": 0
+        },
+        "utility": 0.625,
+        "utility_change_points": -12.5
+      },
+      {
+        "games": 256,
+        "mean_delta": -1650.9140625,
+        "median_delta": -958.0,
+        "pack": "build/cand_U_001",
+        "produced_total": [
+          132720,
+          21144,
+          0,
+          63696,
+          18432,
+          20272,
+          50776,
+          50352,
+          92936,
+          0,
+          0,
+          0
+        ],
+        "reference_free": true,
+        "reference_utility": 0.75,
+        "transitions": {
+          "L->W": 4,
+          "T->L": 48,
+          "T->W": 16,
+          "W->L": 40,
+          "W->T": 0
+        },
+        "utility": 0.546875,
+        "utility_change_points": -20.3125
+      }
+    ],
+    "winner": "build/cand_U_103"
+  }
+}

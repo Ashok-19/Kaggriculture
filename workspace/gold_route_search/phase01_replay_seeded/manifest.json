@@ -1,0 +1,405 @@
+{
+  "arity_sha256": "5e8305647ac58067267515699c0dc15371e7d738d299512bfd26615ebfb882af",
+  "binaries": {
+    "cpu": "d2ac4446d4e0bb6420d4f1113f305973087bbf32bd4316f86f374929f5761dbc",
+    "cuda": "825c8115261ed159bba2de2a27f34af9986a0267af4ff308c209d5cbc895208d"
+  },
+  "budget_fge": 12000,
+  "candidate_generation": {
+    "declared_support": {
+      "ANIMAL": [
+        [
+          9,
+          0
+        ],
+        [
+          9,
+          1
+        ],
+        [
+          9,
+          2
+        ],
+        [
+          10,
+          0
+        ],
+        [
+          10,
+          1
+        ],
+        [
+          10,
+          2
+        ],
+        [
+          10,
+          3
+        ],
+        [
+          11,
+          0
+        ],
+        [
+          11,
+          1
+        ],
+        [
+          11,
+          2
+        ],
+        [
+          11,
+          3
+        ]
+      ],
+      "CROP": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          0,
+          2
+        ],
+        [
+          0,
+          3
+        ],
+        [
+          0,
+          4
+        ],
+        [
+          0,
+          5
+        ],
+        [
+          0,
+          6
+        ],
+        [
+          0,
+          7
+        ],
+        [
+          0,
+          8
+        ],
+        [
+          0,
+          9
+        ],
+        [
+          0,
+          10
+        ],
+        [
+          0,
+          11
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          1,
+          3
+        ],
+        [
+          1,
+          4
+        ],
+        [
+          1,
+          5
+        ],
+        [
+          1,
+          6
+        ],
+        [
+          1,
+          7
+        ],
+        [
+          1,
+          8
+        ],
+        [
+          1,
+          9
+        ],
+        [
+          1,
+          10
+        ],
+        [
+          1,
+          11
+        ],
+        [
+          3,
+          0
+        ],
+        [
+          3,
+          1
+        ],
+        [
+          3,
+          2
+        ],
+        [
+          3,
+          3
+        ],
+        [
+          3,
+          4
+        ],
+        [
+          3,
+          5
+        ],
+        [
+          3,
+          6
+        ],
+        [
+          3,
+          7
+        ],
+        [
+          3,
+          8
+        ],
+        [
+          3,
+          9
+        ],
+        [
+          3,
+          10
+        ],
+        [
+          3,
+          11
+        ]
+      ]
+    },
+    "families": [
+      "ANIMAL",
+      "CROP"
+    ],
+    "max_compilations_per_arm": 512,
+    "proposals_per_arm": 128,
+    "shifts": [
+      -24,
+      0,
+      24
+    ],
+    "structure": "90 single-operation and 38 two-operation slots per arm"
+  },
+  "direct_controller_sha256": "b2d784244cf6c3b15979540da1be6f918dc48e1dbc38ba76314a4db0fdd22c97",
+  "driver_sha256": "4b7914dbe4384a17cdadcdb9c2b4152f571e2afb2deb0af5c202b1b8005252e5",
+  "engine": "audited native CPU/CUDA sim (kaggle-environments 1.32.7 semantics)",
+  "experiment": "gold_route_search/phase01_replay_seeded",
+  "external_substitution": "Named public externals other than Gold Plus V8 unavailable locally; four frozen structurally comparable local policies declared before any candidate outcome.",
+  "job_module_sha256": "789f48291de1481ce7afe6614377d50b0f43f2596c3fcdbc144392f81c6e7d26",
+  "native_source_sha256": "8bf00e2fd9d389b26ad9028db7a76eb04f633f4fc3d3d0ad9ab5f85071aa1ef9",
+  "opponents": {
+    "0": "shop_router_0909/plus",
+    "1": "shop_router_0909/reference_port",
+    "2": "shop plus executor on broadcast route 3",
+    "3": "shop plus executor on broadcast route 12"
+  },
+  "plus_controller_semantic": "2207e9f02c80e3b5971745426897a78cdfad16abf4d7694b716dfbc9613dd03b",
+  "plus_controller_sha256": "84bbfe9a32ccf4d202664500b28bba787dab18cb18180c539d70f1890b1cc450",
+  "proposal_rng_seed": 70190909,
+  "reference_agent": "shop_router_0909/plus",
+  "replay_archive": {
+    "bodies_inspected": 64,
+    "dataset": "ashok205/kaggriculture-top10-replay-archive",
+    "index": "workspace/research/top10_replay_archive/evidence.json",
+    "version": 19
+  },
+  "route_pack_sha256": "f711680c0c4514be70c97e64491f969ad31d79edd6a639b42cf950b98eebe696",
+  "seeds": {
+    "build": [
+      70192001,
+      70192002,
+      70192003,
+      70192004,
+      70192005,
+      70192006,
+      70192007,
+      70192008,
+      70192009,
+      70192010,
+      70192011,
+      70192012,
+      70192013,
+      70192014,
+      70192015,
+      70192016,
+      70192017,
+      70192018,
+      70192019,
+      70192020,
+      70192021,
+      70192022,
+      70192023,
+      70192024,
+      70192025,
+      70192026,
+      70192027,
+      70192028,
+      70192029,
+      70192030,
+      70192031,
+      70192032
+    ],
+    "dev": [
+      70193001,
+      70193002,
+      70193003,
+      70193004,
+      70193005,
+      70193006,
+      70193007,
+      70193008,
+      70193009,
+      70193010,
+      70193011,
+      70193012,
+      70193013,
+      70193014,
+      70193015,
+      70193016,
+      70193017,
+      70193018,
+      70193019,
+      70193020,
+      70193021,
+      70193022,
+      70193023,
+      70193024,
+      70193025,
+      70193026,
+      70193027,
+      70193028,
+      70193029,
+      70193030,
+      70193031,
+      70193032,
+      70193033,
+      70193034,
+      70193035,
+      70193036,
+      70193037,
+      70193038,
+      70193039,
+      70193040,
+      70193041,
+      70193042,
+      70193043,
+      70193044,
+      70193045,
+      70193046,
+      70193047,
+      70193048,
+      70193049,
+      70193050,
+      70193051,
+      70193052,
+      70193053,
+      70193054,
+      70193055,
+      70193056,
+      70193057,
+      70193058,
+      70193059,
+      70193060,
+      70193061,
+      70193062,
+      70193063,
+      70193064
+    ],
+    "discovery": [
+      70191001,
+      70191002,
+      70191003,
+      70191004,
+      70191005,
+      70191006,
+      70191007,
+      70191008,
+      70191009,
+      70191010,
+      70191011,
+      70191012,
+      70191013,
+      70191014,
+      70191015,
+      70191016
+    ],
+    "external": [
+      70194001,
+      70194002,
+      70194003,
+      70194004,
+      70194005,
+      70194006,
+      70194007,
+      70194008,
+      70194009,
+      70194010,
+      70194011,
+      70194012,
+      70194013,
+      70194014,
+      70194015,
+      70194016,
+      70194017,
+      70194018,
+      70194019,
+      70194020,
+      70194021,
+      70194022,
+      70194023,
+      70194024,
+      70194025,
+      70194026,
+      70194027,
+      70194028,
+      70194029,
+      70194030,
+      70194031,
+      70194032
+    ]
+  },
+  "starting_head": "bd6a5ca5758e317f88891270d5b75ce61181ad3f",
+  "team": "ReCurSiON",
+  "test_sha256": "c7b931c66d2644d055a05f3e8ffeabb196dd59b964b71394c6327a9c96176727",
+  "training_exclusions": [
+    "episode_id",
+    "team_name",
+    "replay_seed",
+    "opponent_private_state",
+    "future_observations",
+    "future_shop_sequence"
+  ]
+}
