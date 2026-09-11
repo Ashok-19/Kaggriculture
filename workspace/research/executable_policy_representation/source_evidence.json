@@ -1,0 +1,132 @@
+{
+  "schema": "executable-representation-research-v1",
+  "research_date": "2026-09-11",
+  "repository_head": "180074ee2e3c96f6798771c0032c9297383e3a5f",
+  "branch": "main",
+  "starting_status": "clean",
+  "scope": "Research and architecture selection only; no representation implementation or new simulation",
+  "new_native_fge": 0,
+  "new_official_games": 0,
+  "raw_replays_copied": 0,
+  "public_sources": [
+    {
+      "title": "Shop Router 0908",
+      "author": "Yusuke Hayashi (yhay81)",
+      "url": "https://www.kaggle.com/code/yhay81/shop-router-0908",
+      "source_url": "https://www.kaggle.com/api/v1/kernels/pull/yhay81/shop-router-0908",
+      "api_version": 2,
+      "kernel_id": 133520239,
+      "api_last_run": "2026-09-08T12:40:48.7463099Z",
+      "notebook_source_utf8_sha256": "b64b16559c441d5ff48891629df6bef519427d4780aa7b97d306449a796aa606",
+      "evidence": "Author markdown reports 1326 histories, 1313 unique action sequences, day/three-day recombination, about 21 million candidate-game comparisons, and limitations of fixed opponent tapes.",
+      "limit": "Author report, not independently reproduced. No general scheduling generator or compatibility procedure published in the inspected source."
+    },
+    {
+      "title": "Shop Router 0909",
+      "author": "Yusuke Hayashi (yhay81)",
+      "url": "https://www.kaggle.com/code/yhay81/shop-router-0909",
+      "source_url": "https://www.kaggle.com/api/v1/kernels/pull/yhay81/shop-router-0909",
+      "api_version": 3,
+      "kernel_id": 133670867,
+      "api_last_run": "2026-09-08T12:43:58.6219635Z",
+      "notebook_source_utf8_sha256": "a36029e34448e823b6b11990ad06a86e255da6b629cbfb30035b542422592dd4",
+      "evidence": "Explicit routes, shop-conditioned switching, queued weed insertion, projected inventory and advanced sale accounting. Cross-checked against current local port."
+    },
+    {
+      "title": "Kaggriculture_reactive_router",
+      "author": "Yaxon (aurax7)",
+      "url": "https://www.kaggle.com/code/aurax7/kaggriculture-reactive-router",
+      "source_url": "https://www.kaggle.com/api/v1/kernels/pull/aurax7/kaggriculture-reactive-router",
+      "api_version": 1,
+      "kernel_id": 133599234,
+      "api_last_run": "2026-09-08T12:45:35.5981055Z",
+      "notebook_source_utf8_sha256": "0e8b6606bf7bc843a8b69fddc9357f8da11e0c38f52453481ef8265a033b56a1",
+      "evidence": "Route wrapper, actual hand alignment, location-bound idle-slot repair, market leading and terminal handling. Related to local Gold architecture, not asserted byte-identical to its donor.",
+      "access_note": "The shorter aurax7/reactive-router API endpoint returned 403; the linked full slug succeeded."
+    },
+    {
+      "title": "COK Kaggriculture main.py",
+      "author": "COK-ZhangZiliang",
+      "url": "https://github.com/COK-ZhangZiliang/Kaggriculture/blob/main/main.py",
+      "source_url": "https://raw.githubusercontent.com/COK-ZhangZiliang/Kaggriculture/main/main.py",
+      "bytes": 188812,
+      "sha256": "56831f3c43c9727d90016b7a7a8d4eb51d1a4c08c1120d58f061d9176e8bc109",
+      "evidence": "Active V10 wrapper, coherent herd families, selection gates, acquisition reconciliation, weed and position repair, prepaid-sale accounting.",
+      "limit": "Mutable main URL pinned by retrieved bytes, not an asserted Git commit. No new strength test. Public-profile fingerprint rules are not permissible BUILD features."
+    },
+    {
+      "title": "Seyamalam Kaggriculture main.py",
+      "author": "Seyamalam",
+      "url": "https://github.com/Seyamalam/Kaggriculture/blob/main/main.py",
+      "source_url": "https://raw.githubusercontent.com/Seyamalam/Kaggriculture/main/main.py",
+      "bytes": 321847,
+      "sha256": "0cd14b653102d276c4f902fa3b8c6bd81d869b8ab64c422cb881b9d2346ec639",
+      "evidence": "Active v18 board/market experts, state-distance and hysteresis, wrapper order and recovery sweep; older task scheduler distinguished from final entry.",
+      "limit": "Mutable main URL pinned by retrieved bytes. No new strength test; expert switching is not automatically contract-safe."
+    },
+    {
+      "title": "Lonespear Kaggriculture main.py",
+      "author": "lonespear",
+      "url": "https://github.com/lonespear/kaggriculture/blob/main/main.py",
+      "source_url": "https://raw.githubusercontent.com/lonespear/kaggriculture/main/main.py",
+      "bytes": 43996,
+      "sha256": "eb5b5f59a8ec2d40b77cc99d4ffe3b932136fdcf9f6b6e168726b7f07ab47cb0",
+      "evidence": "Reactive task construction, cluster-aware assignment, Hungarian/greedy choice, carried-input distinction and author comments about prior execution failures.",
+      "limit": "Not verified elite; no claim this task executor achieves Shop productivity."
+    },
+    {
+      "title": "Kaggriculture options and behaviour-cloning discussion",
+      "author": "Zhenyu Zhang",
+      "url": "https://www.kaggle.com/competitions/kaggriculture/discussion/738079",
+      "evidence": "Author-reported option execution/completion and cash results illustrate that completion does not establish productive economic execution.",
+      "limit": "Unpaired public report, not comparable directly to the local live panel."
+    },
+    {
+      "title": "Kaggriculture replay-analysis discussion",
+      "author": "sobameshi",
+      "url": "https://www.kaggle.com/competitions/kaggriculture/discussion/739273",
+      "evidence": "Reported related public economies and tested ladder structure.",
+      "limit": "No inference about private leader generators or universal transitivity."
+    }
+  ],
+  "public_source_retention": "Raw downloaded sources were temporary inspection inputs outside the repository. Only URLs, hashes and concise analytical notes are committed. No raw public policy is installed or copied into BUILD.",
+  "literature_inventory": "Numbered primary-source bibliography and decision-specific limitations are in docs/FINAL_EXECUTABLE_POLICY_REPRESENTATION.md. Includes options, behavior trees, residual control, DAgger, CompILE, SPiRL, VIPER, PROPEL, DreamCoder, PDDLStream, OR-Tools, LLM-GS, SymSkill and Evolving Programmatic Skill Networks.",
+  "local_static_audit": {
+    "script": "workspace/research/executable_policy_representation/route_audit.py",
+    "result": "workspace/research/executable_policy_representation/route_statistics.json",
+    "run_command": "rtk proxy .venv/bin/python workspace/research/executable_policy_representation/route_audit.py",
+    "method": "Decode current Shop raw actions through the installed kaggriculture_bonsai package; count literal route, lane, phase and motif structure; no simulation.",
+    "json_reproduction": "Exact after JSON key normalization",
+    "route_count": 13,
+    "steps_per_route": 719,
+    "raw_action_records": 9347,
+    "route0_unit_action_slots": 6643,
+    "route0_movement_requests": 2782,
+    "route0_movement_fraction": 0.4187866927592955,
+    "route0_hire_requests": 260,
+    "route0_complete_lane_days": 278,
+    "route0_unique_complete_lane_days": 278,
+    "common_stored_prefix_steps": 70,
+    "warning": "Requested actions are not realized production. Stored route prefixes are not the actual controller's legal routing schedule."
+  },
+  "optional_ignored_corroboration": {
+    "path": "workspace/build/representation_preflight_gate2_summary.json",
+    "sha256": "8f12bd80c564475c493728a3b33dc68ac545f3f213a55effbebcced7f3cbdbb0",
+    "rows": 64,
+    "median_candidate_cash": 12620,
+    "median_reference_cash": 93628,
+    "median_candidate_strawberry_produced": 110,
+    "all_rows_no_other_produced_items": true,
+    "all_rows_no_final_livestock": true,
+    "all_rows_one_land_quadrant": true,
+    "limit": "Ignored export may be unavailable in a clean checkout. Committed productivity.json independently establishes the failure; this export is not required, copied, or promoted into a dataset."
+  },
+  "limitations": [
+    "No chosen representation is implemented or empirically validated by this research.",
+    "No current leaderboard ranking or substantive official deadline obtained from the inspected responses.",
+    "No private leader methodology inferred.",
+    "No new full replay decoding or live public-agent benchmark.",
+    "The supplied representative Shop realized-production vector was not independently reproduced; hire requests were verified.",
+    "All new representation effort, resource and throughput numbers are estimates with explicit stop conditions, not measurements."
+  ]
+}

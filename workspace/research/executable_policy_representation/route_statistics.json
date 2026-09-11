@@ -1,0 +1,1050 @@
+{
+  "scope": "13 Shop tapes, zero simulation, raw requests; route 0 is a structural reference, not an asserted best route",
+  "route_pack_sha256": "f711680c0c4514be70c97e64491f969ad31d79edd6a639b42cf950b98eebe696",
+  "route_count": 13,
+  "steps_per_route": 719,
+  "common_prefix_steps": 70,
+  "route0_unit_operation_counts": {
+    "BUILD_COOP": 5,
+    "BUILD_PASTURE": 14,
+    "CARE": 417,
+    "COLLECT_FERTILIZER": 367,
+    "DIG": 35,
+    "DROP": 47,
+    "EAST": 559,
+    "FEED": 367,
+    "FERTILIZE": 61,
+    "HARVEST": 476,
+    "NORTH": 896,
+    "PASS": 423,
+    "PICKUP": 201,
+    "PLACE": 99,
+    "PLANT": 239,
+    "SOUTH": 490,
+    "WATER": 1110,
+    "WEST": 837
+  },
+  "route0_total_hire_requests": 260,
+  "route0_hires_by_day": [
+    {
+      "day": 0,
+      "hour_counts": {
+        "1": 5
+      }
+    },
+    {
+      "day": 1,
+      "hour_counts": {
+        "0": 3
+      }
+    },
+    {
+      "day": 2,
+      "hour_counts": {
+        "0": 4
+      }
+    },
+    {
+      "day": 3,
+      "hour_counts": {
+        "0": 5
+      }
+    },
+    {
+      "day": 4,
+      "hour_counts": {
+        "0": 4
+      }
+    },
+    {
+      "day": 5,
+      "hour_counts": {
+        "0": 3,
+        "1": 1
+      }
+    },
+    {
+      "day": 6,
+      "hour_counts": {
+        "0": 7
+      }
+    },
+    {
+      "day": 7,
+      "hour_counts": {
+        "0": 6,
+        "1": 1
+      }
+    },
+    {
+      "day": 8,
+      "hour_counts": {
+        "0": 8
+      }
+    },
+    {
+      "day": 9,
+      "hour_counts": {
+        "0": 8
+      }
+    },
+    {
+      "day": 10,
+      "hour_counts": {
+        "0": 9,
+        "1": 2
+      }
+    },
+    {
+      "day": 11,
+      "hour_counts": {
+        "0": 5,
+        "1": 5
+      }
+    },
+    {
+      "day": 12,
+      "hour_counts": {
+        "0": 9
+      }
+    },
+    {
+      "day": 13,
+      "hour_counts": {
+        "0": 8,
+        "1": 1
+      }
+    },
+    {
+      "day": 14,
+      "hour_counts": {
+        "0": 9
+      }
+    },
+    {
+      "day": 15,
+      "hour_counts": {
+        "0": 8,
+        "1": 2
+      }
+    },
+    {
+      "day": 16,
+      "hour_counts": {
+        "0": 9,
+        "1": 2
+      }
+    },
+    {
+      "day": 17,
+      "hour_counts": {
+        "0": 9,
+        "1": 2
+      }
+    },
+    {
+      "day": 18,
+      "hour_counts": {
+        "0": 9,
+        "1": 2
+      }
+    },
+    {
+      "day": 19,
+      "hour_counts": {
+        "0": 9,
+        "1": 1
+      }
+    },
+    {
+      "day": 20,
+      "hour_counts": {
+        "0": 9,
+        "1": 2
+      }
+    },
+    {
+      "day": 21,
+      "hour_counts": {
+        "0": 8,
+        "1": 3
+      }
+    },
+    {
+      "day": 22,
+      "hour_counts": {
+        "0": 9,
+        "1": 1
+      }
+    },
+    {
+      "day": 23,
+      "hour_counts": {
+        "0": 7,
+        "1": 3
+      }
+    },
+    {
+      "day": 24,
+      "hour_counts": {
+        "0": 9,
+        "1": 1
+      }
+    },
+    {
+      "day": 25,
+      "hour_counts": {
+        "0": 6,
+        "1": 4
+      }
+    },
+    {
+      "day": 26,
+      "hour_counts": {
+        "0": 7,
+        "1": 3
+      }
+    },
+    {
+      "day": 27,
+      "hour_counts": {
+        "0": 10
+      }
+    },
+    {
+      "day": 28,
+      "hour_counts": {
+        "0": 9,
+        "1": 2
+      }
+    },
+    {
+      "day": 29,
+      "hour_counts": {
+        "0": 9,
+        "1": 2
+      }
+    }
+  ],
+  "route0_market_hour_counts": {
+    "0": 246,
+    "1": 115,
+    "2": 20,
+    "3": 7,
+    "4": 15,
+    "5": 14,
+    "6": 25,
+    "7": 21,
+    "8": 21,
+    "9": 25,
+    "10": 26,
+    "11": 21,
+    "12": 29,
+    "13": 23,
+    "14": 28,
+    "15": 34,
+    "16": 30,
+    "17": 33,
+    "18": 33,
+    "19": 34,
+    "20": 34,
+    "21": 48,
+    "22": 20,
+    "23": 22
+  },
+  "route0_sell_hour_counts": {
+    "0": 29,
+    "1": 46,
+    "2": 16,
+    "3": 7,
+    "4": 7,
+    "5": 10,
+    "6": 10,
+    "7": 8,
+    "8": 10,
+    "9": 9,
+    "10": 8,
+    "11": 6,
+    "12": 5,
+    "13": 15,
+    "14": 12,
+    "15": 18,
+    "16": 15,
+    "17": 24,
+    "18": 18,
+    "19": 21,
+    "20": 24,
+    "21": 38,
+    "22": 18,
+    "23": 22
+  },
+  "route0_asset_purchase_orders": [
+    [
+      1,
+      [
+        "BUY_ANIMAL",
+        "COW",
+        2
+      ]
+    ],
+    [
+      1,
+      [
+        "BUY_ANIMAL",
+        "SHEEP",
+        2
+      ]
+    ],
+    [
+      65,
+      [
+        "BUY_ANIMAL",
+        "COW",
+        1
+      ]
+    ],
+    [
+      88,
+      [
+        "BUY_ANIMAL",
+        "COW",
+        1
+      ]
+    ],
+    [
+      150,
+      [
+        "BUY_LAND"
+      ]
+    ],
+    [
+      150,
+      [
+        "BUY_ANIMAL",
+        "COW",
+        2
+      ]
+    ],
+    [
+      169,
+      [
+        "BUY_ANIMAL",
+        "COW",
+        1
+      ]
+    ],
+    [
+      176,
+      [
+        "BUY_ANIMAL",
+        "COW",
+        1
+      ]
+    ],
+    [
+      196,
+      [
+        "BUY_ANIMAL",
+        "SHEEP",
+        2
+      ]
+    ],
+    [
+      217,
+      [
+        "BUY_ANIMAL",
+        "SHEEP",
+        1
+      ]
+    ],
+    [
+      226,
+      [
+        "BUY_ANIMAL",
+        "SHEEP",
+        1
+      ]
+    ],
+    [
+      241,
+      [
+        "BUY_ANIMAL",
+        "GOOSE",
+        2
+      ]
+    ],
+    [
+      265,
+      [
+        "BUY_LAND"
+      ]
+    ],
+    [
+      265,
+      [
+        "BUY_ANIMAL",
+        "GOOSE",
+        1
+      ]
+    ]
+  ],
+  "route0_first_day_market": [
+    [
+      0,
+      [
+        [
+          "BUY_PRODUCT",
+          "WHEAT",
+          13
+        ],
+        [
+          "SELL",
+          "WHEAT",
+          13
+        ],
+        [
+          "BUY_PRODUCT",
+          "WHEAT",
+          13
+        ]
+      ]
+    ],
+    [
+      1,
+      [
+        [
+          "SELL",
+          "WHEAT",
+          13
+        ],
+        [
+          "BUY_PRODUCT",
+          "WHEAT",
+          5
+        ],
+        [
+          "HIRE"
+        ],
+        [
+          "HIRE"
+        ],
+        [
+          "HIRE"
+        ],
+        [
+          "HIRE"
+        ],
+        [
+          "HIRE"
+        ],
+        [
+          "BUY_ANIMAL",
+          "COW",
+          2
+        ],
+        [
+          "BUY_ANIMAL",
+          "SHEEP",
+          2
+        ]
+      ]
+    ],
+    [
+      6,
+      [
+        [
+          "BUY_SEED",
+          "MELON",
+          2
+        ]
+      ]
+    ],
+    [
+      7,
+      [
+        [
+          "BUY_SEED",
+          "MELON",
+          1
+        ]
+      ]
+    ],
+    [
+      9,
+      [
+        [
+          "BUY_SEED",
+          "MELON",
+          1
+        ]
+      ]
+    ],
+    [
+      10,
+      [
+        [
+          "BUY_SEED",
+          "MELON",
+          2
+        ]
+      ]
+    ],
+    [
+      11,
+      [
+        [
+          "BUY_SEED",
+          "MELON",
+          1
+        ]
+      ]
+    ],
+    [
+      12,
+      [
+        [
+          "BUY_SEED",
+          "WHEAT",
+          1
+        ]
+      ]
+    ],
+    [
+      13,
+      [
+        [
+          "BUY_SEED",
+          "WHEAT",
+          1
+        ]
+      ]
+    ],
+    [
+      14,
+      [
+        [
+          "BUY_SEED",
+          "MELON",
+          3
+        ]
+      ]
+    ],
+    [
+      15,
+      [
+        [
+          "BUY_SEED",
+          "WHEAT",
+          1
+        ]
+      ]
+    ],
+    [
+      16,
+      [
+        [
+          "BUY_SEED",
+          "WHEAT",
+          1
+        ]
+      ]
+    ],
+    [
+      17,
+      [
+        [
+          "BUY_SEED",
+          "MELON",
+          2
+        ]
+      ]
+    ],
+    [
+      19,
+      [
+        [
+          "BUY_SEED",
+          "WHEAT",
+          1
+        ]
+      ]
+    ],
+    [
+      20,
+      [
+        [
+          "BUY_SEED",
+          "WHEAT",
+          2
+        ]
+      ]
+    ]
+  ],
+  "route0_complete_lane_days": 278,
+  "route0_unique_complete_lane_days": 278,
+  "route0_lane_days_in_repeated_classes": 0,
+  "route0_lag_equality_steps144_to647": {
+    "24": {
+      "equal_slots": 629,
+      "total_slots": 5054,
+      "fraction": 0.124456
+    },
+    "72": {
+      "equal_slots": 555,
+      "total_slots": 4704,
+      "fraction": 0.117985
+    }
+  },
+  "route0_top_service_four_action_motifs": [
+    {
+      "actions": [
+        [
+          "NORTH"
+        ],
+        [
+          "FEED"
+        ],
+        [
+          "CARE"
+        ],
+        [
+          "COLLECT_FERTILIZER"
+        ]
+      ],
+      "count": 112,
+      "first_day_worker_hour": [
+        1,
+        1,
+        3
+      ]
+    },
+    {
+      "actions": [
+        [
+          "WATER"
+        ],
+        [
+          "HARVEST"
+        ],
+        [
+          "PLANT",
+          "WHEAT"
+        ],
+        [
+          "WATER"
+        ]
+      ],
+      "count": 99,
+      "first_day_worker_hour": [
+        2,
+        3,
+        13
+      ]
+    },
+    {
+      "actions": [
+        [
+          "FEED"
+        ],
+        [
+          "CARE"
+        ],
+        [
+          "COLLECT_FERTILIZER"
+        ],
+        [
+          "NORTH"
+        ]
+      ],
+      "count": 87,
+      "first_day_worker_hour": [
+        2,
+        0,
+        1
+      ]
+    },
+    {
+      "actions": [
+        [
+          "WEST"
+        ],
+        [
+          "FEED"
+        ],
+        [
+          "CARE"
+        ],
+        [
+          "COLLECT_FERTILIZER"
+        ]
+      ],
+      "count": 61,
+      "first_day_worker_hour": [
+        1,
+        0,
+        2
+      ]
+    },
+    {
+      "actions": [
+        [
+          "FEED"
+        ],
+        [
+          "CARE"
+        ],
+        [
+          "COLLECT_FERTILIZER"
+        ],
+        [
+          "WEST"
+        ]
+      ],
+      "count": 61,
+      "first_day_worker_hour": [
+        2,
+        0,
+        5
+      ]
+    },
+    {
+      "actions": [
+        [
+          "FEED"
+        ],
+        [
+          "CARE"
+        ],
+        [
+          "COLLECT_FERTILIZER"
+        ],
+        [
+          "HARVEST"
+        ]
+      ],
+      "count": 56,
+      "first_day_worker_hour": [
+        9,
+        4,
+        3
+      ]
+    },
+    {
+      "actions": [
+        [
+          "NORTH"
+        ],
+        [
+          "WATER"
+        ],
+        [
+          "NORTH"
+        ],
+        [
+          "WATER"
+        ]
+      ],
+      "count": 52,
+      "first_day_worker_hour": [
+        2,
+        2,
+        9
+      ]
+    },
+    {
+      "actions": [
+        [
+          "EAST"
+        ],
+        [
+          "FEED"
+        ],
+        [
+          "CARE"
+        ],
+        [
+          "COLLECT_FERTILIZER"
+        ]
+      ],
+      "count": 50,
+      "first_day_worker_hour": [
+        3,
+        0,
+        10
+      ]
+    },
+    {
+      "actions": [
+        [
+          "CARE"
+        ],
+        [
+          "COLLECT_FERTILIZER"
+        ],
+        [
+          "NORTH"
+        ],
+        [
+          "FEED"
+        ]
+      ],
+      "count": 49,
+      "first_day_worker_hour": [
+        2,
+        0,
+        2
+      ]
+    },
+    {
+      "actions": [
+        [
+          "COLLECT_FERTILIZER"
+        ],
+        [
+          "NORTH"
+        ],
+        [
+          "FEED"
+        ],
+        [
+          "CARE"
+        ]
+      ],
+      "count": 49,
+      "first_day_worker_hour": [
+        2,
+        0,
+        3
+      ]
+    }
+  ],
+  "all_routes_full_day_count": 377,
+  "all_routes_unique_full_days": 135,
+  "all_routes_three_day_count": 117,
+  "all_routes_unique_three_days": 52,
+  "cross_route_differences": [
+    {
+      "route": 0,
+      "different_joint_steps": 0,
+      "first_difference": null,
+      "different_board_steps": 0,
+      "first_board_difference": null,
+      "plants": {
+        "CARROT": 31,
+        "MELON": 12,
+        "STRAWBERRY": 33,
+        "WHEAT": 163
+      },
+      "animal_purchase_quantities": {
+        "COW": 8,
+        "GOOSE": 3,
+        "SHEEP": 6
+      }
+    },
+    {
+      "route": 1,
+      "different_joint_steps": 508,
+      "first_difference": 70,
+      "different_board_steps": 477,
+      "first_board_difference": 70,
+      "plants": {
+        "CARROT": 31,
+        "MELON": 12,
+        "STRAWBERRY": 33,
+        "WHEAT": 163
+      },
+      "animal_purchase_quantities": {
+        "COW": 6,
+        "SHEEP": 10
+      }
+    },
+    {
+      "route": 2,
+      "different_joint_steps": 121,
+      "first_difference": 313,
+      "different_board_steps": 21,
+      "first_board_difference": 340,
+      "plants": {
+        "CARROT": 31,
+        "MELON": 12,
+        "STRAWBERRY": 33,
+        "WHEAT": 163
+      },
+      "animal_purchase_quantities": {
+        "COW": 8,
+        "GOOSE": 3,
+        "SHEEP": 6
+      }
+    },
+    {
+      "route": 3,
+      "different_joint_steps": 428,
+      "first_difference": 144,
+      "different_board_steps": 394,
+      "first_board_difference": 152,
+      "plants": {
+        "CARROT": 31,
+        "MELON": 12,
+        "STRAWBERRY": 33,
+        "WHEAT": 163
+      },
+      "animal_purchase_quantities": {
+        "COW": 6,
+        "SHEEP": 11
+      }
+    },
+    {
+      "route": 4,
+      "different_joint_steps": 441,
+      "first_difference": 144,
+      "different_board_steps": 407,
+      "first_board_difference": 152,
+      "plants": {
+        "CARROT": 31,
+        "MELON": 12,
+        "STRAWBERRY": 33,
+        "WHEAT": 163
+      },
+      "animal_purchase_quantities": {
+        "COW": 6,
+        "SHEEP": 10
+      }
+    },
+    {
+      "route": 5,
+      "different_joint_steps": 442,
+      "first_difference": 144,
+      "different_board_steps": 407,
+      "first_board_difference": 152,
+      "plants": {
+        "CARROT": 31,
+        "MELON": 12,
+        "STRAWBERRY": 33,
+        "WHEAT": 163
+      },
+      "animal_purchase_quantities": {
+        "COW": 6,
+        "SHEEP": 10
+      }
+    },
+    {
+      "route": 6,
+      "different_joint_steps": 441,
+      "first_difference": 144,
+      "different_board_steps": 407,
+      "first_board_difference": 152,
+      "plants": {
+        "CARROT": 31,
+        "MELON": 12,
+        "STRAWBERRY": 33,
+        "WHEAT": 163
+      },
+      "animal_purchase_quantities": {
+        "COW": 6,
+        "SHEEP": 11
+      }
+    },
+    {
+      "route": 7,
+      "different_joint_steps": 423,
+      "first_difference": 144,
+      "different_board_steps": 383,
+      "first_board_difference": 152,
+      "plants": {
+        "CARROT": 31,
+        "MELON": 12,
+        "STRAWBERRY": 33,
+        "WHEAT": 163
+      },
+      "animal_purchase_quantities": {
+        "COW": 6,
+        "SHEEP": 11
+      }
+    },
+    {
+      "route": 8,
+      "different_joint_steps": 432,
+      "first_difference": 144,
+      "different_board_steps": 385,
+      "first_board_difference": 152,
+      "plants": {
+        "CARROT": 31,
+        "MELON": 12,
+        "STRAWBERRY": 33,
+        "WHEAT": 163
+      },
+      "animal_purchase_quantities": {
+        "COW": 6,
+        "SHEEP": 11
+      }
+    },
+    {
+      "route": 9,
+      "different_joint_steps": 515,
+      "first_difference": 144,
+      "different_board_steps": 498,
+      "first_board_difference": 144,
+      "plants": {
+        "CARROT": 28,
+        "MELON": 12,
+        "STRAWBERRY": 33,
+        "WHEAT": 165
+      },
+      "animal_purchase_quantities": {
+        "COW": 6,
+        "SHEEP": 11
+      }
+    },
+    {
+      "route": 10,
+      "different_joint_steps": 442,
+      "first_difference": 144,
+      "different_board_steps": 411,
+      "first_board_difference": 152,
+      "plants": {
+        "CARROT": 31,
+        "MELON": 12,
+        "STRAWBERRY": 33,
+        "WHEAT": 163
+      },
+      "animal_purchase_quantities": {
+        "COW": 6,
+        "SHEEP": 11
+      }
+    },
+    {
+      "route": 11,
+      "different_joint_steps": 441,
+      "first_difference": 144,
+      "different_board_steps": 407,
+      "first_board_difference": 152,
+      "plants": {
+        "CARROT": 31,
+        "MELON": 12,
+        "STRAWBERRY": 33,
+        "WHEAT": 163
+      },
+      "animal_purchase_quantities": {
+        "COW": 6,
+        "SHEEP": 11
+      }
+    },
+    {
+      "route": 12,
+      "different_joint_steps": 515,
+      "first_difference": 144,
+      "different_board_steps": 497,
+      "first_board_difference": 144,
+      "plants": {
+        "CARROT": 28,
+        "MELON": 12,
+        "STRAWBERRY": 33,
+        "WHEAT": 165
+      },
+      "animal_purchase_quantities": {
+        "COW": 4,
+        "SHEEP": 14
+      }
+    }
+  ]
+}
