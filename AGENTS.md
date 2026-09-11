@@ -1,6 +1,7 @@
 # Agent Instructions
 
 - The active discovery architecture is **LLM-guided lane evolution over Bonsai/BKG4**, governed by `docs/FINAL_LLM_LANE_EVOLUTION_PLAN.md`.
+- Before inventing or revisiting a lane mechanism, query the shared compact memory at `workspace/llm_lane_evolution/memory/reports.csv` via `tools/llm_lane_memory.py`. Read full historical reports only when a compact row is directly relevant; immutable `git:<commit>:<path>` pointers identify branch-local evidence.
 - Bonsai/BKG4 remains the final runtime. LLMs are proposal/program-generation agents only; exact simulator evidence decides candidate survival. No LLM or neural dependency may exist in the submitted runtime.
 - Preserve the lane-based approach. Specialists may be strong in a narrow causal regime and weak elsewhere; the complete routed/composed policy is the release-level regression unit.
 - Use CUDA for large evaluation and the C++ oracle for bounded reference checks. CPU/CUDA semantics must match exactly; official Python/Kaggle canaries remain mandatory before release.
