@@ -1,0 +1,6 @@
+{
+  "action_state_mismatches": null,
+  "games": 0,
+  "reason": "P0 material failure triggered mandatory stop before official canary.",
+  "run": false
+}

@@ -1,0 +1,36 @@
+{
+  "answers": {
+    "cpu_cuda_snapshot_official_exact": "NO \u2014 not validated after mandatory P0 stop",
+    "novel_economies_without_catastrophic_collapse": "NO \u2014 not tested after mandatory P0 stop",
+    "reconstruct_ge95_shop_productivity": "NO",
+    "same_representation_generate_8_materially_different_economies": "NO \u2014 not built after mandatory P0 stop",
+    "strong_enough_for_future_learned_search_discovery": "NO",
+    "without_disguised_tape_memorization": "YES (anti-disguise passes, but productivity does not)"
+  },
+  "anti_disguise_pass": true,
+  "champion_unchanged": true,
+  "cpu_cuda_exactness_validated": false,
+  "fallback_result": "FAIL: event-driven service-tour FSM reached 97.94% on one representative self-play case but only 54.24% median paired retention across the frozen multi-configuration BUILD diagnostic.",
+  "hidden_information_dependency": false,
+  "official_exactness_validated": false,
+  "p0_gate_pass": false,
+  "p1_p8_gate_run": false,
+  "primary_calendar_result": "FAIL: compact source-factored programme was unschedulable under legitimate maintenance/deadline variation; bounded day-21 counterexample justified the sole event-driven fallback.",
+  "recovery_branch_exercised": true,
+  "reference_unchanged": true,
+  "resource_caps": {
+    "bb_slots": null,
+    "bkg4_nodes": null,
+    "controller_bytes": null,
+    "native_persistent_state_bytes": null,
+    "node_state_slots": null,
+    "note": "Deployment lowering intentionally not performed after P0 kill.",
+    "programme_data_bytes": 11614,
+    "programme_data_compact_bytes": 2952,
+    "snapshot_bytes": null
+  },
+  "snapshot_exactness_validated": false,
+  "strategic_branch_exercised": false,
+  "verdict": "SERVICE-TOUR REPRESENTATION PREFLIGHT FAIL \u2014 EXECUTABLE POLICY LANGUAGE NOT VALIDATED",
+  "worker_support_tested": "farmer + 11 hands (12 units total); farmer + 15 not validated before P0 kill"
+}

@@ -1,0 +1,7 @@
+{
+  "boundaries": [],
+  "mismatches": null,
+  "reason": "P0 material failure triggered mandatory stop before snapshot lowering/validation.",
+  "run": false,
+  "suffix_comparisons": 0
+}

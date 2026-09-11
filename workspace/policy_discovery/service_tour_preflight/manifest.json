@@ -1,0 +1,39 @@
+{
+  "architecture": "resource-contracted parameterized service-tour programmes",
+  "branch": "main",
+  "fallback": "event-driven BKG4 service-tour FSMs",
+  "reference": {
+    "agent": "shop_router_0909/plus",
+    "blackboard_slots": 2,
+    "controller_bytes": 3224,
+    "controller_semantic_hash": "2207e9f02c80e3b5971745426897a78cdfad16abf4d7694b716dfbc9613dd03b",
+    "controller_sha256": "84bbfe9a32ccf4d202664500b28bba787dab18cb18180c539d70f1890b1cc450",
+    "node_state_slots": 0,
+    "nodes": 85,
+    "route_pack": "13 x 719",
+    "route_pack_sha256": "f711680c0c4514be70c97e64491f969ad31d79edd6a639b42cf950b98eebe696"
+  },
+  "source_programme": {
+    "animal_acquisitions": 17,
+    "crop_segments": 130,
+    "crop_sites": 62,
+    "experimental_source_bytes": 21208,
+    "hire_days": 30,
+    "land_events": 2,
+    "programme_data_json_bytes": 2952,
+    "programme_data_stored_bytes": 11614
+  },
+  "starting_head": "5949fd813bc968b57541112b4cc13fea7792729a",
+  "stop_reason": "Valid paired-world BUILD diagnostic median P0/reference retention 0.54237, materially below 0.95; all four cohort medians below 0.90.",
+  "team": "ReCurSiON",
+  "verdict": "SERVICE-TOUR REPRESENTATION PREFLIGHT FAIL \u2014 EXECUTABLE POLICY LANGUAGE NOT VALIDATED",
+  "work": {
+    "accounting": "Conservative upper bound; every executed native-oracle/capture game is charged as a full 719-transition FGE, including debug and invalid diagnostics.",
+    "cpu_native_bridge_games_upper_bound": 90,
+    "formal_fresh_panel_fge": 0,
+    "gpu_games": 0,
+    "native_fge_upper_bound": 100,
+    "official_games": 0,
+    "simulated_joint_transitions_upper_bound": 71900
+  }
+}

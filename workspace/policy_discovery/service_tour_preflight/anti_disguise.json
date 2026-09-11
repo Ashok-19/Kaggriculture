@@ -1,0 +1,38 @@
+{
+  "anti_disguise_pass": true,
+  "compiled_schedule_bytes": null,
+  "compiled_schedule_reason": "Primary fixed-calendar compiler was rejected by legitimate deadline binding; authorized fallback executes event-driven FSM tours instead of a 719-step compiled tape.",
+  "donor_route_access_after_factoring": false,
+  "p0_source": {
+    "joint_action_array_entries": 0,
+    "programme_data_json_bytes": 2952,
+    "programme_data_stored_bytes": 11614,
+    "raw_exception_patch_list": false,
+    "source_bytes": 21208,
+    "step_to_action_fallback": false,
+    "stored_movement_tape": false
+  },
+  "shared_reference_mechanics": [
+    "FarmView",
+    "terminal liquidation only"
+  ],
+  "shared_reference_mechanics_allowed_by_brief": true,
+  "stage1_factoring": {
+    "distinct_movement_paths": 125,
+    "largest_movement_path_actions": 9,
+    "largest_raw_exception_actions": 6,
+    "movement_action_coverage_reuse_ge3": 0.8206326383896477,
+    "movement_actions": 2782,
+    "movement_path_runs": 1691,
+    "movement_singleton_fraction": 0.12113587347232208,
+    "nonpass_actions": 6220,
+    "normalized_run_shapes": 102,
+    "productive_service_action_template_coverage": 0.928737638161722,
+    "raw_exception_actions": 245,
+    "raw_exception_fraction_nonpass": 0.03938906752411576,
+    "raw_exception_fraction_service": 0.07126236183827807,
+    "raw_exception_fragments": 74,
+    "reused_normalized_templates_ge3": 40,
+    "service_productive_actions": 3438
+  }
+}

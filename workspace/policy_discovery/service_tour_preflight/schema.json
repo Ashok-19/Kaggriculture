@@ -1,0 +1,41 @@
+{
+  "asset_programmes": {
+    "crop": "site + crop segment start day + lifecycle end",
+    "livestock": "site + species + acquisition day + persistent maintenance ownership"
+  },
+  "branches": {
+    "recovery": [
+      "blocked-obligation rotation",
+      "persistent acquisition retry",
+      "maintenance-first finance"
+    ],
+    "strategic": "not implemented before P0 kill"
+  },
+  "compiler": "deterministic cheapest-insertion geometric role/tour binding only; no economic target selection",
+  "financing_programmes": [
+    "opening wheat bridge",
+    "maintenance inputs before expansion",
+    "ordered hires",
+    "seed renewal",
+    "land acquisition",
+    "livestock acquisition",
+    "observation-conditioned sale realization"
+  ],
+  "forbidden_dependencies_used": [],
+  "labour_programmes": "declared hires by day; deterministic reserved animal/crop role pools",
+  "legal_observation_only": true,
+  "realization": [
+    "dawn deposit",
+    "completed-tour realization",
+    "terminal approach/drop/liquidation"
+  ],
+  "service_tours": [
+    "crop acquisition/renewal",
+    "crop water/harvest",
+    "fertilize+water",
+    "animal acquisition",
+    "batched multi-site animal feed/care/fertilizer/harvest",
+    "terminal return/deposit"
+  ],
+  "version": "service-tour-preflight-v1"
+}

@@ -1,0 +1,117 @@
+{
+  "formal_fresh_64_context_gate_run": false,
+  "formal_gate_skip_reason": "Mandatory P0 kill fired on the correctly paired BUILD diagnostic; full fresh campaign would only spend budget after a material failure.",
+  "paired_build_diagnostic": {
+    "candidate_utility": "0W/0T/8L",
+    "cohort_medians": {
+      "0": 0.7198092274732841,
+      "1": 0.6535536372970301,
+      "2": 0.27866940574779053,
+      "3": 0.4311942832885241
+    },
+    "contexts": 8,
+    "formal_fresh_panel": false,
+    "gate_required_cohort": 0.9,
+    "gate_required_median": 0.95,
+    "gate_required_seat": 0.95,
+    "material_fail": true,
+    "median_paired_cash_margin": -50379.0,
+    "median_ratio": 0.5423739602927771,
+    "opponent_assignment": [
+      "Shop Plus",
+      "Shop direct parent",
+      "route-3 broadcast under Plus runtime",
+      "route-12 broadcast under Plus runtime"
+    ],
+    "ratio_of_medians": 0.5075711049584697,
+    "reference_utility": "6W/2T/0L",
+    "rows": [
+      {
+        "member": 0,
+        "p0_cash": 52073.0,
+        "ratio": 0.6640439694967992,
+        "reference_cash": 78418.0,
+        "seat": 0,
+        "seed": 70291001
+      },
+      {
+        "member": 0,
+        "p0_cash": 60819.0,
+        "ratio": 0.7755744854497691,
+        "reference_cash": 78418.0,
+        "seat": 1,
+        "seed": 70291001
+      },
+      {
+        "member": 1,
+        "p0_cash": 68746.0,
+        "ratio": 0.6535536372970301,
+        "reference_cash": 105188.0,
+        "seat": 0,
+        "seed": 70291002
+      },
+      {
+        "member": 1,
+        "p0_cash": 68746.0,
+        "ratio": 0.6535536372970301,
+        "reference_cash": 105188.0,
+        "seat": 1,
+        "seed": 70291002
+      },
+      {
+        "member": 2,
+        "p0_cash": 26045.0,
+        "ratio": 0.27866940574779053,
+        "reference_cash": 93462.0,
+        "seat": 0,
+        "seed": 70291003
+      },
+      {
+        "member": 2,
+        "p0_cash": 26045.0,
+        "ratio": 0.27866940574779053,
+        "reference_cash": 93462.0,
+        "seat": 1,
+        "seed": 70291003
+      },
+      {
+        "member": 3,
+        "p0_cash": 48756.0,
+        "ratio": 0.4311942832885241,
+        "reference_cash": 113072.0,
+        "seat": 0,
+        "seed": 70291004
+      },
+      {
+        "member": 3,
+        "p0_cash": 48756.0,
+        "ratio": 0.4311942832885241,
+        "reference_cash": 113072.0,
+        "seat": 1,
+        "seed": 70291004
+      }
+    ],
+    "seat_medians": {
+      "0": 0.5423739602927771,
+      "1": 0.5423739602927771
+    },
+    "seed_block_ratio_range": [
+      0.27866940574779053,
+      0.7198092274732841
+    ],
+    "seeds": [
+      70291001,
+      70291002,
+      70291003,
+      70291004
+    ],
+    "worlds": 16
+  },
+  "representative_self_play": {
+    "candidate_cash": 58777.0,
+    "note": "Single representative symmetric Shop-like regime; not the formal gate.",
+    "reference_cash": 60011.0,
+    "retention": 0.9794371031977471,
+    "seed": 61050000
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "cpu_cuda_cases": 0,
+  "mismatches": null,
+  "reason": "P0 material failure triggered mandatory stop before Stage 4. Existing simulator parity evidence does not validate this new stateful fallback runtime.",
+  "run": false,
+  "whole_games": 0
+}
