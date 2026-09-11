@@ -1,0 +1,386 @@
+{
+  "contexts": [
+    {
+      "id": "70291001-s0-m0",
+      "declared_day_obligations": 1730,
+      "completed_day_obligations": 1323,
+      "missed_day_obligations": 407,
+      "completion_ratio": 0.7647398843930636,
+      "carry_over_day28": 386,
+      "first_day_ge20pct_unfinished": 4,
+      "movement_actions": 2542,
+      "pass_actions": 1407,
+      "productive_service_actions": 2643,
+      "p0_harvest": {
+        "crop_WHEAT": 262,
+        "animal_SHEEP": 95,
+        "animal_COW": 182,
+        "crop_MELON": 6,
+        "animal_GOOSE": 36,
+        "crop_STRAWBERRY": 85,
+        "crop_CARROT": 30
+      },
+      "shop_harvest": {
+        "crop_WHEAT": 517,
+        "animal_SHEEP": 161,
+        "animal_COW": 245,
+        "crop_MELON": 72,
+        "animal_GOOSE": 78,
+        "crop_STRAWBERRY": 249,
+        "crop_CARROT": 83
+      },
+      "p0_key_actions": {
+        "WATER": 786,
+        "HARVEST": 258,
+        "FEED": 308,
+        "CARE": 302,
+        "COLLECT_FERTILIZER": 278,
+        "FERTILIZE": 41,
+        "PLANT": 230
+      },
+      "shop_key_actions": {
+        "WATER": 1110,
+        "HARVEST": 476,
+        "FEED": 367,
+        "CARE": 417,
+        "COLLECT_FERTILIZER": 367,
+        "FERTILIZE": 61,
+        "PLANT": 239
+      }
+    },
+    {
+      "id": "70291001-s1-m0",
+      "declared_day_obligations": 1730,
+      "completed_day_obligations": 1335,
+      "missed_day_obligations": 395,
+      "completion_ratio": 0.7716763005780347,
+      "carry_over_day28": 374,
+      "first_day_ge20pct_unfinished": 4,
+      "movement_actions": 2553,
+      "pass_actions": 1406,
+      "productive_service_actions": 2635,
+      "p0_harvest": {
+        "crop_WHEAT": 262,
+        "animal_SHEEP": 96,
+        "animal_COW": 199,
+        "crop_MELON": 6,
+        "crop_STRAWBERRY": 85,
+        "animal_GOOSE": 36,
+        "crop_CARROT": 30
+      },
+      "shop_harvest": {
+        "crop_WHEAT": 517,
+        "animal_SHEEP": 161,
+        "animal_COW": 245,
+        "crop_MELON": 72,
+        "animal_GOOSE": 78,
+        "crop_STRAWBERRY": 249,
+        "crop_CARROT": 83
+      },
+      "p0_key_actions": {
+        "WATER": 785,
+        "HARVEST": 264,
+        "FEED": 326,
+        "CARE": 315,
+        "COLLECT_FERTILIZER": 290,
+        "FERTILIZE": 41,
+        "PLANT": 230
+      },
+      "shop_key_actions": {
+        "WATER": 1110,
+        "HARVEST": 476,
+        "FEED": 367,
+        "CARE": 417,
+        "COLLECT_FERTILIZER": 367,
+        "FERTILIZE": 61,
+        "PLANT": 239
+      }
+    },
+    {
+      "id": "70291002-s0-m1",
+      "declared_day_obligations": 1730,
+      "completed_day_obligations": 1334,
+      "missed_day_obligations": 396,
+      "completion_ratio": 0.7710982658959538,
+      "carry_over_day28": 375,
+      "first_day_ge20pct_unfinished": 4,
+      "movement_actions": 2547,
+      "pass_actions": 1388,
+      "productive_service_actions": 2655,
+      "p0_harvest": {
+        "crop_WHEAT": 262,
+        "animal_SHEEP": 95,
+        "animal_COW": 191,
+        "crop_MELON": 6,
+        "animal_GOOSE": 33,
+        "crop_STRAWBERRY": 78,
+        "crop_CARROT": 30
+      },
+      "shop_harvest": {
+        "crop_WHEAT": 517,
+        "animal_SHEEP": 161,
+        "animal_COW": 245,
+        "crop_MELON": 72,
+        "animal_GOOSE": 78,
+        "crop_STRAWBERRY": 249,
+        "crop_CARROT": 83
+      },
+      "p0_key_actions": {
+        "WATER": 786,
+        "HARVEST": 254,
+        "FEED": 318,
+        "CARE": 308,
+        "COLLECT_FERTILIZER": 287,
+        "FERTILIZE": 40,
+        "PLANT": 232
+      },
+      "shop_key_actions": {
+        "WATER": 1110,
+        "HARVEST": 476,
+        "FEED": 367,
+        "CARE": 417,
+        "COLLECT_FERTILIZER": 367,
+        "FERTILIZE": 61,
+        "PLANT": 239
+      }
+    },
+    {
+      "id": "70291002-s1-m1",
+      "declared_day_obligations": 1730,
+      "completed_day_obligations": 1334,
+      "missed_day_obligations": 396,
+      "completion_ratio": 0.7710982658959538,
+      "carry_over_day28": 375,
+      "first_day_ge20pct_unfinished": 4,
+      "movement_actions": 2547,
+      "pass_actions": 1388,
+      "productive_service_actions": 2655,
+      "p0_harvest": {
+        "crop_WHEAT": 262,
+        "animal_SHEEP": 95,
+        "animal_COW": 191,
+        "crop_MELON": 6,
+        "animal_GOOSE": 33,
+        "crop_STRAWBERRY": 78,
+        "crop_CARROT": 30
+      },
+      "shop_harvest": {
+        "crop_WHEAT": 517,
+        "animal_SHEEP": 161,
+        "animal_COW": 245,
+        "crop_MELON": 72,
+        "animal_GOOSE": 78,
+        "crop_STRAWBERRY": 249,
+        "crop_CARROT": 83
+      },
+      "p0_key_actions": {
+        "WATER": 786,
+        "HARVEST": 254,
+        "FEED": 318,
+        "CARE": 308,
+        "COLLECT_FERTILIZER": 287,
+        "FERTILIZE": 40,
+        "PLANT": 232
+      },
+      "shop_key_actions": {
+        "WATER": 1110,
+        "HARVEST": 476,
+        "FEED": 367,
+        "CARE": 417,
+        "COLLECT_FERTILIZER": 367,
+        "FERTILIZE": 61,
+        "PLANT": 239
+      }
+    },
+    {
+      "id": "70291003-s0-m2",
+      "declared_day_obligations": 1730,
+      "completed_day_obligations": 1323,
+      "missed_day_obligations": 407,
+      "completion_ratio": 0.7647398843930636,
+      "carry_over_day28": 389,
+      "first_day_ge20pct_unfinished": 4,
+      "movement_actions": 2550,
+      "pass_actions": 1403,
+      "productive_service_actions": 2643,
+      "p0_harvest": {
+        "crop_WHEAT": 262,
+        "animal_SHEEP": 101,
+        "animal_COW": 195,
+        "crop_MELON": 6,
+        "animal_GOOSE": 45,
+        "crop_STRAWBERRY": 77,
+        "crop_CARROT": 33
+      },
+      "shop_harvest": {
+        "crop_WHEAT": 517,
+        "animal_SHEEP": 161,
+        "animal_COW": 245,
+        "crop_MELON": 72,
+        "animal_GOOSE": 78,
+        "crop_STRAWBERRY": 249,
+        "crop_CARROT": 83
+      },
+      "p0_key_actions": {
+        "WATER": 782,
+        "HARVEST": 261,
+        "FEED": 322,
+        "CARE": 310,
+        "COLLECT_FERTILIZER": 285,
+        "FERTILIZE": 38,
+        "PLANT": 232
+      },
+      "shop_key_actions": {
+        "WATER": 1110,
+        "HARVEST": 476,
+        "FEED": 367,
+        "CARE": 417,
+        "COLLECT_FERTILIZER": 367,
+        "FERTILIZE": 61,
+        "PLANT": 239
+      }
+    },
+    {
+      "id": "70291003-s1-m2",
+      "declared_day_obligations": 1730,
+      "completed_day_obligations": 1323,
+      "missed_day_obligations": 407,
+      "completion_ratio": 0.7647398843930636,
+      "carry_over_day28": 389,
+      "first_day_ge20pct_unfinished": 4,
+      "movement_actions": 2550,
+      "pass_actions": 1403,
+      "productive_service_actions": 2643,
+      "p0_harvest": {
+        "crop_WHEAT": 262,
+        "animal_SHEEP": 101,
+        "animal_COW": 195,
+        "crop_MELON": 6,
+        "animal_GOOSE": 45,
+        "crop_STRAWBERRY": 77,
+        "crop_CARROT": 33
+      },
+      "shop_harvest": {
+        "crop_WHEAT": 517,
+        "animal_SHEEP": 161,
+        "animal_COW": 245,
+        "crop_MELON": 72,
+        "animal_GOOSE": 78,
+        "crop_STRAWBERRY": 249,
+        "crop_CARROT": 83
+      },
+      "p0_key_actions": {
+        "WATER": 782,
+        "HARVEST": 261,
+        "FEED": 322,
+        "CARE": 310,
+        "COLLECT_FERTILIZER": 285,
+        "FERTILIZE": 38,
+        "PLANT": 232
+      },
+      "shop_key_actions": {
+        "WATER": 1110,
+        "HARVEST": 476,
+        "FEED": 367,
+        "CARE": 417,
+        "COLLECT_FERTILIZER": 367,
+        "FERTILIZE": 61,
+        "PLANT": 239
+      }
+    },
+    {
+      "id": "70291004-s0-m3",
+      "declared_day_obligations": 1730,
+      "completed_day_obligations": 1334,
+      "missed_day_obligations": 396,
+      "completion_ratio": 0.7710982658959538,
+      "carry_over_day28": 375,
+      "first_day_ge20pct_unfinished": 4,
+      "movement_actions": 2543,
+      "pass_actions": 1414,
+      "productive_service_actions": 2636,
+      "p0_harvest": {
+        "crop_WHEAT": 262,
+        "animal_SHEEP": 97,
+        "animal_COW": 199,
+        "crop_MELON": 6,
+        "animal_GOOSE": 45,
+        "crop_STRAWBERRY": 84,
+        "crop_CARROT": 30
+      },
+      "shop_harvest": {
+        "crop_WHEAT": 517,
+        "animal_SHEEP": 272,
+        "animal_COW": 191,
+        "crop_MELON": 72,
+        "crop_STRAWBERRY": 249,
+        "crop_CARROT": 83
+      },
+      "p0_key_actions": {
+        "WATER": 782,
+        "HARVEST": 266,
+        "FEED": 322,
+        "CARE": 312,
+        "COLLECT_FERTILIZER": 287,
+        "FERTILIZE": 41,
+        "PLANT": 229
+      },
+      "shop_key_actions": {
+        "WATER": 1102,
+        "HARVEST": 475,
+        "FEED": 367,
+        "CARE": 398,
+        "COLLECT_FERTILIZER": 375,
+        "FERTILIZE": 61,
+        "PLANT": 239
+      }
+    },
+    {
+      "id": "70291004-s1-m3",
+      "declared_day_obligations": 1730,
+      "completed_day_obligations": 1334,
+      "missed_day_obligations": 396,
+      "completion_ratio": 0.7710982658959538,
+      "carry_over_day28": 375,
+      "first_day_ge20pct_unfinished": 4,
+      "movement_actions": 2543,
+      "pass_actions": 1414,
+      "productive_service_actions": 2636,
+      "p0_harvest": {
+        "crop_WHEAT": 262,
+        "animal_SHEEP": 97,
+        "animal_COW": 199,
+        "crop_MELON": 6,
+        "animal_GOOSE": 45,
+        "crop_STRAWBERRY": 84,
+        "crop_CARROT": 30
+      },
+      "shop_harvest": {
+        "crop_WHEAT": 517,
+        "animal_SHEEP": 272,
+        "animal_COW": 191,
+        "crop_MELON": 72,
+        "crop_STRAWBERRY": 249,
+        "crop_CARROT": 83
+      },
+      "p0_key_actions": {
+        "WATER": 782,
+        "HARVEST": 266,
+        "FEED": 322,
+        "CARE": 312,
+        "COLLECT_FERTILIZER": 287,
+        "FERTILIZE": 41,
+        "PLANT": 229
+      },
+      "shop_key_actions": {
+        "WATER": 1102,
+        "HARVEST": 475,
+        "FEED": 367,
+        "CARE": 398,
+        "COLLECT_FERTILIZER": 375,
+        "FERTILIZE": 61,
+        "PLANT": 239
+      }
+    }
+  ]
+}

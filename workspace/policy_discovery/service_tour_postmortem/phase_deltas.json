@@ -1,0 +1,5744 @@
+{
+  "contexts": [
+    {
+      "id": "70291001-s0-m0",
+      "phases": [
+        {
+          "range": [
+            0,
+            71
+          ],
+          "p0": {
+            "range": [
+              0,
+              71
+            ],
+            "cash_end": 122.0,
+            "workers_end": 5,
+            "land_end": 1,
+            "crop_assets_end": 19,
+            "animal_assets_end": 4,
+            "dry_crops_end": 19,
+            "production": {},
+            "sales_requested": {
+              "WHEAT": 27,
+              "FERTILIZER": 2
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "FERTILIZER": 4
+            }
+          },
+          "shop": {
+            "range": [
+              0,
+              71
+            ],
+            "cash_end": 198.0,
+            "workers_end": 5,
+            "land_end": 1,
+            "crop_assets_end": 19,
+            "animal_assets_end": 5,
+            "dry_crops_end": 15,
+            "production": {
+              "crop_WHEAT": 6
+            },
+            "sales_requested": {
+              "WHEAT": 28,
+              "FERTILIZER": 8
+            },
+            "shed_end": {
+              "WHEAT": 1,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "WHEAT": 6
+            }
+          },
+          "delta": {
+            "cash": -76.0,
+            "workers": 0,
+            "land": 0,
+            "crop_assets": 0,
+            "animal_assets": -1,
+            "dry_crops": 4,
+            "production": {
+              "crop_WHEAT": -6
+            }
+          }
+        },
+        {
+          "range": [
+            72,
+            143
+          ],
+          "p0": {
+            "range": [
+              72,
+              143
+            ],
+            "cash_end": 268.0,
+            "workers_end": 5,
+            "land_end": 1,
+            "crop_assets_end": 19,
+            "animal_assets_end": 5,
+            "dry_crops_end": 7,
+            "production": {
+              "crop_WHEAT": 28
+            },
+            "sales_requested": {
+              "WHEAT": 23,
+              "FERTILIZER": 7
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "FERTILIZER": 5
+            }
+          },
+          "shop": {
+            "range": [
+              72,
+              143
+            ],
+            "cash_end": 801.0,
+            "workers_end": 5,
+            "land_end": 1,
+            "crop_assets_end": 19,
+            "animal_assets_end": 6,
+            "dry_crops_end": 14,
+            "production": {
+              "crop_WHEAT": 26
+            },
+            "sales_requested": {
+              "WHEAT": 9,
+              "FERTILIZER": 16
+            },
+            "shed_end": {
+              "WHEAT": 8,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "FERTILIZER": 2,
+              "WHEAT": 8
+            }
+          },
+          "delta": {
+            "cash": -533.0,
+            "workers": 0,
+            "land": 0,
+            "crop_assets": 0,
+            "animal_assets": -1,
+            "dry_crops": -7,
+            "production": {
+              "crop_WHEAT": 2
+            }
+          }
+        },
+        {
+          "range": [
+            144,
+            287
+          ],
+          "p0": {
+            "range": [
+              144,
+              287
+            ],
+            "cash_end": 8.0,
+            "workers_end": 11,
+            "land_end": 2,
+            "crop_assets_end": 35,
+            "animal_assets_end": 12,
+            "dry_crops_end": 22,
+            "production": {
+              "crop_WHEAT": 16,
+              "animal_SHEEP": 17,
+              "animal_COW": 18
+            },
+            "sales_requested": {
+              "WHEAT": 1,
+              "FERTILIZER": 20,
+              "WOOL": 17,
+              "MILK": 15
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "SHEEP": 1,
+              "FERTILIZER": 9,
+              "WHEAT": 1,
+              "MILK": 3
+            }
+          },
+          "shop": {
+            "range": [
+              144,
+              287
+            ],
+            "cash_end": 14430.0,
+            "workers_end": 11,
+            "land_end": 3,
+            "crop_assets_end": 54,
+            "animal_assets_end": 17,
+            "dry_crops_end": 47,
+            "production": {
+              "crop_WHEAT": 31,
+              "animal_SHEEP": 20,
+              "animal_COW": 30,
+              "crop_MELON": 72
+            },
+            "sales_requested": {
+              "WHEAT": 25,
+              "FERTILIZER": 64,
+              "WOOL": 20,
+              "MILK": 33,
+              "MELON": 72
+            },
+            "shed_end": {
+              "WHEAT": 57,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 1
+            },
+            "cargo_end": {
+              "FERTILIZER": 15,
+              "WHEAT": 5
+            }
+          },
+          "delta": {
+            "cash": -14422.0,
+            "workers": 0,
+            "land": -1,
+            "crop_assets": -19,
+            "animal_assets": -5,
+            "dry_crops": -25,
+            "production": {
+              "animal_COW": -12,
+              "animal_SHEEP": -3,
+              "crop_MELON": -72,
+              "crop_WHEAT": -15
+            }
+          }
+        },
+        {
+          "range": [
+            288,
+            431
+          ],
+          "p0": {
+            "range": [
+              288,
+              431
+            ],
+            "cash_end": 5429.0,
+            "workers_end": 12,
+            "land_end": 3,
+            "crop_assets_end": 55,
+            "animal_assets_end": 17,
+            "dry_crops_end": 34,
+            "production": {
+              "crop_WHEAT": 57,
+              "animal_SHEEP": 15,
+              "animal_COW": 35,
+              "crop_MELON": 6,
+              "animal_GOOSE": 7,
+              "crop_STRAWBERRY": 15
+            },
+            "sales_requested": {
+              "WHEAT": 11,
+              "FERTILIZER": 56,
+              "WOOL": 15,
+              "MILK": 32,
+              "MELON": 6,
+              "STRAWBERRY": 3,
+              "EGG": 5
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "FERTILIZER": 15,
+              "MILK": 6,
+              "EGG": 2,
+              "WHEAT": 29,
+              "STRAWBERRY": 11
+            }
+          },
+          "shop": {
+            "range": [
+              288,
+              431
+            ],
+            "cash_end": 35838.0,
+            "workers_end": 12,
+            "land_end": 3,
+            "crop_assets_end": 58,
+            "animal_assets_end": 17,
+            "dry_crops_end": 26,
+            "production": {
+              "crop_WHEAT": 120,
+              "animal_SHEEP": 48,
+              "animal_COW": 72,
+              "animal_GOOSE": 16,
+              "crop_STRAWBERRY": 40
+            },
+            "sales_requested": {
+              "WHEAT": 52,
+              "FERTILIZER": 91,
+              "WOOL": 47,
+              "MILK": 69,
+              "EGG": 16,
+              "STRAWBERRY": 52
+            },
+            "shed_end": {
+              "WHEAT": 6,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 6,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "FERTILIZER": 16,
+              "MILK": 9,
+              "WHEAT": 24,
+              "WOOL": 2,
+              "EGG": 4
+            }
+          },
+          "delta": {
+            "cash": -30409.0,
+            "workers": 0,
+            "land": 0,
+            "crop_assets": -3,
+            "animal_assets": 0,
+            "dry_crops": 8,
+            "production": {
+              "animal_COW": -37,
+              "animal_GOOSE": -9,
+              "animal_SHEEP": -33,
+              "crop_MELON": 6,
+              "crop_STRAWBERRY": -25,
+              "crop_WHEAT": -63
+            }
+          }
+        },
+        {
+          "range": [
+            432,
+            575
+          ],
+          "p0": {
+            "range": [
+              432,
+              575
+            ],
+            "cash_end": 33439.0,
+            "workers_end": 11,
+            "land_end": 3,
+            "crop_assets_end": 52,
+            "animal_assets_end": 17,
+            "dry_crops_end": 32,
+            "production": {
+              "crop_WHEAT": 105,
+              "animal_SHEEP": 39,
+              "animal_COW": 69,
+              "animal_GOOSE": 17,
+              "crop_STRAWBERRY": 42
+            },
+            "sales_requested": {
+              "WHEAT": 41,
+              "FERTILIZER": 79,
+              "WOOL": 39,
+              "MILK": 66,
+              "STRAWBERRY": 41,
+              "EGG": 17
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "WHEAT": 10,
+              "FERTILIZER": 13,
+              "MILK": 9,
+              "EGG": 2,
+              "STRAWBERRY": 13
+            }
+          },
+          "shop": {
+            "range": [
+              432,
+              575
+            ],
+            "cash_end": 57251.0,
+            "workers_end": 11,
+            "land_end": 3,
+            "crop_assets_end": 58,
+            "animal_assets_end": 17,
+            "dry_crops_end": 26,
+            "production": {
+              "crop_WHEAT": 146,
+              "animal_SHEEP": 48,
+              "animal_COW": 69,
+              "animal_GOOSE": 34,
+              "crop_STRAWBERRY": 151
+            },
+            "sales_requested": {
+              "WHEAT": 44,
+              "FERTILIZER": 86,
+              "WOOL": 52,
+              "MILK": 84,
+              "EGG": 27,
+              "STRAWBERRY": 139
+            },
+            "shed_end": {
+              "WHEAT": 3,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "STRAWBERRY": 16,
+              "WHEAT": 27,
+              "FERTILIZER": 16,
+              "EGG": 8,
+              "WOOL": 8,
+              "MILK": 6
+            }
+          },
+          "delta": {
+            "cash": -23812.0,
+            "workers": 0,
+            "land": 0,
+            "crop_assets": -6,
+            "animal_assets": 0,
+            "dry_crops": 6,
+            "production": {
+              "animal_COW": 0,
+              "animal_GOOSE": -17,
+              "animal_SHEEP": -9,
+              "crop_STRAWBERRY": -109,
+              "crop_WHEAT": -41
+            }
+          }
+        },
+        {
+          "range": [
+            576,
+            647
+          ],
+          "p0": {
+            "range": [
+              576,
+              647
+            ],
+            "cash_end": 43468.0,
+            "workers_end": 11,
+            "land_end": 3,
+            "crop_assets_end": 52,
+            "animal_assets_end": 14,
+            "dry_crops_end": 22,
+            "production": {
+              "crop_WHEAT": 28,
+              "animal_SHEEP": 12,
+              "animal_COW": 33,
+              "animal_GOOSE": 6,
+              "crop_STRAWBERRY": 18
+            },
+            "sales_requested": {
+              "WHEAT": 4,
+              "FERTILIZER": 33,
+              "WOOL": 12,
+              "MILK": 30,
+              "STRAWBERRY": 28,
+              "EGG": 6
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "GOOSE": 1,
+              "FERTILIZER": 12,
+              "MILK": 12,
+              "COW": 1,
+              "SHEEP": 1,
+              "EGG": 2,
+              "STRAWBERRY": 3,
+              "WHEAT": 4
+            }
+          },
+          "shop": {
+            "range": [
+              576,
+              647
+            ],
+            "cash_end": 62976.0,
+            "workers_end": 11,
+            "land_end": 3,
+            "crop_assets_end": 58,
+            "animal_assets_end": 17,
+            "dry_crops_end": 37,
+            "production": {
+              "crop_WHEAT": 111,
+              "animal_SHEEP": 23,
+              "animal_COW": 36,
+              "animal_GOOSE": 12,
+              "crop_STRAWBERRY": 32
+            },
+            "sales_requested": {
+              "WHEAT": 57,
+              "FERTILIZER": 47,
+              "WOOL": 24,
+              "MILK": 36,
+              "EGG": 16,
+              "STRAWBERRY": 32
+            },
+            "shed_end": {
+              "WHEAT": 3,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 21,
+              "MELON": 0,
+              "EGG": 2,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 2
+            },
+            "cargo_end": {
+              "FERTILIZER": 16,
+              "WHEAT": 39,
+              "MILK": 9,
+              "EGG": 2,
+              "WOOL": 7
+            }
+          },
+          "delta": {
+            "cash": -19508.0,
+            "workers": 0,
+            "land": 0,
+            "crop_assets": -6,
+            "animal_assets": -3,
+            "dry_crops": -15,
+            "production": {
+              "animal_COW": -3,
+              "animal_GOOSE": -6,
+              "animal_SHEEP": -11,
+              "crop_STRAWBERRY": -14,
+              "crop_WHEAT": -83
+            }
+          }
+        },
+        {
+          "range": [
+            648,
+            718
+          ],
+          "p0": {
+            "range": [
+              648,
+              718
+            ],
+            "cash_end": 52073.0,
+            "workers_end": 12,
+            "land_end": 3,
+            "crop_assets_end": 44,
+            "animal_assets_end": 17,
+            "dry_crops_end": 22,
+            "production": {
+              "crop_WHEAT": 28,
+              "animal_SHEEP": 12,
+              "animal_COW": 27,
+              "animal_GOOSE": 6,
+              "crop_STRAWBERRY": 10,
+              "crop_CARROT": 30
+            },
+            "sales_requested": {
+              "WHEAT": 11,
+              "FERTILIZER": 40,
+              "WOOL": 12,
+              "MILK": 39,
+              "STRAWBERRY": 13,
+              "EGG": 8,
+              "CARROT": 30
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {}
+          },
+          "shop": {
+            "range": [
+              648,
+              718
+            ],
+            "cash_end": 77455.0,
+            "workers_end": 12,
+            "land_end": 3,
+            "crop_assets_end": 0,
+            "animal_assets_end": 17,
+            "dry_crops_end": 0,
+            "production": {
+              "crop_WHEAT": 77,
+              "animal_SHEEP": 22,
+              "animal_COW": 38,
+              "animal_GOOSE": 16,
+              "crop_STRAWBERRY": 26,
+              "crop_CARROT": 83
+            },
+            "sales_requested": {
+              "WHEAT": 17067,
+              "FERTILIZER": 10045,
+              "WOOL": 6045,
+              "MILK": 7061,
+              "MELON": 6000,
+              "EGG": 6018,
+              "STRAWBERRY": 6047,
+              "CARROT": 15074,
+              "TOMATO": 6000
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "CARROT": 3,
+              "WHEAT": 2,
+              "WOOL": 4
+            }
+          },
+          "delta": {
+            "cash": -25382.0,
+            "workers": 0,
+            "land": 0,
+            "crop_assets": 44,
+            "animal_assets": 0,
+            "dry_crops": 22,
+            "production": {
+              "animal_COW": -11,
+              "animal_GOOSE": -10,
+              "animal_SHEEP": -10,
+              "crop_CARROT": -53,
+              "crop_STRAWBERRY": -16,
+              "crop_WHEAT": -49
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "70291001-s1-m0",
+      "phases": [
+        {
+          "range": [
+            0,
+            71
+          ],
+          "p0": {
+            "range": [
+              0,
+              71
+            ],
+            "cash_end": 122.0,
+            "workers_end": 5,
+            "land_end": 1,
+            "crop_assets_end": 19,
+            "animal_assets_end": 4,
+            "dry_crops_end": 19,
+            "production": {},
+            "sales_requested": {
+              "WHEAT": 27,
+              "FERTILIZER": 2
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "FERTILIZER": 4
+            }
+          },
+          "shop": {
+            "range": [
+              0,
+              71
+            ],
+            "cash_end": 198.0,
+            "workers_end": 5,
+            "land_end": 1,
+            "crop_assets_end": 19,
+            "animal_assets_end": 5,
+            "dry_crops_end": 15,
+            "production": {
+              "crop_WHEAT": 6
+            },
+            "sales_requested": {
+              "WHEAT": 28,
+              "FERTILIZER": 8
+            },
+            "shed_end": {
+              "WHEAT": 1,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "WHEAT": 6
+            }
+          },
+          "delta": {
+            "cash": -76.0,
+            "workers": 0,
+            "land": 0,
+            "crop_assets": 0,
+            "animal_assets": -1,
+            "dry_crops": 4,
+            "production": {
+              "crop_WHEAT": -6
+            }
+          }
+        },
+        {
+          "range": [
+            72,
+            143
+          ],
+          "p0": {
+            "range": [
+              72,
+              143
+            ],
+            "cash_end": 268.0,
+            "workers_end": 5,
+            "land_end": 1,
+            "crop_assets_end": 19,
+            "animal_assets_end": 5,
+            "dry_crops_end": 7,
+            "production": {
+              "crop_WHEAT": 28
+            },
+            "sales_requested": {
+              "WHEAT": 23,
+              "FERTILIZER": 7
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "FERTILIZER": 5
+            }
+          },
+          "shop": {
+            "range": [
+              72,
+              143
+            ],
+            "cash_end": 801.0,
+            "workers_end": 5,
+            "land_end": 1,
+            "crop_assets_end": 19,
+            "animal_assets_end": 6,
+            "dry_crops_end": 14,
+            "production": {
+              "crop_WHEAT": 26
+            },
+            "sales_requested": {
+              "WHEAT": 9,
+              "FERTILIZER": 16
+            },
+            "shed_end": {
+              "WHEAT": 8,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "FERTILIZER": 2,
+              "WHEAT": 8
+            }
+          },
+          "delta": {
+            "cash": -533.0,
+            "workers": 0,
+            "land": 0,
+            "crop_assets": 0,
+            "animal_assets": -1,
+            "dry_crops": -7,
+            "production": {
+              "crop_WHEAT": 2
+            }
+          }
+        },
+        {
+          "range": [
+            144,
+            287
+          ],
+          "p0": {
+            "range": [
+              144,
+              287
+            ],
+            "cash_end": 52.0,
+            "workers_end": 11,
+            "land_end": 2,
+            "crop_assets_end": 35,
+            "animal_assets_end": 13,
+            "dry_crops_end": 21,
+            "production": {
+              "crop_WHEAT": 16,
+              "animal_SHEEP": 17,
+              "animal_COW": 18
+            },
+            "sales_requested": {
+              "WHEAT": 1,
+              "FERTILIZER": 23,
+              "WOOL": 17,
+              "MILK": 18
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "FERTILIZER": 13
+            }
+          },
+          "shop": {
+            "range": [
+              144,
+              287
+            ],
+            "cash_end": 14430.0,
+            "workers_end": 11,
+            "land_end": 3,
+            "crop_assets_end": 54,
+            "animal_assets_end": 17,
+            "dry_crops_end": 47,
+            "production": {
+              "crop_WHEAT": 31,
+              "animal_SHEEP": 20,
+              "animal_COW": 30,
+              "crop_MELON": 72
+            },
+            "sales_requested": {
+              "WHEAT": 25,
+              "FERTILIZER": 64,
+              "WOOL": 20,
+              "MILK": 33,
+              "MELON": 72
+            },
+            "shed_end": {
+              "WHEAT": 57,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 1
+            },
+            "cargo_end": {
+              "FERTILIZER": 15,
+              "WHEAT": 5
+            }
+          },
+          "delta": {
+            "cash": -14378.0,
+            "workers": 0,
+            "land": -1,
+            "crop_assets": -19,
+            "animal_assets": -4,
+            "dry_crops": -26,
+            "production": {
+              "animal_COW": -12,
+              "animal_SHEEP": -3,
+              "crop_MELON": -72,
+              "crop_WHEAT": -15
+            }
+          }
+        },
+        {
+          "range": [
+            288,
+            431
+          ],
+          "p0": {
+            "range": [
+              288,
+              431
+            ],
+            "cash_end": 5924.0,
+            "workers_end": 12,
+            "land_end": 3,
+            "crop_assets_end": 55,
+            "animal_assets_end": 17,
+            "dry_crops_end": 34,
+            "production": {
+              "crop_WHEAT": 57,
+              "animal_SHEEP": 15,
+              "animal_COW": 47,
+              "crop_MELON": 6,
+              "crop_STRAWBERRY": 15,
+              "animal_GOOSE": 10
+            },
+            "sales_requested": {
+              "WHEAT": 11,
+              "FERTILIZER": 65,
+              "WOOL": 15,
+              "MILK": 30,
+              "MELON": 6,
+              "STRAWBERRY": 3,
+              "EGG": 8
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "FERTILIZER": 15,
+              "MILK": 17,
+              "EGG": 2,
+              "WHEAT": 29,
+              "STRAWBERRY": 11
+            }
+          },
+          "shop": {
+            "range": [
+              288,
+              431
+            ],
+            "cash_end": 35838.0,
+            "workers_end": 12,
+            "land_end": 3,
+            "crop_assets_end": 58,
+            "animal_assets_end": 17,
+            "dry_crops_end": 26,
+            "production": {
+              "crop_WHEAT": 120,
+              "animal_SHEEP": 48,
+              "animal_COW": 72,
+              "animal_GOOSE": 16,
+              "crop_STRAWBERRY": 40
+            },
+            "sales_requested": {
+              "WHEAT": 52,
+              "FERTILIZER": 91,
+              "WOOL": 47,
+              "MILK": 69,
+              "EGG": 16,
+              "STRAWBERRY": 52
+            },
+            "shed_end": {
+              "WHEAT": 6,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 6,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "FERTILIZER": 16,
+              "MILK": 9,
+              "WHEAT": 24,
+              "WOOL": 2,
+              "EGG": 4
+            }
+          },
+          "delta": {
+            "cash": -29914.0,
+            "workers": 0,
+            "land": 0,
+            "crop_assets": -3,
+            "animal_assets": 0,
+            "dry_crops": 8,
+            "production": {
+              "animal_COW": -25,
+              "animal_GOOSE": -6,
+              "animal_SHEEP": -33,
+              "crop_MELON": 6,
+              "crop_STRAWBERRY": -25,
+              "crop_WHEAT": -63
+            }
+          }
+        },
+        {
+          "range": [
+            432,
+            575
+          ],
+          "p0": {
+            "range": [
+              432,
+              575
+            ],
+            "cash_end": 36704.0,
+            "workers_end": 11,
+            "land_end": 3,
+            "crop_assets_end": 52,
+            "animal_assets_end": 17,
+            "dry_crops_end": 32,
+            "production": {
+              "crop_WHEAT": 105,
+              "animal_SHEEP": 37,
+              "animal_COW": 74,
+              "crop_STRAWBERRY": 42,
+              "animal_GOOSE": 14
+            },
+            "sales_requested": {
+              "WHEAT": 41,
+              "FERTILIZER": 79,
+              "WOOL": 33,
+              "MILK": 85,
+              "STRAWBERRY": 41,
+              "EGG": 14
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "WHEAT": 10,
+              "FERTILIZER": 13,
+              "MILK": 6,
+              "WOOL": 4,
+              "EGG": 2,
+              "STRAWBERRY": 13
+            }
+          },
+          "shop": {
+            "range": [
+              432,
+              575
+            ],
+            "cash_end": 57251.0,
+            "workers_end": 11,
+            "land_end": 3,
+            "crop_assets_end": 58,
+            "animal_assets_end": 17,
+            "dry_crops_end": 26,
+            "production": {
+              "crop_WHEAT": 146,
+              "animal_SHEEP": 48,
+              "animal_COW": 69,
+              "animal_GOOSE": 34,
+              "crop_STRAWBERRY": 151
+            },
+            "sales_requested": {
+              "WHEAT": 44,
+              "FERTILIZER": 86,
+              "WOOL": 52,
+              "MILK": 84,
+              "EGG": 27,
+              "STRAWBERRY": 139
+            },
+            "shed_end": {
+              "WHEAT": 3,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "STRAWBERRY": 16,
+              "WHEAT": 27,
+              "FERTILIZER": 16,
+              "EGG": 8,
+              "WOOL": 8,
+              "MILK": 6
+            }
+          },
+          "delta": {
+            "cash": -20547.0,
+            "workers": 0,
+            "land": 0,
+            "crop_assets": -6,
+            "animal_assets": 0,
+            "dry_crops": 6,
+            "production": {
+              "animal_COW": 5,
+              "animal_GOOSE": -20,
+              "animal_SHEEP": -11,
+              "crop_STRAWBERRY": -109,
+              "crop_WHEAT": -41
+            }
+          }
+        },
+        {
+          "range": [
+            576,
+            647
+          ],
+          "p0": {
+            "range": [
+              576,
+              647
+            ],
+            "cash_end": 48112.0,
+            "workers_end": 11,
+            "land_end": 3,
+            "crop_assets_end": 51,
+            "animal_assets_end": 14,
+            "dry_crops_end": 21,
+            "production": {
+              "crop_WHEAT": 28,
+              "animal_SHEEP": 15,
+              "animal_COW": 36,
+              "crop_STRAWBERRY": 18,
+              "animal_GOOSE": 6
+            },
+            "sales_requested": {
+              "WHEAT": 3,
+              "FERTILIZER": 33,
+              "WOOL": 19,
+              "MILK": 27,
+              "STRAWBERRY": 28,
+              "EGG": 6
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "GOOSE": 1,
+              "FERTILIZER": 12,
+              "MILK": 15,
+              "COW": 1,
+              "SHEEP": 1,
+              "EGG": 2,
+              "STRAWBERRY": 3,
+              "WHEAT": 4
+            }
+          },
+          "shop": {
+            "range": [
+              576,
+              647
+            ],
+            "cash_end": 62976.0,
+            "workers_end": 11,
+            "land_end": 3,
+            "crop_assets_end": 58,
+            "animal_assets_end": 17,
+            "dry_crops_end": 37,
+            "production": {
+              "crop_WHEAT": 111,
+              "animal_SHEEP": 23,
+              "animal_COW": 36,
+              "animal_GOOSE": 12,
+              "crop_STRAWBERRY": 32
+            },
+            "sales_requested": {
+              "WHEAT": 57,
+              "FERTILIZER": 47,
+              "WOOL": 24,
+              "MILK": 36,
+              "EGG": 16,
+              "STRAWBERRY": 32
+            },
+            "shed_end": {
+              "WHEAT": 3,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 21,
+              "MELON": 0,
+              "EGG": 2,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 2
+            },
+            "cargo_end": {
+              "FERTILIZER": 16,
+              "WHEAT": 39,
+              "MILK": 9,
+              "EGG": 2,
+              "WOOL": 7
+            }
+          },
+          "delta": {
+            "cash": -14864.0,
+            "workers": 0,
+            "land": 0,
+            "crop_assets": -7,
+            "animal_assets": -3,
+            "dry_crops": -16,
+            "production": {
+              "animal_COW": 0,
+              "animal_GOOSE": -6,
+              "animal_SHEEP": -8,
+              "crop_STRAWBERRY": -14,
+              "crop_WHEAT": -83
+            }
+          }
+        },
+        {
+          "range": [
+            648,
+            718
+          ],
+          "p0": {
+            "range": [
+              648,
+              718
+            ],
+            "cash_end": 60819.0,
+            "workers_end": 12,
+            "land_end": 3,
+            "crop_assets_end": 44,
+            "animal_assets_end": 17,
+            "dry_crops_end": 22,
+            "production": {
+              "crop_WHEAT": 28,
+              "animal_SHEEP": 12,
+              "animal_COW": 24,
+              "crop_STRAWBERRY": 10,
+              "animal_GOOSE": 6,
+              "crop_CARROT": 30
+            },
+            "sales_requested": {
+              "WHEAT": 10,
+              "FERTILIZER": 40,
+              "WOOL": 12,
+              "MILK": 39,
+              "STRAWBERRY": 13,
+              "EGG": 8,
+              "CARROT": 30
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {}
+          },
+          "shop": {
+            "range": [
+              648,
+              718
+            ],
+            "cash_end": 77455.0,
+            "workers_end": 12,
+            "land_end": 3,
+            "crop_assets_end": 0,
+            "animal_assets_end": 17,
+            "dry_crops_end": 0,
+            "production": {
+              "crop_WHEAT": 77,
+              "animal_SHEEP": 22,
+              "animal_COW": 38,
+              "animal_GOOSE": 16,
+              "crop_STRAWBERRY": 26,
+              "crop_CARROT": 83
+            },
+            "sales_requested": {
+              "WHEAT": 17067,
+              "FERTILIZER": 10045,
+              "WOOL": 6045,
+              "MILK": 7061,
+              "MELON": 6000,
+              "EGG": 6018,
+              "STRAWBERRY": 6047,
+              "CARROT": 15074,
+              "TOMATO": 6000
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "CARROT": 3,
+              "WHEAT": 2,
+              "WOOL": 4
+            }
+          },
+          "delta": {
+            "cash": -16636.0,
+            "workers": 0,
+            "land": 0,
+            "crop_assets": 44,
+            "animal_assets": 0,
+            "dry_crops": 22,
+            "production": {
+              "animal_COW": -14,
+              "animal_GOOSE": -10,
+              "animal_SHEEP": -10,
+              "crop_CARROT": -53,
+              "crop_STRAWBERRY": -16,
+              "crop_WHEAT": -49
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "70291002-s0-m1",
+      "phases": [
+        {
+          "range": [
+            0,
+            71
+          ],
+          "p0": {
+            "range": [
+              0,
+              71
+            ],
+            "cash_end": 122.0,
+            "workers_end": 5,
+            "land_end": 1,
+            "crop_assets_end": 19,
+            "animal_assets_end": 4,
+            "dry_crops_end": 19,
+            "production": {},
+            "sales_requested": {
+              "WHEAT": 27,
+              "FERTILIZER": 2
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "FERTILIZER": 4
+            }
+          },
+          "shop": {
+            "range": [
+              0,
+              71
+            ],
+            "cash_end": 198.0,
+            "workers_end": 5,
+            "land_end": 1,
+            "crop_assets_end": 19,
+            "animal_assets_end": 5,
+            "dry_crops_end": 15,
+            "production": {
+              "crop_WHEAT": 6
+            },
+            "sales_requested": {
+              "WHEAT": 28,
+              "FERTILIZER": 8
+            },
+            "shed_end": {
+              "WHEAT": 1,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "WHEAT": 6
+            }
+          },
+          "delta": {
+            "cash": -76.0,
+            "workers": 0,
+            "land": 0,
+            "crop_assets": 0,
+            "animal_assets": -1,
+            "dry_crops": 4,
+            "production": {
+              "crop_WHEAT": -6
+            }
+          }
+        },
+        {
+          "range": [
+            72,
+            143
+          ],
+          "p0": {
+            "range": [
+              72,
+              143
+            ],
+            "cash_end": 295.0,
+            "workers_end": 5,
+            "land_end": 1,
+            "crop_assets_end": 19,
+            "animal_assets_end": 5,
+            "dry_crops_end": 7,
+            "production": {
+              "crop_WHEAT": 28
+            },
+            "sales_requested": {
+              "WHEAT": 23,
+              "FERTILIZER": 7
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "FERTILIZER": 5
+            }
+          },
+          "shop": {
+            "range": [
+              72,
+              143
+            ],
+            "cash_end": 801.0,
+            "workers_end": 5,
+            "land_end": 1,
+            "crop_assets_end": 19,
+            "animal_assets_end": 6,
+            "dry_crops_end": 14,
+            "production": {
+              "crop_WHEAT": 26
+            },
+            "sales_requested": {
+              "WHEAT": 9,
+              "FERTILIZER": 16
+            },
+            "shed_end": {
+              "WHEAT": 8,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "FERTILIZER": 2,
+              "WHEAT": 8
+            }
+          },
+          "delta": {
+            "cash": -506.0,
+            "workers": 0,
+            "land": 0,
+            "crop_assets": 0,
+            "animal_assets": -1,
+            "dry_crops": -7,
+            "production": {
+              "crop_WHEAT": 2
+            }
+          }
+        },
+        {
+          "range": [
+            144,
+            287
+          ],
+          "p0": {
+            "range": [
+              144,
+              287
+            ],
+            "cash_end": 4.0,
+            "workers_end": 11,
+            "land_end": 2,
+            "crop_assets_end": 35,
+            "animal_assets_end": 14,
+            "dry_crops_end": 24,
+            "production": {
+              "crop_WHEAT": 16,
+              "animal_SHEEP": 17,
+              "animal_COW": 17
+            },
+            "sales_requested": {
+              "WHEAT": 2,
+              "FERTILIZER": 19,
+              "WOOL": 17,
+              "MILK": 15
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "FERTILIZER": 10,
+              "MILK": 2
+            }
+          },
+          "shop": {
+            "range": [
+              144,
+              287
+            ],
+            "cash_end": 14059.0,
+            "workers_end": 11,
+            "land_end": 3,
+            "crop_assets_end": 54,
+            "animal_assets_end": 17,
+            "dry_crops_end": 47,
+            "production": {
+              "crop_WHEAT": 31,
+              "animal_SHEEP": 20,
+              "animal_COW": 30,
+              "crop_MELON": 72
+            },
+            "sales_requested": {
+              "WHEAT": 25,
+              "FERTILIZER": 64,
+              "WOOL": 20,
+              "MILK": 33,
+              "MELON": 72
+            },
+            "shed_end": {
+              "WHEAT": 57,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 1
+            },
+            "cargo_end": {
+              "FERTILIZER": 15,
+              "WHEAT": 5
+            }
+          },
+          "delta": {
+            "cash": -14055.0,
+            "workers": 0,
+            "land": -1,
+            "crop_assets": -19,
+            "animal_assets": -3,
+            "dry_crops": -23,
+            "production": {
+              "animal_COW": -13,
+              "animal_SHEEP": -3,
+              "crop_MELON": -72,
+              "crop_WHEAT": -15
+            }
+          }
+        },
+        {
+          "range": [
+            288,
+            431
+          ],
+          "p0": {
+            "range": [
+              288,
+              431
+            ],
+            "cash_end": 7647.0,
+            "workers_end": 12,
+            "land_end": 3,
+            "crop_assets_end": 56,
+            "animal_assets_end": 17,
+            "dry_crops_end": 36,
+            "production": {
+              "crop_WHEAT": 57,
+              "animal_SHEEP": 21,
+              "animal_COW": 34,
+              "crop_MELON": 6,
+              "animal_GOOSE": 7,
+              "crop_STRAWBERRY": 13
+            },
+            "sales_requested": {
+              "WHEAT": 10,
+              "FERTILIZER": 62,
+              "WOOL": 15,
+              "MILK": 31,
+              "MELON": 6,
+              "STRAWBERRY": 2,
+              "EGG": 5
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "FERTILIZER": 15,
+              "MILK": 5,
+              "EGG": 2,
+              "WHEAT": 29,
+              "WOOL": 6,
+              "STRAWBERRY": 11
+            }
+          },
+          "shop": {
+            "range": [
+              288,
+              431
+            ],
+            "cash_end": 41143.0,
+            "workers_end": 12,
+            "land_end": 3,
+            "crop_assets_end": 58,
+            "animal_assets_end": 17,
+            "dry_crops_end": 26,
+            "production": {
+              "crop_WHEAT": 120,
+              "animal_SHEEP": 48,
+              "animal_COW": 72,
+              "animal_GOOSE": 16,
+              "crop_STRAWBERRY": 40
+            },
+            "sales_requested": {
+              "WHEAT": 52,
+              "FERTILIZER": 91,
+              "WOOL": 47,
+              "MILK": 69,
+              "EGG": 16,
+              "STRAWBERRY": 52
+            },
+            "shed_end": {
+              "WHEAT": 6,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 6,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "FERTILIZER": 16,
+              "MILK": 9,
+              "WHEAT": 24,
+              "WOOL": 2,
+              "EGG": 4
+            }
+          },
+          "delta": {
+            "cash": -33496.0,
+            "workers": 0,
+            "land": 0,
+            "crop_assets": -2,
+            "animal_assets": 0,
+            "dry_crops": 10,
+            "production": {
+              "animal_COW": -38,
+              "animal_GOOSE": -9,
+              "animal_SHEEP": -27,
+              "crop_MELON": 6,
+              "crop_STRAWBERRY": -27,
+              "crop_WHEAT": -63
+            }
+          }
+        },
+        {
+          "range": [
+            432,
+            575
+          ],
+          "p0": {
+            "range": [
+              432,
+              575
+            ],
+            "cash_end": 43342.0,
+            "workers_end": 11,
+            "land_end": 3,
+            "crop_assets_end": 53,
+            "animal_assets_end": 17,
+            "dry_crops_end": 32,
+            "production": {
+              "crop_WHEAT": 101,
+              "animal_SHEEP": 33,
+              "animal_COW": 80,
+              "animal_GOOSE": 14,
+              "crop_STRAWBERRY": 39
+            },
+            "sales_requested": {
+              "WHEAT": 44,
+              "FERTILIZER": 81,
+              "WOOL": 31,
+              "MILK": 82,
+              "STRAWBERRY": 36,
+              "EGG": 14
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "WHEAT": 6,
+              "FERTILIZER": 13,
+              "WOOL": 8,
+              "EGG": 2,
+              "MILK": 3,
+              "STRAWBERRY": 13
+            }
+          },
+          "shop": {
+            "range": [
+              432,
+              575
+            ],
+            "cash_end": 70437.0,
+            "workers_end": 11,
+            "land_end": 3,
+            "crop_assets_end": 58,
+            "animal_assets_end": 17,
+            "dry_crops_end": 26,
+            "production": {
+              "crop_WHEAT": 146,
+              "animal_SHEEP": 48,
+              "animal_COW": 69,
+              "animal_GOOSE": 34,
+              "crop_STRAWBERRY": 151
+            },
+            "sales_requested": {
+              "WHEAT": 44,
+              "FERTILIZER": 86,
+              "WOOL": 52,
+              "MILK": 84,
+              "EGG": 27,
+              "STRAWBERRY": 139
+            },
+            "shed_end": {
+              "WHEAT": 3,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "STRAWBERRY": 16,
+              "WHEAT": 27,
+              "FERTILIZER": 16,
+              "EGG": 8,
+              "WOOL": 8,
+              "MILK": 6
+            }
+          },
+          "delta": {
+            "cash": -27095.0,
+            "workers": 0,
+            "land": 0,
+            "crop_assets": -5,
+            "animal_assets": 0,
+            "dry_crops": 6,
+            "production": {
+              "animal_COW": 11,
+              "animal_GOOSE": -20,
+              "animal_SHEEP": -15,
+              "crop_STRAWBERRY": -112,
+              "crop_WHEAT": -45
+            }
+          }
+        },
+        {
+          "range": [
+            576,
+            647
+          ],
+          "p0": {
+            "range": [
+              576,
+              647
+            ],
+            "cash_end": 54895.0,
+            "workers_end": 11,
+            "land_end": 3,
+            "crop_assets_end": 52,
+            "animal_assets_end": 14,
+            "dry_crops_end": 22,
+            "production": {
+              "crop_WHEAT": 32,
+              "animal_SHEEP": 17,
+              "animal_COW": 39,
+              "animal_GOOSE": 6,
+              "crop_STRAWBERRY": 16
+            },
+            "sales_requested": {
+              "WHEAT": 3,
+              "FERTILIZER": 34,
+              "WOOL": 21,
+              "MILK": 24,
+              "STRAWBERRY": 27,
+              "EGG": 6
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "GOOSE": 1,
+              "FERTILIZER": 12,
+              "MILK": 18,
+              "WHEAT": 5,
+              "COW": 1,
+              "SHEEP": 1,
+              "WOOL": 4,
+              "EGG": 2,
+              "STRAWBERRY": 3
+            }
+          },
+          "shop": {
+            "range": [
+              576,
+              647
+            ],
+            "cash_end": 82270.0,
+            "workers_end": 11,
+            "land_end": 3,
+            "crop_assets_end": 58,
+            "animal_assets_end": 17,
+            "dry_crops_end": 37,
+            "production": {
+              "crop_WHEAT": 111,
+              "animal_SHEEP": 23,
+              "animal_COW": 36,
+              "animal_GOOSE": 12,
+              "crop_STRAWBERRY": 32
+            },
+            "sales_requested": {
+              "WHEAT": 57,
+              "FERTILIZER": 47,
+              "WOOL": 24,
+              "MILK": 36,
+              "EGG": 16,
+              "STRAWBERRY": 32
+            },
+            "shed_end": {
+              "WHEAT": 3,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 21,
+              "MELON": 0,
+              "EGG": 2,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 2
+            },
+            "cargo_end": {
+              "FERTILIZER": 16,
+              "WHEAT": 39,
+              "MILK": 9,
+              "EGG": 2,
+              "WOOL": 7
+            }
+          },
+          "delta": {
+            "cash": -27375.0,
+            "workers": 0,
+            "land": 0,
+            "crop_assets": -6,
+            "animal_assets": -3,
+            "dry_crops": -15,
+            "production": {
+              "animal_COW": 3,
+              "animal_GOOSE": -6,
+              "animal_SHEEP": -6,
+              "crop_STRAWBERRY": -16,
+              "crop_WHEAT": -79
+            }
+          }
+        },
+        {
+          "range": [
+            648,
+            718
+          ],
+          "p0": {
+            "range": [
+              648,
+              718
+            ],
+            "cash_end": 68746.0,
+            "workers_end": 12,
+            "land_end": 3,
+            "crop_assets_end": 44,
+            "animal_assets_end": 17,
+            "dry_crops_end": 22,
+            "production": {
+              "crop_WHEAT": 28,
+              "animal_SHEEP": 7,
+              "animal_COW": 21,
+              "animal_GOOSE": 6,
+              "crop_STRAWBERRY": 10,
+              "crop_CARROT": 30
+            },
+            "sales_requested": {
+              "WHEAT": 10,
+              "FERTILIZER": 42,
+              "WOOL": 11,
+              "MILK": 39,
+              "STRAWBERRY": 13,
+              "EGG": 8,
+              "CARROT": 30
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {}
+          },
+          "shop": {
+            "range": [
+              648,
+              718
+            ],
+            "cash_end": 104194.0,
+            "workers_end": 12,
+            "land_end": 3,
+            "crop_assets_end": 0,
+            "animal_assets_end": 17,
+            "dry_crops_end": 0,
+            "production": {
+              "crop_WHEAT": 77,
+              "animal_SHEEP": 22,
+              "animal_COW": 38,
+              "animal_GOOSE": 16,
+              "crop_STRAWBERRY": 26,
+              "crop_CARROT": 83
+            },
+            "sales_requested": {
+              "WHEAT": 17067,
+              "FERTILIZER": 10045,
+              "WOOL": 6045,
+              "MILK": 7061,
+              "MELON": 6000,
+              "EGG": 6018,
+              "STRAWBERRY": 6047,
+              "CARROT": 15074,
+              "TOMATO": 6000
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "CARROT": 3,
+              "WHEAT": 2,
+              "WOOL": 4
+            }
+          },
+          "delta": {
+            "cash": -35448.0,
+            "workers": 0,
+            "land": 0,
+            "crop_assets": 44,
+            "animal_assets": 0,
+            "dry_crops": 22,
+            "production": {
+              "animal_COW": -17,
+              "animal_GOOSE": -10,
+              "animal_SHEEP": -15,
+              "crop_CARROT": -53,
+              "crop_STRAWBERRY": -16,
+              "crop_WHEAT": -49
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "70291002-s1-m1",
+      "phases": [
+        {
+          "range": [
+            0,
+            71
+          ],
+          "p0": {
+            "range": [
+              0,
+              71
+            ],
+            "cash_end": 122.0,
+            "workers_end": 5,
+            "land_end": 1,
+            "crop_assets_end": 19,
+            "animal_assets_end": 4,
+            "dry_crops_end": 19,
+            "production": {},
+            "sales_requested": {
+              "WHEAT": 27,
+              "FERTILIZER": 2
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "FERTILIZER": 4
+            }
+          },
+          "shop": {
+            "range": [
+              0,
+              71
+            ],
+            "cash_end": 198.0,
+            "workers_end": 5,
+            "land_end": 1,
+            "crop_assets_end": 19,
+            "animal_assets_end": 5,
+            "dry_crops_end": 15,
+            "production": {
+              "crop_WHEAT": 6
+            },
+            "sales_requested": {
+              "WHEAT": 28,
+              "FERTILIZER": 8
+            },
+            "shed_end": {
+              "WHEAT": 1,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "WHEAT": 6
+            }
+          },
+          "delta": {
+            "cash": -76.0,
+            "workers": 0,
+            "land": 0,
+            "crop_assets": 0,
+            "animal_assets": -1,
+            "dry_crops": 4,
+            "production": {
+              "crop_WHEAT": -6
+            }
+          }
+        },
+        {
+          "range": [
+            72,
+            143
+          ],
+          "p0": {
+            "range": [
+              72,
+              143
+            ],
+            "cash_end": 295.0,
+            "workers_end": 5,
+            "land_end": 1,
+            "crop_assets_end": 19,
+            "animal_assets_end": 5,
+            "dry_crops_end": 7,
+            "production": {
+              "crop_WHEAT": 28
+            },
+            "sales_requested": {
+              "WHEAT": 23,
+              "FERTILIZER": 7
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "FERTILIZER": 5
+            }
+          },
+          "shop": {
+            "range": [
+              72,
+              143
+            ],
+            "cash_end": 801.0,
+            "workers_end": 5,
+            "land_end": 1,
+            "crop_assets_end": 19,
+            "animal_assets_end": 6,
+            "dry_crops_end": 14,
+            "production": {
+              "crop_WHEAT": 26
+            },
+            "sales_requested": {
+              "WHEAT": 9,
+              "FERTILIZER": 16
+            },
+            "shed_end": {
+              "WHEAT": 8,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "FERTILIZER": 2,
+              "WHEAT": 8
+            }
+          },
+          "delta": {
+            "cash": -506.0,
+            "workers": 0,
+            "land": 0,
+            "crop_assets": 0,
+            "animal_assets": -1,
+            "dry_crops": -7,
+            "production": {
+              "crop_WHEAT": 2
+            }
+          }
+        },
+        {
+          "range": [
+            144,
+            287
+          ],
+          "p0": {
+            "range": [
+              144,
+              287
+            ],
+            "cash_end": 4.0,
+            "workers_end": 11,
+            "land_end": 2,
+            "crop_assets_end": 35,
+            "animal_assets_end": 14,
+            "dry_crops_end": 24,
+            "production": {
+              "crop_WHEAT": 16,
+              "animal_SHEEP": 17,
+              "animal_COW": 17
+            },
+            "sales_requested": {
+              "WHEAT": 2,
+              "FERTILIZER": 19,
+              "WOOL": 17,
+              "MILK": 15
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "FERTILIZER": 10,
+              "MILK": 2
+            }
+          },
+          "shop": {
+            "range": [
+              144,
+              287
+            ],
+            "cash_end": 14059.0,
+            "workers_end": 11,
+            "land_end": 3,
+            "crop_assets_end": 54,
+            "animal_assets_end": 17,
+            "dry_crops_end": 47,
+            "production": {
+              "crop_WHEAT": 31,
+              "animal_SHEEP": 20,
+              "animal_COW": 30,
+              "crop_MELON": 72
+            },
+            "sales_requested": {
+              "WHEAT": 25,
+              "FERTILIZER": 64,
+              "WOOL": 20,
+              "MILK": 33,
+              "MELON": 72
+            },
+            "shed_end": {
+              "WHEAT": 57,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 1
+            },
+            "cargo_end": {
+              "FERTILIZER": 15,
+              "WHEAT": 5
+            }
+          },
+          "delta": {
+            "cash": -14055.0,
+            "workers": 0,
+            "land": -1,
+            "crop_assets": -19,
+            "animal_assets": -3,
+            "dry_crops": -23,
+            "production": {
+              "animal_COW": -13,
+              "animal_SHEEP": -3,
+              "crop_MELON": -72,
+              "crop_WHEAT": -15
+            }
+          }
+        },
+        {
+          "range": [
+            288,
+            431
+          ],
+          "p0": {
+            "range": [
+              288,
+              431
+            ],
+            "cash_end": 7647.0,
+            "workers_end": 12,
+            "land_end": 3,
+            "crop_assets_end": 56,
+            "animal_assets_end": 17,
+            "dry_crops_end": 36,
+            "production": {
+              "crop_WHEAT": 57,
+              "animal_SHEEP": 21,
+              "animal_COW": 34,
+              "crop_MELON": 6,
+              "animal_GOOSE": 7,
+              "crop_STRAWBERRY": 13
+            },
+            "sales_requested": {
+              "WHEAT": 10,
+              "FERTILIZER": 62,
+              "WOOL": 15,
+              "MILK": 31,
+              "MELON": 6,
+              "STRAWBERRY": 2,
+              "EGG": 5
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "FERTILIZER": 15,
+              "MILK": 5,
+              "EGG": 2,
+              "WHEAT": 29,
+              "WOOL": 6,
+              "STRAWBERRY": 11
+            }
+          },
+          "shop": {
+            "range": [
+              288,
+              431
+            ],
+            "cash_end": 41143.0,
+            "workers_end": 12,
+            "land_end": 3,
+            "crop_assets_end": 58,
+            "animal_assets_end": 17,
+            "dry_crops_end": 26,
+            "production": {
+              "crop_WHEAT": 120,
+              "animal_SHEEP": 48,
+              "animal_COW": 72,
+              "animal_GOOSE": 16,
+              "crop_STRAWBERRY": 40
+            },
+            "sales_requested": {
+              "WHEAT": 52,
+              "FERTILIZER": 91,
+              "WOOL": 47,
+              "MILK": 69,
+              "EGG": 16,
+              "STRAWBERRY": 52
+            },
+            "shed_end": {
+              "WHEAT": 6,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 6,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "FERTILIZER": 16,
+              "MILK": 9,
+              "WHEAT": 24,
+              "WOOL": 2,
+              "EGG": 4
+            }
+          },
+          "delta": {
+            "cash": -33496.0,
+            "workers": 0,
+            "land": 0,
+            "crop_assets": -2,
+            "animal_assets": 0,
+            "dry_crops": 10,
+            "production": {
+              "animal_COW": -38,
+              "animal_GOOSE": -9,
+              "animal_SHEEP": -27,
+              "crop_MELON": 6,
+              "crop_STRAWBERRY": -27,
+              "crop_WHEAT": -63
+            }
+          }
+        },
+        {
+          "range": [
+            432,
+            575
+          ],
+          "p0": {
+            "range": [
+              432,
+              575
+            ],
+            "cash_end": 43342.0,
+            "workers_end": 11,
+            "land_end": 3,
+            "crop_assets_end": 53,
+            "animal_assets_end": 17,
+            "dry_crops_end": 32,
+            "production": {
+              "crop_WHEAT": 101,
+              "animal_SHEEP": 33,
+              "animal_COW": 80,
+              "animal_GOOSE": 14,
+              "crop_STRAWBERRY": 39
+            },
+            "sales_requested": {
+              "WHEAT": 44,
+              "FERTILIZER": 81,
+              "WOOL": 31,
+              "MILK": 82,
+              "STRAWBERRY": 36,
+              "EGG": 14
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "WHEAT": 6,
+              "FERTILIZER": 13,
+              "WOOL": 8,
+              "EGG": 2,
+              "MILK": 3,
+              "STRAWBERRY": 13
+            }
+          },
+          "shop": {
+            "range": [
+              432,
+              575
+            ],
+            "cash_end": 70437.0,
+            "workers_end": 11,
+            "land_end": 3,
+            "crop_assets_end": 58,
+            "animal_assets_end": 17,
+            "dry_crops_end": 26,
+            "production": {
+              "crop_WHEAT": 146,
+              "animal_SHEEP": 48,
+              "animal_COW": 69,
+              "animal_GOOSE": 34,
+              "crop_STRAWBERRY": 151
+            },
+            "sales_requested": {
+              "WHEAT": 44,
+              "FERTILIZER": 86,
+              "WOOL": 52,
+              "MILK": 84,
+              "EGG": 27,
+              "STRAWBERRY": 139
+            },
+            "shed_end": {
+              "WHEAT": 3,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "STRAWBERRY": 16,
+              "WHEAT": 27,
+              "FERTILIZER": 16,
+              "EGG": 8,
+              "WOOL": 8,
+              "MILK": 6
+            }
+          },
+          "delta": {
+            "cash": -27095.0,
+            "workers": 0,
+            "land": 0,
+            "crop_assets": -5,
+            "animal_assets": 0,
+            "dry_crops": 6,
+            "production": {
+              "animal_COW": 11,
+              "animal_GOOSE": -20,
+              "animal_SHEEP": -15,
+              "crop_STRAWBERRY": -112,
+              "crop_WHEAT": -45
+            }
+          }
+        },
+        {
+          "range": [
+            576,
+            647
+          ],
+          "p0": {
+            "range": [
+              576,
+              647
+            ],
+            "cash_end": 54895.0,
+            "workers_end": 11,
+            "land_end": 3,
+            "crop_assets_end": 52,
+            "animal_assets_end": 14,
+            "dry_crops_end": 22,
+            "production": {
+              "crop_WHEAT": 32,
+              "animal_SHEEP": 17,
+              "animal_COW": 39,
+              "animal_GOOSE": 6,
+              "crop_STRAWBERRY": 16
+            },
+            "sales_requested": {
+              "WHEAT": 3,
+              "FERTILIZER": 34,
+              "WOOL": 21,
+              "MILK": 24,
+              "STRAWBERRY": 27,
+              "EGG": 6
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "GOOSE": 1,
+              "FERTILIZER": 12,
+              "MILK": 18,
+              "WHEAT": 5,
+              "COW": 1,
+              "SHEEP": 1,
+              "WOOL": 4,
+              "EGG": 2,
+              "STRAWBERRY": 3
+            }
+          },
+          "shop": {
+            "range": [
+              576,
+              647
+            ],
+            "cash_end": 82270.0,
+            "workers_end": 11,
+            "land_end": 3,
+            "crop_assets_end": 58,
+            "animal_assets_end": 17,
+            "dry_crops_end": 37,
+            "production": {
+              "crop_WHEAT": 111,
+              "animal_SHEEP": 23,
+              "animal_COW": 36,
+              "animal_GOOSE": 12,
+              "crop_STRAWBERRY": 32
+            },
+            "sales_requested": {
+              "WHEAT": 57,
+              "FERTILIZER": 47,
+              "WOOL": 24,
+              "MILK": 36,
+              "EGG": 16,
+              "STRAWBERRY": 32
+            },
+            "shed_end": {
+              "WHEAT": 3,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 21,
+              "MELON": 0,
+              "EGG": 2,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 2
+            },
+            "cargo_end": {
+              "FERTILIZER": 16,
+              "WHEAT": 39,
+              "MILK": 9,
+              "EGG": 2,
+              "WOOL": 7
+            }
+          },
+          "delta": {
+            "cash": -27375.0,
+            "workers": 0,
+            "land": 0,
+            "crop_assets": -6,
+            "animal_assets": -3,
+            "dry_crops": -15,
+            "production": {
+              "animal_COW": 3,
+              "animal_GOOSE": -6,
+              "animal_SHEEP": -6,
+              "crop_STRAWBERRY": -16,
+              "crop_WHEAT": -79
+            }
+          }
+        },
+        {
+          "range": [
+            648,
+            718
+          ],
+          "p0": {
+            "range": [
+              648,
+              718
+            ],
+            "cash_end": 68746.0,
+            "workers_end": 12,
+            "land_end": 3,
+            "crop_assets_end": 44,
+            "animal_assets_end": 17,
+            "dry_crops_end": 22,
+            "production": {
+              "crop_WHEAT": 28,
+              "animal_SHEEP": 7,
+              "animal_COW": 21,
+              "animal_GOOSE": 6,
+              "crop_STRAWBERRY": 10,
+              "crop_CARROT": 30
+            },
+            "sales_requested": {
+              "WHEAT": 10,
+              "FERTILIZER": 42,
+              "WOOL": 11,
+              "MILK": 39,
+              "STRAWBERRY": 13,
+              "EGG": 8,
+              "CARROT": 30
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {}
+          },
+          "shop": {
+            "range": [
+              648,
+              718
+            ],
+            "cash_end": 104194.0,
+            "workers_end": 12,
+            "land_end": 3,
+            "crop_assets_end": 0,
+            "animal_assets_end": 17,
+            "dry_crops_end": 0,
+            "production": {
+              "crop_WHEAT": 77,
+              "animal_SHEEP": 22,
+              "animal_COW": 38,
+              "animal_GOOSE": 16,
+              "crop_STRAWBERRY": 26,
+              "crop_CARROT": 83
+            },
+            "sales_requested": {
+              "WHEAT": 17067,
+              "FERTILIZER": 10045,
+              "WOOL": 6045,
+              "MILK": 7061,
+              "MELON": 6000,
+              "EGG": 6018,
+              "STRAWBERRY": 6047,
+              "CARROT": 15074,
+              "TOMATO": 6000
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "CARROT": 3,
+              "WHEAT": 2,
+              "WOOL": 4
+            }
+          },
+          "delta": {
+            "cash": -35448.0,
+            "workers": 0,
+            "land": 0,
+            "crop_assets": 44,
+            "animal_assets": 0,
+            "dry_crops": 22,
+            "production": {
+              "animal_COW": -17,
+              "animal_GOOSE": -10,
+              "animal_SHEEP": -15,
+              "crop_CARROT": -53,
+              "crop_STRAWBERRY": -16,
+              "crop_WHEAT": -49
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "70291003-s0-m2",
+      "phases": [
+        {
+          "range": [
+            0,
+            71
+          ],
+          "p0": {
+            "range": [
+              0,
+              71
+            ],
+            "cash_end": 122.0,
+            "workers_end": 5,
+            "land_end": 1,
+            "crop_assets_end": 19,
+            "animal_assets_end": 4,
+            "dry_crops_end": 19,
+            "production": {},
+            "sales_requested": {
+              "WHEAT": 27,
+              "FERTILIZER": 2
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "FERTILIZER": 4
+            }
+          },
+          "shop": {
+            "range": [
+              0,
+              71
+            ],
+            "cash_end": 198.0,
+            "workers_end": 5,
+            "land_end": 1,
+            "crop_assets_end": 19,
+            "animal_assets_end": 5,
+            "dry_crops_end": 15,
+            "production": {
+              "crop_WHEAT": 6
+            },
+            "sales_requested": {
+              "WHEAT": 28,
+              "FERTILIZER": 8
+            },
+            "shed_end": {
+              "WHEAT": 1,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "WHEAT": 6
+            }
+          },
+          "delta": {
+            "cash": -76.0,
+            "workers": 0,
+            "land": 0,
+            "crop_assets": 0,
+            "animal_assets": -1,
+            "dry_crops": 4,
+            "production": {
+              "crop_WHEAT": -6
+            }
+          }
+        },
+        {
+          "range": [
+            72,
+            143
+          ],
+          "p0": {
+            "range": [
+              72,
+              143
+            ],
+            "cash_end": 268.0,
+            "workers_end": 5,
+            "land_end": 1,
+            "crop_assets_end": 19,
+            "animal_assets_end": 5,
+            "dry_crops_end": 7,
+            "production": {
+              "crop_WHEAT": 28
+            },
+            "sales_requested": {
+              "WHEAT": 23,
+              "FERTILIZER": 7
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "FERTILIZER": 5
+            }
+          },
+          "shop": {
+            "range": [
+              72,
+              143
+            ],
+            "cash_end": 801.0,
+            "workers_end": 5,
+            "land_end": 1,
+            "crop_assets_end": 19,
+            "animal_assets_end": 6,
+            "dry_crops_end": 14,
+            "production": {
+              "crop_WHEAT": 26
+            },
+            "sales_requested": {
+              "WHEAT": 9,
+              "FERTILIZER": 16
+            },
+            "shed_end": {
+              "WHEAT": 8,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "FERTILIZER": 2,
+              "WHEAT": 8
+            }
+          },
+          "delta": {
+            "cash": -533.0,
+            "workers": 0,
+            "land": 0,
+            "crop_assets": 0,
+            "animal_assets": -1,
+            "dry_crops": -7,
+            "production": {
+              "crop_WHEAT": 2
+            }
+          }
+        },
+        {
+          "range": [
+            144,
+            287
+          ],
+          "p0": {
+            "range": [
+              144,
+              287
+            ],
+            "cash_end": 4.0,
+            "workers_end": 11,
+            "land_end": 2,
+            "crop_assets_end": 35,
+            "animal_assets_end": 13,
+            "dry_crops_end": 23,
+            "production": {
+              "crop_WHEAT": 16,
+              "animal_SHEEP": 17,
+              "animal_COW": 17
+            },
+            "sales_requested": {
+              "WHEAT": 2,
+              "FERTILIZER": 20,
+              "WOOL": 17,
+              "MILK": 17
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "FERTILIZER": 12
+            }
+          },
+          "shop": {
+            "range": [
+              144,
+              287
+            ],
+            "cash_end": 12169.0,
+            "workers_end": 11,
+            "land_end": 3,
+            "crop_assets_end": 54,
+            "animal_assets_end": 17,
+            "dry_crops_end": 47,
+            "production": {
+              "crop_WHEAT": 31,
+              "animal_SHEEP": 20,
+              "animal_COW": 30,
+              "crop_MELON": 72
+            },
+            "sales_requested": {
+              "WHEAT": 25,
+              "FERTILIZER": 64,
+              "WOOL": 20,
+              "MILK": 33,
+              "MELON": 72
+            },
+            "shed_end": {
+              "WHEAT": 57,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 1
+            },
+            "cargo_end": {
+              "FERTILIZER": 15,
+              "WHEAT": 5
+            }
+          },
+          "delta": {
+            "cash": -12165.0,
+            "workers": 0,
+            "land": -1,
+            "crop_assets": -19,
+            "animal_assets": -4,
+            "dry_crops": -24,
+            "production": {
+              "animal_COW": -13,
+              "animal_SHEEP": -3,
+              "crop_MELON": -72,
+              "crop_WHEAT": -15
+            }
+          }
+        },
+        {
+          "range": [
+            288,
+            431
+          ],
+          "p0": {
+            "range": [
+              288,
+              431
+            ],
+            "cash_end": 2158.0,
+            "workers_end": 12,
+            "land_end": 3,
+            "crop_assets_end": 54,
+            "animal_assets_end": 17,
+            "dry_crops_end": 37,
+            "production": {
+              "crop_WHEAT": 57,
+              "animal_SHEEP": 15,
+              "animal_COW": 35,
+              "crop_MELON": 6,
+              "animal_GOOSE": 7,
+              "crop_STRAWBERRY": 14
+            },
+            "sales_requested": {
+              "WHEAT": 11,
+              "FERTILIZER": 65,
+              "WOOL": 15,
+              "MILK": 30,
+              "MELON": 6,
+              "STRAWBERRY": 2,
+              "EGG": 5
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "FERTILIZER": 15,
+              "MILK": 5,
+              "EGG": 2,
+              "WHEAT": 29,
+              "STRAWBERRY": 11
+            }
+          },
+          "shop": {
+            "range": [
+              288,
+              431
+            ],
+            "cash_end": 30615.0,
+            "workers_end": 12,
+            "land_end": 3,
+            "crop_assets_end": 58,
+            "animal_assets_end": 17,
+            "dry_crops_end": 26,
+            "production": {
+              "crop_WHEAT": 120,
+              "animal_SHEEP": 48,
+              "animal_COW": 72,
+              "animal_GOOSE": 16,
+              "crop_STRAWBERRY": 40
+            },
+            "sales_requested": {
+              "WHEAT": 52,
+              "FERTILIZER": 91,
+              "WOOL": 47,
+              "MILK": 69,
+              "EGG": 16,
+              "STRAWBERRY": 52
+            },
+            "shed_end": {
+              "WHEAT": 6,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 6,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "FERTILIZER": 16,
+              "MILK": 9,
+              "WHEAT": 24,
+              "WOOL": 2,
+              "EGG": 4
+            }
+          },
+          "delta": {
+            "cash": -28457.0,
+            "workers": 0,
+            "land": 0,
+            "crop_assets": -4,
+            "animal_assets": 0,
+            "dry_crops": 11,
+            "production": {
+              "animal_COW": -37,
+              "animal_GOOSE": -9,
+              "animal_SHEEP": -33,
+              "crop_MELON": 6,
+              "crop_STRAWBERRY": -26,
+              "crop_WHEAT": -63
+            }
+          }
+        },
+        {
+          "range": [
+            432,
+            575
+          ],
+          "p0": {
+            "range": [
+              432,
+              575
+            ],
+            "cash_end": 17660.0,
+            "workers_end": 11,
+            "land_end": 3,
+            "crop_assets_end": 52,
+            "animal_assets_end": 17,
+            "dry_crops_end": 33,
+            "production": {
+              "crop_WHEAT": 105,
+              "animal_SHEEP": 37,
+              "animal_COW": 80,
+              "animal_GOOSE": 26,
+              "crop_STRAWBERRY": 39
+            },
+            "sales_requested": {
+              "WHEAT": 35,
+              "FERTILIZER": 77,
+              "WOOL": 33,
+              "MILK": 85,
+              "STRAWBERRY": 38,
+              "EGG": 22
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "WHEAT": 10,
+              "FERTILIZER": 14,
+              "WOOL": 4,
+              "EGG": 2,
+              "STRAWBERRY": 13
+            }
+          },
+          "shop": {
+            "range": [
+              432,
+              575
+            ],
+            "cash_end": 62748.0,
+            "workers_end": 11,
+            "land_end": 3,
+            "crop_assets_end": 58,
+            "animal_assets_end": 17,
+            "dry_crops_end": 26,
+            "production": {
+              "crop_WHEAT": 146,
+              "animal_SHEEP": 48,
+              "animal_COW": 69,
+              "animal_GOOSE": 34,
+              "crop_STRAWBERRY": 151
+            },
+            "sales_requested": {
+              "WHEAT": 44,
+              "FERTILIZER": 86,
+              "WOOL": 52,
+              "MILK": 84,
+              "EGG": 27,
+              "STRAWBERRY": 139
+            },
+            "shed_end": {
+              "WHEAT": 3,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "STRAWBERRY": 16,
+              "WHEAT": 27,
+              "FERTILIZER": 16,
+              "EGG": 8,
+              "WOOL": 8,
+              "MILK": 6
+            }
+          },
+          "delta": {
+            "cash": -45088.0,
+            "workers": 0,
+            "land": 0,
+            "crop_assets": -6,
+            "animal_assets": 0,
+            "dry_crops": 7,
+            "production": {
+              "animal_COW": 11,
+              "animal_GOOSE": -8,
+              "animal_SHEEP": -11,
+              "crop_STRAWBERRY": -112,
+              "crop_WHEAT": -41
+            }
+          }
+        },
+        {
+          "range": [
+            576,
+            647
+          ],
+          "p0": {
+            "range": [
+              576,
+              647
+            ],
+            "cash_end": 20954.0,
+            "workers_end": 11,
+            "land_end": 3,
+            "crop_assets_end": 51,
+            "animal_assets_end": 14,
+            "dry_crops_end": 23,
+            "production": {
+              "crop_WHEAT": 28,
+              "animal_SHEEP": 16,
+              "animal_COW": 42,
+              "animal_GOOSE": 6,
+              "crop_STRAWBERRY": 14
+            },
+            "sales_requested": {
+              "WHEAT": 4,
+              "FERTILIZER": 36,
+              "WOOL": 20,
+              "MILK": 21,
+              "STRAWBERRY": 26,
+              "EGG": 10
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "GOOSE": 1,
+              "FERTILIZER": 11,
+              "MILK": 21,
+              "WHEAT": 5,
+              "COW": 1,
+              "SHEEP": 1,
+              "EGG": 2,
+              "STRAWBERRY": 1
+            }
+          },
+          "shop": {
+            "range": [
+              576,
+              647
+            ],
+            "cash_end": 72120.0,
+            "workers_end": 11,
+            "land_end": 3,
+            "crop_assets_end": 58,
+            "animal_assets_end": 17,
+            "dry_crops_end": 37,
+            "production": {
+              "crop_WHEAT": 111,
+              "animal_SHEEP": 23,
+              "animal_COW": 36,
+              "animal_GOOSE": 12,
+              "crop_STRAWBERRY": 32
+            },
+            "sales_requested": {
+              "WHEAT": 57,
+              "FERTILIZER": 47,
+              "WOOL": 24,
+              "MILK": 36,
+              "EGG": 16,
+              "STRAWBERRY": 32
+            },
+            "shed_end": {
+              "WHEAT": 3,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 21,
+              "MELON": 0,
+              "EGG": 2,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 2
+            },
+            "cargo_end": {
+              "FERTILIZER": 16,
+              "WHEAT": 39,
+              "MILK": 9,
+              "EGG": 2,
+              "WOOL": 7
+            }
+          },
+          "delta": {
+            "cash": -51166.0,
+            "workers": 0,
+            "land": 0,
+            "crop_assets": -7,
+            "animal_assets": -3,
+            "dry_crops": -14,
+            "production": {
+              "animal_COW": 6,
+              "animal_GOOSE": -6,
+              "animal_SHEEP": -7,
+              "crop_STRAWBERRY": -18,
+              "crop_WHEAT": -83
+            }
+          }
+        },
+        {
+          "range": [
+            648,
+            718
+          ],
+          "p0": {
+            "range": [
+              648,
+              718
+            ],
+            "cash_end": 26045.0,
+            "workers_end": 12,
+            "land_end": 3,
+            "crop_assets_end": 46,
+            "animal_assets_end": 17,
+            "dry_crops_end": 23,
+            "production": {
+              "crop_WHEAT": 28,
+              "animal_SHEEP": 16,
+              "animal_COW": 21,
+              "animal_GOOSE": 6,
+              "crop_STRAWBERRY": 10,
+              "crop_CARROT": 33
+            },
+            "sales_requested": {
+              "WHEAT": 10,
+              "FERTILIZER": 40,
+              "WOOL": 16,
+              "MILK": 42,
+              "STRAWBERRY": 11,
+              "EGG": 8,
+              "CARROT": 33
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {}
+          },
+          "shop": {
+            "range": [
+              648,
+              718
+            ],
+            "cash_end": 93169.0,
+            "workers_end": 12,
+            "land_end": 3,
+            "crop_assets_end": 0,
+            "animal_assets_end": 17,
+            "dry_crops_end": 0,
+            "production": {
+              "crop_WHEAT": 77,
+              "animal_SHEEP": 22,
+              "animal_COW": 38,
+              "animal_GOOSE": 16,
+              "crop_STRAWBERRY": 26,
+              "crop_CARROT": 83
+            },
+            "sales_requested": {
+              "WHEAT": 17067,
+              "FERTILIZER": 10045,
+              "WOOL": 6045,
+              "MILK": 7061,
+              "MELON": 6000,
+              "EGG": 6018,
+              "STRAWBERRY": 6047,
+              "CARROT": 15074,
+              "TOMATO": 6000
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "CARROT": 3,
+              "WHEAT": 2,
+              "WOOL": 4
+            }
+          },
+          "delta": {
+            "cash": -67124.0,
+            "workers": 0,
+            "land": 0,
+            "crop_assets": 46,
+            "animal_assets": 0,
+            "dry_crops": 23,
+            "production": {
+              "animal_COW": -17,
+              "animal_GOOSE": -10,
+              "animal_SHEEP": -6,
+              "crop_CARROT": -50,
+              "crop_STRAWBERRY": -16,
+              "crop_WHEAT": -49
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "70291003-s1-m2",
+      "phases": [
+        {
+          "range": [
+            0,
+            71
+          ],
+          "p0": {
+            "range": [
+              0,
+              71
+            ],
+            "cash_end": 122.0,
+            "workers_end": 5,
+            "land_end": 1,
+            "crop_assets_end": 19,
+            "animal_assets_end": 4,
+            "dry_crops_end": 19,
+            "production": {},
+            "sales_requested": {
+              "WHEAT": 27,
+              "FERTILIZER": 2
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "FERTILIZER": 4
+            }
+          },
+          "shop": {
+            "range": [
+              0,
+              71
+            ],
+            "cash_end": 198.0,
+            "workers_end": 5,
+            "land_end": 1,
+            "crop_assets_end": 19,
+            "animal_assets_end": 5,
+            "dry_crops_end": 15,
+            "production": {
+              "crop_WHEAT": 6
+            },
+            "sales_requested": {
+              "WHEAT": 28,
+              "FERTILIZER": 8
+            },
+            "shed_end": {
+              "WHEAT": 1,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "WHEAT": 6
+            }
+          },
+          "delta": {
+            "cash": -76.0,
+            "workers": 0,
+            "land": 0,
+            "crop_assets": 0,
+            "animal_assets": -1,
+            "dry_crops": 4,
+            "production": {
+              "crop_WHEAT": -6
+            }
+          }
+        },
+        {
+          "range": [
+            72,
+            143
+          ],
+          "p0": {
+            "range": [
+              72,
+              143
+            ],
+            "cash_end": 268.0,
+            "workers_end": 5,
+            "land_end": 1,
+            "crop_assets_end": 19,
+            "animal_assets_end": 5,
+            "dry_crops_end": 7,
+            "production": {
+              "crop_WHEAT": 28
+            },
+            "sales_requested": {
+              "WHEAT": 23,
+              "FERTILIZER": 7
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "FERTILIZER": 5
+            }
+          },
+          "shop": {
+            "range": [
+              72,
+              143
+            ],
+            "cash_end": 801.0,
+            "workers_end": 5,
+            "land_end": 1,
+            "crop_assets_end": 19,
+            "animal_assets_end": 6,
+            "dry_crops_end": 14,
+            "production": {
+              "crop_WHEAT": 26
+            },
+            "sales_requested": {
+              "WHEAT": 9,
+              "FERTILIZER": 16
+            },
+            "shed_end": {
+              "WHEAT": 8,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "FERTILIZER": 2,
+              "WHEAT": 8
+            }
+          },
+          "delta": {
+            "cash": -533.0,
+            "workers": 0,
+            "land": 0,
+            "crop_assets": 0,
+            "animal_assets": -1,
+            "dry_crops": -7,
+            "production": {
+              "crop_WHEAT": 2
+            }
+          }
+        },
+        {
+          "range": [
+            144,
+            287
+          ],
+          "p0": {
+            "range": [
+              144,
+              287
+            ],
+            "cash_end": 4.0,
+            "workers_end": 11,
+            "land_end": 2,
+            "crop_assets_end": 35,
+            "animal_assets_end": 13,
+            "dry_crops_end": 23,
+            "production": {
+              "crop_WHEAT": 16,
+              "animal_SHEEP": 17,
+              "animal_COW": 17
+            },
+            "sales_requested": {
+              "WHEAT": 2,
+              "FERTILIZER": 20,
+              "WOOL": 17,
+              "MILK": 17
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "FERTILIZER": 12
+            }
+          },
+          "shop": {
+            "range": [
+              144,
+              287
+            ],
+            "cash_end": 12169.0,
+            "workers_end": 11,
+            "land_end": 3,
+            "crop_assets_end": 54,
+            "animal_assets_end": 17,
+            "dry_crops_end": 47,
+            "production": {
+              "crop_WHEAT": 31,
+              "animal_SHEEP": 20,
+              "animal_COW": 30,
+              "crop_MELON": 72
+            },
+            "sales_requested": {
+              "WHEAT": 25,
+              "FERTILIZER": 64,
+              "WOOL": 20,
+              "MILK": 33,
+              "MELON": 72
+            },
+            "shed_end": {
+              "WHEAT": 57,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 1
+            },
+            "cargo_end": {
+              "FERTILIZER": 15,
+              "WHEAT": 5
+            }
+          },
+          "delta": {
+            "cash": -12165.0,
+            "workers": 0,
+            "land": -1,
+            "crop_assets": -19,
+            "animal_assets": -4,
+            "dry_crops": -24,
+            "production": {
+              "animal_COW": -13,
+              "animal_SHEEP": -3,
+              "crop_MELON": -72,
+              "crop_WHEAT": -15
+            }
+          }
+        },
+        {
+          "range": [
+            288,
+            431
+          ],
+          "p0": {
+            "range": [
+              288,
+              431
+            ],
+            "cash_end": 2158.0,
+            "workers_end": 12,
+            "land_end": 3,
+            "crop_assets_end": 54,
+            "animal_assets_end": 17,
+            "dry_crops_end": 37,
+            "production": {
+              "crop_WHEAT": 57,
+              "animal_SHEEP": 15,
+              "animal_COW": 35,
+              "crop_MELON": 6,
+              "animal_GOOSE": 7,
+              "crop_STRAWBERRY": 14
+            },
+            "sales_requested": {
+              "WHEAT": 11,
+              "FERTILIZER": 65,
+              "WOOL": 15,
+              "MILK": 30,
+              "MELON": 6,
+              "STRAWBERRY": 2,
+              "EGG": 5
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "FERTILIZER": 15,
+              "MILK": 5,
+              "EGG": 2,
+              "WHEAT": 29,
+              "STRAWBERRY": 11
+            }
+          },
+          "shop": {
+            "range": [
+              288,
+              431
+            ],
+            "cash_end": 30615.0,
+            "workers_end": 12,
+            "land_end": 3,
+            "crop_assets_end": 58,
+            "animal_assets_end": 17,
+            "dry_crops_end": 26,
+            "production": {
+              "crop_WHEAT": 120,
+              "animal_SHEEP": 48,
+              "animal_COW": 72,
+              "animal_GOOSE": 16,
+              "crop_STRAWBERRY": 40
+            },
+            "sales_requested": {
+              "WHEAT": 52,
+              "FERTILIZER": 91,
+              "WOOL": 47,
+              "MILK": 69,
+              "EGG": 16,
+              "STRAWBERRY": 52
+            },
+            "shed_end": {
+              "WHEAT": 6,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 6,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "FERTILIZER": 16,
+              "MILK": 9,
+              "WHEAT": 24,
+              "WOOL": 2,
+              "EGG": 4
+            }
+          },
+          "delta": {
+            "cash": -28457.0,
+            "workers": 0,
+            "land": 0,
+            "crop_assets": -4,
+            "animal_assets": 0,
+            "dry_crops": 11,
+            "production": {
+              "animal_COW": -37,
+              "animal_GOOSE": -9,
+              "animal_SHEEP": -33,
+              "crop_MELON": 6,
+              "crop_STRAWBERRY": -26,
+              "crop_WHEAT": -63
+            }
+          }
+        },
+        {
+          "range": [
+            432,
+            575
+          ],
+          "p0": {
+            "range": [
+              432,
+              575
+            ],
+            "cash_end": 17660.0,
+            "workers_end": 11,
+            "land_end": 3,
+            "crop_assets_end": 52,
+            "animal_assets_end": 17,
+            "dry_crops_end": 33,
+            "production": {
+              "crop_WHEAT": 105,
+              "animal_SHEEP": 37,
+              "animal_COW": 80,
+              "animal_GOOSE": 26,
+              "crop_STRAWBERRY": 39
+            },
+            "sales_requested": {
+              "WHEAT": 35,
+              "FERTILIZER": 77,
+              "WOOL": 33,
+              "MILK": 85,
+              "STRAWBERRY": 38,
+              "EGG": 22
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "WHEAT": 10,
+              "FERTILIZER": 14,
+              "WOOL": 4,
+              "EGG": 2,
+              "STRAWBERRY": 13
+            }
+          },
+          "shop": {
+            "range": [
+              432,
+              575
+            ],
+            "cash_end": 62748.0,
+            "workers_end": 11,
+            "land_end": 3,
+            "crop_assets_end": 58,
+            "animal_assets_end": 17,
+            "dry_crops_end": 26,
+            "production": {
+              "crop_WHEAT": 146,
+              "animal_SHEEP": 48,
+              "animal_COW": 69,
+              "animal_GOOSE": 34,
+              "crop_STRAWBERRY": 151
+            },
+            "sales_requested": {
+              "WHEAT": 44,
+              "FERTILIZER": 86,
+              "WOOL": 52,
+              "MILK": 84,
+              "EGG": 27,
+              "STRAWBERRY": 139
+            },
+            "shed_end": {
+              "WHEAT": 3,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "STRAWBERRY": 16,
+              "WHEAT": 27,
+              "FERTILIZER": 16,
+              "EGG": 8,
+              "WOOL": 8,
+              "MILK": 6
+            }
+          },
+          "delta": {
+            "cash": -45088.0,
+            "workers": 0,
+            "land": 0,
+            "crop_assets": -6,
+            "animal_assets": 0,
+            "dry_crops": 7,
+            "production": {
+              "animal_COW": 11,
+              "animal_GOOSE": -8,
+              "animal_SHEEP": -11,
+              "crop_STRAWBERRY": -112,
+              "crop_WHEAT": -41
+            }
+          }
+        },
+        {
+          "range": [
+            576,
+            647
+          ],
+          "p0": {
+            "range": [
+              576,
+              647
+            ],
+            "cash_end": 20954.0,
+            "workers_end": 11,
+            "land_end": 3,
+            "crop_assets_end": 51,
+            "animal_assets_end": 14,
+            "dry_crops_end": 23,
+            "production": {
+              "crop_WHEAT": 28,
+              "animal_SHEEP": 16,
+              "animal_COW": 42,
+              "animal_GOOSE": 6,
+              "crop_STRAWBERRY": 14
+            },
+            "sales_requested": {
+              "WHEAT": 4,
+              "FERTILIZER": 36,
+              "WOOL": 20,
+              "MILK": 21,
+              "STRAWBERRY": 26,
+              "EGG": 10
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "GOOSE": 1,
+              "FERTILIZER": 11,
+              "MILK": 21,
+              "WHEAT": 5,
+              "COW": 1,
+              "SHEEP": 1,
+              "EGG": 2,
+              "STRAWBERRY": 1
+            }
+          },
+          "shop": {
+            "range": [
+              576,
+              647
+            ],
+            "cash_end": 72120.0,
+            "workers_end": 11,
+            "land_end": 3,
+            "crop_assets_end": 58,
+            "animal_assets_end": 17,
+            "dry_crops_end": 37,
+            "production": {
+              "crop_WHEAT": 111,
+              "animal_SHEEP": 23,
+              "animal_COW": 36,
+              "animal_GOOSE": 12,
+              "crop_STRAWBERRY": 32
+            },
+            "sales_requested": {
+              "WHEAT": 57,
+              "FERTILIZER": 47,
+              "WOOL": 24,
+              "MILK": 36,
+              "EGG": 16,
+              "STRAWBERRY": 32
+            },
+            "shed_end": {
+              "WHEAT": 3,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 21,
+              "MELON": 0,
+              "EGG": 2,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 2
+            },
+            "cargo_end": {
+              "FERTILIZER": 16,
+              "WHEAT": 39,
+              "MILK": 9,
+              "EGG": 2,
+              "WOOL": 7
+            }
+          },
+          "delta": {
+            "cash": -51166.0,
+            "workers": 0,
+            "land": 0,
+            "crop_assets": -7,
+            "animal_assets": -3,
+            "dry_crops": -14,
+            "production": {
+              "animal_COW": 6,
+              "animal_GOOSE": -6,
+              "animal_SHEEP": -7,
+              "crop_STRAWBERRY": -18,
+              "crop_WHEAT": -83
+            }
+          }
+        },
+        {
+          "range": [
+            648,
+            718
+          ],
+          "p0": {
+            "range": [
+              648,
+              718
+            ],
+            "cash_end": 26045.0,
+            "workers_end": 12,
+            "land_end": 3,
+            "crop_assets_end": 46,
+            "animal_assets_end": 17,
+            "dry_crops_end": 23,
+            "production": {
+              "crop_WHEAT": 28,
+              "animal_SHEEP": 16,
+              "animal_COW": 21,
+              "animal_GOOSE": 6,
+              "crop_STRAWBERRY": 10,
+              "crop_CARROT": 33
+            },
+            "sales_requested": {
+              "WHEAT": 10,
+              "FERTILIZER": 40,
+              "WOOL": 16,
+              "MILK": 42,
+              "STRAWBERRY": 11,
+              "EGG": 8,
+              "CARROT": 33
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {}
+          },
+          "shop": {
+            "range": [
+              648,
+              718
+            ],
+            "cash_end": 93169.0,
+            "workers_end": 12,
+            "land_end": 3,
+            "crop_assets_end": 0,
+            "animal_assets_end": 17,
+            "dry_crops_end": 0,
+            "production": {
+              "crop_WHEAT": 77,
+              "animal_SHEEP": 22,
+              "animal_COW": 38,
+              "animal_GOOSE": 16,
+              "crop_STRAWBERRY": 26,
+              "crop_CARROT": 83
+            },
+            "sales_requested": {
+              "WHEAT": 17067,
+              "FERTILIZER": 10045,
+              "WOOL": 6045,
+              "MILK": 7061,
+              "MELON": 6000,
+              "EGG": 6018,
+              "STRAWBERRY": 6047,
+              "CARROT": 15074,
+              "TOMATO": 6000
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "CARROT": 3,
+              "WHEAT": 2,
+              "WOOL": 4
+            }
+          },
+          "delta": {
+            "cash": -67124.0,
+            "workers": 0,
+            "land": 0,
+            "crop_assets": 46,
+            "animal_assets": 0,
+            "dry_crops": 23,
+            "production": {
+              "animal_COW": -17,
+              "animal_GOOSE": -10,
+              "animal_SHEEP": -6,
+              "crop_CARROT": -50,
+              "crop_STRAWBERRY": -16,
+              "crop_WHEAT": -49
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "70291004-s0-m3",
+      "phases": [
+        {
+          "range": [
+            0,
+            71
+          ],
+          "p0": {
+            "range": [
+              0,
+              71
+            ],
+            "cash_end": 122.0,
+            "workers_end": 5,
+            "land_end": 1,
+            "crop_assets_end": 19,
+            "animal_assets_end": 4,
+            "dry_crops_end": 19,
+            "production": {},
+            "sales_requested": {
+              "WHEAT": 27,
+              "FERTILIZER": 2
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "FERTILIZER": 4
+            }
+          },
+          "shop": {
+            "range": [
+              0,
+              71
+            ],
+            "cash_end": 198.0,
+            "workers_end": 5,
+            "land_end": 1,
+            "crop_assets_end": 19,
+            "animal_assets_end": 5,
+            "dry_crops_end": 15,
+            "production": {
+              "crop_WHEAT": 6
+            },
+            "sales_requested": {
+              "WHEAT": 28,
+              "FERTILIZER": 8
+            },
+            "shed_end": {
+              "WHEAT": 1,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "WHEAT": 6
+            }
+          },
+          "delta": {
+            "cash": -76.0,
+            "workers": 0,
+            "land": 0,
+            "crop_assets": 0,
+            "animal_assets": -1,
+            "dry_crops": 4,
+            "production": {
+              "crop_WHEAT": -6
+            }
+          }
+        },
+        {
+          "range": [
+            72,
+            143
+          ],
+          "p0": {
+            "range": [
+              72,
+              143
+            ],
+            "cash_end": 295.0,
+            "workers_end": 5,
+            "land_end": 1,
+            "crop_assets_end": 19,
+            "animal_assets_end": 5,
+            "dry_crops_end": 7,
+            "production": {
+              "crop_WHEAT": 28
+            },
+            "sales_requested": {
+              "WHEAT": 23,
+              "FERTILIZER": 7
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "FERTILIZER": 5
+            }
+          },
+          "shop": {
+            "range": [
+              72,
+              143
+            ],
+            "cash_end": 801.0,
+            "workers_end": 5,
+            "land_end": 1,
+            "crop_assets_end": 19,
+            "animal_assets_end": 6,
+            "dry_crops_end": 14,
+            "production": {
+              "crop_WHEAT": 26
+            },
+            "sales_requested": {
+              "WHEAT": 9,
+              "FERTILIZER": 16
+            },
+            "shed_end": {
+              "WHEAT": 8,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "FERTILIZER": 2,
+              "WHEAT": 8
+            }
+          },
+          "delta": {
+            "cash": -506.0,
+            "workers": 0,
+            "land": 0,
+            "crop_assets": 0,
+            "animal_assets": -1,
+            "dry_crops": -7,
+            "production": {
+              "crop_WHEAT": 2
+            }
+          }
+        },
+        {
+          "range": [
+            144,
+            287
+          ],
+          "p0": {
+            "range": [
+              144,
+              287
+            ],
+            "cash_end": 4.0,
+            "workers_end": 11,
+            "land_end": 2,
+            "crop_assets_end": 35,
+            "animal_assets_end": 13,
+            "dry_crops_end": 22,
+            "production": {
+              "crop_WHEAT": 16,
+              "animal_SHEEP": 17,
+              "animal_COW": 18
+            },
+            "sales_requested": {
+              "WHEAT": 1,
+              "FERTILIZER": 22,
+              "WOOL": 17,
+              "MILK": 18
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "FERTILIZER": 12
+            }
+          },
+          "shop": {
+            "range": [
+              144,
+              287
+            ],
+            "cash_end": 15112.0,
+            "workers_end": 12,
+            "land_end": 3,
+            "crop_assets_end": 53,
+            "animal_assets_end": 17,
+            "dry_crops_end": 46,
+            "production": {
+              "crop_WHEAT": 31,
+              "animal_SHEEP": 20,
+              "animal_COW": 30,
+              "crop_MELON": 72
+            },
+            "sales_requested": {
+              "WHEAT": 13,
+              "FERTILIZER": 55,
+              "WOOL": 120,
+              "MILK": 30,
+              "MELON": 72
+            },
+            "shed_end": {
+              "WHEAT": 28,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 1
+            },
+            "cargo_end": {
+              "WHEAT": 7,
+              "FERTILIZER": 16
+            }
+          },
+          "delta": {
+            "cash": -15108.0,
+            "workers": -1,
+            "land": -1,
+            "crop_assets": -18,
+            "animal_assets": -4,
+            "dry_crops": -24,
+            "production": {
+              "animal_COW": -12,
+              "animal_SHEEP": -3,
+              "crop_MELON": -72,
+              "crop_WHEAT": -15
+            }
+          }
+        },
+        {
+          "range": [
+            288,
+            431
+          ],
+          "p0": {
+            "range": [
+              288,
+              431
+            ],
+            "cash_end": 3534.0,
+            "workers_end": 12,
+            "land_end": 3,
+            "crop_assets_end": 54,
+            "animal_assets_end": 17,
+            "dry_crops_end": 34,
+            "production": {
+              "crop_WHEAT": 57,
+              "animal_SHEEP": 15,
+              "animal_COW": 41,
+              "crop_MELON": 6,
+              "animal_GOOSE": 7,
+              "crop_STRAWBERRY": 14
+            },
+            "sales_requested": {
+              "WHEAT": 11,
+              "FERTILIZER": 64,
+              "WOOL": 15,
+              "MILK": 30,
+              "MELON": 6,
+              "STRAWBERRY": 2,
+              "EGG": 5
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "FERTILIZER": 15,
+              "MILK": 11,
+              "EGG": 2,
+              "WHEAT": 29,
+              "STRAWBERRY": 11
+            }
+          },
+          "shop": {
+            "range": [
+              288,
+              431
+            ],
+            "cash_end": 49470.0,
+            "workers_end": 12,
+            "land_end": 3,
+            "crop_assets_end": 58,
+            "animal_assets_end": 17,
+            "dry_crops_end": 26,
+            "production": {
+              "crop_WHEAT": 120,
+              "animal_SHEEP": 81,
+              "animal_COW": 54,
+              "crop_STRAWBERRY": 40
+            },
+            "sales_requested": {
+              "WHEAT": 7052,
+              "FERTILIZER": 8088,
+              "WOOL": 2947,
+              "MILK": 1060,
+              "MELON": 1000,
+              "EGG": 1012,
+              "STRAWBERRY": 7036,
+              "CARROT": 1000,
+              "TOMATO": 1000
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "FERTILIZER": 16,
+              "MILK": 3,
+              "WHEAT": 24,
+              "WOOL": 15
+            }
+          },
+          "delta": {
+            "cash": -45936.0,
+            "workers": 0,
+            "land": 0,
+            "crop_assets": -4,
+            "animal_assets": 0,
+            "dry_crops": 8,
+            "production": {
+              "animal_COW": -13,
+              "animal_GOOSE": 7,
+              "animal_SHEEP": -66,
+              "crop_MELON": 6,
+              "crop_STRAWBERRY": -26,
+              "crop_WHEAT": -63
+            }
+          }
+        },
+        {
+          "range": [
+            432,
+            575
+          ],
+          "p0": {
+            "range": [
+              432,
+              575
+            ],
+            "cash_end": 30662.0,
+            "workers_end": 11,
+            "land_end": 3,
+            "crop_assets_end": 52,
+            "animal_assets_end": 17,
+            "dry_crops_end": 32,
+            "production": {
+              "crop_WHEAT": 105,
+              "animal_SHEEP": 37,
+              "animal_COW": 77,
+              "animal_GOOSE": 26,
+              "crop_STRAWBERRY": 42
+            },
+            "sales_requested": {
+              "WHEAT": 35,
+              "FERTILIZER": 78,
+              "WOOL": 33,
+              "MILK": 85,
+              "STRAWBERRY": 41,
+              "EGG": 22
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "WHEAT": 10,
+              "FERTILIZER": 14,
+              "MILK": 3,
+              "WOOL": 4,
+              "EGG": 2,
+              "STRAWBERRY": 13
+            }
+          },
+          "shop": {
+            "range": [
+              432,
+              575
+            ],
+            "cash_end": 80215.0,
+            "workers_end": 12,
+            "land_end": 3,
+            "crop_assets_end": 58,
+            "animal_assets_end": 17,
+            "dry_crops_end": 26,
+            "production": {
+              "crop_WHEAT": 146,
+              "animal_SHEEP": 88,
+              "animal_COW": 51,
+              "crop_STRAWBERRY": 151
+            },
+            "sales_requested": {
+              "WHEAT": 44,
+              "FERTILIZER": 87,
+              "WOOL": 1356,
+              "MILK": 141,
+              "EGG": 24,
+              "STRAWBERRY": 157
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "WHEAT": 30,
+              "FERTILIZER": 17,
+              "WOOL": 20,
+              "STRAWBERRY": 20,
+              "MILK": 3
+            }
+          },
+          "delta": {
+            "cash": -49553.0,
+            "workers": -1,
+            "land": 0,
+            "crop_assets": -6,
+            "animal_assets": 0,
+            "dry_crops": 6,
+            "production": {
+              "animal_COW": 26,
+              "animal_GOOSE": 26,
+              "animal_SHEEP": -51,
+              "crop_STRAWBERRY": -109,
+              "crop_WHEAT": -41
+            }
+          }
+        },
+        {
+          "range": [
+            576,
+            647
+          ],
+          "p0": {
+            "range": [
+              576,
+              647
+            ],
+            "cash_end": 37535.0,
+            "workers_end": 11,
+            "land_end": 3,
+            "crop_assets_end": 51,
+            "animal_assets_end": 14,
+            "dry_crops_end": 21,
+            "production": {
+              "crop_WHEAT": 28,
+              "animal_SHEEP": 16,
+              "animal_COW": 39,
+              "animal_GOOSE": 6,
+              "crop_STRAWBERRY": 18
+            },
+            "sales_requested": {
+              "WHEAT": 3,
+              "FERTILIZER": 34,
+              "WOOL": 20,
+              "MILK": 24,
+              "STRAWBERRY": 28,
+              "EGG": 10
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "GOOSE": 1,
+              "FERTILIZER": 12,
+              "MILK": 18,
+              "COW": 1,
+              "SHEEP": 1,
+              "EGG": 2,
+              "STRAWBERRY": 3,
+              "WHEAT": 4
+            }
+          },
+          "shop": {
+            "range": [
+              576,
+              647
+            ],
+            "cash_end": 96192.0,
+            "workers_end": 12,
+            "land_end": 3,
+            "crop_assets_end": 58,
+            "animal_assets_end": 17,
+            "dry_crops_end": 37,
+            "production": {
+              "crop_WHEAT": 111,
+              "animal_SHEEP": 42,
+              "animal_COW": 30,
+              "crop_STRAWBERRY": 32
+            },
+            "sales_requested": {
+              "WHEAT": 54,
+              "FERTILIZER": 44,
+              "WOOL": 1230,
+              "MILK": 56,
+              "EGG": 16,
+              "STRAWBERRY": 42
+            },
+            "shed_end": {
+              "WHEAT": 2,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 21,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 1
+            },
+            "cargo_end": {
+              "FERTILIZER": 17,
+              "WHEAT": 40,
+              "MILK": 6
+            }
+          },
+          "delta": {
+            "cash": -58657.0,
+            "workers": -1,
+            "land": 0,
+            "crop_assets": -7,
+            "animal_assets": -3,
+            "dry_crops": -16,
+            "production": {
+              "animal_COW": 9,
+              "animal_GOOSE": 6,
+              "animal_SHEEP": -26,
+              "crop_STRAWBERRY": -14,
+              "crop_WHEAT": -83
+            }
+          }
+        },
+        {
+          "range": [
+            648,
+            718
+          ],
+          "p0": {
+            "range": [
+              648,
+              718
+            ],
+            "cash_end": 48756.0,
+            "workers_end": 12,
+            "land_end": 3,
+            "crop_assets_end": 44,
+            "animal_assets_end": 17,
+            "dry_crops_end": 22,
+            "production": {
+              "crop_WHEAT": 28,
+              "animal_SHEEP": 12,
+              "animal_COW": 24,
+              "animal_GOOSE": 6,
+              "crop_STRAWBERRY": 10,
+              "crop_CARROT": 30
+            },
+            "sales_requested": {
+              "WHEAT": 10,
+              "FERTILIZER": 39,
+              "WOOL": 12,
+              "MILK": 42,
+              "STRAWBERRY": 13,
+              "EGG": 8,
+              "CARROT": 30
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {}
+          },
+          "shop": {
+            "range": [
+              648,
+              718
+            ],
+            "cash_end": 111484.0,
+            "workers_end": 12,
+            "land_end": 3,
+            "crop_assets_end": 0,
+            "animal_assets_end": 17,
+            "dry_crops_end": 0,
+            "production": {
+              "crop_WHEAT": 77,
+              "animal_SHEEP": 41,
+              "animal_COW": 26,
+              "crop_STRAWBERRY": 26,
+              "crop_CARROT": 83
+            },
+            "sales_requested": {
+              "WHEAT": 17067,
+              "FERTILIZER": 10045,
+              "WOOL": 6064,
+              "MILK": 7052,
+              "MELON": 6000,
+              "EGG": 8018,
+              "STRAWBERRY": 6047,
+              "CARROT": 15074,
+              "TOMATO": 6000
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "CARROT": 3,
+              "WHEAT": 2,
+              "WOOL": 12
+            }
+          },
+          "delta": {
+            "cash": -62728.0,
+            "workers": 0,
+            "land": 0,
+            "crop_assets": 44,
+            "animal_assets": 0,
+            "dry_crops": 22,
+            "production": {
+              "animal_COW": -2,
+              "animal_GOOSE": 6,
+              "animal_SHEEP": -29,
+              "crop_CARROT": -53,
+              "crop_STRAWBERRY": -16,
+              "crop_WHEAT": -49
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "70291004-s1-m3",
+      "phases": [
+        {
+          "range": [
+            0,
+            71
+          ],
+          "p0": {
+            "range": [
+              0,
+              71
+            ],
+            "cash_end": 122.0,
+            "workers_end": 5,
+            "land_end": 1,
+            "crop_assets_end": 19,
+            "animal_assets_end": 4,
+            "dry_crops_end": 19,
+            "production": {},
+            "sales_requested": {
+              "WHEAT": 27,
+              "FERTILIZER": 2
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "FERTILIZER": 4
+            }
+          },
+          "shop": {
+            "range": [
+              0,
+              71
+            ],
+            "cash_end": 198.0,
+            "workers_end": 5,
+            "land_end": 1,
+            "crop_assets_end": 19,
+            "animal_assets_end": 5,
+            "dry_crops_end": 15,
+            "production": {
+              "crop_WHEAT": 6
+            },
+            "sales_requested": {
+              "WHEAT": 28,
+              "FERTILIZER": 8
+            },
+            "shed_end": {
+              "WHEAT": 1,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "WHEAT": 6
+            }
+          },
+          "delta": {
+            "cash": -76.0,
+            "workers": 0,
+            "land": 0,
+            "crop_assets": 0,
+            "animal_assets": -1,
+            "dry_crops": 4,
+            "production": {
+              "crop_WHEAT": -6
+            }
+          }
+        },
+        {
+          "range": [
+            72,
+            143
+          ],
+          "p0": {
+            "range": [
+              72,
+              143
+            ],
+            "cash_end": 295.0,
+            "workers_end": 5,
+            "land_end": 1,
+            "crop_assets_end": 19,
+            "animal_assets_end": 5,
+            "dry_crops_end": 7,
+            "production": {
+              "crop_WHEAT": 28
+            },
+            "sales_requested": {
+              "WHEAT": 23,
+              "FERTILIZER": 7
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "FERTILIZER": 5
+            }
+          },
+          "shop": {
+            "range": [
+              72,
+              143
+            ],
+            "cash_end": 801.0,
+            "workers_end": 5,
+            "land_end": 1,
+            "crop_assets_end": 19,
+            "animal_assets_end": 6,
+            "dry_crops_end": 14,
+            "production": {
+              "crop_WHEAT": 26
+            },
+            "sales_requested": {
+              "WHEAT": 9,
+              "FERTILIZER": 16
+            },
+            "shed_end": {
+              "WHEAT": 8,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "FERTILIZER": 2,
+              "WHEAT": 8
+            }
+          },
+          "delta": {
+            "cash": -506.0,
+            "workers": 0,
+            "land": 0,
+            "crop_assets": 0,
+            "animal_assets": -1,
+            "dry_crops": -7,
+            "production": {
+              "crop_WHEAT": 2
+            }
+          }
+        },
+        {
+          "range": [
+            144,
+            287
+          ],
+          "p0": {
+            "range": [
+              144,
+              287
+            ],
+            "cash_end": 4.0,
+            "workers_end": 11,
+            "land_end": 2,
+            "crop_assets_end": 35,
+            "animal_assets_end": 13,
+            "dry_crops_end": 22,
+            "production": {
+              "crop_WHEAT": 16,
+              "animal_SHEEP": 17,
+              "animal_COW": 18
+            },
+            "sales_requested": {
+              "WHEAT": 1,
+              "FERTILIZER": 22,
+              "WOOL": 17,
+              "MILK": 18
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "FERTILIZER": 12
+            }
+          },
+          "shop": {
+            "range": [
+              144,
+              287
+            ],
+            "cash_end": 15112.0,
+            "workers_end": 12,
+            "land_end": 3,
+            "crop_assets_end": 53,
+            "animal_assets_end": 17,
+            "dry_crops_end": 46,
+            "production": {
+              "crop_WHEAT": 31,
+              "animal_SHEEP": 20,
+              "animal_COW": 30,
+              "crop_MELON": 72
+            },
+            "sales_requested": {
+              "WHEAT": 13,
+              "FERTILIZER": 55,
+              "WOOL": 120,
+              "MILK": 30,
+              "MELON": 72
+            },
+            "shed_end": {
+              "WHEAT": 28,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 1
+            },
+            "cargo_end": {
+              "WHEAT": 7,
+              "FERTILIZER": 16
+            }
+          },
+          "delta": {
+            "cash": -15108.0,
+            "workers": -1,
+            "land": -1,
+            "crop_assets": -18,
+            "animal_assets": -4,
+            "dry_crops": -24,
+            "production": {
+              "animal_COW": -12,
+              "animal_SHEEP": -3,
+              "crop_MELON": -72,
+              "crop_WHEAT": -15
+            }
+          }
+        },
+        {
+          "range": [
+            288,
+            431
+          ],
+          "p0": {
+            "range": [
+              288,
+              431
+            ],
+            "cash_end": 3534.0,
+            "workers_end": 12,
+            "land_end": 3,
+            "crop_assets_end": 54,
+            "animal_assets_end": 17,
+            "dry_crops_end": 34,
+            "production": {
+              "crop_WHEAT": 57,
+              "animal_SHEEP": 15,
+              "animal_COW": 41,
+              "crop_MELON": 6,
+              "animal_GOOSE": 7,
+              "crop_STRAWBERRY": 14
+            },
+            "sales_requested": {
+              "WHEAT": 11,
+              "FERTILIZER": 64,
+              "WOOL": 15,
+              "MILK": 30,
+              "MELON": 6,
+              "STRAWBERRY": 2,
+              "EGG": 5
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "FERTILIZER": 15,
+              "MILK": 11,
+              "EGG": 2,
+              "WHEAT": 29,
+              "STRAWBERRY": 11
+            }
+          },
+          "shop": {
+            "range": [
+              288,
+              431
+            ],
+            "cash_end": 49470.0,
+            "workers_end": 12,
+            "land_end": 3,
+            "crop_assets_end": 58,
+            "animal_assets_end": 17,
+            "dry_crops_end": 26,
+            "production": {
+              "crop_WHEAT": 120,
+              "animal_SHEEP": 81,
+              "animal_COW": 54,
+              "crop_STRAWBERRY": 40
+            },
+            "sales_requested": {
+              "WHEAT": 7052,
+              "FERTILIZER": 8088,
+              "WOOL": 2947,
+              "MILK": 1060,
+              "MELON": 1000,
+              "EGG": 1012,
+              "STRAWBERRY": 7036,
+              "CARROT": 1000,
+              "TOMATO": 1000
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "FERTILIZER": 16,
+              "MILK": 3,
+              "WHEAT": 24,
+              "WOOL": 15
+            }
+          },
+          "delta": {
+            "cash": -45936.0,
+            "workers": 0,
+            "land": 0,
+            "crop_assets": -4,
+            "animal_assets": 0,
+            "dry_crops": 8,
+            "production": {
+              "animal_COW": -13,
+              "animal_GOOSE": 7,
+              "animal_SHEEP": -66,
+              "crop_MELON": 6,
+              "crop_STRAWBERRY": -26,
+              "crop_WHEAT": -63
+            }
+          }
+        },
+        {
+          "range": [
+            432,
+            575
+          ],
+          "p0": {
+            "range": [
+              432,
+              575
+            ],
+            "cash_end": 30662.0,
+            "workers_end": 11,
+            "land_end": 3,
+            "crop_assets_end": 52,
+            "animal_assets_end": 17,
+            "dry_crops_end": 32,
+            "production": {
+              "crop_WHEAT": 105,
+              "animal_SHEEP": 37,
+              "animal_COW": 77,
+              "animal_GOOSE": 26,
+              "crop_STRAWBERRY": 42
+            },
+            "sales_requested": {
+              "WHEAT": 35,
+              "FERTILIZER": 78,
+              "WOOL": 33,
+              "MILK": 85,
+              "STRAWBERRY": 41,
+              "EGG": 22
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "WHEAT": 10,
+              "FERTILIZER": 14,
+              "MILK": 3,
+              "WOOL": 4,
+              "EGG": 2,
+              "STRAWBERRY": 13
+            }
+          },
+          "shop": {
+            "range": [
+              432,
+              575
+            ],
+            "cash_end": 80215.0,
+            "workers_end": 12,
+            "land_end": 3,
+            "crop_assets_end": 58,
+            "animal_assets_end": 17,
+            "dry_crops_end": 26,
+            "production": {
+              "crop_WHEAT": 146,
+              "animal_SHEEP": 88,
+              "animal_COW": 51,
+              "crop_STRAWBERRY": 151
+            },
+            "sales_requested": {
+              "WHEAT": 44,
+              "FERTILIZER": 87,
+              "WOOL": 1356,
+              "MILK": 141,
+              "EGG": 24,
+              "STRAWBERRY": 157
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "WHEAT": 30,
+              "FERTILIZER": 17,
+              "WOOL": 20,
+              "STRAWBERRY": 20,
+              "MILK": 3
+            }
+          },
+          "delta": {
+            "cash": -49553.0,
+            "workers": -1,
+            "land": 0,
+            "crop_assets": -6,
+            "animal_assets": 0,
+            "dry_crops": 6,
+            "production": {
+              "animal_COW": 26,
+              "animal_GOOSE": 26,
+              "animal_SHEEP": -51,
+              "crop_STRAWBERRY": -109,
+              "crop_WHEAT": -41
+            }
+          }
+        },
+        {
+          "range": [
+            576,
+            647
+          ],
+          "p0": {
+            "range": [
+              576,
+              647
+            ],
+            "cash_end": 37535.0,
+            "workers_end": 11,
+            "land_end": 3,
+            "crop_assets_end": 51,
+            "animal_assets_end": 14,
+            "dry_crops_end": 21,
+            "production": {
+              "crop_WHEAT": 28,
+              "animal_SHEEP": 16,
+              "animal_COW": 39,
+              "animal_GOOSE": 6,
+              "crop_STRAWBERRY": 18
+            },
+            "sales_requested": {
+              "WHEAT": 3,
+              "FERTILIZER": 34,
+              "WOOL": 20,
+              "MILK": 24,
+              "STRAWBERRY": 28,
+              "EGG": 10
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "GOOSE": 1,
+              "FERTILIZER": 12,
+              "MILK": 18,
+              "COW": 1,
+              "SHEEP": 1,
+              "EGG": 2,
+              "STRAWBERRY": 3,
+              "WHEAT": 4
+            }
+          },
+          "shop": {
+            "range": [
+              576,
+              647
+            ],
+            "cash_end": 96192.0,
+            "workers_end": 12,
+            "land_end": 3,
+            "crop_assets_end": 58,
+            "animal_assets_end": 17,
+            "dry_crops_end": 37,
+            "production": {
+              "crop_WHEAT": 111,
+              "animal_SHEEP": 42,
+              "animal_COW": 30,
+              "crop_STRAWBERRY": 32
+            },
+            "sales_requested": {
+              "WHEAT": 54,
+              "FERTILIZER": 44,
+              "WOOL": 1230,
+              "MILK": 56,
+              "EGG": 16,
+              "STRAWBERRY": 42
+            },
+            "shed_end": {
+              "WHEAT": 2,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 21,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 1
+            },
+            "cargo_end": {
+              "FERTILIZER": 17,
+              "WHEAT": 40,
+              "MILK": 6
+            }
+          },
+          "delta": {
+            "cash": -58657.0,
+            "workers": -1,
+            "land": 0,
+            "crop_assets": -7,
+            "animal_assets": -3,
+            "dry_crops": -16,
+            "production": {
+              "animal_COW": 9,
+              "animal_GOOSE": 6,
+              "animal_SHEEP": -26,
+              "crop_STRAWBERRY": -14,
+              "crop_WHEAT": -83
+            }
+          }
+        },
+        {
+          "range": [
+            648,
+            718
+          ],
+          "p0": {
+            "range": [
+              648,
+              718
+            ],
+            "cash_end": 48756.0,
+            "workers_end": 12,
+            "land_end": 3,
+            "crop_assets_end": 44,
+            "animal_assets_end": 17,
+            "dry_crops_end": 22,
+            "production": {
+              "crop_WHEAT": 28,
+              "animal_SHEEP": 12,
+              "animal_COW": 24,
+              "animal_GOOSE": 6,
+              "crop_STRAWBERRY": 10,
+              "crop_CARROT": 30
+            },
+            "sales_requested": {
+              "WHEAT": 10,
+              "FERTILIZER": 39,
+              "WOOL": 12,
+              "MILK": 42,
+              "STRAWBERRY": 13,
+              "EGG": 8,
+              "CARROT": 30
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {}
+          },
+          "shop": {
+            "range": [
+              648,
+              718
+            ],
+            "cash_end": 111484.0,
+            "workers_end": 12,
+            "land_end": 3,
+            "crop_assets_end": 0,
+            "animal_assets_end": 17,
+            "dry_crops_end": 0,
+            "production": {
+              "crop_WHEAT": 77,
+              "animal_SHEEP": 41,
+              "animal_COW": 26,
+              "crop_STRAWBERRY": 26,
+              "crop_CARROT": 83
+            },
+            "sales_requested": {
+              "WHEAT": 17067,
+              "FERTILIZER": 10045,
+              "WOOL": 6064,
+              "MILK": 7052,
+              "MELON": 6000,
+              "EGG": 8018,
+              "STRAWBERRY": 6047,
+              "CARROT": 15074,
+              "TOMATO": 6000
+            },
+            "shed_end": {
+              "WHEAT": 0,
+              "CARROT": 0,
+              "TOMATO": 0,
+              "STRAWBERRY": 0,
+              "MELON": 0,
+              "EGG": 0,
+              "MILK": 0,
+              "WOOL": 0,
+              "FERTILIZER": 0
+            },
+            "cargo_end": {
+              "CARROT": 3,
+              "WHEAT": 2,
+              "WOOL": 12
+            }
+          },
+          "delta": {
+            "cash": -62728.0,
+            "workers": 0,
+            "land": 0,
+            "crop_assets": 44,
+            "animal_assets": 0,
+            "dry_crops": 22,
+            "production": {
+              "animal_COW": -2,
+              "animal_GOOSE": 6,
+              "animal_SHEEP": -29,
+              "crop_CARROT": -53,
+              "crop_STRAWBERRY": -16,
+              "crop_WHEAT": -49
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

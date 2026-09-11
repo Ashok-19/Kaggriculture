@@ -1,0 +1,266 @@
+{
+  "diagnostic_only": true,
+  "counterfactuals": {
+    "delay_animals_1d": {
+      "median_cash_recovered": 3084.0,
+      "median_gap_fraction_recovered": 0.06646607577698406,
+      "positive_contexts": 6,
+      "rows": [
+        {
+          "seed": 70291001,
+          "seat": 0,
+          "member": 0,
+          "cash": 68762.0,
+          "baseline": 52073.0,
+          "reference": 78418.0,
+          "cash_recovered": 16689.0,
+          "gap_fraction_recovered": 0.6334788384892769
+        },
+        {
+          "seed": 70291001,
+          "seat": 1,
+          "member": 0,
+          "cash": 68762.0,
+          "baseline": 60819.0,
+          "reference": 78418.0,
+          "cash_recovered": 7943.0,
+          "gap_fraction_recovered": 0.45133246207170863
+        },
+        {
+          "seed": 70291002,
+          "seat": 0,
+          "member": 1,
+          "cash": 72033.0,
+          "baseline": 68746.0,
+          "reference": 105188.0,
+          "cash_recovered": 3287.0,
+          "gap_fraction_recovered": 0.09019812304483837
+        },
+        {
+          "seed": 70291002,
+          "seat": 1,
+          "member": 1,
+          "cash": 72033.0,
+          "baseline": 68746.0,
+          "reference": 105188.0,
+          "cash_recovered": 3287.0,
+          "gap_fraction_recovered": 0.09019812304483837
+        },
+        {
+          "seed": 70291003,
+          "seat": 0,
+          "member": 2,
+          "cash": 28926.0,
+          "baseline": 26045.0,
+          "reference": 93462.0,
+          "cash_recovered": 2881.0,
+          "gap_fraction_recovered": 0.042734028509129746
+        },
+        {
+          "seed": 70291003,
+          "seat": 1,
+          "member": 2,
+          "cash": 28926.0,
+          "baseline": 26045.0,
+          "reference": 93462.0,
+          "cash_recovered": 2881.0,
+          "gap_fraction_recovered": 0.042734028509129746
+        },
+        {
+          "seed": 70291004,
+          "seat": 0,
+          "member": 3,
+          "cash": 27080.0,
+          "baseline": 48756.0,
+          "reference": 113072.0,
+          "cash_recovered": -21676.0,
+          "gap_fraction_recovered": -0.33702344673176193
+        },
+        {
+          "seed": 70291004,
+          "seat": 1,
+          "member": 3,
+          "cash": 27080.0,
+          "baseline": 48756.0,
+          "reference": 113072.0,
+          "cash_recovered": -21676.0,
+          "gap_fraction_recovered": -0.33702344673176193
+        }
+      ]
+    },
+    "plus_one_daily_hire": {
+      "median_cash_recovered": -10823.5,
+      "median_gap_fraction_recovered": -0.17431690896668056,
+      "positive_contexts": 0,
+      "rows": [
+        {
+          "seed": 70291001,
+          "seat": 0,
+          "member": 0,
+          "cash": 35106.0,
+          "baseline": 52073.0,
+          "reference": 78418.0,
+          "cash_recovered": -16967.0,
+          "gap_fraction_recovered": -0.6440311254507497
+        },
+        {
+          "seed": 70291001,
+          "seat": 1,
+          "member": 0,
+          "cash": 35106.0,
+          "baseline": 60819.0,
+          "reference": 78418.0,
+          "cash_recovered": -25713.0,
+          "gap_fraction_recovered": -1.4610489232342747
+        },
+        {
+          "seed": 70291002,
+          "seat": 0,
+          "member": 1,
+          "cash": 66463.0,
+          "baseline": 68746.0,
+          "reference": 105188.0,
+          "cash_recovered": -2283.0,
+          "gap_fraction_recovered": -0.06264749464903134
+        },
+        {
+          "seed": 70291002,
+          "seat": 1,
+          "member": 1,
+          "cash": 66463.0,
+          "baseline": 68746.0,
+          "reference": 105188.0,
+          "cash_recovered": -2283.0,
+          "gap_fraction_recovered": -0.06264749464903134
+        },
+        {
+          "seed": 70291003,
+          "seat": 0,
+          "member": 2,
+          "cash": 21365.0,
+          "baseline": 26045.0,
+          "reference": 93462.0,
+          "cash_recovered": -4680.0,
+          "gap_fraction_recovered": -0.06941869261462243
+        },
+        {
+          "seed": 70291003,
+          "seat": 1,
+          "member": 2,
+          "cash": 21365.0,
+          "baseline": 26045.0,
+          "reference": 93462.0,
+          "cash_recovered": -4680.0,
+          "gap_fraction_recovered": -0.06941869261462243
+        },
+        {
+          "seed": 70291004,
+          "seat": 0,
+          "member": 3,
+          "cash": 30798.0,
+          "baseline": 48756.0,
+          "reference": 113072.0,
+          "cash_recovered": -17958.0,
+          "gap_fraction_recovered": -0.2792151253187387
+        },
+        {
+          "seed": 70291004,
+          "seat": 1,
+          "member": 3,
+          "cash": 30798.0,
+          "baseline": 48756.0,
+          "reference": 113072.0,
+          "cash_recovered": -17958.0,
+          "gap_fraction_recovered": -0.2792151253187387
+        }
+      ]
+    },
+    "capital_realization": {
+      "median_cash_recovered": 1191.0,
+      "median_gap_fraction_recovered": 0.017666167287182757,
+      "positive_contexts": 5,
+      "rows": [
+        {
+          "seed": 70291001,
+          "seat": 0,
+          "member": 0,
+          "cash": 60681.0,
+          "baseline": 52073.0,
+          "reference": 78418.0,
+          "cash_recovered": 8608.0,
+          "gap_fraction_recovered": 0.3267413171379768
+        },
+        {
+          "seed": 70291001,
+          "seat": 1,
+          "member": 0,
+          "cash": 60719.0,
+          "baseline": 60819.0,
+          "reference": 78418.0,
+          "cash_recovered": -100.0,
+          "gap_fraction_recovered": -0.005682141030740383
+        },
+        {
+          "seed": 70291002,
+          "seat": 0,
+          "member": 1,
+          "cash": 58491.0,
+          "baseline": 68746.0,
+          "reference": 105188.0,
+          "cash_recovered": -10255.0,
+          "gap_fraction_recovered": -0.2814060699193239
+        },
+        {
+          "seed": 70291002,
+          "seat": 1,
+          "member": 1,
+          "cash": 58491.0,
+          "baseline": 68746.0,
+          "reference": 105188.0,
+          "cash_recovered": -10255.0,
+          "gap_fraction_recovered": -0.2814060699193239
+        },
+        {
+          "seed": 70291003,
+          "seat": 0,
+          "member": 2,
+          "cash": 27236.0,
+          "baseline": 26045.0,
+          "reference": 93462.0,
+          "cash_recovered": 1191.0,
+          "gap_fraction_recovered": 0.017666167287182757
+        },
+        {
+          "seed": 70291003,
+          "seat": 1,
+          "member": 2,
+          "cash": 27236.0,
+          "baseline": 26045.0,
+          "reference": 93462.0,
+          "cash_recovered": 1191.0,
+          "gap_fraction_recovered": 0.017666167287182757
+        },
+        {
+          "seed": 70291004,
+          "seat": 0,
+          "member": 3,
+          "cash": 50719.0,
+          "baseline": 48756.0,
+          "reference": 113072.0,
+          "cash_recovered": 1963.0,
+          "gap_fraction_recovered": 0.030521176690092668
+        },
+        {
+          "seed": 70291004,
+          "seat": 1,
+          "member": 3,
+          "cash": 50719.0,
+          "baseline": 48756.0,
+          "reference": 113072.0,
+          "cash_recovered": 1963.0,
+          "gap_fraction_recovered": 0.030521176690092668
+        }
+      ]
+    }
+  }
+}

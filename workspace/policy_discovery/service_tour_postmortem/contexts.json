@@ -1,0 +1,212 @@
+{
+  "contexts": [
+    {
+      "id": "70291001-s0-m0",
+      "seed": 70291001,
+      "seat": 0,
+      "member": 0,
+      "opponent": "shop_plus",
+      "p0_cash": 52073.0,
+      "shop_cash": 78418.0,
+      "retention": 0.6640439694967992,
+      "shop_route_step144": 0,
+      "shop_route_step648": 2,
+      "shops_step144": [
+        "PIZZA_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      "shops_step648": [
+        "PIZZA_SHOP",
+        "BRUNCH_SPOT",
+        "BAKERY",
+        "BRUNCH_SPOT",
+        "FARMERS_MARKET",
+        "YARN_STORE",
+        "SMOOTHIE_SHOP",
+        "YARN_STORE"
+      ]
+    },
+    {
+      "id": "70291001-s1-m0",
+      "seed": 70291001,
+      "seat": 1,
+      "member": 0,
+      "opponent": "shop_plus",
+      "p0_cash": 60819.0,
+      "shop_cash": 78418.0,
+      "retention": 0.7755744854497691,
+      "shop_route_step144": 0,
+      "shop_route_step648": 2,
+      "shops_step144": [
+        "PIZZA_SHOP",
+        "BRUNCH_SPOT"
+      ],
+      "shops_step648": [
+        "PIZZA_SHOP",
+        "BRUNCH_SPOT",
+        "BAKERY",
+        "BRUNCH_SPOT",
+        "FARMERS_MARKET",
+        "YARN_STORE",
+        "SMOOTHIE_SHOP",
+        "YARN_STORE"
+      ]
+    },
+    {
+      "id": "70291002-s0-m1",
+      "seed": 70291002,
+      "seat": 0,
+      "member": 1,
+      "opponent": "shop_direct",
+      "p0_cash": 68746.0,
+      "shop_cash": 105188.0,
+      "retention": 0.6535536372970301,
+      "shop_route_step144": 0,
+      "shop_route_step648": 2,
+      "shops_step144": [
+        "FARMERS_MARKET",
+        "PIZZA_SHOP"
+      ],
+      "shops_step648": [
+        "FARMERS_MARKET",
+        "PIZZA_SHOP",
+        "PIZZA_SHOP",
+        "ICE_CREAM_SHOP",
+        "YARN_STORE",
+        "PIZZA_SHOP",
+        "BAKERY",
+        "YARN_STORE"
+      ]
+    },
+    {
+      "id": "70291002-s1-m1",
+      "seed": 70291002,
+      "seat": 1,
+      "member": 1,
+      "opponent": "shop_direct",
+      "p0_cash": 68746.0,
+      "shop_cash": 105188.0,
+      "retention": 0.6535536372970301,
+      "shop_route_step144": 0,
+      "shop_route_step648": 2,
+      "shops_step144": [
+        "FARMERS_MARKET",
+        "PIZZA_SHOP"
+      ],
+      "shops_step648": [
+        "FARMERS_MARKET",
+        "PIZZA_SHOP",
+        "PIZZA_SHOP",
+        "ICE_CREAM_SHOP",
+        "YARN_STORE",
+        "PIZZA_SHOP",
+        "BAKERY",
+        "YARN_STORE"
+      ]
+    },
+    {
+      "id": "70291003-s0-m2",
+      "seed": 70291003,
+      "seat": 0,
+      "member": 2,
+      "opponent": "route3_broadcast",
+      "p0_cash": 26045.0,
+      "shop_cash": 93462.0,
+      "retention": 0.27866940574779053,
+      "shop_route_step144": 0,
+      "shop_route_step648": 2,
+      "shops_step144": [
+        "FARMERS_MARKET",
+        "FARMERS_MARKET"
+      ],
+      "shops_step648": [
+        "FARMERS_MARKET",
+        "FARMERS_MARKET",
+        "FARMERS_MARKET",
+        "PIZZA_SHOP",
+        "FARMERS_MARKET",
+        "BAKERY",
+        "BRUNCH_SPOT",
+        "YARN_STORE"
+      ]
+    },
+    {
+      "id": "70291003-s1-m2",
+      "seed": 70291003,
+      "seat": 1,
+      "member": 2,
+      "opponent": "route3_broadcast",
+      "p0_cash": 26045.0,
+      "shop_cash": 93462.0,
+      "retention": 0.27866940574779053,
+      "shop_route_step144": 0,
+      "shop_route_step648": 2,
+      "shops_step144": [
+        "FARMERS_MARKET",
+        "FARMERS_MARKET"
+      ],
+      "shops_step648": [
+        "FARMERS_MARKET",
+        "FARMERS_MARKET",
+        "FARMERS_MARKET",
+        "PIZZA_SHOP",
+        "FARMERS_MARKET",
+        "BAKERY",
+        "BRUNCH_SPOT",
+        "YARN_STORE"
+      ]
+    },
+    {
+      "id": "70291004-s0-m3",
+      "seed": 70291004,
+      "seat": 0,
+      "member": 3,
+      "opponent": "route12_broadcast",
+      "p0_cash": 48756.0,
+      "shop_cash": 113072.0,
+      "retention": 0.4311942832885241,
+      "shop_route_step144": 6,
+      "shop_route_step648": 2,
+      "shops_step144": [
+        "ICE_CREAM_SHOP",
+        "YARN_STORE"
+      ],
+      "shops_step648": [
+        "ICE_CREAM_SHOP",
+        "YARN_STORE",
+        "BAKERY",
+        "YARN_STORE",
+        "PET_CAFE",
+        "PET_CAFE",
+        "SMOOTHIE_SHOP",
+        "PET_CAFE"
+      ]
+    },
+    {
+      "id": "70291004-s1-m3",
+      "seed": 70291004,
+      "seat": 1,
+      "member": 3,
+      "opponent": "route12_broadcast",
+      "p0_cash": 48756.0,
+      "shop_cash": 113072.0,
+      "retention": 0.4311942832885241,
+      "shop_route_step144": 6,
+      "shop_route_step648": 2,
+      "shops_step144": [
+        "ICE_CREAM_SHOP",
+        "YARN_STORE"
+      ],
+      "shops_step648": [
+        "ICE_CREAM_SHOP",
+        "YARN_STORE",
+        "BAKERY",
+        "YARN_STORE",
+        "PET_CAFE",
+        "PET_CAFE",
+        "SMOOTHIE_SHOP",
+        "PET_CAFE"
+      ]
+    }
+  ]
+}

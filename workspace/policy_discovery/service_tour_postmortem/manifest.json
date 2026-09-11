@@ -1,0 +1,28 @@
+{
+  "team": "ReCurSiON",
+  "branch": "main",
+  "starting_head": "5afa465ca8332870fc5347bb64d1461c8b3e99d0",
+  "contexts": 8,
+  "seeds": [
+    70291001,
+    70291002,
+    70291003,
+    70291004
+  ],
+  "seats": [
+    0,
+    1
+  ],
+  "members": {
+    "0": "Shop Plus",
+    "1": "Shop direct parent",
+    "2": "route-3 broadcast under Plus runtime",
+    "3": "route-12 broadcast under Plus runtime"
+  },
+  "protected_data_used": false,
+  "native_fge": 76,
+  "cpu_only": true,
+  "cuda_fge": 0,
+  "classification": "B \u2014 PROGRAMME-BODY / EXECUTION INCOMPATIBILITY",
+  "verdict": "SERVICE-TOUR POSTMORTEM \u2014 KILL REPRESENTATION FAMILY"
+}

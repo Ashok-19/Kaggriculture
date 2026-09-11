@@ -1,0 +1,92 @@
+{
+  "contexts": [
+    {
+      "id": "70291001-s0-m0",
+      "step": 65,
+      "day": 2,
+      "hour": 17,
+      "category": "working_capital / realization coupled to service body",
+      "p0_state": "122 cash; 4 FERTILIZER stranded in worker cargo (3+1); repeated unaffordable BUY_ANIMAL COW request; no cow in shed",
+      "shop_state": "217 cash before action; 4 FERTILIZER consolidated on farmer; SELL FERTILIZER 4 + BUY_ANIMAL COW 1 + BUY_SEED WHEAT 1 at step 65; cow in shed at step 66 and placed at step 69",
+      "downstream_effect": "P0 misses the day-2 cow and enters repeated acquisition retries; service backlog and production deficit then compound before route selection at step 144",
+      "cash_gap_by_step264": -14903.0
+    },
+    {
+      "id": "70291001-s1-m0",
+      "step": 65,
+      "day": 2,
+      "hour": 17,
+      "category": "working_capital / realization coupled to service body",
+      "p0_state": "122 cash; 4 FERTILIZER stranded in worker cargo (3+1); repeated unaffordable BUY_ANIMAL COW request; no cow in shed",
+      "shop_state": "217 cash before action; 4 FERTILIZER consolidated on farmer; SELL FERTILIZER 4 + BUY_ANIMAL COW 1 + BUY_SEED WHEAT 1 at step 65; cow in shed at step 66 and placed at step 69",
+      "downstream_effect": "P0 misses the day-2 cow and enters repeated acquisition retries; service backlog and production deficit then compound before route selection at step 144",
+      "cash_gap_by_step264": -14731.0
+    },
+    {
+      "id": "70291002-s0-m1",
+      "step": 65,
+      "day": 2,
+      "hour": 17,
+      "category": "working_capital / realization coupled to service body",
+      "p0_state": "122 cash; 4 FERTILIZER stranded in worker cargo (3+1); repeated unaffordable BUY_ANIMAL COW request; no cow in shed",
+      "shop_state": "217 cash before action; 4 FERTILIZER consolidated on farmer; SELL FERTILIZER 4 + BUY_ANIMAL COW 1 + BUY_SEED WHEAT 1 at step 65; cow in shed at step 66 and placed at step 69",
+      "downstream_effect": "P0 misses the day-2 cow and enters repeated acquisition retries; service backlog and production deficit then compound before route selection at step 144",
+      "cash_gap_by_step264": -14595.0
+    },
+    {
+      "id": "70291002-s1-m1",
+      "step": 65,
+      "day": 2,
+      "hour": 17,
+      "category": "working_capital / realization coupled to service body",
+      "p0_state": "122 cash; 4 FERTILIZER stranded in worker cargo (3+1); repeated unaffordable BUY_ANIMAL COW request; no cow in shed",
+      "shop_state": "217 cash before action; 4 FERTILIZER consolidated on farmer; SELL FERTILIZER 4 + BUY_ANIMAL COW 1 + BUY_SEED WHEAT 1 at step 65; cow in shed at step 66 and placed at step 69",
+      "downstream_effect": "P0 misses the day-2 cow and enters repeated acquisition retries; service backlog and production deficit then compound before route selection at step 144",
+      "cash_gap_by_step264": -14595.0
+    },
+    {
+      "id": "70291003-s0-m2",
+      "step": 65,
+      "day": 2,
+      "hour": 17,
+      "category": "working_capital / realization coupled to service body",
+      "p0_state": "122 cash; 4 FERTILIZER stranded in worker cargo (3+1); repeated unaffordable BUY_ANIMAL COW request; no cow in shed",
+      "shop_state": "217 cash before action; 4 FERTILIZER consolidated on farmer; SELL FERTILIZER 4 + BUY_ANIMAL COW 1 + BUY_SEED WHEAT 1 at step 65; cow in shed at step 66 and placed at step 69",
+      "downstream_effect": "P0 misses the day-2 cow and enters repeated acquisition retries; service backlog and production deficit then compound before route selection at step 144",
+      "cash_gap_by_step264": -13638.0
+    },
+    {
+      "id": "70291003-s1-m2",
+      "step": 65,
+      "day": 2,
+      "hour": 17,
+      "category": "working_capital / realization coupled to service body",
+      "p0_state": "122 cash; 4 FERTILIZER stranded in worker cargo (3+1); repeated unaffordable BUY_ANIMAL COW request; no cow in shed",
+      "shop_state": "217 cash before action; 4 FERTILIZER consolidated on farmer; SELL FERTILIZER 4 + BUY_ANIMAL COW 1 + BUY_SEED WHEAT 1 at step 65; cow in shed at step 66 and placed at step 69",
+      "downstream_effect": "P0 misses the day-2 cow and enters repeated acquisition retries; service backlog and production deficit then compound before route selection at step 144",
+      "cash_gap_by_step264": -13638.0
+    },
+    {
+      "id": "70291004-s0-m3",
+      "step": 65,
+      "day": 2,
+      "hour": 17,
+      "category": "working_capital / realization coupled to service body",
+      "p0_state": "122 cash; 4 FERTILIZER stranded in worker cargo (3+1); repeated unaffordable BUY_ANIMAL COW request; no cow in shed",
+      "shop_state": "217 cash before action; 4 FERTILIZER consolidated on farmer; SELL FERTILIZER 4 + BUY_ANIMAL COW 1 + BUY_SEED WHEAT 1 at step 65; cow in shed at step 66 and placed at step 69",
+      "downstream_effect": "P0 misses the day-2 cow and enters repeated acquisition retries; service backlog and production deficit then compound before route selection at step 144",
+      "cash_gap_by_step264": -16091.0
+    },
+    {
+      "id": "70291004-s1-m3",
+      "step": 65,
+      "day": 2,
+      "hour": 17,
+      "category": "working_capital / realization coupled to service body",
+      "p0_state": "122 cash; 4 FERTILIZER stranded in worker cargo (3+1); repeated unaffordable BUY_ANIMAL COW request; no cow in shed",
+      "shop_state": "217 cash before action; 4 FERTILIZER consolidated on farmer; SELL FERTILIZER 4 + BUY_ANIMAL COW 1 + BUY_SEED WHEAT 1 at step 65; cow in shed at step 66 and placed at step 69",
+      "downstream_effect": "P0 misses the day-2 cow and enters repeated acquisition retries; service backlog and production deficit then compound before route selection at step 144",
+      "cash_gap_by_step264": -16091.0
+    }
+  ]
+}

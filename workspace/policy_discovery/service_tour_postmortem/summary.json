@@ -1,0 +1,30 @@
+{
+  "classification": "B \u2014 PROGRAMME-BODY / EXECUTION INCOMPATIBILITY",
+  "salvage": false,
+  "key_findings": [
+    "Shop route selection cannot explain the majority of failure: 6/8 contexts keep Shop route 0 at step 144; only seed 70291004 selects route 6, and all force route 2 at step 648.",
+    "The first persistent divergence occurs at step 65, before route selection: P0 strands 4 fertilizer in worker cargo and cannot finance the declared cow, while Shop realizes the same fertilizer and funds the cow.",
+    "P0 broadly under-completes its own declared tours: about 76.5-77.1% aggregate completion, 396-407 missed day obligations, and 375-389 cumulative carry-over by day 28.",
+    "Whole-game production is broadly lower even in route-0 contexts: wheat about 262 vs 517, strawberries 77-85 vs 249, melon 6 vs 72, with lower animal harvests as well.",
+    "Public market trajectories diverge materially later, especially under route-3/12 opponents, but service/financing failure starts before those market regimes separate.",
+    "No small programme-level diagnostic generalizes: +1-day animal deferral median gap recovery 6.65%; +1 daily hire median -17.43%; completed-tour capital realization is mixed and far below the >=50% multi-context salvage threshold."
+  ],
+  "answers": {
+    "low_level_bodies_broadly_competent": "NO",
+    "most_loss_small_programme_decisions": "NO",
+    "legal_programme_selection_plausibly_recovers_without_rebuild": "NO",
+    "bounded_programme_counterfactual_recovers_material_fraction_multi_context": "NO",
+    "salvage_service_tour_representation": "NO"
+  },
+  "hidden_information_dependency": false,
+  "reference_unchanged": true,
+  "champion_unchanged": true,
+  "work": {
+    "native_fge": 76,
+    "cpu_native_fge": 76,
+    "cuda_fge": 0,
+    "fresh_protected_fge": 0,
+    "official_games": 0
+  },
+  "verdict": "SERVICE-TOUR POSTMORTEM \u2014 KILL REPRESENTATION FAMILY"
+}
