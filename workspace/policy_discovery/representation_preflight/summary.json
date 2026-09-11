@@ -1,0 +1,13 @@
+{
+  "questions": {
+    "1_competent_economy": "NO",
+    "2_materially_different_opening_economies": "YES (preliminary probes; formal Gate 3 not run after stop)",
+    "3_exact_snapshot_restore": "NOT VALIDATED",
+    "4_cpu_cuda_bkg4_compatible_exactness": "PARTIAL: CPU/CUDA exact on final smoke; full BKG4/snapshot gate not run",
+    "5_justify_learned_expert_iteration_pilot": "NO"
+  },
+  "hidden_information_dependency": false,
+  "reference_unchanged": true,
+  "champion_unchanged": true,
+  "verdict": "REPRESENTATION PREFLIGHT FAIL — HIERARCHICAL EXPERT ITERATION INTERFACE NOT VALIDATED"
+}

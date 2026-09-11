@@ -1,0 +1,28 @@
+{
+  "fields": {
+    "livestock_targets": ["cow", "sheep", "goose"],
+    "crop_targets": ["wheat", "carrot", "tomato", "strawberry", "melon"],
+    "land_target": true,
+    "labour_target": true,
+    "cash_reserve": true,
+    "feed_financing_mode": ["maintain", "buyback"],
+    "service_priority": ["feed", "water", "care", "harvest", "expansion", "plant"],
+    "spatial_allocation_mode": ["shed_distance", "row_major", "column_major", "quadrant_local"],
+    "sales_mode": ["sell_all", "sell_excess", "sell_day_end"],
+    "commitment_duration_turns": [24, 72]
+  },
+  "mechanical_tasks": [
+    "movement", "pickup", "deposit", "build", "plant", "water", "feed", "care",
+    "harvest", "collect_fertilizer", "dig", "animal_place", "hire", "land_purchase",
+    "seed_purchase", "product_purchase", "animal_purchase", "market_sale", "final_liquidation"
+  ],
+  "persistent_state": {
+    "bounded": true,
+    "workers": 16,
+    "task_assignment_per_worker": true,
+    "task_timeout": true,
+    "commitment_stage": true,
+    "money_history_summaries": true,
+    "hidden_side_channel": false
+  }
+}

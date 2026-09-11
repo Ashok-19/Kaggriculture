@@ -1,0 +1,15 @@
+{
+  "notes": "Bounded preflight probes only; not optimized policies.",
+  "examples": [
+    {"name":"wheat_only","dimensions_changed":["crop allocation","labour"],"pre144_divergence":true},
+    {"name":"strawberry_only","dimensions_changed":["crop allocation","labour"],"pre144_divergence":true},
+    {"name":"mixed_wheat_strawberry","dimensions_changed":["crop allocation","labour"],"pre144_divergence":true},
+    {"name":"cow_wheat","dimensions_changed":["herd allocation","crop allocation","labour"],"pre144_divergence":true},
+    {"name":"sheep_wheat","dimensions_changed":["herd allocation","crop allocation","labour"],"pre144_divergence":true},
+    {"name":"mixed_livestock_land","dimensions_changed":["herd allocation","crop allocation","land","labour"],"pre144_divergence":true},
+    {"name":"shoplike_staged","dimensions_changed":["opening investment","land","labour","crop allocation","herd allocation"],"pre144_divergence":true},
+    {"name":"shoplike_high_workforce","dimensions_changed":["opening investment","land","labour","crop allocation","herd allocation"],"pre144_divergence":true}
+  ],
+  "formal_gate3_completed": false,
+  "reason": "Mandatory Gate-2 stop triggered before formal Gate-3 campaign."
+}

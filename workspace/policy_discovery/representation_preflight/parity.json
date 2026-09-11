@@ -1,0 +1,21 @@
+{
+  "final_smoke": {
+    "rows": 6,
+    "cpu_cuda_stdout_identical": true,
+    "mismatch_count": 0
+  },
+  "reference_mode": {
+    "implementation": "direct frozen shop_router_0909 reference tick and route pack",
+    "shop_assets_modified": false,
+    "champion_assets_modified": false
+  },
+  "snapshot_continuation": {
+    "run": false,
+    "reason": "Not run after mandatory Gate-2 productivity stop."
+  },
+  "official_canary": {
+    "run": false,
+    "games": 0,
+    "reason": "Not run after mandatory Gate-2 productivity stop."
+  }
+}

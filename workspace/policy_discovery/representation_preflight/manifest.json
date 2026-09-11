@@ -1,0 +1,35 @@
+{
+  "architecture": "BKG4-projected hierarchical Expert Iteration",
+  "branch": "main",
+  "starting_head": "ddd340e769028326bcc929fdf28fb64321315ab6",
+  "team": "ReCurSiON",
+  "reference": {
+    "agent": "shop_router_0909/plus",
+    "nodes": 85,
+    "blackboard_slots": 2,
+    "node_state_slots": 0,
+    "controller_bytes": 3224,
+    "controller_sha256": "84bbfe9a32ccf4d202664500b28bba787dab18cb18180c539d70f1890b1cc450",
+    "route_pack": "13 x 719",
+    "route_pack_sha256": "f711680c0c4514be70c97e64491f969ad31d79edd6a639b42cf950b98eebe696"
+  },
+  "experimental_runtime": {
+    "max_workers": 16,
+    "plan_bytes": 22,
+    "bundle_bytes": 222,
+    "task_state_bytes": 8,
+    "runtime_state_bytes": 160,
+    "bkg4_blackboard_slots_used": 0,
+    "bkg4_node_state_slots_used": 0,
+    "native_auxiliary_state_bytes": 160,
+    "legal_observation_only": true
+  },
+  "work": {
+    "native_fge_upper_bound": 226,
+    "simulated_turns_upper_bound": 162494,
+    "formal_gate2_fge": 64,
+    "official_games": 0
+  },
+  "stop_reason": "Gate 2 productivity ratio far below 0.95",
+  "verdict": "REPRESENTATION PREFLIGHT FAIL — HIERARCHICAL EXPERT ITERATION INTERFACE NOT VALIDATED"
+}

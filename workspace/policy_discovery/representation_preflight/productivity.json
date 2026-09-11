@@ -1,0 +1,23 @@
+{
+  "gate": 2,
+  "seeds": 32,
+  "games": 64,
+  "both_seats": true,
+  "panel_members": 4,
+  "median_candidate_cash": 12620.0,
+  "median_paired_shop_cash": 93628.0,
+  "median_per_game_cash_ratio": 0.12992866352873594,
+  "ratio_of_medians": 0.13478873841158628,
+  "required_ratio": 0.95,
+  "utility": {"W": 0, "T": 0, "L": 64},
+  "runtime_faults": 0,
+  "pre144_divergences": 64,
+  "median_workers": 11.0,
+  "median_land": 1.0,
+  "median_failed_tasks": 0.0,
+  "median_timeouts": 0.0,
+  "median_unsold_goods": 0.0,
+  "median_discarded_goods": 0.0,
+  "pass": false,
+  "stop_condition_triggered": true
+}
