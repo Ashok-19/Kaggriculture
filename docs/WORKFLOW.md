@@ -2,57 +2,54 @@
 
 ## Development
 
-Install the editable package, make scoped changes inside the matching package,
-and run the nearest unit and integration tests. Never restore an old experiment
-directory to satisfy a test; replace archaeological fixtures with fresh or
-synthetic current fixtures.
+Install the editable package, make scoped changes inside the matching package, and run the nearest unit/integration/parity tests. Never restore archaeological experiment code merely to satisfy a test. Replace stale fixtures with current or synthetic evidence.
 
-## Bounded CUDA experiment
+## LLM lane candidate workflow
 
-Build with `scripts/build_cuda.py`. Generate fresh self-play into `workspace/`,
-assemble a multi-seed, both-seat, multi-member BUILD panel, and generate a
-disjoint INTERNAL_DEV rotation. `workspace/` is tracked: keep compact reproducible
-evidence, and commit or delete every non-ignored artifact before finishing. Never
-create `scratch/`, and do not place evidence that must be tracked inside a path
-component named `build/`. Validate the campaign configuration before running.
-Keep experiments bounded and record CUDA games, protected W->L, and semantic
-mismatches.
+All new strategic discovery follows `docs/FINAL_LLM_LANE_EVOLUTION_PLAN.md`.
 
-For an equal-context comparison of donor-window RLRMB and synthesized local
-Bonsai rules, build the native binaries and run:
+Each agent task must:
 
-```bash
-.venv/bin/python scripts/run_oracle_bakeoff.py \
-  --output workspace/oracle_bakeoff --discovery-games 9600
+1. verify HEAD/status and lane authority;
+2. inspect the actual parent/source/engine needed for the lane;
+3. read compact lane dead-end/counterexample evidence;
+4. state one primary causal hypothesis;
+5. implement an executable candidate rather than prose advice;
+6. keep runtime information legal and deterministic;
+7. run focused static/semantic checks;
+8. leave large-scale evaluation to CUDA;
+9. emit compact candidate metadata and evidence;
+10. stop at the assigned proposal/revision budget.
+
+The first authorized architecture step is the bounded **8-agent manual lane pilot**. Do not build a large autonomous LLM orchestration service before that pilot demonstrates useful proposal signal.
+
+## Bounded CUDA funnel
+
+Use a staged funnel rather than immediately evaluating every LLM proposal on thousands of games:
+
+```text
+compile / legality / focused semantic tests
+-> 32-64 fresh BUILD games
+-> 128-256 fresh CUDA confirmation if useful
+-> up to 512-game multi-regime confirmation for survivors
+-> freeze
+-> INTERNAL_DEV
 ```
 
-This freezes one fresh-self-play context and gives both methods the same
-discovery budget. `--reuse-context` repeats search while verifying every panel
-hash. The bakeoff writes evidence under `workspace/` and never updates the
-champion. RLRMB and Direct-Bonsai are now frozen diagnostic baselines, not the
-primary discovery path.
+CUDA is mandatory for bulk evaluation. CPU/C++ is for reference checks and small parity work. Record all game/turn work and semantic mismatches.
 
-All new discovery work must follow `docs/FIRST_PLACE_EXECUTION_PLAN.md`. The
-immediate authorized task is Phase 1: exact controller-state continuation/fork
-fidelity plus the bounded fork-and-repair value experiment. Do not implement CCPR,
-DSQD, later challenge-frontier machinery, or large campaigns before their gates.
+## Evidence roles
 
-The frozen historical comparison context is at `workspace/aspe/baseline/`.
-Verify its complete file hashes and deterministic manifest regeneration with:
+BUILD is fresh internal self-play/adversarial evidence by default. Public/historical source may be exposed to a generation agent only when explicitly tagged `TRAINING_SOURCE`; it then loses independent holdout status for that epoch.
 
-```bash
-.venv/bin/python scripts/freeze_aspe_baseline.py --verify
-```
+INTERNAL_DEV is independent from BUILD. TRANSFER/VALIDATION/CEGIS/SEALED remain downstream firewalls. Any panel whose result is used to design a later candidate is retired as unseen evidence.
+
+Do not use leaderboard score as an evolutionary reward.
 
 ## Champion update
 
-Only a candidate that completes routing, independent TRANSFER/VALIDATION,
-CEGIS/SEALED safety, composition, and parity may replace `assets/champion/`.
-Update all controller/route assets atomically and retain a compact hash manifest.
-Never overwrite the champion from an incomplete campaign.
+Only the complete composed BKG4 policy may replace `assets/champion/`, after routing/composition, independent transfer/validation, protected safety gates, CPU/CUDA parity, and the official 64/128-game Python canary. Individual lane specialists are never promoted directly.
 
-## Official canary
+## Repository hygiene
 
-Official Python/Kaggle canaries are a later release step, not a BUILD input.
-Package from the current runtime and champion only after local CPU/CUDA parity.
-Do not submit or inspect public opponents during discovery.
+`workspace/` is tracked compact evidence. Keep accepted candidate summaries small; do not commit giant logs or transient binaries. Commit or remove every non-ignored artifact before finishing. Never create `scratch/`.

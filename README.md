@@ -53,8 +53,8 @@ kaggriculture-bonsai --config configs/campaign.json --output workspace/runs/demo
 .venv/bin/pytest -q tests/parity
 ```
 
-Build native binaries before parity tests. The authoritative implementation roadmap is
-[First-Place Execution Plan](docs/FIRST_PLACE_EXECUTION_PLAN.md); the supporting
-research rationale is [First-Place Master Plan](docs/FIRST_PLACE_MASTER_PLAN.md).
+Build native binaries before parity tests. The authoritative discovery and implementation roadmap is
+[Final LLM Lane Evolution Plan](docs/FINAL_LLM_LANE_EVOLUTION_PLAN.md). The retained learned-policy/RL alternative is
+[Final Policy Discovery Architecture](docs/FINAL_POLICY_DISCOVERY_ARCHITECTURE.md).
 See also [architecture](docs/ARCHITECTURE.md), [layout](docs/REPO_LAYOUT.md), and
 [workflow](docs/WORKFLOW.md).

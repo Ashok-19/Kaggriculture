@@ -1,30 +1,27 @@
 # Repository Layout
 
-- `src/kaggriculture_bonsai/league/`: self-play, league, multi-regime BUILD,
-  and INTERNAL_DEV.
-- `src/kaggriculture_bonsai/search/`: RLRMB IR, evaluation, beam/QD, repair,
-  campaign pipeline, checkpoints, and restart memory.
-- `src/kaggriculture_bonsai/routing/`: diagnostics, binary routing, CEGIS,
-  materialization, and downstream certification.
-- `src/kaggriculture_bonsai/composition/`: BKG4 specialist synthesis and
-  composition.
-- `src/kaggriculture_bonsai/runtime/`: BKG3/BKG4 interpreters, route codec,
-  compatibility overlays, and champion agent.
-- `src/kaggriculture_bonsai/evaluation/`: C++ reference-oracle interface.
-- `native/bkg4/`, `native/cuda/`, `native/cpp/`: minimal native dependency
-  closure for BKG4 execution, CUDA evaluation, and CPU reference semantics.
-- `assets/champion/`: the sole authoritative compiled champion and manifest.
-- `assets/baseline/`: two internal route programs used as bounded motif seeds.
-- `configs/`: current campaign template and donor manifest.
-- `scripts/`: native and champion-asset build entrypoints.
-- `tests/unit`, `tests/integration`, `tests/parity`: active behavioral signal.
-- `workspace/`: tracked compact experiment evidence and reproducible run context.
-  Disposable build/cache subpaths are allowed only where matched by the current
-  `.gitignore`; every other workspace artifact must be committed or deleted.
-- `external/`: ignored, user-provided HOLDOUT panels.
+## Active source and runtime
 
+- `src/kaggriculture_bonsai/`: Python package, current agents, runtime integrations, and policy-generation code.
+- `native/bkg4/`: Bonsai/BKG4 ABI, VM, adapters and compilation/runtime support.
+- `native/cpp/`: C++ reference simulator and native bridges.
+- `native/cuda/`: CUDA simulator/evaluators for large-scale exact search/evaluation.
+- `assets/champion/`: sole authoritative released champion assets.
+- `configs/`: current runtime/campaign configuration.
+- `scripts/`: bounded build/evaluation/maintenance entry points.
+- `tests/unit`, `tests/integration`, `tests/parity`: active behavioral signal.
+
+## Evidence
+
+- `workspace/`: tracked compact experiment evidence and reproducible run context. Disposable build/cache subpaths are allowed only where matched by `.gitignore`; every other workspace artifact must be committed or removed.
+- `external/`: ignored user-provided external/HOLDOUT material.
+- Never create `scratch/`.
 
 ## Current planning authority
 
-- `docs/FIRST_PLACE_EXECUTION_PLAN.md`: authoritative phase-by-phase implementation roadmap and gates.
-- `docs/FIRST_PLACE_MASTER_PLAN.md`: supporting research rationale, architecture comparison, and source ledger.
+- `docs/FINAL_LLM_LANE_EVOLUTION_PLAN.md`: authoritative discovery/execution roadmap.
+- `docs/FINAL_POLICY_DISCOVERY_ARCHITECTURE.md`: retained last RL/learned-policy research alternative; not active authority.
+- `docs/ARCHITECTURE.md`: compact current architecture summary.
+- `docs/WORKFLOW.md`: active implementation/evaluation workflow.
+
+Older deterministic/gold/service-tour planning documents have been retired from live authority; their historical contents remain recoverable from Git history and their experiment evidence remains under `workspace/`.
